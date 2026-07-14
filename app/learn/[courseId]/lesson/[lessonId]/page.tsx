@@ -198,15 +198,15 @@ export default function LessonViewPage() {
 
       if (quizData) {
         console.log('Setting quiz data:', quizData)
-        setQuiz(quizData)
+        setQuiz(quizData as any)
 
         // Fetch quiz questions for this quiz
         try {
-          console.log('Fetching quiz questions for quiz:', quizData.id)
+          console.log('Fetching quiz questions for quiz:', (quizData as any).id)
           const { data: questionsData } = await supabase
             .from('quiz_questions')
             .select('*')
-            .eq('quiz_id', quizData.id)
+            .eq('quiz_id', (quizData as any).id)
             .order('order_index', { ascending: true })
 
           if (questionsData && questionsData.length > 0) {
@@ -273,7 +273,8 @@ export default function LessonViewPage() {
     try {
       setSavingNote(true)
 
-      const { data, error } = await supabase
+      const supabaseInsert = supabase as any
+      const { data, error } = await supabaseInsert
         .from('notes')
         .insert({
           user_id: currentUser.id,
@@ -287,7 +288,7 @@ export default function LessonViewPage() {
 
       if (error) throw error
 
-      setNotes([data, ...notes])
+      setNotes([data, ...notes] as any)
       if (!autoSave) {
         setNewNote('') // Clear input only on manual save
       }
@@ -307,13 +308,13 @@ export default function LessonViewPage() {
     try {
       const { error } = await supabase
         .from('notes')
-        .update({ is_deleted: true } as any)
+        .delete()
         .eq('id', noteId)
         .eq('user_id', currentUser.id)
 
       if (error) throw error
 
-      setNotes(notes.filter(note => note.id !== noteId))
+      setNotes(notes.filter((note: any) => note.id !== noteId))
     } catch (error) {
       console.error('Error deleting note:', error)
       alert('Failed to delete note. Please try again.')
@@ -328,27 +329,29 @@ export default function LessonViewPage() {
 
       if (lessonProgress) {
         // Update existing progress
-        const { error } = await supabase
+        const supabaseUpdate = supabase as any
+        const { error } = await supabaseUpdate
           .from('lesson_progress')
           .update({
             completed: !isCompleted,
             completed_at: !isCompleted ? new Date().toISOString() : null,
-            updated_at: new Date().toISOString()
+            last_accessed_at: new Date().toISOString()
           })
           .eq('id', lessonProgress.id)
 
         if (error) throw error
       } else {
         // Create new progress record
-        const { error } = await supabase
+        const supabaseInsert = supabase as any
+        const { error } = await supabaseInsert
           .from('lesson_progress')
           .insert({
             user_id: currentUser.id,
             lesson_id: lessonId,
-            course_id: courseId,
             completed: !isCompleted,
             completed_at: !isCompleted ? new Date().toISOString() : null,
-            progress_percentage: !isCompleted ? 100 : 0
+            time_spent_seconds: 0,
+            last_accessed_at: new Date().toISOString()
           })
 
         if (error) throw error
@@ -710,10 +713,10 @@ export default function LessonViewPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <h4 className="font-medium text-sm truncate">{l.title}</h4>
-                              {l.video_duration && (
+                              {l.duration_minutes && (
                                 <p className="text-xs text-muted-foreground">
                                   <Clock className="w-3 h-3 inline mr-1" />
-                                  {Math.floor(l.video_duration / 60)}m
+                                  {Math.floor(l.duration_minutes / 60)}m
                                 </p>
                               )}
                             </div>

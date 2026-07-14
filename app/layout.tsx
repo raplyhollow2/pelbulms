@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
+import { Inter } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: "Pelbu LMS - Advanced Learning Platform",
@@ -30,7 +34,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className="h-full antialiased"
+      className={cn("h-full antialiased", "font-sans", inter.variable)}
       style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif' }}
     >
       <body className="min-h-full flex flex-col">

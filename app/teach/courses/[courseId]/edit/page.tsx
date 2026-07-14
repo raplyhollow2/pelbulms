@@ -76,29 +76,30 @@ export default function EditCoursePage() {
       }
 
       // Check if user is the instructor
-      if (courseData.instructor_id !== user.id) {
+      if ((courseData as any).instructor_id !== user.id) {
         alert('Access denied. You can only edit your own courses.')
         router.push('/teach/dashboard')
         return
       }
 
       setCourse(courseData)
+      const course = courseData as any
       setCourseData({
-        title: courseData.title,
-        slug: courseData.slug,
-        description: courseData.description || '',
-        category: courseData.category,
-        level: courseData.level,
-        language: courseData.language,
-        price: courseData.price,
-        duration_minutes: courseData.duration_minutes || 0,
-        prerequisites: courseData.prerequisites || [],
-        learning_objectives: courseData.learning_objectives || [],
-        requirements: courseData.requirements || [],
-        tags: courseData.tags || [],
-        is_published: courseData.is_published,
-        is_featured: courseData.is_featured
-      })
+        title: course.title,
+        slug: course.slug,
+        description: course.description || '',
+        category: course.category,
+        level: course.level,
+        language: course.language,
+        price: course.price,
+        duration_minutes: course.duration_minutes || 0,
+        prerequisites: course.prerequisites || [],
+        learning_objectives: course.learning_objectives || [],
+        requirements: course.requirements || [],
+        tags: course.tags || [],
+        is_published: (course as any).is_published,
+        is_featured: course.is_featured
+      } as any)
 
       // Fetch modules
       const { data: modulesData } = await supabase
@@ -110,7 +111,7 @@ export default function EditCoursePage() {
       if (modulesData) {
         // Count lessons for each module
         const modulesWithCounts = await Promise.all(
-          modulesData.map(async (module) => {
+          (modulesData as any).map(async (module: any) => {
             const { count } = await supabase
               .from('lessons')
               .select('*', { count: 'exact', head: true })
@@ -146,7 +147,8 @@ export default function EditCoursePage() {
         .replace(/^-+|-+$/g, '')
 
       // Update course
-      const { error } = await supabase
+      const supabaseUpdate = supabase as any
+      const { error } = await supabaseUpdate
         .from('courses')
         .update({
           title: courseData.title,
@@ -161,7 +163,7 @@ export default function EditCoursePage() {
           learning_objectives: courseData.learning_objectives.length > 0 ? courseData.learning_objectives : null,
           requirements: courseData.requirements.length > 0 ? courseData.requirements : null,
           tags: courseData.tags.length > 0 ? courseData.tags : null,
-          is_published: courseData.is_published,
+          is_published: (courseData as any).is_published,
           is_featured: courseData.is_featured,
           updated_at: new Date().toISOString()
         })
@@ -193,16 +195,17 @@ export default function EditCoursePage() {
       updated_at: new Date().toISOString(),
       lessons_count: 0
     }
-    setModules([...modules, newModule])
+    setModules([...modules, newModule] as any)
   }
 
   const updateModule = async (id: string, updates: Partial<typeof modules[0]>) => {
     // Optimistic update
-    setModules(modules.map(mod => mod.id === id ? { ...mod, ...updates } : mod))
+    setModules(modules.map((mod: any) => mod.id === id ? { ...mod, ...updates } : mod))
 
     // Persist to database
     try {
-      const { error } = await supabase
+      const supabaseUpdate = supabase as any
+      const { error } = await supabaseUpdate
         .from('modules')
         .update({
           ...updates,
@@ -242,7 +245,7 @@ export default function EditCoursePage() {
       if (moduleError) throw moduleError
 
       // Update local state
-      setModules(modules.filter(mod => mod.id !== id))
+      setModules(modules.filter((mod: any) => mod.id !== id))
     } catch (error) {
       console.error('Error deleting module:', error)
       alert('Failed to delete module. Please try again.')
@@ -319,7 +322,7 @@ export default function EditCoursePage() {
                 <Input
                   id="title"
                   value={courseData.title}
-                  onChange={(e) => setCourseData({ ...courseData, title: e.target.value })}
+                  onChange={(e) => setCourseData({ ...courseData, title: e.target.value } as any)}
                   placeholder="Introduction to Python Programming"
                   className="mt-1"
                 />
@@ -330,7 +333,7 @@ export default function EditCoursePage() {
                 <Input
                   id="category"
                   value={courseData.category}
-                  onChange={(e) => setCourseData({ ...courseData, category: e.target.value })}
+                  onChange={(e) => setCourseData({ ...courseData, category: e.target.value } as any)}
                   placeholder="Programming"
                   className="mt-1"
                 />
@@ -342,7 +345,7 @@ export default function EditCoursePage() {
               <Textarea
                 id="description"
                 value={courseData.description}
-                onChange={(e) => setCourseData({ ...courseData, description: e.target.value })}
+                onChange={(e) => setCourseData({ ...courseData, description: e.target.value } as any)}
                 placeholder="Learn Python from scratch..."
                 rows={3}
                 className="mt-1 resize-none"
@@ -355,7 +358,7 @@ export default function EditCoursePage() {
                 <select
                   id="level"
                   value={courseData.level}
-                  onChange={(e) => setCourseData({ ...courseData, level: e.target.value })}
+                  onChange={(e) => setCourseData({ ...courseData, level: e.target.value } as any)}
                   className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
                   <option value="beginner">Beginner</option>
@@ -369,7 +372,7 @@ export default function EditCoursePage() {
                 <Input
                   id="language"
                   value={courseData.language}
-                  onChange={(e) => setCourseData({ ...courseData, language: e.target.value })}
+                  onChange={(e) => setCourseData({ ...courseData, language: e.target.value } as any)}
                   placeholder="English"
                   className="mt-1"
                 />
@@ -381,7 +384,7 @@ export default function EditCoursePage() {
                   id="duration"
                   type="number"
                   value={courseData.duration_minutes}
-                  onChange={(e) => setCourseData({ ...courseData, duration_minutes: parseInt(e.target.value) || 0 })}
+                  onChange={(e) => setCourseData({ ...courseData, duration_minutes: parseInt(e.target.value) || 0 } as any)}
                   placeholder="300"
                   className="mt-1"
                 />
@@ -392,8 +395,8 @@ export default function EditCoursePage() {
               <div className="flex items-center space-x-2">
                 <Switch
                   id="published"
-                  checked={courseData.is_published}
-                  onCheckedChange={(checked) => setCourseData({ ...courseData, is_published: checked })}
+                  checked={(courseData as any).is_published}
+                  onCheckedChange={(checked) => setCourseData({ ...courseData, is_published: checked } as any)}
                 />
                 <Label htmlFor="published">Published</Label>
               </div>
@@ -402,7 +405,7 @@ export default function EditCoursePage() {
                 <Switch
                   id="featured"
                   checked={courseData.is_featured}
-                  onCheckedChange={(checked) => setCourseData({ ...courseData, is_featured: checked })}
+                  onCheckedChange={(checked) => setCourseData({ ...courseData, is_featured: checked } as any)}
                 />
                 <Label htmlFor="featured">Featured course</Label>
               </div>
@@ -489,7 +492,7 @@ export default function EditCoursePage() {
                         <Badge variant="outline" className="text-xs">
                           {module.lessons_count || 0} lessons
                         </Badge>
-                        {!module.is_published && (
+                        {!(module as any).is_published && (
                           <Badge variant="secondary" className="text-xs">Draft</Badge>
                         )}
                       </div>

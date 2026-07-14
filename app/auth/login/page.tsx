@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { BookOpen, Loader2, AlertCircle, Fingerprint } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -30,7 +30,7 @@ const AppleIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
-export default function LoginPage() {
+function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(false)
@@ -207,3 +207,13 @@ export default function LoginPage() {
     </div>
   )
 }
+// Wrapper component with Suspense boundary
+function LoginPageWrapper() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 animate-spin text-bhutan-yellow" /></div>}>
+      <LoginPage />
+    </Suspense>
+  )
+}
+
+export default LoginPageWrapper

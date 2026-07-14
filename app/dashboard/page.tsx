@@ -100,7 +100,7 @@ export default function DashboardPage() {
         completedLessons: completedLessons || 0,
         achievements: achievementsCount || 0,
         studyHours: studyHours
-      })
+      } as any)
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error)

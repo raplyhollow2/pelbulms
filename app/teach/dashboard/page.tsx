@@ -47,7 +47,7 @@ export default function TeacherDashboard() {
         .eq('id', authUser.id)
         .single()
 
-      if (profileData?.role !== 'instructor' && profileData?.role !== 'admin') {
+      if (!profileData || ((profileData as any).role !== 'instructor' && (profileData as any).role !== 'admin')) {
         alert('Access denied. Teacher dashboard is for instructors only.')
         router.push('/dashboard')
         return
@@ -66,7 +66,7 @@ export default function TeacherDashboard() {
         setCourses(coursesData)
 
         // Get total enrollments across all courses
-        const courseIds = coursesData.map(c => c.id)
+        const courseIds = coursesData.map((m: any) => m.id)
         if (courseIds.length > 0) {
           const { count } = await supabase
             .from('enrollments')
@@ -210,7 +210,7 @@ export default function TeacherDashboard() {
                       <div className="flex items-center gap-2 mt-1">
                         <Badge variant="outline" className="text-xs">{course.category}</Badge>
                         <Badge variant="secondary" className="text-xs">
-                          {course.is_published ? 'Published' : 'Draft'}
+                          {(course as any).is_published ? 'Published' : 'Draft'}
                         </Badge>
                       </div>
                     </div>

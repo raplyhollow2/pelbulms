@@ -55,7 +55,7 @@ export async function GET(request: Request) {
       }
 
       if (data.session) {
-        console.log('Authentication successful for:', data.session.user.email)
+        console.log('Authentication successful for:', (data.session.user as any).email)
         // Successful authentication, redirect to dashboard
         return NextResponse.redirect(`${requestUrl.origin}/dashboard`)
       }

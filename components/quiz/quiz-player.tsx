@@ -84,7 +84,7 @@ export function QuizPlayer({ quizId, lessonId, courseId, quizData, questionsData
       if (!quizData) return
 
       setQuiz(quizData)
-      setTimeRemaining(quizData.time_limit_minutes * 60 || 0)
+      setTimeRemaining((quizData as any).time_limit_minutes * 60 || 0)
 
       // Fetch questions
       const { data: questionsData } = await supabase
@@ -172,7 +172,8 @@ export function QuizPlayer({ quizId, lessonId, courseId, quizData, questionsData
 
       if (!user) return
 
-      const { data: attemptData } = await supabase
+      const supabaseInsert = supabase as any
+      const { data: attemptData } = await supabaseInsert
         .from('quiz_attempts')
         .insert({
           user_id: user.id,

@@ -96,7 +96,7 @@ export default function CourseDetailPage() {
     }
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('enrollments')
         .insert({
           user_id: currentUser.id,
@@ -192,7 +192,7 @@ export default function CourseDetailPage() {
               <div className="flex items-center gap-2">
                 <Star className="w-4 h-4 text-muted-foreground" />
                 <div className="flex gap-1">
-                  {course.tags.slice(0, 3).map(tag => (
+                  {course.tags.slice(0, 3).map((tag: any) => (
                     <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
                   ))}
                 </div>

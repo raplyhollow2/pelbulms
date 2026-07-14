@@ -113,6 +113,4 @@ export interface Database {
 
 // Export common types for convenience
 export type Tables = Database['public']['Tables']
-export type TablesInsert = Database['public']['Tables']['Insert']
-export type TablesUpdate = Database['public']['Tables']['Update']
 export type Enums = Database['public']['Enums']

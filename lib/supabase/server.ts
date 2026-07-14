@@ -9,8 +9,8 @@ import type { Database } from '@/types/database'
  *
  * @returns Supabase client with admin privileges for server operations
  */
-export const createServerClient = () => {
-  const cookieStore = cookies()
+export const createSupabaseServerClient = () => {
+  const cookieStore = cookies() as any
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -35,7 +35,7 @@ export const createServerClient = () => {
  * Use this ONLY for operations that require elevated permissions
  * WARNING: Use sparingly and never expose to client-side code
  */
-export const createServiceClient = () => {
+export const createServiceClient = async () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
@@ -43,19 +43,20 @@ export const createServiceClient = () => {
     throw new Error('Missing Supabase service role credentials')
   }
 
+  const cookieStore = await cookies()
   return createServerClient<Database>(
     supabaseUrl,
     supabaseServiceKey,
     {
       cookies: {
         get(name: string) {
-          return cookies().get(name)?.value
+          return cookieStore.get(name)?.value
         },
         set(name: string, value: string, options: any) {
-          cookies().set({ name, value, ...options })
+          cookieStore.set({ name, value, ...options })
         },
         remove(name: string, options: any) {
-          cookies().set({ name, value: '', ...options })
+          cookieStore.set({ name, value: '', ...options })
         },
       },
     }
@@ -66,13 +67,13 @@ export const createServiceClient = () => {
  * Singleton server client instance
  * Use this for direct imports in server components
  */
-let serverClient: ReturnType<typeof createServerClient> | null = null
+let serverClient: ReturnType<typeof createSupabaseServerClient> | null = null
 
 export const getServerClient = () => {
   if (!serverClient) {
-    serverClient = createServerClient()
+    serverClient = createSupabaseServerClient() as any
   }
   return serverClient
 }
 
-export default createServerClient
+export default createSupabaseServerClient

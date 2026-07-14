@@ -59,7 +59,7 @@ export default function ModuleLessonsPage() {
       }
 
       // Check if user is the instructor
-      if (courseData.instructor_id !== user.id) {
+      if ((courseData as any).instructor_id !== user.id) {
         alert('Access denied. You can only edit your own courses.')
         router.push('/teach/dashboard')
         return
@@ -108,19 +108,20 @@ export default function ModuleLessonsPage() {
       title: '',
       description: '',
       video_url: '',
-      video_duration: 0,
+      duration_minutes: 0,
       transcript: '',
       resources: [],
       order_index: lessons.length,
       is_published: false,
-      is_preview: false,
+      is_free: false,
       metadata: {},
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
 
     try {
-      const { data, error } = await supabase
+      const supabaseInsert = supabase as any
+      const { data, error } = await supabaseInsert
         .from('lessons')
         .insert(newLesson)
         .select()
@@ -128,7 +129,7 @@ export default function ModuleLessonsPage() {
 
       if (error) throw error
 
-      setLessons([...lessons, data as Lesson])
+      setLessons([...lessons, data as Lesson] as any)
     } catch (error) {
       console.error('Error adding lesson:', error)
       alert('Failed to add lesson. Please try again.')
@@ -137,11 +138,12 @@ export default function ModuleLessonsPage() {
 
   const updateLesson = async (id: string, updates: Partial<Lesson>) => {
     // Optimistic update
-    setLessons(lessons.map(lesson => lesson.id === id ? { ...lesson, ...updates } : lesson))
+    setLessons(lessons.map((lesson: any) => lesson.id === id ? { ...lesson, ...updates } : lesson))
 
     // Persist to database
     try {
-      const { error } = await supabase
+      const supabaseUpdate = supabase as any
+      const { error } = await supabaseUpdate
         .from('lessons')
         .update({
           ...updates,
@@ -177,7 +179,7 @@ export default function ModuleLessonsPage() {
         .eq('lesson_id', id)
 
       if (quizzes) {
-        for (const quiz of quizzes) {
+        for (const quiz of (quizzes as any)) {
           await supabase.from('quiz_attempts').delete().eq('quiz_id', quiz.id)
           await supabase.from('quiz_questions').delete().eq('quiz_id', quiz.id)
         }
@@ -199,7 +201,7 @@ export default function ModuleLessonsPage() {
       if (error) throw error
 
       // Update local state
-      setLessons(lessons.filter(lesson => lesson.id !== id))
+      setLessons(lessons.filter((lesson: any) => lesson.id !== id))
     } catch (error) {
       console.error('Error deleting lesson:', error)
       alert('Failed to delete lesson. Please try again.')
@@ -269,10 +271,8 @@ export default function ModuleLessonsPage() {
                 id="module-title"
                 value={module.title}
                 onChange={(e) => {
-                  const updatedModule = { ...module, title: e.target.value }
-                  setModule(updatedModule)
-                  // Update in database
-                  supabase
+                  // Update in database directly
+                  (supabase as any)
                     .from('modules')
                     .update({ title: e.target.value, updated_at: new Date().toISOString() })
                     .eq('id', moduleId)
@@ -291,10 +291,8 @@ export default function ModuleLessonsPage() {
                 id="module-description"
                 value={module.description || ''}
                 onChange={(e) => {
-                  const updatedModule = { ...module, description: e.target.value }
-                  setModule(updatedModule)
                   // Update in database
-                  supabase
+                  (supabase as any)
                     .from('modules')
                     .update({ description: e.target.value, updated_at: new Date().toISOString() })
                     .eq('id', moduleId)
@@ -311,12 +309,10 @@ export default function ModuleLessonsPage() {
             <div className="flex items-center space-x-2">
               <Switch
                 id="module-published"
-                checked={module.is_published}
+                checked={(module as any).is_published || false}
                 onCheckedChange={(checked) => {
-                  const updatedModule = { ...module, is_published: checked }
-                  setModule(updatedModule)
                   // Update in database
-                  supabase
+                  (supabase as any)
                     .from('modules')
                     .update({ is_published: checked, updated_at: new Date().toISOString() })
                     .eq('id', moduleId)
@@ -357,12 +353,12 @@ export default function ModuleLessonsPage() {
                       <div className="flex items-center gap-2 mb-2">
                         <Badge variant="secondary">Lesson {index + 1}</Badge>
                         <Badge variant="outline" className="text-xs">
-                          {lesson.video_duration ? `${Math.floor(lesson.video_duration / 60)}m` : 'No duration'}
+                          {lesson.duration_minutes ? `${Math.floor(lesson.duration_minutes / 60)}m` : 'No duration'}
                         </Badge>
-                        {!lesson.is_published && (
+                        {!(lesson as any).is_published && (
                           <Badge variant="secondary" className="text-xs">Draft</Badge>
                         )}
-                        {lesson.is_preview && (
+                        {lesson.is_free && (
                           <Badge variant="default" className="text-xs">Preview</Badge>
                         )}
                       </div>
@@ -396,9 +392,9 @@ export default function ModuleLessonsPage() {
                           <Label className="text-xs">Duration (minutes)</Label>
                           <Input
                             type="number"
-                            value={lesson.video_duration ? Math.round(lesson.video_duration / 60) : ''}
+                            value={lesson.duration_minutes ? Math.round(lesson.duration_minutes / 60) : ''}
                             onChange={(e) => updateLesson(lesson.id, {
-                              video_duration: parseInt(e.target.value) * 60 || 0
+                              duration_minutes: parseInt(e.target.value) * 60 || 0
                             })}
                             placeholder="30"
                             className="mt-1"
@@ -424,14 +420,14 @@ export default function ModuleLessonsPage() {
                     <div className="flex items-center gap-2 ml-4">
                       <div className="flex flex-col gap-2">
                         <Switch
-                          checked={lesson.is_published}
+                          checked={(lesson as any).is_published}
                           onCheckedChange={(checked) => updateLesson(lesson.id, { is_published: checked })}
                         />
                         <span className="text-xs text-muted-foreground">Published</span>
 
                         <Switch
-                          checked={lesson.is_preview}
-                          onCheckedChange={(checked) => updateLesson(lesson.id, { is_preview: checked })}
+                          checked={lesson.is_free}
+                          onCheckedChange={(checked) => updateLesson(lesson.id, { is_free: checked })}
                         />
                         <span className="text-xs text-muted-foreground">Preview</span>
                       </div>

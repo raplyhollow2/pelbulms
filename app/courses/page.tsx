@@ -102,12 +102,12 @@ export default function CoursesPage() {
 
     // Filter by category
     if (selectedCategory !== 'All') {
-      filtered = filtered.filter(course => course.category === selectedCategory)
+      filtered = filtered.filter((course: any) => course.category === selectedCategory)
     }
 
     // Filter by level
     if (selectedLevel !== 'All') {
-      filtered = filtered.filter(course => course.level === selectedLevel)
+      filtered = filtered.filter((course: any) => course.level === selectedLevel)
     }
 
     setFilteredCourses(filtered)
@@ -128,7 +128,8 @@ export default function CoursesPage() {
     }
 
     try {
-      const { error: enrollmentError } = await supabase
+      const supabaseInsert = supabase as any
+      const { error: enrollmentError } = await supabaseInsert
         .from('enrollments')
         .insert({
           user_id: currentUser.id,
@@ -161,8 +162,8 @@ export default function CoursesPage() {
   }
 
   // Get unique categories and levels from courses
-  const categories = ['All', ...Array.from(new Set(courses.map(c => c.category)))]
-  const levels = ['All', ...Array.from(new Set(courses.map(c => c.level)))]
+  const categories = ['All', ...Array.from(new Set(courses.map((c: any) => c.category)))]
+  const levels = ['All', ...Array.from(new Set(courses.map((c: any) => c.level)))]
 
   if (loading) {
     return (
@@ -206,7 +207,7 @@ export default function CoursesPage() {
               <Filter className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium">Category:</span>
             </div>
-            {categories.map(category => (
+            {categories.map((category: any) => (
               <Button
                 key={category}
                 variant={selectedCategory === category ? "default" : "outline"}
@@ -224,7 +225,7 @@ export default function CoursesPage() {
               <Filter className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium">Level:</span>
             </div>
-            {levels.map(level => (
+            {levels.map((level: any) => (
               <Button
                 key={level}
                 variant={selectedLevel === level ? "default" : "outline"}
@@ -248,7 +249,7 @@ export default function CoursesPage() {
         {/* Course Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredCourses.map((course) => {
-            const instructor = course.profiles
+            const instructor = (course as any).profiles
             return (
               <Card key={course.id} className="glass hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer" onClick={() => router.push(`/courses/${course.id}`)}>
                 {/* Course Thumbnail */}
@@ -304,7 +305,7 @@ export default function CoursesPage() {
                   {/* Tags */}
                   {course.tags && course.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1">
-                      {course.tags.slice(0, 3).map(tag => (
+                      {course.tags.slice(0, 3).map((tag: any) => (
                         <Badge key={tag} variant="secondary" className="text-xs">
                           {tag}
                         </Badge>

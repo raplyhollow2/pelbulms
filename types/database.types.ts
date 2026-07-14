@@ -9,6 +9,41 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      announcements: {
+        Row: {
+          id: string
+          title: string
+          content: string
+          priority: 'low' | 'medium' | 'high' | 'urgent'
+          course_id: string | null
+          is_global: boolean
+          created_by: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          content: string
+          priority?: 'low' | 'medium' | 'high' | 'urgent'
+          course_id?: string | null
+          is_global?: boolean
+          created_by: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          content?: string
+          priority?: 'low' | 'medium' | 'high' | 'urgent'
+          course_id?: string | null
+          is_global?: boolean
+          created_by?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
       courses: {
         Row: {
           id: string
@@ -77,91 +112,6 @@ export interface Database {
           updated_at?: string
         }
       }
-      lessons: {
-        Row: {
-          id: string
-          module_id: string
-          title: string
-          description: string | null
-          video_url: string | null
-          video_duration: number | null
-          transcript: string | null
-          resources: string[] | null
-          order_index: number
-          is_published: boolean
-          is_preview: boolean
-          metadata: Json
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          module_id: string
-          title: string
-          description?: string | null
-          video_url?: string | null
-          video_duration?: number | null
-          transcript?: string | null
-          resources?: string[] | null
-          order_index: number
-          is_published?: boolean
-          is_preview?: boolean
-          metadata?: Json
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          module_id?: string
-          title?: string
-          description?: string | null
-          video_url?: string | null
-          video_duration?: number | null
-          transcript?: string | null
-          resources?: string[] | null
-          order_index?: number
-          is_published?: boolean
-          is_preview?: boolean
-          metadata?: Json
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      notes: {
-        Row: {
-          id: string
-          user_id: string
-          lesson_id: string
-          course_id: string
-          content: string
-          timestamp: number
-          is_deleted: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          lesson_id: string
-          course_id: string
-          content: string
-          timestamp?: number
-          is_deleted?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          lesson_id?: string
-          course_id?: string
-          content?: string
-          timestamp?: number
-          is_deleted?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-      }
       enrollments: {
         Row: {
           id: string
@@ -170,11 +120,8 @@ export interface Database {
           enrolled_at: string
           completed_at: string | null
           progress_percentage: number
-          last_accessed_at: string | null
-          status: string
-          metadata: Json
-          created_at: string
-          updated_at: string | null
+          last_accessed_at: string
+          updated_at: string
         }
         Insert: {
           id?: string
@@ -183,11 +130,8 @@ export interface Database {
           enrolled_at?: string
           completed_at?: string | null
           progress_percentage?: number
-          last_accessed_at?: string | null
-          status?: string
-          metadata?: Json
-          created_at?: string
-          updated_at?: string | null
+          last_accessed_at?: string
+          updated_at?: string
         }
         Update: {
           id?: string
@@ -196,11 +140,8 @@ export interface Database {
           enrolled_at?: string
           completed_at?: string | null
           progress_percentage?: number
-          last_accessed_at?: string | null
-          status?: string
-          metadata?: Json
-          created_at?: string
-          updated_at?: string | null
+          last_accessed_at?: string
+          updated_at?: string
         }
       }
       lesson_progress: {
@@ -208,172 +149,72 @@ export interface Database {
           id: string
           user_id: string
           lesson_id: string
-          course_id: string
           completed: boolean
           completed_at: string | null
-          progress_percentage: number
-          last_position_seconds: number
           time_spent_seconds: number
-          metadata: Json
-          created_at: string
-          updated_at: string
+          last_accessed_at: string
         }
         Insert: {
           id?: string
           user_id: string
           lesson_id: string
-          course_id: string
           completed?: boolean
           completed_at?: string | null
-          progress_percentage?: number
-          last_position_seconds?: number
           time_spent_seconds?: number
-          metadata?: Json
-          created_at?: string
-          updated_at?: string
+          last_accessed_at?: string
         }
         Update: {
           id?: string
           user_id?: string
           lesson_id?: string
-          course_id?: string
           completed?: boolean
           completed_at?: string | null
-          progress_percentage?: number
-          last_position_seconds?: number
           time_spent_seconds?: number
-          metadata?: Json
-          created_at?: string
-          updated_at?: string
+          last_accessed_at?: string
         }
       }
-      quizzes: {
+      lessons: {
         Row: {
           id: string
-          lesson_id: string | null
+          module_id: string
           title: string
           description: string | null
-          time_limit_minutes: number | null
-          passing_score: number
-          max_attempts: number
+          content: Json | null
+          video_url: string | null
+          duration_minutes: number
+          order_index: number
+          is_free: boolean
           is_published: boolean
-          metadata: Json
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
-          lesson_id?: string | null
+          module_id: string
           title: string
           description?: string | null
-          time_limit_minutes?: number | null
-          passing_score?: number
-          max_attempts?: number
+          content?: Json | null
+          video_url?: string | null
+          duration_minutes?: number
+          order_index?: number
+          is_free?: boolean
           is_published?: boolean
-          metadata?: Json
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
-          lesson_id?: string | null
+          module_id?: string
           title?: string
           description?: string | null
-          time_limit_minutes?: number | null
-          passing_score?: number
-          max_attempts?: number
+          content?: Json | null
+          video_url?: string | null
+          duration_minutes?: number
+          order_index?: number
+          is_free?: boolean
           is_published?: boolean
-          metadata?: Json
           created_at?: string
           updated_at?: string
-        }
-      }
-      quiz_questions: {
-        Row: {
-          id: string
-          quiz_id: string
-          question_text: string
-          question_type: string
-          options: string | null
-          correct_answer: string | null
-          explanation: string | null
-          order_index: number
-          points: number
-          metadata: Json
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          quiz_id: string
-          question_text: string
-          question_type?: string
-          options?: string | null
-          correct_answer?: string | null
-          explanation?: string | null
-          order_index: number
-          points?: number
-          metadata?: Json
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          quiz_id?: string
-          question_text?: string
-          question_type?: string
-          options?: string | null
-          correct_answer?: string | null
-          explanation?: string | null
-          order_index?: number
-          points?: number
-          metadata?: Json
-          created_at?: string
-        }
-      }
-      quiz_attempts: {
-        Row: {
-          id: string
-          user_id: string
-          quiz_id: string
-          enrollment_id: string | null
-          started_at: string
-          completed_at: string | null
-          score: number | null
-          passed: boolean
-          time_spent_seconds: number | null
-          answers: Json | null
-          feedback: Json | null
-          metadata: Json
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          quiz_id: string
-          enrollment_id?: string | null
-          started_at?: string
-          completed_at?: string | null
-          score?: number | null
-          passed?: boolean
-          time_spent_seconds?: number | null
-          answers?: Json | null
-          feedback?: Json | null
-          metadata?: Json
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          quiz_id?: string
-          enrollment_id?: string | null
-          started_at?: string
-          completed_at?: string | null
-          score?: number | null
-          passed?: boolean
-          time_spent_seconds?: number | null
-          answers?: Json | null
-          feedback?: Json | null
-          metadata?: Json
-          created_at?: string
         }
       }
       modules: {
@@ -383,8 +224,6 @@ export interface Database {
           title: string
           description: string | null
           order_index: number
-          is_published: boolean
-          metadata: Json
           created_at: string
           updated_at: string
         }
@@ -393,9 +232,7 @@ export interface Database {
           course_id: string
           title: string
           description?: string | null
-          order_index: number
-          is_published?: boolean
-          metadata?: Json
+          order_index?: number
           created_at?: string
           updated_at?: string
         }
@@ -405,8 +242,35 @@ export interface Database {
           title?: string
           description?: string | null
           order_index?: number
-          is_published?: boolean
-          metadata?: Json
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      notes: {
+        Row: {
+          id: string
+          user_id: string
+          lesson_id: string
+          content: string
+          timestamp: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          lesson_id: string
+          content: string
+          timestamp?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          lesson_id?: string
+          content?: string
+          timestamp?: number
           created_at?: string
           updated_at?: string
         }
@@ -416,10 +280,8 @@ export interface Database {
           id: string
           full_name: string | null
           avatar_url: string | null
+          role: 'student' | 'instructor' | 'admin'
           bio: string | null
-          role: string
-          institution_id: string | null
-          metadata: Json
           created_at: string
           updated_at: string
         }
@@ -427,10 +289,8 @@ export interface Database {
           id?: string
           full_name?: string | null
           avatar_url?: string | null
+          role?: 'student' | 'instructor' | 'admin'
           bio?: string | null
-          role?: string
-          institution_id?: string | null
-          metadata?: Json
           created_at?: string
           updated_at?: string
         }
@@ -438,10 +298,122 @@ export interface Database {
           id?: string
           full_name?: string | null
           avatar_url?: string | null
+          role?: 'student' | 'instructor' | 'admin'
           bio?: string | null
-          role?: string
-          institution_id?: string | null
-          metadata?: Json
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      quiz_attempts: {
+        Row: {
+          id: string
+          user_id: string
+          quiz_id: string
+          started_at: string
+          completed_at: string
+          score: number
+          passed: boolean
+          time_spent_seconds: number
+          answers: Json
+          feedback: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          quiz_id: string
+          started_at?: string
+          completed_at?: string
+          score?: number
+          passed?: boolean
+          time_spent_seconds?: number
+          answers?: Json
+          feedback?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          quiz_id?: string
+          started_at?: string
+          completed_at?: string
+          score?: number
+          passed?: boolean
+          time_spent_seconds?: number
+          answers?: Json
+          feedback?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      quiz_questions: {
+        Row: {
+          id: string
+          quiz_id: string
+          question_text: string
+          question_type: 'multiple_choice' | 'true_false' | 'short_answer' | 'essay'
+          options: string | null
+          correct_answer: string | null
+          explanation: string | null
+          order_index: number
+          points: number
+        }
+        Insert: {
+          id?: string
+          quiz_id: string
+          question_text: string
+          question_type: 'multiple_choice' | 'true_false' | 'short_answer' | 'essay'
+          options?: string | null
+          correct_answer?: string | null
+          explanation?: string | null
+          order_index?: number
+          points?: number
+        }
+        Update: {
+          id?: string
+          quiz_id?: string
+          question_text?: string
+          question_type?: 'multiple_choice' | 'true_false' | 'short_answer' | 'essay'
+          options?: string | null
+          correct_answer?: string | null
+          explanation?: string | null
+          order_index?: number
+          points?: number
+        }
+      }
+      quizzes: {
+        Row: {
+          id: string
+          lesson_id: string
+          title: string
+          description: string | null
+          time_limit_minutes: number
+          passing_score: number
+          is_published: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          lesson_id: string
+          title: string
+          description?: string | null
+          time_limit_minutes?: number
+          passing_score?: number
+          is_published?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          lesson_id?: string
+          title?: string
+          description?: string | null
+          time_limit_minutes?: number
+          passing_score?: number
+          is_published?: boolean
           created_at?: string
           updated_at?: string
         }

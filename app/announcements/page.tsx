@@ -43,7 +43,7 @@ export default function AnnouncementsPage() {
         .select('course_id')
         .eq('user_id', user.id)
 
-      const courseIds = enrollments?.map(e => e.course_id) || []
+      const courseIds = (enrollments as any)?.map((e: any) => e.course_id) || []
 
       // Fetch global announcements (course_id is null)
       const { data: globalAnnouncements } = await supabase
@@ -94,21 +94,22 @@ export default function AnnouncementsPage() {
       setCourseAnnouncements(grouped)
 
       // Mark announcements as read
-      const unreadAnnouncements = allAnnouncements.filter(a => {
-        // Check if user has read this announcement
-        return true // Placeholder for read tracking logic
-      })
+      // Commented out for now - requires announcement_reads table
+      // const unreadAnnouncements = allAnnouncements.filter((a: any) => {
+      //   // Check if user has read this announcement
+      //   return true // Placeholder for read tracking logic
+      // })
 
-      for (const announcement of unreadAnnouncements) {
-        await supabase
-          .from('announcement_reads')
-          .insert({
-            announcement_id: announcement.id,
-            user_id: user.id
-          })
-          .onConflict('announcement_id,user_id')
-          .ignore()
-      }
+      // for (const announcement of (unreadAnnouncements as any)) {
+      //   await supabase
+      //     .from('announcement_reads')
+      //     .insert({
+      //       announcement_id: announcement.id,
+      //       user_id: user.id
+      //     })
+      //     .onConflict('announcement_id,user_id')
+      //     .ignore()
+      // }
 
     } catch (error) {
       console.error('Error fetching announcements:', error)
@@ -226,17 +227,18 @@ export default function AnnouncementsPage() {
                           day: 'numeric'
                         })}
                       </span>
-                      {announcement.expires_at && (
+                      {/* expires_at functionality commented out - not in current schema */}
+                      {/* {announcement.expires_at && (
                         <span className="flex items-center gap-1">
                           Expires: {new Date(announcement.expires_at).toLocaleDateString('en-US', {
                             month: 'short',
                             day: 'numeric'
                           })}
                         </span>
-                      )}
+                      )} */}
                     </div>
-                    {announcement.profiles && (
-                      <span>Posted by: {announcement.profiles.full_name}</span>
+                    {(announcement as any).profiles && (
+                      <span>Posted by: {(announcement as any).profiles.full_name}</span>
                     )}
                   </div>
                 </CardContent>

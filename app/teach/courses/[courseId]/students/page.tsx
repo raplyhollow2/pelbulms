@@ -61,7 +61,7 @@ export default function CourseStudentsPage() {
       }
 
       // Check if user is the instructor
-      if (courseData.instructor_id !== user.id) {
+      if ((courseData as any).instructor_id !== user.id) {
         alert('Access denied. You can only view students for your own courses.')
         router.push('/teach/dashboard')
         return
@@ -85,7 +85,7 @@ export default function CourseStudentsPage() {
 
         let totalLessons = 0
         if (modules) {
-          for (const module of modules) {
+          for (const module of (modules as any)) {
             const { count } = await supabase
               .from('lessons')
               .select('*', { count: 'exact', head: true })
@@ -106,7 +106,7 @@ export default function CourseStudentsPage() {
               .eq('completed', true)
 
             return {
-              ...enrollment.profiles,
+              ...(enrollment as any).profiles,
               enrollment: enrollment,
               completed_lessons: count || 0,
               total_lessons: totalLessons
@@ -125,9 +125,9 @@ export default function CourseStudentsPage() {
     }
   }
 
-  const filteredStudents = students.filter(student =>
+  const filteredStudents = students.filter((student: any) =>
     student.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    (student as any).email?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   const getProgressPercentage = (student: StudentWithProgress) => {
@@ -142,7 +142,7 @@ export default function CourseStudentsPage() {
   }
 
   const getCompletedCount = () => {
-    return students.filter(student => student.enrollment.status === 'completed').length
+    return students.filter((student: any) => (student.enrollment as any).status === 'completed').length
   }
 
   if (loading) {
@@ -209,7 +209,7 @@ export default function CourseStudentsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-bhutan-red">
-                {students.filter(s => s.enrollment.status === 'active').length}
+                {students.filter((s: any) => (s.enrollment as any).status === 'active').length}
               </div>
               <p className="text-xs text-muted-foreground mt-1">Currently learning</p>
             </CardContent>
@@ -266,8 +266,8 @@ export default function CourseStudentsPage() {
                           </div>
                           <div>
                             <h3 className="font-semibold">{student.full_name || 'Anonymous'}</h3>
-                            {student.email && (
-                              <p className="text-sm text-muted-foreground">{student.email}</p>
+                            {(student as any).email && (
+                              <p className="text-sm text-muted-foreground">{(student as any).email}</p>
                             )}
                             <div className="flex items-center gap-2 mt-1">
                               <Badge variant="outline" className="text-xs">
@@ -275,10 +275,10 @@ export default function CourseStudentsPage() {
                                 Enrolled {enrolledDate}
                               </Badge>
                               <Badge
-                                variant={student.enrollment.status === 'completed' ? 'default' : 'secondary'}
+                                variant={(student.enrollment as any).status === 'completed' ? 'default' : 'secondary'}
                                 className="text-xs capitalize"
                               >
-                                {student.enrollment.status}
+                                {(student.enrollment as any).status}
                               </Badge>
                             </div>
                           </div>

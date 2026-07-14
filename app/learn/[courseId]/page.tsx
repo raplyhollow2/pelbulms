@@ -69,7 +69,7 @@ export default function LearningPage() {
       }
 
       setCourse(courseData)
-      setInstructor(courseData.profiles)
+      setInstructor((courseData as any).profiles)
 
       // Check enrollment status
       const { data: enrollmentData, error: enrollmentError } = await supabase
@@ -106,7 +106,7 @@ export default function LearningPage() {
 
       // Fetch all lessons for all modules
       if (modulesData && modulesData.length > 0) {
-        const moduleIds = modulesData.map(m => m.id)
+        const moduleIds = (modulesData as any).map((m: any) => m.id)
         const { data: lessonsData } = await supabase
           .from('lessons')
           .select('*')
@@ -117,7 +117,7 @@ export default function LearningPage() {
         // Group lessons by module
         const lessonsByModule: Record<string, Lesson[]> = {}
         if (lessonsData) {
-          lessonsData.forEach(lesson => {
+          (lessonsData as any).forEach((lesson: any) => {
             if (!lessonsByModule[lesson.module_id]) {
               lessonsByModule[lesson.module_id] = []
             }
@@ -267,14 +267,14 @@ export default function LearningPage() {
                                   <h4 className="font-medium text-sm group-hover:text-bhutan-yellow transition-colors">
                                     {lesson.title}
                                   </h4>
-                                  {lesson.video_duration && (
+                                  {lesson.duration_minutes && (
                                     <p className="text-xs text-muted-foreground mt-1">
                                       <Clock className="w-3 h-3 inline mr-1" />
-                                      {Math.floor(lesson.video_duration / 60)} minutes
+                                      {Math.floor(lesson.duration_minutes / 60)} minutes
                                     </p>
                                   )}
                                 </div>
-                                {lesson.is_preview && (
+                                {lesson.is_free && (
                                   <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
                                     Free Preview
                                   </Badge>

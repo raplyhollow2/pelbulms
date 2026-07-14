@@ -62,7 +62,7 @@ export default function TeacherAnalyticsPage() {
         .eq('id', user.id)
         .single()
 
-      if (profileData?.role !== 'instructor' && profileData?.role !== 'admin') {
+      if (!profileData || ((profileData as any).role !== 'instructor' && (profileData as any).role !== 'admin')) {
         alert('Access denied. Analytics is for instructors only.')
         router.push('/dashboard')
         return
@@ -80,7 +80,7 @@ export default function TeacherAnalyticsPage() {
       if (coursesData) {
         // Calculate analytics for each course
         const analytics = await Promise.all(
-          coursesData.map(async (course) => {
+          (coursesData as any).map(async (course: any) => {
             // Get enrollments
             const { data: enrollments } = await supabase
               .from('enrollments')
@@ -88,22 +88,22 @@ export default function TeacherAnalyticsPage() {
               .eq('course_id', course.id)
 
             const totalEnrollments = enrollments?.length || 0
-            const activeStudents = enrollments?.filter(e => e.status === 'active').length || 0
-            const completions = enrollments?.filter(e => e.status === 'completed').length || 0
+            const activeStudents = enrollments?.filter((e: any) => (e as any).status === 'active').length || 0
+            const completions = enrollments?.filter((e: any) => (e as any).status === 'completed').length || 0
 
             // Calculate average progress
-            const totalProgress = enrollments?.reduce((sum, e) => sum + (e.progress_percentage || 0), 0) || 0
+            const totalProgress = enrollments?.reduce((sum: number, e: any) => sum + (e.progress_percentage || 0), 0) || 0
             const averageProgress = totalEnrollments > 0 ? Math.round(totalProgress / totalEnrollments) : 0
 
             // Get recent enrollments (last 30 days)
             const thirtyDaysAgo = new Date()
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-            const recentEnrollments = enrollments?.filter(e =>
+            const recentEnrollments = enrollments?.filter((e: any) =>
               new Date(e.enrolled_at) >= thirtyDaysAgo
             ).length || 0
 
             // Calculate engagement rate (active + completed in last 30 days)
-            const engagedStudents = enrollments?.filter(e =>
+            const engagedStudents = enrollments?.filter((e: any) =>
               e.last_accessed_at && new Date(e.last_accessed_at) >= thirtyDaysAgo
             ).length || 0
             const engagementRate = totalEnrollments > 0
@@ -138,7 +138,7 @@ export default function TeacherAnalyticsPage() {
           totalCompletions,
           averageRating: 0, // Would need ratings table
           totalRevenue: 0 // Would need payment table
-        })
+        } as any)
       }
 
     } catch (error) {
@@ -268,10 +268,10 @@ export default function TeacherAnalyticsPage() {
                             {analytics.course.category}
                           </Badge>
                           <Badge
-                            variant={analytics.course.is_published ? 'default' : 'secondary'}
+                            variant={(analytics.course as any).is_published ? 'default' : 'secondary'}
                             className="text-xs"
                           >
-                            {analytics.course.is_published ? 'Published' : 'Draft'}
+                            {(analytics.course as any).is_published ? 'Published' : 'Draft'}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground line-clamp-2">
@@ -455,15 +455,18 @@ export default function TeacherAnalyticsPage() {
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {courseAnalytics.length > 0
-                    ? `${Math.round(courseAnalytics.reduce((a, b) => {
-                        const rateA = a.totalEnrollments > 0 ? a.completions / a.totalEnrollments : 0
-                        const rateB = b.totalEnrollments > 0 ? b.completions / b.totalEnrollments : 0
-                        return rateA > rateB ? a : b
-                      }.completions / courseAnalytics.reduce((a, b) => {
-                        const rateA = a.totalEnrollments > 0 ? a.completions / a.totalEnrollments : 0
-                        const rateB = b.totalEnrollments > 0 ? b.completions / b.totalEnrollments : 0
-                        return rateA > rateB ? a : b
-                      }.totalEnrollments * 100))}% completion rate`
+                    ? `${Math.round(
+                        courseAnalytics.reduce((best, course) => {
+                          const bestRate = best.totalEnrollments > 0 ? best.completions / best.totalEnrollments : 0
+                          const courseRate = course.totalEnrollments > 0 ? course.completions / course.totalEnrollments : 0
+                          return courseRate > bestRate ? course : best
+                        }, courseAnalytics[0]).completions /
+                        courseAnalytics.reduce((best, course) => {
+                          const bestRate = best.totalEnrollments > 0 ? best.completions / best.totalEnrollments : 0
+                          const courseRate = course.totalEnrollments > 0 ? course.completions / course.totalEnrollments : 0
+                          return courseRate > bestRate ? course : best
+                        }, courseAnalytics[0]).totalEnrollments * 100
+                      )}% completion rate`
                     : ''}
                 </p>
               </div>

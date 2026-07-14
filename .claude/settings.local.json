@@ -7,7 +7,12 @@
       "Bash(npx supabase gen types typescript:*)",
       "Bash(npm run dev)",
       "Bash(taskkill /PID 12996 /F)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(cmd //c \"taskkill /F /IM node.exe\")",
+      "Bash(wmic process get:*)",
+      "Bash(powershell:*)"
     ]
   }
 }

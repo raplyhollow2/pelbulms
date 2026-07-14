@@ -111,8 +111,10 @@ export function QuizCreator({ lessonId, onSave, onCancel }: QuizCreatorProps) {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
+      const supabaseInsert = supabase as any
+
       // Create quiz
-      const { data: quizData } = await supabase
+      const { data: quizData } = await supabaseInsert
         .from('quizzes')
         .insert({
           lesson_id: lessonId || null,
@@ -140,7 +142,7 @@ export function QuizCreator({ lessonId, onSave, onCancel }: QuizCreatorProps) {
         points: q.points
       }))
 
-      const { error: questionsError } = await supabase
+      const { error: questionsError } = await supabaseInsert
         .from('quiz_questions')
         .insert(questionsToInsert)
 
