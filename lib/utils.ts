@@ -36,5 +36,10 @@ export const haptic = {
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       navigator.vibrate(75)
     }
+  },
+  tap: () => {
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate(30)
+    }
   }
 }
