@@ -21,6 +21,18 @@ self.addEventListener('install', event => {
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url)
+
+  // Don't intercept auth-related requests or API calls
+  if (url.pathname.startsWith('/auth/') ||
+      url.pathname.startsWith('/api/') ||
+      url.search.has('code') ||
+      url.search.has('error') ||
+      event.request.method !== 'GET') {
+    event.respondWith(fetch(event.request))
+    return
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then(response => {
