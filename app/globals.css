@@ -1,26 +1,334 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* Bhutan Brand Colors */
+  --color-bhutan-yellow: #FFC72C;
+  --color-bhutan-orange: #FF6B35;
+  --color-bhutan-red: #C41E3A;
+  --color-bhutan-black: #1A1A1A;
+  --color-bhutan-white: #FFFFFF;
+
+  /* Glassmorphism Design Tokens */
+  --glass-light: rgba(255, 255, 255, 0.7);
+  --glass-dark: rgba(0, 0, 0, 0.5);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-shadow: rgba(0, 0, 0, 0.1);
+
+  /* Animation Timing */
+  --transition-fast: 150ms;
+  --transition-normal: 300ms;
+  --transition-slow: 500ms;
+
+  /* Apple iOS Font System */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, Menlo, Monaco, "Cascadia Code", "Courier New", monospace;
+  --font-heading: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+
+  /* Standard Design System */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  /* Bhutan Brand Colors as Primary System */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.75 0.15 85); /* Bhutan Yellow equivalent */
+  --primary-foreground: oklch(0.2 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.65 0.2 45); /* Bhutan Orange equivalent */
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.577 0.245 27.325); /* Bhutan Red equivalent */
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.75 0.15 85);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+
+  /* Glassmorphism Variables */
+  --glass-light: rgba(255, 255, 255, 0.7);
+  --glass-dark: rgba(0, 0, 0, 0.5);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-shadow: rgba(0, 0, 0, 0.1);
+
+  /* Animation Timing */
+  --transition-fast: 150ms;
+  --transition-normal: 300ms;
+  --transition-slow: 500ms;
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Glassmorphism Utility Classes */
+@layer utilities {
+  .glass {
+    background: var(--glass-light);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 8px 32px var(--glass-shadow);
+  }
+
+  .glass-dark {
+    background: var(--glass-dark);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px var(--glass-shadow);
+  }
+
+  .glass-strong {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 8px 32px var(--glass-shadow);
+  }
+
+  /* Bhutan Brand Color Utilities */
+  .text-bhutan-yellow {
+    color: #FFC72C;
+  }
+
+  .text-bhutan-orange {
+    color: #FF6B35;
+  }
+
+  .text-bhutan-red {
+    color: #C41E3A;
+  }
+
+  .text-bhutan-black {
+    color: #1A1A1A;
+  }
+
+  .text-bhutan-white {
+    color: #FFFFFF;
+  }
+
+  .bg-bhutan-yellow {
+    background-color: #FFC72C;
+  }
+
+  .bg-bhutan-orange {
+    background-color: #FF6B35;
+  }
+
+  .bg-bhutan-red {
+    background-color: #C41E3A;
+  }
+
+  .bg-bhutan-black {
+    background-color: #1A1A1A;
+  }
+
+  .bg-bhutan-white {
+    background-color: #FFFFFF;
+  }
+
+  .from-bhutan-yellow {
+    --tw-gradient-from: #FFC72C;
+  }
+
+  .to-bhutan-yellow {
+    --tw-gradient-to: #FFC72C;
+  }
+
+  .from-bhutan-orange {
+    --tw-gradient-from: #FF6B35;
+  }
+
+  .to-bhutan-orange {
+    --tw-gradient-to: #FF6B35;
+  }
+
+  .from-bhutan-red {
+    --tw-gradient-from: #C41E3A;
+  }
+
+  .to-bhutan-red {
+    --tw-gradient-to: #C41E3A;
+  }
+
+  /* Animation timing utilities */
+  .transition-fast {
+    transition-duration: var(--transition-fast);
+  }
+
+  .transition-normal {
+    transition-duration: var(--transition-normal);
+  }
+
+  .transition-slow {
+    transition-duration: var(--transition-slow);
+  }
+
+  /* Touch interaction feedback */
+  .touch-feedback {
+    transition: transform var(--transition-fast) ease-out;
+  }
+
+  .touch-feedback:active {
+    transform: scale(0.95);
+  }
+
+  /* Performance optimizations */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    will-change: transform;
+  }
+
+  .reduced-motion {
+    @media (prefers-reduced-motion: reduce) {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Performance accessibility fallbacks */
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-dark,
+  .glass-strong {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(255, 255, 255, 0.95);
+  }
+}
+
+/* Smooth animations with fallbacks */
+@media (prefers-reduced-motion: no-preference) {
+  * {
+    animation-duration: var(--transition-normal);
+    transition-duration: var(--transition-fast);
+  }
+}
+
+/* Mobile-first touch optimizations */
+@media (hover: none) and (pointer: coarse) {
+  button,
+  a,
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .touch-feedback {
+    transition: transform var(--transition-fast) ease-out, background-color var(--transition-fast) ease-out;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .glass,
+  .glass-dark,
+  .glass-strong {
+    border: 2px solid currentColor;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }

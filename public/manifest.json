@@ -1,0 +1,35 @@
+{
+  "name": "Pelbu LMS",
+  "short_name": "Pelbu",
+  "description": "Bhutan Learning Management System - Quality education accessible to all",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#FFC72C",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "32x32",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "My Courses",
+      "short_name": "Courses",
+      "description": "View my enrolled courses",
+      "url": "/dashboard",
+      "icons": [{ "src": "/favicon.ico", "sizes": "32x32" }]
+    },
+    {
+      "name": "Course Catalog",
+      "short_name": "Browse",
+      "description": "Browse available courses",
+      "url": "/courses",
+      "icons": [{ "src": "/favicon.ico", "sizes": "32x32" }]
+    }
+  ]
+}

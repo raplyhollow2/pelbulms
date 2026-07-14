@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pelbu LMS - Offline</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #FFC72C 0%, #FF6B35 100%);
+      color: white;
+    }
+    .offline-container {
+      text-align: center;
+      padding: 2rem;
+      max-width: 400px;
+    }
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+    p {
+      font-size: 1.1rem;
+      opacity: 0.9;
+      margin-bottom: 2rem;
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 2rem;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-container">
+    <div class="spinner"></div>
+    <h1>You're Offline</h1>
+    <p>Please check your internet connection and try again.</p>
+    <p style="font-size: 0.9rem;">Some features may be available offline once loaded.</p>
+  </div>
+</body>
+</html>

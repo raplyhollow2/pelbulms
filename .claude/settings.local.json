@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__ide__getDiagnostics",
+      "Bash(npm run build:*)",
+      "Bash(npm install:*)",
+      "Bash(npx supabase gen types typescript:*)",
+      "Bash(npm run dev)",
+      "Bash(taskkill /PID 12996 /F)",
+      "Bash(taskkill:*)"
+    ]
+  }
+}
