@@ -137,43 +137,43 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <Card className="glass hover:shadow-xl transition-all duration-300">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Active Courses</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium">Active Courses</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-bhutan-yellow">{stats.activeCourses}</div>
+            <CardContent className="pt-0">
+              <div className="text-2xl md:text-3xl font-bold text-bhutan-yellow">{stats.activeCourses}</div>
               <p className="text-xs text-muted-foreground mt-1">Enrolled courses</p>
             </CardContent>
           </Card>
 
           <Card className="glass hover:shadow-xl transition-all duration-300">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Completed Lessons</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium">Completed Lessons</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-bhutan-orange">{stats.completedLessons}</div>
+            <CardContent className="pt-0">
+              <div className="text-2xl md:text-3xl font-bold text-bhutan-orange">{stats.completedLessons}</div>
               <p className="text-xs text-muted-foreground mt-1">Lessons finished</p>
             </CardContent>
           </Card>
 
           <Card className="glass hover:shadow-xl transition-all duration-300">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Achievements</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium">Achievements</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-bhutan-red">{stats.achievements}</div>
+            <CardContent className="pt-0">
+              <div className="text-2xl md:text-3xl font-bold text-bhutan-red">{stats.achievements}</div>
               <p className="text-xs text-muted-foreground mt-1">Badges earned</p>
             </CardContent>
           </Card>
 
           <Card className="glass hover:shadow-xl transition-all duration-300">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Study Hours</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xs font-medium">Study Hours</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-green-600">{stats.studyHours}</div>
+            <CardContent className="pt-0">
+              <div className="text-2xl md:text-3xl font-bold text-green-600">{stats.studyHours}</div>
               <p className="text-xs text-muted-foreground mt-1">Hours learned</p>
             </CardContent>
           </Card>
@@ -194,10 +194,10 @@ export default function DashboardPage() {
                 return (
                   <div
                     key={course.id}
-                    className="flex items-center justify-between p-4 rounded-lg bg-background/50 hover:bg-background transition-colors border border-border/50"
+                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 sm:p-4 rounded-lg bg-background/50 hover:bg-background transition-colors border border-border/50"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="w-16 h-12 rounded bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20 flex items-center justify-center">
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                      <div className="w-12 h-12 sm:w-16 sm:h-12 rounded bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20 flex items-center justify-center flex-shrink-0">
                         {course.thumbnail_url ? (
                           <img
                             src={course.thumbnail_url}
@@ -205,29 +205,30 @@ export default function DashboardPage() {
                             className="w-full h-full object-cover rounded"
                           />
                         ) : (
-                          <BookOpen className="w-6 h-6 text-bhutan-yellow" />
+                          <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-bhutan-yellow" />
                         )}
                       </div>
-                      <div>
-                        <h3 className="font-semibold">{course.title}</h3>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-sm sm:text-base truncate">{course.title}</h3>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant="outline" className="text-xs">{course.category}</Badge>
                           <Badge variant="secondary" className="text-xs">{course.level}</Badge>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
                       <div className="text-right">
                         <div className="text-sm font-medium">{enrollment?.progress_percentage || 0}%</div>
                         <div className="text-xs text-muted-foreground">Complete</div>
                       </div>
                       <Button
                         size="sm"
-                        className="bg-bhutan-yellow hover:bg-bhutan-orange"
+                        className="bg-bhutan-yellow hover:bg-bhutan-orange whitespace-nowrap"
                         onClick={() => window.location.href = `/learn/${course.id}`}
                       >
                         <TrendingUp className="w-4 h-4 mr-1" />
-                        Continue
+                        <span className="hidden sm:inline">Continue</span>
+                        <span className="sm:hidden">Go</span>
                       </Button>
                     </div>
                   </div>

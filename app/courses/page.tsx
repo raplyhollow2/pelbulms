@@ -247,13 +247,13 @@ export default function CoursesPage() {
         </div>
 
         {/* Course Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredCourses.map((course) => {
             const instructor = (course as any).profiles
             return (
-              <Card key={course.id} className="glass hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer" onClick={() => router.push(`/courses/${course.id}`)}>
+              <Card key={course.id} className="glass hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex flex-col" onClick={() => router.push(`/courses/${course.id}`)}>
                 {/* Course Thumbnail */}
-                <div className="h-40 bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20 flex items-center justify-center">
+                <div className="h-40 sm:h-48 bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20 flex items-center justify-center flex-shrink-0">
                   {course.thumbnail_url ? (
                     <img
                       src={course.thumbnail_url}
@@ -265,7 +265,7 @@ export default function CoursesPage() {
                   )}
                 </div>
 
-                <CardHeader className="pb-3">
+                <CardHeader className="pb-3 flex-shrink-0">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <Badge variant="outline" className="text-xs">
                       {course.category}
@@ -274,20 +274,20 @@ export default function CoursesPage() {
                       {course.level}
                     </Badge>
                   </div>
-                  <CardTitle className="text-lg line-clamp-2 group-hover:text-bhutan-yellow transition-colors">
+                  <CardTitle className="text-base sm:text-lg line-clamp-2 group-hover:text-bhutan-yellow transition-colors">
                     {course.title}
                   </CardTitle>
-                  <CardDescription className="line-clamp-2">
+                  <CardDescription className="line-clamp-2 text-sm">
                     {course.description}
                   </CardDescription>
                 </CardHeader>
 
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-3 sm:space-y-4 flex-1 flex flex-col">
                   {/* Course Stats */}
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-1 text-muted-foreground">
                       <Clock className="w-4 h-4" />
-                      <span>{course.duration_minutes ? `${Math.floor(course.duration_minutes / 60)}h ${course.duration_minutes % 60}m` : 'Self-paced'}</span>
+                      <span className="text-xs sm:text-sm">{course.duration_minutes ? `${Math.floor(course.duration_minutes / 60)}h ${course.duration_minutes % 60}m` : 'Self-paced'}</span>
                     </div>
                     {course.price === 0 ? (
                       <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">Free</Badge>
@@ -299,7 +299,7 @@ export default function CoursesPage() {
                   {/* Instructor */}
                   <div className="text-sm">
                     <span className="text-muted-foreground">Instructor:</span>{' '}
-                    <span className="font-medium">{instructor?.full_name || 'TBD'}</span>
+                    <span className="font-medium text-xs sm:text-sm">{instructor?.full_name || 'TBD'}</span>
                   </div>
 
                   {/* Tags */}
@@ -313,6 +313,9 @@ export default function CoursesPage() {
                     </div>
                   )}
 
+                  {/* Spacer to push button to bottom */}
+                  <div className="flex-1" />
+
                   {/* Action Button */}
                   <Button
                     className="w-full bg-bhutan-yellow hover:bg-bhutan-orange transition-colors"
@@ -323,7 +326,7 @@ export default function CoursesPage() {
                     disabled={enrolledCourseIds.has(course.id)}
                   >
                     <BookOpen className="w-4 h-4 mr-2" />
-                    {enrolledCourseIds.has(course.id) ? 'Continue Learning' : 'Enroll Now'}
+                    {enrolledCourseIds.has(course.id) ? 'Continue' : 'Enroll Now'}
                   </Button>
                 </CardContent>
               </Card>
