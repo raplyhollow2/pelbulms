@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Home, BookOpen, GraduationCap, Settings, User,
-  ChevronLeft, ChevronRight, LogOut, Menu, X, Search
+  ChevronLeft, ChevronRight, LogOut, Menu, X, Search, TrendingUp
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -23,7 +23,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Courses', href: '/courses', icon: BookOpen },
-    { name: 'Learn', href: '/learn', icon: GraduationCap },
+    { name: 'Progress', href: '/learn/progress', icon: TrendingUp },
     { name: 'Profile', href: '/profile', icon: User },
     { name: 'Settings', href: '/settings', icon: Settings },
   ]

@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   Home, BookOpen, GraduationCap, User,
   Menu, X, LogOut, Settings, Search,
-  Bell, MessageCircle
+  Bell, MessageCircle, TrendingUp
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -24,7 +24,7 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
   const mainNavigation = [
     { name: 'Home', href: '/dashboard', icon: Home },
     { name: 'Courses', href: '/courses', icon: BookOpen },
-    { name: 'Learn', href: '/learn', icon: GraduationCap },
+    { name: 'Progress', href: '/learn/progress', icon: TrendingUp },
     { name: 'Profile', href: '/profile', icon: User },
   ]
 
