@@ -3,14 +3,14 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  CommandDialog,
+  Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { Search, BookOpen, Home, User, Settings, GraduationCap, Users } from 'lucide-react'
+import { BookOpen, Home, User, Settings, GraduationCap, Users } from 'lucide-react'
 
 export function CommandPalette() {
   const router = useRouter()
@@ -33,46 +33,60 @@ export function CommandPalette() {
     router.push(command)
   }
 
+  if (!open) return null
+
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Search courses, navigate to pages..." />
-      <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] bg-background/80 backdrop-blur-sm">
+      <div className="relative w-full max-w-lg mx-4">
+        <div className="overflow-hidden rounded-lg border bg-popover shadow-xl">
+          <Command>
+            <CommandInput placeholder="Search courses, navigate to pages..." />
+            <CommandList>
+              <CommandEmpty>No results found.</CommandEmpty>
 
-        <CommandGroup heading="Navigation">
-          <CommandItem onSelect={() => runCommand('/dashboard')}>
-            <Home className="mr-2 h-4 w-4" />
-            <span>Dashboard</span>
-          </CommandItem>
-          <CommandItem onSelect={() => runCommand('/courses')}>
-            <BookOpen className="mr-2 h-4 w-4" />
-            <span>Courses</span>
-          </CommandItem>
-          <CommandItem onSelect={() => runCommand('/learn/progress')}>
-            <Users className="mr-2 h-4 w-4" />
-            <span>My Progress</span>
-          </CommandItem>
-          <CommandItem onSelect={() => runCommand('/profile')}>
-            <User className="mr-2 h-4 w-4" />
-            <span>Profile</span>
-          </CommandItem>
-          <CommandItem onSelect={() => runCommand('/settings')}>
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
-          </CommandItem>
-        </CommandGroup>
+              <CommandGroup heading="Navigation">
+                <CommandItem onSelect={() => runCommand('/dashboard')}>
+                  <Home className="mr-2 h-4 w-4" />
+                  <span>Dashboard</span>
+                </CommandItem>
+                <CommandItem onSelect={() => runCommand('/courses')}>
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  <span>Courses</span>
+                </CommandItem>
+                <CommandItem onSelect={() => runCommand('/learn/progress')}>
+                  <Users className="mr-2 h-4 w-4" />
+                  <span>My Progress</span>
+                </CommandItem>
+                <CommandItem onSelect={() => runCommand('/profile')}>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </CommandItem>
+                <CommandItem onSelect={() => runCommand('/settings')}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </CommandItem>
+              </CommandGroup>
 
-        <CommandGroup heading="Quick Actions">
-          <CommandItem onSelect={() => runCommand('/teach/dashboard')}>
-            <GraduationCap className="mr-2 h-4 w-4" />
-            <span>Teacher Dashboard</span>
-          </CommandItem>
-          <CommandItem onSelect={() => runCommand('/admin/users')}>
-            <Users className="mr-2 h-4 w-4" />
-            <span>User Management</span>
-          </CommandItem>
-        </CommandGroup>
-      </CommandList>
-    </CommandDialog>
+              <CommandGroup heading="Quick Actions">
+                <CommandItem onSelect={() => runCommand('/teach/dashboard')}>
+                  <GraduationCap className="mr-2 h-4 w-4" />
+                  <span>Teacher Dashboard</span>
+                </CommandItem>
+                <CommandItem onSelect={() => runCommand('/admin/users')}>
+                  <Users className="mr-2 h-4 w-4" />
+                  <span>User Management</span>
+                </CommandItem>
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </div>
+
+        {/* Backdrop to close */}
+        <div
+          className="fixed inset-0 z-[-1]"
+          onClick={() => setOpen(false)}
+        />
+      </div>
+    </div>
   )
 }

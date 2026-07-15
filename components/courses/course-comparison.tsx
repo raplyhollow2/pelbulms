@@ -168,16 +168,16 @@ export function CourseComparison({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="min-w-[200px]">Feature</TableHead>
+              <TableHead className="min-w-[180px] w-[180px]">Feature</TableHead>
               {comparisonCourses.map((course) => (
-                <TableHead key={course.id} className="min-w-[200px] text-center">
-                  <div className="space-y-2">
-                    <div className="font-semibold text-base">{course.title}</div>
+                <TableHead key={course.id} className="min-w-[220px] w-[220px] text-center">
+                  <div className="space-y-3">
+                    <div className="font-semibold text-base line-clamp-2">{course.title}</div>
                     {course.thumbnail_url && (
                       <img
                         src={course.thumbnail_url}
                         alt={course.title}
-                        className="w-full h-24 object-cover rounded"
+                        className="w-full h-28 object-cover rounded"
                       />
                     )}
                   </div>
@@ -188,9 +188,9 @@ export function CourseComparison({
           <TableBody>
             {/* Price */}
             <TableRow>
-              <TableCell className="font-medium">Price</TableCell>
+              <TableCell className="font-medium py-3">Price</TableCell>
               {comparisonCourses.map((course) => (
-                <TableCell key={course.id} className="text-center">
+                <TableCell key={course.id} className="text-center py-3">
                   <div className="text-lg font-bold text-bhutan-yellow">
                     ${course.price === 0 ? 'Free' : course.price}
                   </div>
@@ -200,12 +200,12 @@ export function CourseComparison({
 
             {/* Rating */}
             <TableRow>
-              <TableCell className="font-medium">Rating</TableCell>
+              <TableCell className="font-medium py-3">Rating</TableCell>
               {comparisonCourses.map((course) => (
-                <TableCell key={course.id} className="text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    <span className="font-semibold">
+                <TableCell key={course.id} className="text-center py-3">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <Star className="w-5 h-5 fill-yellow-400 text-yellow-400 flex-shrink-0" />
+                    <span className="font-semibold text-sm">
                       {renderValue(course.rating, 'New')}
                     </span>
                   </div>
@@ -215,12 +215,12 @@ export function CourseComparison({
 
             {/* Students */}
             <TableRow>
-              <TableCell className="font-medium">Students</TableCell>
+              <TableCell className="font-medium py-3">Students</TableCell>
               {comparisonCourses.map((course) => (
-                <TableCell key={course.id} className="text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    <Users className="w-4 h-4 text-muted-foreground" />
-                    <span>{renderValue(course.students_count)}</span>
+                <TableCell key={course.id} className="text-center py-3">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-sm">{renderValue(course.students_count)}</span>
                   </div>
                 </TableCell>
               ))}
@@ -228,12 +228,12 @@ export function CourseComparison({
 
             {/* Duration */}
             <TableRow>
-              <TableCell className="font-medium">Duration</TableCell>
+              <TableCell className="font-medium py-3">Duration</TableCell>
               {comparisonCourses.map((course) => (
-                <TableCell key={course.id} className="text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    <Clock className="w-4 h-4 text-muted-foreground" />
-                    <span>{formatDuration(course.duration_minutes)}</span>
+                <TableCell key={course.id} className="text-center py-3">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-sm">{formatDuration(course.duration_minutes)}</span>
                   </div>
                 </TableCell>
               ))}
@@ -241,9 +241,9 @@ export function CourseComparison({
 
             {/* Level */}
             <TableRow>
-              <TableCell className="font-medium">Difficulty</TableCell>
+              <TableCell className="font-medium py-3">Difficulty</TableCell>
               {comparisonCourses.map((course) => (
-                <TableCell key={course.id} className="text-center">
+                <TableCell key={course.id} className="text-center py-3">
                   <Badge className={getLevelColor(course.level)}>
                     {course.level}
                   </Badge>
@@ -253,9 +253,9 @@ export function CourseComparison({
 
             {/* Category */}
             <TableRow>
-              <TableCell className="font-medium">Category</TableCell>
+              <TableCell className="font-medium py-3">Category</TableCell>
               {comparisonCourses.map((course) => (
-                <TableCell key={course.id} className="text-center">
+                <TableCell key={course.id} className="text-center py-3">
                   <Badge variant="outline">{course.category}</Badge>
                 </TableCell>
               ))}
@@ -263,22 +263,22 @@ export function CourseComparison({
 
             {/* Instructor */}
             <TableRow>
-              <TableCell className="font-medium">Instructor</TableCell>
+              <TableCell className="font-medium py-3">Instructor</TableCell>
               {comparisonCourses.map((course) => (
-                <TableCell key={course.id} className="text-center">
-                  {renderValue(course.profiles?.full_name)}
+                <TableCell key={course.id} className="text-center py-3">
+                  <span className="text-sm">{renderValue(course.profiles?.full_name)}</span>
                 </TableCell>
               ))}
             </TableRow>
 
             {/* Modules */}
             <TableRow>
-              <TableCell className="font-medium">Modules</TableCell>
+              <TableCell className="font-medium py-3">Modules</TableCell>
               {comparisonCourses.map((course) => (
-                <TableCell key={course.id} className="text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    <BookOpen className="w-4 h-4 text-muted-foreground" />
-                    <span>{renderValue(course.modules_count)}</span>
+                <TableCell key={course.id} className="text-center py-3">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <BookOpen className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-sm">{renderValue(course.modules_count)}</span>
                   </div>
                 </TableCell>
               ))}
@@ -286,9 +286,9 @@ export function CourseComparison({
 
             {/* Certificate */}
             <TableRow>
-              <TableCell className="font-medium">Certificate</TableCell>
+              <TableCell className="font-medium py-3">Certificate</TableCell>
               {comparisonCourses.map((course) => (
-                <TableCell key={course.id} className="text-center">
+                <TableCell key={course.id} className="text-center py-3">
                   {renderValue(course.has_certificate)}
                 </TableCell>
               ))}
@@ -296,9 +296,9 @@ export function CourseComparison({
 
             {/* Subtitles */}
             <TableRow>
-              <TableCell className="font-medium">Subtitles</TableCell>
+              <TableCell className="font-medium py-3">Subtitles</TableCell>
               {comparisonCourses.map((course) => (
-                <TableCell key={course.id} className="text-center">
+                <TableCell key={course.id} className="text-center py-3">
                   {renderValue(course.has_subtitles)}
                 </TableCell>
               ))}
@@ -306,45 +306,45 @@ export function CourseComparison({
 
             {/* Language */}
             <TableRow>
-              <TableCell className="font-medium">Language</TableCell>
+              <TableCell className="font-medium py-3">Language</TableCell>
               {comparisonCourses.map((course) => (
-                <TableCell key={course.id} className="text-center">
-                  {renderValue(course.language?.toUpperCase() || 'EN')}
+                <TableCell key={course.id} className="text-center py-3">
+                  <span className="text-sm">{renderValue(course.language?.toUpperCase() || 'EN')}</span>
                 </TableCell>
               ))}
             </TableRow>
 
             {/* Last Updated */}
             <TableRow>
-              <TableCell className="font-medium">Last Updated</TableCell>
+              <TableCell className="font-medium py-3">Last Updated</TableCell>
               {comparisonCourses.map((course) => (
-                <TableCell key={course.id} className="text-center">
-                  {renderValue(formatDate(course.last_updated))}
+                <TableCell key={course.id} className="text-center py-3">
+                  <span className="text-sm">{renderValue(formatDate(course.last_updated))}</span>
                 </TableCell>
               ))}
             </TableRow>
 
             {/* Learning Objectives */}
             <TableRow>
-              <TableCell className="font-medium">
+              <TableCell className="font-medium py-3">
                 <div className="flex items-center gap-2">
                   <Award className="w-4 h-4" />
                   Learning Objectives
                 </div>
               </TableCell>
               {comparisonCourses.map((course) => (
-                <TableCell key={course.id} className="text-center">
+                <TableCell key={course.id} className="text-center py-3">
                   {course.learning_objectives && course.learning_objectives.length > 0 ? (
-                    <ul className="text-sm space-y-1 text-left">
+                    <ul className="text-xs space-y-2 text-left px-2">
                       {course.learning_objectives.slice(0, 3).map((objective, idx) => (
                         <li key={idx} className="flex items-start gap-2">
-                          <CheckCircle className="w-3 h-3 text-green-600 flex-shrink-0 mt-0.5" />
-                          <span className="line-clamp-1">{objective}</span>
+                          <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0 mt-0.5" />
+                          <span className="line-clamp-2">{objective}</span>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <span className="text-muted-foreground">No objectives listed</span>
+                    <span className="text-muted-foreground text-xs">No objectives listed</span>
                   )}
                 </TableCell>
               ))}
@@ -352,9 +352,9 @@ export function CourseComparison({
 
             {/* Action Buttons */}
             <TableRow>
-              <TableCell></TableCell>
+              <TableCell className="py-4"></TableCell>
               {comparisonCourses.map((course) => (
-                <TableCell key={course.id} className="text-center">
+                <TableCell key={course.id} className="text-center py-4">
                   <Button
                     className="w-full bg-bhutan-yellow hover:bg-bhutan-orange text-black"
                     size="sm"
@@ -373,22 +373,26 @@ export function CourseComparison({
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger>
-        {trigger || (
-          <Button variant="outline" className="glass touch-feedback">
-            <GraduationCap className="w-5 h-5 mr-2" />
-            Compare Courses
-            {selectedCourses.length > 0 && (
-              <Badge className="ml-2 bg-bhutan-yellow text-black">
-                {selectedCourses.length}
-              </Badge>
-            )}
-          </Button>
-        )}
-      </DialogTrigger>
+      {trigger ? (
+        trigger
+      ) : (
+        <Button
+          variant="outline"
+          className="glass touch-feedback"
+          onClick={() => setIsOpen(true)}
+        >
+          <GraduationCap className="w-5 h-5 mr-2" />
+          Compare Courses
+          {selectedCourses.length > 0 && (
+            <Badge className="ml-2 bg-bhutan-yellow text-black">
+              {selectedCourses.length}
+            </Badge>
+          )}
+        </Button>
+      )}
 
-      <DialogContent className="max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-[98vw] w-full max-h-[92vh] overflow-hidden flex flex-col">
+        <DialogHeader className="px-8 pt-8 pb-6 border-b">
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <GraduationCap className="w-5 h-5" />
@@ -412,11 +416,11 @@ export function CourseComparison({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto px-8 py-8 space-y-8">
           {/* Course Selection */}
           <div>
-            <h3 className="text-sm font-medium mb-3">Select Courses to Compare</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-60 overflow-y-auto">
+            <h3 className="text-base font-semibold mb-4">Select Courses to Compare</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-72 overflow-y-auto p-2">
               {courses.map((course) => {
                 const isSelected = selectedCourses.includes(course.id)
                 const isDisabled =
@@ -426,7 +430,7 @@ export function CourseComparison({
                   <div
                     key={course.id}
                     className={cnUtils(
-                      'p-3 rounded-lg border transition-all cursor-pointer',
+                      'p-4 rounded-lg border transition-all cursor-pointer',
                       isSelected
                         ? 'border-bhutan-yellow bg-bhutan-yellow/10'
                         : 'border-border/50 hover:border-bhutan-yellow/30',
@@ -438,13 +442,13 @@ export function CourseComparison({
                       <Checkbox
                         checked={isSelected}
                         disabled={isDisabled}
-                        className="mt-1"
+                        className="mt-1 flex-shrink-0"
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm line-clamp-2">
+                        <div className="font-medium text-sm line-clamp-2 mb-2">
                           {course.title}
                         </div>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <Badge variant="outline" className="text-xs">
                             {course.category}
                           </Badge>
@@ -452,7 +456,7 @@ export function CourseComparison({
                             {course.level}
                           </Badge>
                         </div>
-                        <div className="text-sm font-semibold text-bhutan-yellow mt-1">
+                        <div className="text-sm font-semibold text-bhutan-yellow">
                           ${course.price === 0 ? 'Free' : course.price}
                         </div>
                       </div>
@@ -464,17 +468,17 @@ export function CourseComparison({
           </div>
 
           {/* Comparison Table */}
-          <div className="border-t border-border/50 pt-4">
+          <div className="border-t border-border/50 pt-6">
             <ComparisonTable />
           </div>
 
           {/* Best Value Highlight */}
           {comparisonCourses.length >= 2 && (
-            <div className="bg-bhutan-yellow/10 border border-bhutan-yellow/30 rounded-lg p-4">
+            <div className="bg-bhutan-yellow/10 border border-bhutan-yellow/30 rounded-lg p-6">
               <div className="flex items-start gap-3">
-                <TrendingUp className="w-5 h-5 text-bhutan-yellow flex-shrink-0 mt-0.5" />
-                <div>
-                  <h4 className="font-semibold mb-1">Best Value Recommendation</h4>
+                <TrendingUp className="w-6 h-6 text-bhutan-yellow flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h4 className="font-semibold mb-2 text-base">Best Value Recommendation</h4>
                   <p className="text-sm text-muted-foreground">
                     Based on rating, price, and content depth, we recommend{' '}
                     <span className="font-semibold text-bhutan-yellow">
@@ -499,6 +503,20 @@ export function CourseComparison({
               </div>
             </div>
           )}
+        </div>
+
+        {/* Dialog Footer */}
+        <div className="px-8 py-6 border-t bg-muted/20">
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <span className="font-medium">{comparisonCourses.length} of {maxCompare} courses selected</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsOpen(false)}
+            >
+              Close
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

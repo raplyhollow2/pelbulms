@@ -9,24 +9,44 @@ import type { Database } from '@/types/database'
  *
  * @returns Supabase client with admin privileges for server operations
  */
-export const createSupabaseServerClient = () => {
-  const cookieStore = cookies() as any
+export const createSupabaseServerClient = async () => {
+  const cookieStore = await cookies()
+
+  // Create a stable cookies object for Supabase
+  const cookieHandlers = {
+    get: (name: string) => {
+      const cookie = cookieStore.get(name)
+      return cookie?.value
+    },
+    set: (name: string, value: string, options: any) => {
+      try {
+        cookieStore.set({
+          name,
+          value,
+          ...options
+        })
+      } catch (e) {
+        // In certain contexts (like API routes), setting cookies might fail silently
+        console.error('Error setting cookie:', e)
+      }
+    },
+    remove: (name: string, options: any) => {
+      try {
+        cookieStore.set({
+          name,
+          value: '',
+          ...options
+        })
+      } catch (e) {
+        console.error('Error removing cookie:', e)
+      }
+    },
+  }
+
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options })
-        },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: '', ...options })
-        },
-      },
-    }
+    { cookies: cookieHandlers }
   )
 }
 
@@ -44,36 +64,53 @@ export const createServiceClient = async () => {
   }
 
   const cookieStore = await cookies()
+
+  // Create a stable cookies object for Supabase
+  const cookieHandlers = {
+    get: (name: string) => {
+      const cookie = cookieStore.get(name)
+      return cookie?.value
+    },
+    set: (name: string, value: string, options: any) => {
+      try {
+        cookieStore.set({
+          name,
+          value,
+          ...options
+        })
+      } catch (e) {
+        console.error('Error setting cookie:', e)
+      }
+    },
+    remove: (name: string, options: any) => {
+      try {
+        cookieStore.set({
+          name,
+          value: '',
+          ...options
+        })
+      } catch (e) {
+        console.error('Error removing cookie:', e)
+      }
+    },
+  }
+
   return createServerClient<Database>(
     supabaseUrl,
     supabaseServiceKey,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
-        },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options })
-        },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: '', ...options })
-        },
-      },
-    }
+    { cookies: cookieHandlers }
   )
 }
 
 /**
- * Singleton server client instance
- * Use this for direct imports in server components
+ * Legacy singleton pattern - deprecated
+ * Use createSupabaseServerClient or createServiceClient instead
+ * @deprecated Use the async factory functions instead
  */
-let serverClient: ReturnType<typeof createSupabaseServerClient> | null = null
-
 export const getServerClient = () => {
-  if (!serverClient) {
-    serverClient = createSupabaseServerClient() as any
-  }
-  return serverClient
+  throw new Error(
+    'getServerClient is deprecated. Use createSupabaseServerClient() or createServiceClient() instead.'
+  )
 }
 
 export default createSupabaseServerClient

@@ -1,14 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BookOpen, Clock, ArrowLeft, Loader2, CheckCircle, ChevronLeft, ChevronRight, Play, StickyNote, Save, Trash2, FileQuestion } from 'lucide-react'
+import { BookOpen, Clock, ArrowLeft, Loader2, CheckCircle, ChevronLeft, ChevronRight, Play } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 import { QuizPlayer } from '@/components/quiz/quiz-player'
+import { CourseLearningTabs } from '@/components/course/course-learning-tabs'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Module = Database['public']['Tables']['modules']['Row']
@@ -29,6 +30,7 @@ export default function LessonViewPage() {
   const [lesson, setLesson] = useState<Lesson | null>(null)
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null)
   const [allLessons, setAllLessons] = useState<Lesson[]>([])
+  const [allModules, setAllModules] = useState<Module[]>([])
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0)
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
@@ -48,6 +50,9 @@ export default function LessonViewPage() {
   const [quiz, setQuiz] = useState<Quiz | null>(null)
   const [quizQuestions, setQuizQuestions] = useState<any[]>([])
   const [showQuiz, setShowQuiz] = useState(false)
+
+  // Video ref for timestamp notes
+  const videoRef = useRef<HTMLVideoElement>(null)
 
   const supabase = createClient()
 
@@ -105,6 +110,17 @@ export default function LessonViewPage() {
       }
 
       setLesson(lessonData as Lesson)
+
+      // Fetch all modules for this course
+      const { data: modulesData } = await supabase
+        .from('modules')
+        .select('*')
+        .eq('course_id', courseId)
+        .order('order_index', { ascending: true })
+
+      if (modulesData) {
+        setAllModules(modulesData as Module[])
+      }
 
       // Fetch module for this lesson
       const { data: moduleData } = await supabase
@@ -485,6 +501,7 @@ export default function LessonViewPage() {
                     {lesson.video_url ? (
                       <div className="w-full h-full">
                         <iframe
+                          ref={videoRef as any}
                           src={getYoutubeEmbedUrl(lesson.video_url)}
                           className="w-full h-full"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -503,121 +520,27 @@ export default function LessonViewPage() {
               </Card>
             </div>
 
-            {/* Notes Section */}
-            <Card className="glass">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <StickyNote className="w-5 h-5" />
-                    Your Notes
-                  </CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowNotesPanel(!showNotesPanel)}
-                  >
-                    {showNotesPanel ? 'Hide' : 'Show'}
-                  </Button>
-                </div>
-              </CardHeader>
-              {showNotesPanel && (
-                <CardContent className="space-y-4">
-                  {/* Notes List */}
-                  {notes.length > 0 && (
-                    <div className="space-y-2 mb-4">
-                      {notes.map((note) => (
-                        <div key={note.id} className="p-3 bg-secondary/30 rounded-lg">
-                          <div className="flex justify-between items-start gap-2">
-                            <p className="text-sm flex-1">{note.content}</p>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => deleteNote(note.id)}
-                              className="h-6 w-6 p-0"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-2">
-                            {new Date(note.created_at).toLocaleString()}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* New Note Input */}
-                  <div className="flex gap-2">
-                    <textarea
-                      placeholder="Take notes while watching..."
-                      value={newNote}
-                      onChange={(e) => setNewNote(e.target.value)}
-                      className="flex-1 min-h-[80px] p-3 border rounded-lg resize-none bg-background focus:outline-none focus:ring-2 focus:ring-bhutan-yellow"
-                      disabled={savingNote}
-                    />
-                    <Button
-                      onClick={() => saveNote()}
-                      disabled={!newNote.trim() || savingNote}
-                      className="self-end bg-bhutan-yellow hover:bg-bhutan-orange"
-                    >
-                      {savingNote ? (
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                      ) : (
-                        <Save className="w-5 h-5" />
-                      )}
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Notes auto-save every 30 seconds
-                  </p>
-                </CardContent>
-              )}
-            </Card>
-
-            {/* Quiz Section */}
-            {(() => {
-              console.log('Quiz section render check:', { quiz, showQuiz, quizExists: !!quiz })
-              return quiz && (
-                <Card className="glass">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <FileQuestion className="w-5 h-5" />
-                      Lesson Quiz
-                    </CardTitle>
-                    {!showQuiz && (
-                      <Button
-                        size="sm"
-                        onClick={() => setShowQuiz(true)}
-                        className="bg-bhutan-yellow hover:bg-bhutan-orange"
-                      >
-                        Start Quiz
-                      </Button>
-                    )}
-                  </div>
-                  {quiz.description && (
-                    <CardDescription>{quiz.description}</CardDescription>
-                  )}
-                </CardHeader>
-                {showQuiz && (
-                  <CardContent>
-                    <QuizPlayer
-                      quizId={quiz.id}
-                      lessonId={lessonId}
-                      courseId={courseId}
-                      quizData={quiz}
-                      questionsData={quizQuestions}
-                      onComplete={(attempt) => {
-                        setShowQuiz(false)
-                        // Optionally refresh progress data
-                      }}
-                      onClose={() => setShowQuiz(false)}
-                    />
-                  </CardContent>
-                )}
-              </Card>
-              )
-            })()}
+            {/* New Learning Tabs */}
+            {course && (
+              <CourseLearningTabs
+                course={course}
+                modules={allModules}
+                lessons={allLessons}
+                currentLessonId={lessonId}
+                videoRef={videoRef}
+                userId={currentUser?.id}
+                completedLessons={new Set([isCompleted ? lessonId : ''])}
+                onLessonClick={(lessonId) => {
+                  router.push(`/learn/${courseId}/lesson/${lessonId}`)
+                }}
+                onLessonComplete={(lessonId, completed) => {
+                  // Handle lesson completion using the existing function
+                  if (lessonId === lessonId) {
+                    toggleLessonComplete()
+                  }
+                }}
+              />
+            )}
 
             {/* Progress Tracking */}
             {enrollment && (

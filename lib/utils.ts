@@ -6,7 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // Haptic feedback utilities for mobile devices
-export const haptic = {
+const hapticUtils = {
   success: () => {
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       navigator.vibrate(50)
@@ -43,3 +43,12 @@ export const haptic = {
     }
   }
 }
+
+// Export haptic methods for advanced usage
+export const hapticMethods = hapticUtils
+
+// Export individual methods for convenience
+export const { success, warning, error, light, medium, heavy, tap } = hapticUtils
+
+// Default haptic function (uses tap method) - exported as tap for clarity
+export const haptic = hapticUtils.tap

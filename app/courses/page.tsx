@@ -7,13 +7,11 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Search, BookOpen, Clock, Users, Star, Filter, Loader2, Command } from 'lucide-react'
 import { Input } from '@/components/ui/input'
-import { CommandPalette } from '@/components/search/command-palette'
 import { CourseCard } from '@/components/courses/course-card'
 import { CourseGridSkeleton } from '@/components/courses/course-card-skeleton'
 import { Skeleton } from '@/components/ui/skeleton'
 import { InstructorShowcase } from '@/components/courses/instructor-showcase'
 import { AdvancedSearchModal } from '@/components/courses/advanced-search-modal'
-import { CourseComparison } from '@/components/courses/course-comparison'
 import {
   Select,
   SelectContent,
@@ -255,17 +253,35 @@ export default function CoursesPage() {
       <div className="space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold mb-2">Course Catalog</h1>
-            <p className="text-xl text-muted-foreground">
-              Discover and enroll in courses from our diverse catalog
-            </p>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="lg"
+              className="touch-feedback"
+              onClick={() => router.push('/dashboard')}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 mr-2"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              Back to Dashboard
+            </Button>
+            <div>
+              <h1 className="text-4xl font-bold mb-2">Course Catalog</h1>
+              <p className="text-xl text-muted-foreground">
+                Discover and enroll in courses from our diverse catalog
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
-            <CourseComparison
-              courses={courses as any}
-              maxCompare={3}
-            />
             <Button
               variant="outline"
               size="lg"
@@ -281,9 +297,6 @@ export default function CoursesPage() {
             </Button>
           </div>
         </div>
-
-        {/* Command Palette */}
-        <CommandPalette />
 
         {/* Search and Filters */}
         <div className="space-y-4">
@@ -459,7 +472,7 @@ export default function CoursesPage() {
         </div>
 
         {/* Enhanced Course Grid with Hover Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {filteredCourses.map((course) => {
             const isEnrolled = enrolledCourseIds.has(course.id)
             const progress = (course as any).progress || 0

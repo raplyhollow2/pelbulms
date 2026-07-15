@@ -26,14 +26,14 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
     { name: 'Home', href: '/dashboard', icon: Home },
     { name: 'Courses', href: '/courses', icon: BookOpen },
     { name: 'My Learning', href: '/learn/progress', icon: TrendingUp },
-    { name: 'Profile', href: '/dashboard', icon: User }, // Temporarily link to dashboard until profile page is created
+    { name: 'Profile', href: '/profile', icon: User },
   ]
 
   const secondaryNavigation = [
-    { name: 'Settings', href: '/dashboard', icon: Settings }, // Temporarily link to dashboard until settings page is created
+    { name: 'Settings', href: '/settings', icon: Settings },
     { name: 'Notifications', href: '/notifications', icon: Bell },
     { name: 'Messages', href: '/messages', icon: MessageCircle },
-    { name: 'Search', href: '/courses', icon: Search }, // Link to courses for search functionality
+    { name: 'Search', href: '/courses', icon: Search },
   ]
 
   const teacherNavigation = [
@@ -80,7 +80,7 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
   }
 
   const toggleMenu = () => {
-    haptic.tap()
+    haptic()
     setMenuOpen(!menuOpen)
   }
 
@@ -96,7 +96,7 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
               <Link
                 key={item.name}
                 href={item.href}
-                onClick={() => haptic.tap()}
+                onClick={() => haptic()}
                 className={`flex flex-col items-center justify-center min-w-[60px] py-2 px-1 rounded-lg transition-all duration-200 ${
                   isActive
                     ? 'text-bhutan-yellow'
@@ -152,7 +152,7 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
                     key={item.name}
                     href={item.href}
                     onClick={() => {
-                      haptic.tap()
+                      haptic()
                       setMenuOpen(false)
                     }}
                     className="flex flex-col items-center justify-center p-4 bg-gray-100 dark:bg-gray-800 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
@@ -175,7 +175,7 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
                         key={item.name}
                         href={item.href}
                         onClick={() => {
-                          haptic.tap()
+                          haptic()
                           setMenuOpen(false)
                         }}
                         className="flex flex-col items-center justify-center p-4 bg-bhutan-yellow/10 dark:bg-bhutan-yellow/20 rounded-xl hover:bg-bhutan-yellow/20 dark:hover:bg-bhutan-yellow/30 transition-colors"
@@ -200,7 +200,7 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
                         key={item.name}
                         href={item.href}
                         onClick={() => {
-                          haptic.tap()
+                          haptic()
                           setMenuOpen(false)
                         }}
                         className="flex flex-col items-center justify-center p-4 bg-red-600/10 dark:bg-red-600/20 rounded-xl hover:bg-red-600/20 dark:hover:bg-red-600/30 transition-colors"

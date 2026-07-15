@@ -17,6 +17,7 @@ export interface Database {
           priority: 'low' | 'medium' | 'high' | 'urgent'
           course_id: string | null
           is_global: boolean
+          is_pinned: boolean
           created_by: string
           created_at: string
           updated_at: string
@@ -28,6 +29,7 @@ export interface Database {
           priority?: 'low' | 'medium' | 'high' | 'urgent'
           course_id?: string | null
           is_global?: boolean
+          is_pinned?: boolean
           created_by: string
           created_at?: string
           updated_at?: string
@@ -63,6 +65,11 @@ export interface Database {
           tags: string[] | null
           is_published: boolean
           is_featured: boolean
+          published_at: string | null
+          last_updated_at: string
+          enrollment_count: number
+          average_rating: number
+          rating_count: number
           metadata: Json
           created_at: string
           updated_at: string
@@ -85,6 +92,11 @@ export interface Database {
           tags?: string[] | null
           is_published?: boolean
           is_featured?: boolean
+          published_at?: string | null
+          last_updated_at?: string
+          enrollment_count?: number
+          average_rating?: number
+          rating_count?: number
           metadata?: Json
           created_at?: string
           updated_at?: string
@@ -107,6 +119,11 @@ export interface Database {
           tags?: string[] | null
           is_published?: boolean
           is_featured?: boolean
+          published_at?: string | null
+          last_updated_at?: string
+          enrollment_count?: number
+          average_rating?: number
+          rating_count?: number
           metadata?: Json
           created_at?: string
           updated_at?: string
@@ -251,8 +268,10 @@ export interface Database {
           id: string
           user_id: string
           lesson_id: string
+          course_id: string
           content: string
           timestamp: number
+          is_deleted: boolean
           created_at: string
           updated_at: string
         }
@@ -260,8 +279,10 @@ export interface Database {
           id?: string
           user_id: string
           lesson_id: string
+          course_id: string
           content: string
           timestamp?: number
+          is_deleted?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -269,8 +290,10 @@ export interface Database {
           id?: string
           user_id?: string
           lesson_id?: string
+          course_id?: string
           content?: string
           timestamp?: number
+          is_deleted?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -300,6 +323,41 @@ export interface Database {
           avatar_url?: string | null
           role?: 'student' | 'instructor' | 'admin'
           bio?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      reviews: {
+        Row: {
+          id: string
+          user_id: string
+          course_id: string
+          rating: number
+          comment: string | null
+          helpful_count: number
+          not_helpful_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          course_id: string
+          rating: number
+          comment?: string | null
+          helpful_count?: number
+          not_helpful_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          course_id?: string
+          rating?: number
+          comment?: string | null
+          helpful_count?: number
+          not_helpful_count?: number
           created_at?: string
           updated_at?: string
         }
@@ -414,6 +472,74 @@ export interface Database {
           time_limit_minutes?: number
           passing_score?: number
           is_published?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      user_settings: {
+        Row: {
+          id: string
+          user_id: string
+          email_notifications: boolean
+          push_notifications: boolean
+          course_updates: boolean
+          announcement_notifications: boolean
+          message_notifications: boolean
+          theme: string
+          language: string
+          timezone: string
+          profile_visibility: string
+          show_progress: boolean
+          show_certificates: boolean
+          auto_play_video: boolean
+          video_quality: string
+          playback_speed: number
+          subtitle_language: string
+          digest_frequency: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          email_notifications?: boolean
+          push_notifications?: boolean
+          course_updates?: boolean
+          announcement_notifications?: boolean
+          message_notifications?: boolean
+          theme?: string
+          language?: string
+          timezone?: string
+          profile_visibility?: string
+          show_progress?: boolean
+          show_certificates?: boolean
+          auto_play_video?: boolean
+          video_quality?: string
+          playback_speed?: number
+          subtitle_language?: string
+          digest_frequency?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          email_notifications?: boolean
+          push_notifications?: boolean
+          course_updates?: boolean
+          announcement_notifications?: boolean
+          message_notifications?: boolean
+          theme?: string
+          language?: string
+          timezone?: string
+          profile_visibility?: string
+          show_progress?: boolean
+          show_certificates?: boolean
+          auto_play_video?: boolean
+          video_quality?: string
+          playback_speed?: number
+          subtitle_language?: string
+          digest_frequency?: string
           created_at?: string
           updated_at?: string
         }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { CommandPalette } from "@/components/ui/command-palette";
-import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
+import { CommandPalette } from "@/components/search/command-palette";
+// import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
 
@@ -40,7 +40,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         {children}
         <CommandPalette />
-        <ServiceWorkerRegistration />
+        {/* <ServiceWorkerRegistration /> */}
       </body>
     </html>
   );
