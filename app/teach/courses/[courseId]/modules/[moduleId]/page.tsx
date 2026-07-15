@@ -27,6 +27,8 @@ export default function ModuleLessonsPage() {
   const [module, setModule] = useState<Module | null>(null)
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [course, setCourse] = useState<Course | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [hasChanges, setHasChanges] = useState(false)
 
   const supabase = createClient()
 
@@ -214,6 +216,57 @@ export default function ModuleLessonsPage() {
     return match ? match[1] : ''
   }
 
+  const saveAllChanges = async () => {
+    try {
+      setSaving(true)
+
+      // Save all lessons
+      await Promise.all(
+        lessons.map(async (lesson) => {
+          const supabaseUpdate = supabase as any
+          await supabaseUpdate
+            .from('lessons')
+            .update({
+              title: lesson.title,
+              description: lesson.description,
+              video_url: lesson.video_url,
+              duration_minutes: lesson.duration_minutes,
+              is_published: (lesson as any).is_published,
+              is_free: lesson.is_free,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', lesson.id)
+        })
+      )
+
+      // Save module details
+      if (module) {
+        const supabaseUpdate = supabase as any
+        await supabaseUpdate
+          .from('modules')
+          .update({
+            title: module.title,
+            description: module.description,
+            is_published: (module as any).is_published,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', moduleId)
+      }
+
+      setHasChanges(false)
+      alert('All changes saved successfully!')
+    } catch (error) {
+      console.error('Error saving changes:', error)
+      alert('Failed to save changes. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const markAsChanged = () => {
+    setHasChanges(true)
+  }
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -247,15 +300,34 @@ export default function ModuleLessonsPage() {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => router.push(`/teach/courses/${courseId}/edit`)}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Course
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold">{module.title || 'Untitled Module'}</h1>
-            <p className="text-muted-foreground">{course.title}</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" onClick={() => router.push(`/teach/courses/${courseId}/edit`)}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Course
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold">{module.title || 'Untitled Module'}</h1>
+              <p className="text-muted-foreground">{course.title}</p>
+            </div>
           </div>
+          <Button
+            onClick={saveAllChanges}
+            disabled={saving || !hasChanges}
+            className="bg-bhutan-yellow hover:bg-bhutan-orange touch-feedback"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Save Changes
+              </>
+            )}
+          </Button>
         </div>
 
         {/* Module Info */}
@@ -271,14 +343,8 @@ export default function ModuleLessonsPage() {
                 id="module-title"
                 value={module.title}
                 onChange={(e) => {
-                  // Update in database directly
-                  (supabase as any)
-                    .from('modules')
-                    .update({ title: e.target.value, updated_at: new Date().toISOString() })
-                    .eq('id', moduleId)
-                    .then(({ error }) => {
-                      if (error) console.error('Error updating module:', error)
-                    })
+                  setModule({ ...module, title: e.target.value })
+                  markAsChanged()
                 }}
                 placeholder="Module title"
                 className="mt-1"
@@ -291,14 +357,8 @@ export default function ModuleLessonsPage() {
                 id="module-description"
                 value={module.description || ''}
                 onChange={(e) => {
-                  // Update in database
-                  (supabase as any)
-                    .from('modules')
-                    .update({ description: e.target.value, updated_at: new Date().toISOString() })
-                    .eq('id', moduleId)
-                    .then(({ error }) => {
-                      if (error) console.error('Error updating module:', error)
-                    })
+                  setModule({ ...module, description: e.target.value })
+                  markAsChanged()
                 }}
                 placeholder="Module description..."
                 rows={3}
@@ -311,14 +371,8 @@ export default function ModuleLessonsPage() {
                 id="module-published"
                 checked={(module as any).is_published || false}
                 onCheckedChange={(checked) => {
-                  // Update in database
-                  (supabase as any)
-                    .from('modules')
-                    .update({ is_published: checked, updated_at: new Date().toISOString() })
-                    .eq('id', moduleId)
-                    .then(({ error }) => {
-                      if (error) console.error('Error updating module:', error)
-                    })
+                  setModule({ ...module, is_published: checked } as any)
+                  markAsChanged()
                 }}
               />
               <Label htmlFor="module-published">Published</Label>
@@ -365,14 +419,20 @@ export default function ModuleLessonsPage() {
 
                       <Input
                         value={lesson.title}
-                        onChange={(e) => updateLesson(lesson.id, { title: e.target.value })}
+                        onChange={(e) => {
+                          updateLesson(lesson.id, { title: e.target.value })
+                          markAsChanged()
+                        }}
                         placeholder="Lesson title"
                         className="mb-2"
                       />
 
                       <Textarea
                         value={lesson.description || ''}
-                        onChange={(e) => updateLesson(lesson.id, { description: e.target.value })}
+                        onChange={(e) => {
+                          updateLesson(lesson.id, { description: e.target.value })
+                          markAsChanged()
+                        }}
                         placeholder="Lesson description..."
                         rows={2}
                         className="resize-none mb-2"
@@ -383,7 +443,10 @@ export default function ModuleLessonsPage() {
                           <Label className="text-xs">YouTube URL</Label>
                           <Input
                             value={lesson.video_url || ''}
-                            onChange={(e) => updateLesson(lesson.id, { video_url: e.target.value })}
+                            onChange={(e) => {
+                              updateLesson(lesson.id, { video_url: e.target.value })
+                              markAsChanged()
+                            }}
                             placeholder="https://youtube.com/watch?v=..."
                             className="mt-1"
                           />
@@ -393,9 +456,12 @@ export default function ModuleLessonsPage() {
                           <Input
                             type="number"
                             value={lesson.duration_minutes ? Math.round(lesson.duration_minutes / 60) : ''}
-                            onChange={(e) => updateLesson(lesson.id, {
-                              duration_minutes: parseInt(e.target.value) * 60 || 0
-                            })}
+                            onChange={(e) => {
+                              updateLesson(lesson.id, {
+                                duration_minutes: parseInt(e.target.value) * 60 || 0
+                              })
+                              markAsChanged()
+                            }}
                             placeholder="30"
                             className="mt-1"
                           />
@@ -421,13 +487,19 @@ export default function ModuleLessonsPage() {
                       <div className="flex flex-col gap-2">
                         <Switch
                           checked={(lesson as any).is_published}
-                          onCheckedChange={(checked) => updateLesson(lesson.id, { is_published: checked })}
+                          onCheckedChange={(checked) => {
+                            updateLesson(lesson.id, { is_published: checked })
+                            markAsChanged()
+                          }}
                         />
                         <span className="text-xs text-muted-foreground">Published</span>
 
                         <Switch
                           checked={lesson.is_free}
-                          onCheckedChange={(checked) => updateLesson(lesson.id, { is_free: checked })}
+                          onCheckedChange={(checked) => {
+                            updateLesson(lesson.id, { is_free: checked })
+                            markAsChanged()
+                          }}
                         />
                         <span className="text-xs text-muted-foreground">Preview</span>
                       </div>
