@@ -8,9 +8,10 @@ const supabase = createClient(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { noteId: string } }
+  { params }: { params: Promise<{ noteId: string }> }
 ) {
   try {
+    const { noteId } = await params
     const body = await request.json()
     const { content } = body
 
@@ -21,7 +22,7 @@ export async function PATCH(
     const { data: note, error } = await supabase
       .from('notes')
       .update({ content })
-      .eq('id', params.noteId)
+      .eq('id', noteId)
       .select()
       .single()
 
@@ -36,13 +37,15 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { noteId: string } }
+  { params }: { params: Promise<{ noteId: string }> }
 ) {
   try {
+    const { noteId } = await params
+
     const { error } = await supabase
       .from('notes')
       .update({ is_deleted: true })
-      .eq('id', params.noteId)
+      .eq('id', noteId)
 
     if (error) throw error
 

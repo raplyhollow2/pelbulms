@@ -8,9 +8,11 @@ const supabase = createClient(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { announcementId: string } }
+  { params }: { params: Promise<{ announcementId: string }> }
 ) {
   try {
+    const { announcementId } = await params
+
     // For now, just return success since we're using mock data
     return NextResponse.json({ success: true })
   } catch (error) {
