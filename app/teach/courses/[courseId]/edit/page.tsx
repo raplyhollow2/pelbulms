@@ -517,7 +517,16 @@ export default function EditCoursePage() {
                         onClick={() => router.push(`/teach/courses/${courseId}/modules/${module.id}`)}
                       >
                         <BookOpen className="w-4 h-4 mr-1" />
-                        Lessons
+                        Manage
+                      </Button>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => router.push(`/teach/courses/${courseId}/modules/${module.id}?action=add-lesson`)}
+                        className="bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+                      >
+                        <Plus className="w-4 h-4 mr-1" />
+                        Add Lesson
                       </Button>
                       <Button
                         variant="ghost"

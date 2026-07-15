@@ -137,7 +137,7 @@ export default function TeacherDashboard() {
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger>
+              <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="touch-feedback">
                   <Menu className="w-6 h-6" />
                 </Button>

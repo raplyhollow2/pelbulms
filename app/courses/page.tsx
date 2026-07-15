@@ -252,34 +252,12 @@ export default function CoursesPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="lg"
-              className="touch-feedback"
-              onClick={() => router.push('/dashboard')}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5 mr-2"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              Back to Dashboard
-            </Button>
-            <div>
-              <h1 className="text-4xl font-bold mb-2">Course Catalog</h1>
-              <p className="text-xl text-muted-foreground">
-                Discover and enroll in courses from our diverse catalog
-              </p>
-            </div>
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <h1 className="text-3xl lg:text-4xl font-bold">Course Catalog</h1>
+            <p className="text-lg text-muted-foreground">
+              Discover and enroll in courses from our diverse catalog
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <Button
@@ -313,71 +291,9 @@ export default function CoursesPage() {
               />
             </div>
 
-            {/* Advanced Search Button */}
-            <AdvancedSearchModal
-              availableCategories={categories.filter((c: any) => c !== 'All')}
-              availableLevels={levels.filter((l: any) => l !== 'All')}
-              onSearch={(advancedFilters) => {
-                // Update all filters based on advanced search
-                setSearchTerm(advancedFilters.searchTerm)
-                setSelectedCategory(advancedFilters.categories[0] || 'All')
-                setSelectedLevel(advancedFilters.levels[0] || 'All')
-
-                // Apply advanced filtering to courses
-                let filtered = courses
-
-                // Search term
-                if (advancedFilters.searchTerm) {
-                  filtered = filtered.filter(course =>
-                    course.title.toLowerCase().includes(advancedFilters.searchTerm.toLowerCase()) ||
-                    (course.description && course.description.toLowerCase().includes(advancedFilters.searchTerm.toLowerCase())) ||
-                    (course.tags && course.tags.some((tag: string) => tag.toLowerCase().includes(advancedFilters.searchTerm.toLowerCase())))
-                  )
-                }
-
-                // Categories
-                if (advancedFilters.categories.length > 0) {
-                  filtered = filtered.filter((course: any) =>
-                    advancedFilters.categories.includes(course.category)
-                  )
-                }
-
-                // Levels
-                if (advancedFilters.levels.length > 0) {
-                  filtered = filtered.filter((course: any) =>
-                    advancedFilters.levels.includes(course.level)
-                  )
-                }
-
-                // Price range
-                filtered = filtered.filter((course: any) => {
-                  const price = course.price || 0
-                  return price >= advancedFilters.priceRange[0] && price <= advancedFilters.priceRange[1]
-                })
-
-                // Rating (mock filter for now)
-                if (advancedFilters.rating > 0) {
-                  filtered = filtered.filter((course: any) => {
-                    const rating = (course as any).rating || 0
-                    return rating >= advancedFilters.rating
-                  })
-                }
-
-                // Duration (mock filter for now)
-                if (advancedFilters.duration > 0) {
-                  filtered = filtered.filter((course: any) => {
-                    const durationHours = course.duration_minutes ? course.duration_minutes / 60 : 0
-                    return durationHours <= advancedFilters.duration
-                  })
-                }
-
-                setFilteredCourses(filtered)
-              }}
-            />
-
             {/* Mobile Filter Sheet */}
             <Sheet>
-              <SheetTrigger>
+              <SheetTrigger asChild>
                 <Button variant="outline" size="icon" className="lg:hidden touch-feedback">
                   <Filter className="w-5 h-5" />
                 </Button>
