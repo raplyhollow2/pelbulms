@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Home, BookOpen, GraduationCap, Settings, User,
-  ChevronLeft, ChevronRight, LogOut, Menu, X, Search, TrendingUp
+  ChevronLeft, ChevronRight, LogOut, Menu, X, Search, TrendingUp, Users
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -19,6 +19,7 @@ interface DesktopSidebarProps {
 export function DesktopSidebar({ user }: DesktopSidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const [userRole, setUserRole] = useState<'student' | 'instructor' | 'admin'>('student')
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
@@ -27,6 +28,40 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
     { name: 'Profile', href: '/profile', icon: User },
     { name: 'Settings', href: '/settings', icon: Settings },
   ]
+
+  const teacherNavigation = [
+    { name: 'Teacher Dashboard', href: '/teach/dashboard', icon: GraduationCap },
+    { name: 'My Courses', href: '/teach/courses/new', icon: BookOpen },
+    { name: 'Analytics', href: '/teach/analytics', icon: TrendingUp },
+  ]
+
+  const adminNavigation = [
+    { name: 'User Management', href: '/admin/users', icon: Users },
+    { name: 'Teacher Dashboard', href: '/teach/dashboard', icon: GraduationCap },
+  ]
+
+  useEffect(() => {
+    if (user) {
+      fetchUserRole()
+    }
+  }, [user])
+
+  const fetchUserRole = async () => {
+    try {
+      const supabase = createClient()
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+      if (profile) {
+        setUserRole((profile as any).role || 'student')
+      }
+    } catch (error) {
+      console.error('Error fetching user role:', error)
+    }
+  }
 
   const openCommandPalette = () => {
     // Trigger command palette keyboard shortcut
@@ -136,6 +171,67 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
             </Link>
           )
         })}
+
+        {/* Role-based Navigation */}
+        {(userRole === 'instructor' || userRole === 'admin') && (
+          <>
+            <div className="px-4 pt-4 pb-2">
+              <p className={`text-xs font-semibold text-muted-foreground uppercase ${collapsed ? 'text-center' : ''}`}>
+                {collapsed ? 'Teach' : 'Teacher Tools'}
+              </p>
+            </div>
+            {teacherNavigation.map((item) => {
+              const isActive = pathname === item.href
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  onClick={() => haptic.tap()}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 touch-feedback ${
+                    isActive
+                      ? 'bg-bhutan-yellow text-black shadow-lg'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <item.icon className={`w-5 h-5 ${collapsed ? 'mx-auto' : ''}`} />
+                  {!collapsed && (
+                    <span className="font-medium">{item.name}</span>
+                  )}
+                </Link>
+              )
+            })}
+          </>
+        )}
+
+        {userRole === 'admin' && (
+          <>
+            <div className="px-4 pt-4 pb-2">
+              <p className={`text-xs font-semibold text-muted-foreground uppercase ${collapsed ? 'text-center' : ''}`}>
+                {collapsed ? 'Admin' : 'Administration'}
+              </p>
+            </div>
+            {adminNavigation.map((item) => {
+              const isActive = pathname === item.href
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  onClick={() => haptic.tap()}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 touch-feedback ${
+                    isActive
+                      ? 'bg-bhutan-yellow text-black shadow-lg'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <item.icon className={`w-5 h-5 ${collapsed ? 'mx-auto' : ''}`} />
+                  {!collapsed && (
+                    <span className="font-medium">{item.name}</span>
+                  )}
+                </Link>
+              )
+            })}
+          </>
+        )}
       </nav>
 
       {/* Logout Button */}

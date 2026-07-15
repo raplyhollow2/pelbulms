@@ -28,7 +28,7 @@ export async function middleware(req: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession()
 
   // Protected routes that require authentication
-  const protectedPaths = ['/dashboard', '/courses', '/learn', '/teach', '/profile']
+  const protectedPaths = ['/dashboard', '/courses', '/learn', '/teach', '/profile', '/admin']
   const isProtectedPath = protectedPaths.some(path => req.nextUrl.pathname.startsWith(path))
 
   // Auth routes that should redirect if already logged in
@@ -49,5 +49,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/courses/:path*', '/learn/:path*', '/teach/:path*', '/profile/:path*', '/auth/:path*']
+  matcher: ['/dashboard/:path*', '/courses/:path*', '/learn/:path*', '/teach/:path*', '/profile/:path*', '/admin/:path*', '/auth/:path*']
 }

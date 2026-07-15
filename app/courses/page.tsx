@@ -5,15 +5,39 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Search, BookOpen, Clock, Users, Star, Filter, Loader2 } from 'lucide-react'
+import { Search, BookOpen, Clock, Users, Star, Filter, Loader2, Command } from 'lucide-react'
 import { Input } from '@/components/ui/input'
+import { CommandPalette } from '@/components/search/command-palette'
+import { CourseCard } from '@/components/courses/course-card'
+import { CourseGridSkeleton } from '@/components/courses/course-card-skeleton'
+import { Skeleton } from '@/components/ui/skeleton'
+import { InstructorShowcase } from '@/components/courses/instructor-showcase'
+import { AdvancedSearchModal } from '@/components/courses/advanced-search-modal'
+import { CourseComparison } from '@/components/courses/course-comparison'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row']
+type Module = Database['public']['Tables']['modules']['Row']
+type Enrollment = Database['public']['Tables']['enrollments']['Row']
 
-type CourseWithInstructor = Course & { profiles?: Profile | null }
+type CourseWithInstructor = Course & { profiles?: Profile | null, modules?: Module[] }
 
 export default function CoursesPage() {
   const router = useRouter()
@@ -25,6 +49,7 @@ export default function CoursesPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [selectedLevel, setSelectedLevel] = useState('All')
+  const [instructors, setInstructors] = useState<any[]>([])
 
   const supabase = createClient()
 
@@ -78,6 +103,36 @@ export default function CoursesPage() {
         if (enrollmentsData) {
           const enrolledIds = new Set(enrollmentsData.map((e: any) => e.course_id))
           setEnrolledCourseIds(enrolledIds)
+        }
+
+        // Fetch instructors with their stats
+        const { data: instructorsData } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('role', ['instructor', 'admin'])
+          .limit(10)
+
+        if (instructorsData) {
+          // Enhance instructor data with course counts
+          const instructorsWithStats = await Promise.all(
+            instructorsData.map(async (instructor: any) => {
+              const { count: coursesCount } = await supabase
+                .from('courses')
+                .select('*', { count: 'exact', head: true })
+                .eq('instructor_id', instructor.id)
+                .eq('is_published', true)
+
+              return {
+                ...instructor,
+                courses_count: coursesCount || 0,
+                students_count: Math.floor(Math.random() * 10000), // Mock data for now
+                rating: (4 + Math.random()).toFixed(1), // Mock data for now
+                expertise: ['Web Development', 'React', 'TypeScript'], // Mock data for now
+              }
+            })
+          )
+
+          setInstructors(instructorsWithStats)
         }
       }
     } catch (error) {
@@ -168,9 +223,28 @@ export default function CoursesPage() {
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-bhutan-yellow" />
-          <span className="ml-3 text-muted-foreground">Loading courses...</span>
+        <div className="space-y-8">
+          {/* Header Skeleton */}
+          <div className="flex items-center justify-between">
+            <div>
+              <Skeleton className="h-10 w-48 mb-2" />
+              <Skeleton className="h-6 w-96" />
+            </div>
+            <Skeleton className="h-12 w-40" />
+          </div>
+
+          {/* Search and Filters Skeleton */}
+          <div className="space-y-4">
+            <Skeleton className="h-12 w-full" />
+            <div className="flex gap-3">
+              <Skeleton className="h-9 w-24" />
+              <Skeleton className="h-9 w-28" />
+              <Skeleton className="h-9 w-32" />
+            </div>
+          </div>
+
+          {/* Course Grid Skeleton */}
+          <CourseGridSkeleton count={6} />
         </div>
       </div>
     )
@@ -180,25 +254,163 @@ export default function CoursesPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="space-y-8">
         {/* Header */}
-        <div>
-          <h1 className="text-4xl font-bold mb-2">Course Catalog</h1>
-          <p className="text-xl text-muted-foreground">
-            Discover and enroll in courses from our diverse catalog
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold mb-2">Course Catalog</h1>
+            <p className="text-xl text-muted-foreground">
+              Discover and enroll in courses from our diverse catalog
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <CourseComparison
+              courses={courses as any}
+              maxCompare={3}
+            />
+            <Button
+              variant="outline"
+              size="lg"
+              className="glass touch-feedback"
+              onClick={() => {
+                // Trigger command palette via keyboard event
+                const event = new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true })
+                document.dispatchEvent(event)
+              }}
+            >
+              <Command className="w-5 h-5 mr-2" />
+              Search (⌘K)
+            </Button>
+          </div>
         </div>
+
+        {/* Command Palette */}
+        <CommandPalette />
 
         {/* Search and Filters */}
         <div className="space-y-4">
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
-            <Input
-              type="text"
-              placeholder="Search courses by title, description, or tags..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 h-12 glass-strong"
+          {/* Search Bar with Mobile Filters */}
+          <div className="flex gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+              <Input
+                type="text"
+                placeholder="Search courses by title, description, or tags..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 h-12 glass-strong"
+              />
+            </div>
+
+            {/* Advanced Search Button */}
+            <AdvancedSearchModal
+              availableCategories={categories.filter((c: any) => c !== 'All')}
+              availableLevels={levels.filter((l: any) => l !== 'All')}
+              onSearch={(advancedFilters) => {
+                // Update all filters based on advanced search
+                setSearchTerm(advancedFilters.searchTerm)
+                setSelectedCategory(advancedFilters.categories[0] || 'All')
+                setSelectedLevel(advancedFilters.levels[0] || 'All')
+
+                // Apply advanced filtering to courses
+                let filtered = courses
+
+                // Search term
+                if (advancedFilters.searchTerm) {
+                  filtered = filtered.filter(course =>
+                    course.title.toLowerCase().includes(advancedFilters.searchTerm.toLowerCase()) ||
+                    (course.description && course.description.toLowerCase().includes(advancedFilters.searchTerm.toLowerCase())) ||
+                    (course.tags && course.tags.some((tag: string) => tag.toLowerCase().includes(advancedFilters.searchTerm.toLowerCase())))
+                  )
+                }
+
+                // Categories
+                if (advancedFilters.categories.length > 0) {
+                  filtered = filtered.filter((course: any) =>
+                    advancedFilters.categories.includes(course.category)
+                  )
+                }
+
+                // Levels
+                if (advancedFilters.levels.length > 0) {
+                  filtered = filtered.filter((course: any) =>
+                    advancedFilters.levels.includes(course.level)
+                  )
+                }
+
+                // Price range
+                filtered = filtered.filter((course: any) => {
+                  const price = course.price || 0
+                  return price >= advancedFilters.priceRange[0] && price <= advancedFilters.priceRange[1]
+                })
+
+                // Rating (mock filter for now)
+                if (advancedFilters.rating > 0) {
+                  filtered = filtered.filter((course: any) => {
+                    const rating = (course as any).rating || 0
+                    return rating >= advancedFilters.rating
+                  })
+                }
+
+                // Duration (mock filter for now)
+                if (advancedFilters.duration > 0) {
+                  filtered = filtered.filter((course: any) => {
+                    const durationHours = course.duration_minutes ? course.duration_minutes / 60 : 0
+                    return durationHours <= advancedFilters.duration
+                  })
+                }
+
+                setFilteredCourses(filtered)
+              }}
             />
+
+            {/* Mobile Filter Sheet */}
+            <Sheet>
+              <SheetTrigger>
+                <Button variant="outline" size="icon" className="lg:hidden touch-feedback">
+                  <Filter className="w-5 h-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent>
+                <SheetHeader>
+                  <SheetTitle>Filters</SheetTitle>
+                  <SheetDescription>
+                    Refine your course search
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="space-y-4 pt-4">
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Category</label>
+                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((category: any) => (
+                          <SelectItem key={category} value={category}>
+                            {category}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Level</label>
+                    <Select value={selectedLevel} onValueChange={setSelectedLevel}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {levels.map((level: any) => (
+                          <SelectItem key={level} value={level}>
+                            {level}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
 
           {/* Filters */}
@@ -246,90 +458,19 @@ export default function CoursesPage() {
           </p>
         </div>
 
-        {/* Course Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        {/* Enhanced Course Grid with Hover Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredCourses.map((course) => {
-            const instructor = (course as any).profiles
+            const isEnrolled = enrolledCourseIds.has(course.id)
+            const progress = (course as any).progress || 0
+
             return (
-              <Card key={course.id} className="glass hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer flex flex-col" onClick={() => router.push(`/courses/${course.id}`)}>
-                {/* Course Thumbnail */}
-                <div className="h-40 sm:h-48 bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20 flex items-center justify-center flex-shrink-0">
-                  {course.thumbnail_url ? (
-                    <img
-                      src={course.thumbnail_url}
-                      alt={course.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <BookOpen className="w-12 h-12 text-bhutan-yellow" />
-                  )}
-                </div>
-
-                <CardHeader className="pb-3 flex-shrink-0">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <Badge variant="outline" className="text-xs">
-                      {course.category}
-                    </Badge>
-                    <Badge variant="secondary" className="text-xs">
-                      {course.level}
-                    </Badge>
-                  </div>
-                  <CardTitle className="text-base sm:text-lg line-clamp-2 group-hover:text-bhutan-yellow transition-colors">
-                    {course.title}
-                  </CardTitle>
-                  <CardDescription className="line-clamp-2 text-sm">
-                    {course.description}
-                  </CardDescription>
-                </CardHeader>
-
-                <CardContent className="space-y-3 sm:space-y-4 flex-1 flex flex-col">
-                  {/* Course Stats */}
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-1 text-muted-foreground">
-                      <Clock className="w-4 h-4" />
-                      <span className="text-xs sm:text-sm">{course.duration_minutes ? `${Math.floor(course.duration_minutes / 60)}h ${course.duration_minutes % 60}m` : 'Self-paced'}</span>
-                    </div>
-                    {course.price === 0 ? (
-                      <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">Free</Badge>
-                    ) : (
-                      <Badge variant="secondary" className="text-xs bg-bhutan-yellow text-bhutan-black">Premium</Badge>
-                    )}
-                  </div>
-
-                  {/* Instructor */}
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Instructor:</span>{' '}
-                    <span className="font-medium text-xs sm:text-sm">{instructor?.full_name || 'TBD'}</span>
-                  </div>
-
-                  {/* Tags */}
-                  {course.tags && course.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {course.tags.slice(0, 3).map((tag: any) => (
-                        <Badge key={tag} variant="secondary" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Spacer to push button to bottom */}
-                  <div className="flex-1" />
-
-                  {/* Action Button */}
-                  <Button
-                    className="w-full bg-bhutan-yellow hover:bg-bhutan-orange transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation() // Prevent card click
-                      handleEnroll(course.id)
-                    }}
-                    disabled={enrolledCourseIds.has(course.id)}
-                  >
-                    <BookOpen className="w-4 h-4 mr-2" />
-                    {enrolledCourseIds.has(course.id) ? 'Continue' : 'Enroll Now'}
-                  </Button>
-                </CardContent>
-              </Card>
+              <CourseCard
+                key={course.id}
+                course={course}
+                isEnrolled={isEnrolled}
+                progress={progress}
+              />
             )
           })}
         </div>
@@ -352,6 +493,17 @@ export default function CoursesPage() {
             >
               Clear Filters
             </Button>
+          </div>
+        )}
+
+        {/* Instructor Showcase */}
+        {!loading && instructors.length > 0 && (
+          <div className="mt-12 pt-8 border-t border-border/50">
+            <InstructorShowcase
+              instructors={instructors}
+              layout="grid"
+              maxShow={6}
+            />
           </div>
         )}
       </div>

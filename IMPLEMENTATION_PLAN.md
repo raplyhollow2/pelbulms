@@ -10,6 +10,165 @@
 
 ---
 
+## 🎯 UDEMY-KILLER COURSE PAGE DESIGN SYSTEM
+
+To make [Pelbu LMS](https://pelbulms.vercel.app/courses) visually, functionally, and technically superior to Udemy, we need to move away from Udemy's dated, dense, and "ad-heavy" layout.
+
+A high-end 2026 SaaS aesthetic prioritizes **cognitive ease, visual breathing room (negative space), and micro-interactions**. Using **shadcn/ui** as our secret weapon for composing advanced Radix primitives without bloated libraries.
+
+### Udemy vs. Pelbu 2026 UI/UX Philosophy
+
+| Feature | Udemy's Dated Approach 👎 | Pelbu's Premium 2026 Approach 👍 |
+| --- | --- | --- |
+| **Pricing & CTAs** | Sticky right sidebar that scrolls awkwardly and feels pushy | Sleek, floating **Action Deck** using bottom-sheet on mobile and minimalist card grid on desktop |
+| **Course Syllabus** | Rigid, boring toggle list with no video duration indicators | Interactive, visual, animated timeline using **shadcn Accordions & Progress Indicators** |
+| **Review Section** | Generic text lists with messy filtering | Categorized, high-end "Grid of Testimonials" styled like modern SaaS landing page |
+| **Previewing Video** | Small overlay popups that trigger layout shifts | Seamless glassmorphic **`Dialog`** with built-in playback speed controls |
+
+### 1. Premium Glassmorphism Navigation System
+
+**Layout Architecture:**
+```
+          [ PREMIUM NAVBAR / COMMAND SEARCH ]
+___________________________________________________________________
+|  📂 Filters (Sheet) | 🎛️ Grid/List Toggle | 🔍 Focus-Mode Search |
+|_____________________________________________________________________|
+|                                                                     |
+|  [ BENTO-GRID FEATURED COURSE / HERO ]                              |
+|  ┌───────────────────────────────────────────────────────────────┐  |
+|  │                  (Dynamic Hover Card Preview)                 │  |
+|  └───────────────────────────────────────────────────────────────┘  |
+|                                                                     |
+|  [ COURSE FEED ]                                                    |
+|  ┌───────────────┐ ┌───────────────┐ ┌───────────────┐              |
+|  │ Card + Hover  │ │ Card + Hover  │ │ Card + Hover  │              |
+|  │ Card Preview  │ │ Card Preview  │ │ Card Preview  │              |
+|  └───────────────┘ └───────────────┘ └───────────────┘              |
+|_____________________________________________________________________|
+```
+
+**Components Required:**
+- **shadcn `NavigationMenu`** - For main navigation
+- **shadcn `Command`** - For Cmd+K global search
+- **Glassmorphism effects** - `backdrop-blur-md bg-background/80 border-b`
+
+**Implementation Prompt:**
+> *"Create a floating glassmorphic header using `lucide-react` icons, shadcn `NavigationMenu`, and a theme toggle. It must blend with the background using a subtle border-bottom and native Tailwind backdrop blur."*
+
+### 2. Interactive Course Hover Cards
+
+Instead of taking users to a new page or showing bulky tooltips, hovering over course cards should smoothly trigger rich-text preview popups.
+
+**Components Required:**
+- **shadcn `HoverCard`** - For hover interactions
+- **Dynamic curriculum display** - Show syllabus preview
+- **Prerequisites & time estimation** - Smart metadata display
+
+**Implementation Prompt:**
+> *"Wrap the existing `CourseCard` component inside a shadcn `HoverCard`. Set the hover delay to 300ms. When hovered, display a detailed popover showing course description, syllabus bullet points, prerequisites, and dynamic estimated time."*
+
+### 3. Multi-Select Toggle Groups & Accordion Filters
+
+Upgrade from single-choice filter buttons to professional collapsible filter sidebar.
+
+**Components Required:**
+- **shadcn `Accordion`** - For collapsible categories
+- **shadcn `ToggleGroup`** - For multi-select filtering
+- **shadcn `Sheet`** - Mobile-responsive drawer
+
+**Implementation Prompt:**
+> *"Build a collapsible sidebar using shadcn `Accordion`. Inside, implement filter categories (Topic, Level, Duration) using a multi-select shadcn `ToggleGroup`. Sync all active filter selections with URL search parameters (`/courses?category=react&level=beginner`) for bookmarkable states. On mobile, render this sidebar inside a responsive shadcn `Sheet` (Drawer)."*
+
+### 4. Command Palette (Cmd+K Search)
+
+Transform static search into modern global command bar.
+
+**Components Required:**
+- **shadcn `CommandDialog`** - For keyboard-accessible search
+- **Fuzzy search engine** - Handle typos gracefully
+- **Quick navigation** - Jump to courses, categories, tags
+
+**Implementation Prompt:**
+> *"Implement a global keyboard shortcut (`Cmd + K`) using the shadcn `CommandDialog` component. It should query and display course search results, let users navigate to categories, and include a fuzzy-search engine to gracefully handle typos."*
+
+### 5. Interactive Video Progress Footers
+
+Replace static "Enroll Now" buttons with beautiful inline progress graphics.
+
+**Components Required:**
+- **shadcn `Progress`** - For progress visualization
+- **Dynamic enrollment detection** - Show progress for enrolled courses
+- **Micro-animations** - Smooth progress indicators
+
+**Implementation Prompt:**
+> *"If a user is enrolled in a course, replace the footer card button with an active tracking section containing a micro-animated shadcn `Progress` bar (`bg-primary/20` and `indicator` matching accent color) displaying percent completed alongside text showing 'X of Y chapters completed'."*
+
+### 6. Skeleton Card Loading States
+
+Ensure no layout shifts (CLS) when fetching courses or applying filters.
+
+**Components Required:**
+- **shadcn `Skeleton`** - For loading states
+- **Precise dimension matching** - Mirror exact card sizing
+- **Smooth animations** - `animate-pulse` effects
+
+**Implementation Prompt:**
+> *"Create a `CourseCardSkeleton` component using shadcn `Skeleton`. It must animate smoothly (`animate-pulse`) and precisely layout blank shapes matching the exact sizing, margins, and layout of our standard `CourseCard` to avoid CLS."*
+
+## Course Detail Page Features
+
+### 1. Floating Sticky Action Deck (Pricing & CTA)
+
+**Components Required:**
+- **shadcn `Card`, `Button`, `Separator`** - Modern purchase interface
+- **Responsive behavior** - Desktop sidebar / Mobile bottom sheet
+- **Glassmorphism background** - `backdrop-blur-md` effects
+
+**Implementation Prompt:**
+> *"Build a modern, sticky 'Course Action Card' using shadcn Card and Button components. On desktop, it should sit as a floating right-hand sidebar with sleek, borderless layout, prominent 'Buy/Enroll' button, and key stats (Duration, Level, Certificate) broken up by shadcn Separators. On mobile, morph into sticky-bottom bar with price, primary CTA, and dynamic 'Share' button using native navigator sharing API."*
+
+### 2. Dynamic Time-Stamped Curriculum Timeline
+
+**Components Required:**
+- **shadcn `Accordion`, `Badge`, `HoverCard`** - Interactive syllabus
+- **Duration badges** - Show chapter/lesson timing
+- **Video preview dialogs** - Embedded lesson previews
+
+**Implementation Prompt:**
+> *"Create an advanced 'Course Syllabus' section using shadcn Accordion. Each accordion trigger should feature Chapter Title, numeric badge for lesson count, and badge showing 'Duration' (e.g., 2 hrs 15 mins). Inside each accordion, lay out lectures with Play icon buttons opening video previews in shadcn Dialog, lecture titles wrapped in shadcn HoverCard revealing 'What you will learn' bullet points, and Tag badges showing specific topics."*
+
+### 3. Cinematic Video Preview Modal
+
+**Components Required:**
+- **shadcn `Dialog`** - Modal interface
+- **HTML5 video player** - Custom controls with speed adjustment
+- **Lesson sidebar** - Quick navigation between previews
+
+**Implementation Prompt:**
+> *"Build a cinematic 'Preview Video Modal' using shadcn Dialog. The DialogTrigger should be styled as custom overlay with active play button over course thumbnail. Inside dialog, render modern video player with speed controls and custom play/pause animations. Add sidebar inside modal listing other free preview lessons for switching videos without closing player."*
+
+### 4. Bento-Grid Instructor Showcase & Social Proof
+
+**Components Required:**
+- **shadcn `Avatar`, `Card`** - Instructor profile display
+- **Kinetic stats** - Bold numbers for students/reviews
+- **Testimonial grid** - Interactive review cards with hover effects
+
+**Implementation Prompt:**
+> *"Design a 'Bento Grid' layout for Instructor Bio & Student Reviews section. Grid Cell 1: Instructor Quick Stats (students taught, total reviews) using bold kinetic numbers. Grid Cell 2: Profile card with clean shadcn Avatar, bio text, and linked social profile icon. Grid Cell 3: Interactive rating calculator showing star distribution with thin progress indicators. Grid Cell 4 & 5: Mini grid of student testimonial cards using dynamic hover scale-up effects (`hover:scale-101` with clean transition durations)."*
+
+### 5. Sticky Contextual Progress Indicator
+
+**Components Required:**
+- **shadcn `Progress`, `Button`** - Scroll-aware navigation
+- **Smooth transitions** - Fade effects using Tailwind
+- **Context awareness** - Display relevant info based on scroll position
+
+**Implementation Prompt:**
+> *"Write a scroll-aware header hook and component in Next.js. When user scrolls past main hero section, transition header to fade in slim navbar displaying course title on left, interactive scroll-progress bar across top edge, and miniature 'Buy Now' action button on right. Ensure smooth fade transitions using Tailwind animations (`transition-opacity duration-300 ease-in-out`)."*
+
+---
+
 ## COMPLETE UI/UX DESIGN SYSTEM (Hyper-Specific Details)
 
 ### 🎨 Brand Identity & Colors

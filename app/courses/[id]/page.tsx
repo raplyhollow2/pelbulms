@@ -5,8 +5,12 @@ import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BookOpen, Clock, Users, Star, ArrowLeft, Loader2, CheckCircle } from 'lucide-react'
+import { BookOpen, Clock, Users, Star, ArrowLeft, Loader2, CheckCircle, Play } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { CourseActionDeck } from '@/components/courses/course-action-deck'
+import { CurriculumTimeline } from '@/components/courses/curriculum-timeline'
+import { CourseDetailSkeleton } from '@/components/courses/course-detail-skeleton'
+import { VideoPreviewModal } from '@/components/courses/video-preview-modal'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
@@ -23,6 +27,7 @@ export default function CourseDetailPage() {
   const [loading, setLoading] = useState(true)
   const [isEnrolled, setIsEnrolled] = useState(false)
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [showVideoPreview, setShowVideoPreview] = useState(false)
 
   const supabase = createClient()
 
@@ -125,14 +130,7 @@ export default function CourseDetailPage() {
   }
 
   if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-bhutan-yellow" />
-          <span className="ml-3 text-muted-foreground">Loading course details...</span>
-        </div>
-      </div>
-    )
+    return <CourseDetailSkeleton />
   }
 
   if (!course) {
@@ -167,7 +165,7 @@ export default function CourseDetailPage() {
         </Button>
 
         {/* Course Header */}
-        <div className="space-y-4">
+        <div className="space-y-4" data-hero-section>
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-3">
@@ -179,6 +177,21 @@ export default function CourseDetailPage() {
               </div>
               <h1 className="text-4xl font-bold mb-2">{course.title}</h1>
               <p className="text-lg text-muted-foreground">{course.description}</p>
+
+              {/* Video Preview Button */}
+              <div className="mt-4 flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  className="bg-bhutan-yellow/10 hover:bg-bhutan-yellow/20 border-bhutan-yellow/50"
+                  onClick={() => setShowVideoPreview(true)}
+                >
+                  <Play className="w-4 h-4 mr-2" />
+                  Watch Free Preview
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  {course.duration_minutes ? `${Math.floor(course.duration_minutes / 60)} minutes of content` : 'Self-paced content'}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -246,34 +259,26 @@ export default function CourseDetailPage() {
           </Card>
         )}
 
-        {/* Course Modules */}
+        {/* Course Modules - Timeline */}
         {modules.length > 0 && (
           <Card className="glass">
             <CardHeader>
-              <CardTitle className="text-lg">Course Content</CardTitle>
-              <CardDescription>{modules.length} modules • {course.duration_minutes ? `${Math.floor(course.duration_minutes / 60)} hours` : 'Self-paced'} content</CardDescription>
+              <CardTitle className="text-lg">Course Curriculum</CardTitle>
+              <CardDescription>
+                {modules.length} modules • {course.duration_minutes ? `${Math.floor(course.duration_minutes / 60)} hours` : 'Self-paced'} content
+              </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {modules.map((module, index) => (
-                  <div
-                    key={module.id}
-                    className="p-4 rounded-lg border border-border/50 hover:border-bhutan-yellow/50 transition-colors"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-full bg-bhutan-yellow/20 flex items-center justify-center flex-shrink-0">
-                        <span className="text-sm font-bold text-bhutan-yellow">{index + 1}</span>
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold">{module.title}</h4>
-                        {module.description && (
-                          <p className="text-sm text-muted-foreground mt-1">{module.description}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <CurriculumTimeline
+                modules={modules}
+                showProgress={isEnrolled}
+                overallProgress={0}
+                onLessonClick={(lessonId) => {
+                  if (isEnrolled) {
+                    router.push(`/learn/${courseId}?lesson=${lessonId}`)
+                  }
+                }}
+              />
             </CardContent>
           </Card>
         )}
@@ -320,6 +325,28 @@ export default function CourseDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Floating Action Deck */}
+      {course && (
+        <CourseActionDeck
+          course={course}
+          isEnrolled={isEnrolled}
+          onEnroll={handleEnroll}
+          onLearn={() => router.push(`/learn/${courseId}`)}
+        />
+      )}
+
+      {/* Video Preview Modal */}
+      {course && (
+        <VideoPreviewModal
+          courseId={course.id}
+          courseTitle={course.title}
+          previewVideoUrl={(course as any).preview_video_url}
+          previewDuration={course.duration_minutes ? Math.min(course.duration_minutes, 120) : 120}
+          isOpen={showVideoPreview}
+          onOpenChange={setShowVideoPreview}
+        />
+      )}
     </div>
   )
 }

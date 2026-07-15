@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Home, BookOpen, GraduationCap, User,
   Menu, X, LogOut, Settings, Search,
-  Bell, MessageCircle, TrendingUp
+  Bell, MessageCircle, TrendingUp, Users
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -20,20 +20,53 @@ interface MobileNavigationProps {
 export function MobileNavigation({ user }: MobileNavigationProps) {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [userRole, setUserRole] = useState<'student' | 'instructor' | 'admin'>('student')
 
   const mainNavigation = [
     { name: 'Home', href: '/dashboard', icon: Home },
     { name: 'Courses', href: '/courses', icon: BookOpen },
-    { name: 'Progress', href: '/learn/progress', icon: TrendingUp },
-    { name: 'Profile', href: '/profile', icon: User },
+    { name: 'My Learning', href: '/learn/progress', icon: TrendingUp },
+    { name: 'Profile', href: '/dashboard', icon: User }, // Temporarily link to dashboard until profile page is created
   ]
 
   const secondaryNavigation = [
-    { name: 'Settings', href: '/settings', icon: Settings },
+    { name: 'Settings', href: '/dashboard', icon: Settings }, // Temporarily link to dashboard until settings page is created
     { name: 'Notifications', href: '/notifications', icon: Bell },
     { name: 'Messages', href: '/messages', icon: MessageCircle },
-    { name: 'Search', href: '/search', icon: Search },
+    { name: 'Search', href: '/courses', icon: Search }, // Link to courses for search functionality
   ]
+
+  const teacherNavigation = [
+    { name: 'Teacher Dashboard', href: '/teach/dashboard', icon: GraduationCap },
+    { name: 'Create Course', href: '/teach/courses/new', icon: BookOpen },
+  ]
+
+  const adminNavigation = [
+    { name: 'User Management', href: '/admin/users', icon: Users },
+  ]
+
+  useEffect(() => {
+    if (user) {
+      fetchUserRole()
+    }
+  }, [user])
+
+  const fetchUserRole = async () => {
+    try {
+      const supabase = createClient()
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+      if (profile) {
+        setUserRole((profile as any).role || 'student')
+      }
+    } catch (error) {
+      console.error('Error fetching user role:', error)
+    }
+  }
 
   const handleLogout = async () => {
     haptic.warning()
@@ -129,6 +162,56 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
                   </Link>
                 ))}
               </div>
+
+              {/* Teacher Navigation */}
+              {(userRole === 'instructor' || userRole === 'admin') && (
+                <>
+                  <div className="mb-2 text-sm font-semibold text-muted-foreground">
+                    Teacher Tools
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    {teacherNavigation.map((item) => (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        onClick={() => {
+                          haptic.tap()
+                          setMenuOpen(false)
+                        }}
+                        className="flex flex-col items-center justify-center p-4 bg-bhutan-yellow/10 dark:bg-bhutan-yellow/20 rounded-xl hover:bg-bhutan-yellow/20 dark:hover:bg-bhutan-yellow/30 transition-colors"
+                      >
+                        <item.icon className="w-6 h-6 mb-2 text-bhutan-yellow" />
+                        <span className="text-xs font-medium">{item.name}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Admin Navigation */}
+              {userRole === 'admin' && (
+                <>
+                  <div className="mb-2 text-sm font-semibold text-muted-foreground">
+                    Administration
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    {adminNavigation.map((item) => (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        onClick={() => {
+                          haptic.tap()
+                          setMenuOpen(false)
+                        }}
+                        className="flex flex-col items-center justify-center p-4 bg-red-600/10 dark:bg-red-600/20 rounded-xl hover:bg-red-600/20 dark:hover:bg-red-600/30 transition-colors"
+                      >
+                        <item.icon className="w-6 h-6 mb-2 text-red-600" />
+                        <span className="text-xs font-medium">{item.name}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              )}
 
               {/* Logout Button */}
               <Button
