@@ -40,7 +40,7 @@ import {
 } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
 import type { Database } from '@/types/database.types'
-import { haptic } from '@/lib/utils'
+import { success as hapticSuccess, warning as hapticWarning } from '@/lib/utils'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
@@ -200,7 +200,7 @@ export default function AdminUsersPage() {
           return
         }
 
-        haptic.success()
+        hapticSuccess()
         await fetchUsers()
         resetForm()
         setShowCreateForm(false)
@@ -225,7 +225,7 @@ export default function AdminUsersPage() {
         return
       }
 
-      haptic.success()
+      hapticSuccess()
       await fetchUsers()
       setEditingUser(null)
     } catch (error) {
@@ -248,7 +248,7 @@ export default function AdminUsersPage() {
       }
 
       // Note: Auth user deletion would be done through server action
-      haptic.warning()
+      hapticWarning()
       await fetchUsers()
     } catch (error) {
       console.error('Error deleting user:', error)

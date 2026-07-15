@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { createClient } from '@/lib/supabase/client'
-import { haptic } from '@/lib/utils'
+import { tap as hapticTap, warning as hapticWarning } from '@/lib/utils'
 
 interface DesktopSidebarProps {
   user?: any
@@ -74,7 +74,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
   }
 
   const handleLogout = async () => {
-    haptic.warning()
+    hapticWarning()
     try {
       const supabase = createClient()
       await supabase.auth.signOut()
@@ -85,7 +85,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
   }
 
   const toggleCollapse = () => {
-    haptic.tap()
+    hapticTap()
     setCollapsed(!collapsed)
   }
 

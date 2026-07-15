@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { createClient } from '@/lib/supabase/client'
-import { haptic } from '@/lib/utils'
+import { haptic, warning as hapticWarning } from '@/lib/utils'
 
 interface MobileNavigationProps {
   user?: any
@@ -69,7 +69,7 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
   }
 
   const handleLogout = async () => {
-    haptic.warning()
+    hapticWarning()
     try {
       const supabase = createClient()
       await supabase.auth.signOut()

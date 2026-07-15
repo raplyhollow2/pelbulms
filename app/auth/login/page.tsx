@@ -6,7 +6,7 @@ import { BookOpen, Loader2, AlertCircle, Fingerprint } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/client'
-import { haptic } from '@/lib/utils'
+import { success as hapticSuccess, warning as hapticWarning } from '@/lib/utils'
 
 // SVG Icons for OAuth providers
 const GoogleIcon = ({ className }: { className?: string }) => (
@@ -41,7 +41,7 @@ function LoginPage() {
     const urlError = searchParams.get('error')
     if (urlError) {
       setError(decodeURIComponent(urlError))
-      haptic.warning()
+      hapticWarning()
     }
   }, [searchParams])
 
@@ -55,17 +55,17 @@ function LoginPage() {
 
       if (passkeyError) {
         setError(passkeyError.message)
-        haptic.warning()
+        hapticWarning()
         setLoading(false)
       } else if (data) {
-        haptic.success()
+        hapticSuccess()
         // Passkey authentication successful
         router.push('/dashboard')
       }
     } catch (err) {
       console.error('Passkey error:', err)
       setError('Passkey authentication failed. Please try again.')
-      haptic.warning()
+      hapticWarning()
       setLoading(false)
     }
   }
@@ -85,16 +85,16 @@ function LoginPage() {
 
       if (oauthError) {
         setError(oauthError.message)
-        haptic.warning()
+        hapticWarning()
         setLoading(false)
       } else if (data) {
-        haptic.success()
+        hapticSuccess()
         // OAuth redirect will happen automatically
       }
     } catch (err) {
       console.error('OAuth error:', err)
       setError(`${provider.charAt(0).toUpperCase() + provider.slice(1)} authentication failed. Please try again.`)
-      haptic.warning()
+      hapticWarning()
       setLoading(false)
     }
   }
