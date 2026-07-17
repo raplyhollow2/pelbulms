@@ -59,11 +59,11 @@ export async function middleware(req: NextRequest) {
   }
 
   // Approval status gate from auth metadata (instant, no DB query).
-  // Disabled by default: the approval workflow isn't fully built yet, and the
-  // metadata sync trigger stamps existing accounts as `pending`, locking real
-  // users (incl. admins) out of the live app. Set APPROVAL_GATE_ENABLED=true
-  // once every active account has account_status='active' synced.
-  const approvalGateEnabled = process.env.APPROVAL_GATE_ENABLED === 'true'
+  // Enabled by default for this closed system. Set APPROVAL_GATE_ENABLED=false
+  // only as an emergency escape hatch. Accounts with an *undefined* status are
+  // treated as legacy and allowed through (page/layout checks still apply),
+  // so a missing metadata sync can never hard-lock existing users out.
+  const approvalGateEnabled = process.env.APPROVAL_GATE_ENABLED !== 'false'
 
   if (approvalGateEnabled && isProtectedPath && user) {
     const accountStatus = user.app_metadata?.account_status
@@ -74,12 +74,11 @@ export async function middleware(req: NextRequest) {
       return redirectTo('/auth/access-denied')
     }
 
-    // Pending users -> approval page (allow completing registration)
+    // Pending users -> registration form. The form itself forwards users who
+    // have already submitted on to /auth/pending-approval, so this both onboards
+    // brand-new users and parks those awaiting review.
     if (accountStatus === 'pending') {
-      if (pathname.startsWith('/auth/register')) {
-        return res
-      }
-      return redirectTo('/auth/pending-approval')
+      return redirectTo('/auth/register')
     }
 
     // Role-based access control — only enforced when a role is present in
@@ -87,7 +86,10 @@ export async function middleware(req: NextRequest) {
     // checks against the `profiles` table handle authorization instead.
     // Superadmin has top-level access to everything; skip route gating.
     if (userRole && userRole !== 'superadmin') {
-      if (pathname.startsWith('/admin')) {
+      // Assigned reviewers (often instructors) need the approvals screen even
+      // though it lives under /admin; the page + API enforce reviewer rights.
+      const isApprovalsPath = pathname.startsWith('/admin/approvals')
+      if (pathname.startsWith('/admin') && !isApprovalsPath) {
         if (userRole !== 'resource_person' && userRole !== 'admin') {
           return redirectTo('/dashboard')
         }

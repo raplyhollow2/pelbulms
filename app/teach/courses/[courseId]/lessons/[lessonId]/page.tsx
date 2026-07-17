@@ -1,7 +1,7 @@
 // @ts-nocheck - Lesson schema fields extend generated types; unblock deploy
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -11,8 +11,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
-import { ArrowLeft, Loader2, Save, Play, Edit, Clock, FileText, BookOpen, CheckCircle2, Link } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, Play, Edit, Clock, FileText, BookOpen, CheckCircle2, Link, UploadCloud, Lock, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { resolveMediaUrl, parseMediaRef } from '@/lib/media'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
@@ -31,6 +32,10 @@ export default function LessonEditPage() {
   const [module, setModule] = useState<Module | null>(null)
   const [course, setCourse] = useState<Course | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
+
+  const videoInputRef = useRef<HTMLInputElement>(null)
+  const [uploadingVideo, setUploadingVideo] = useState(false)
+  const [videoUploadError, setVideoUploadError] = useState('')
 
   const supabase = createClient()
 
@@ -152,6 +157,37 @@ export default function LessonEditPage() {
     if (!url) return ''
     const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/)
     return match ? match[1] : ''
+  }
+
+  // Upload a private lesson video to Cloudinary (served via /api/media).
+  const uploadLessonVideo = async (file: File) => {
+    setVideoUploadError('')
+    setUploadingVideo(true)
+    try {
+      const body = new FormData()
+      body.append('file', file)
+      body.append('courseId', courseId)
+      body.append('kind', 'video')
+
+      const res = await fetch('/api/courses/media', { method: 'POST', body })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+
+      // data.url is a private reference like "cloudinary:video:<public_id>".
+      setLesson((prev) => (prev ? { ...prev, video_url: data.url } : prev))
+      await updateLesson({ video_url: data.url })
+    } catch (err: any) {
+      console.error('Lesson video upload error:', err)
+      setVideoUploadError(err?.message || 'Failed to upload video')
+    } finally {
+      setUploadingVideo(false)
+      if (videoInputRef.current) videoInputRef.current.value = ''
+    }
+  }
+
+  const removeLessonVideo = async () => {
+    setLesson((prev) => (prev ? { ...prev, video_url: '' } : prev))
+    await updateLesson({ video_url: '' })
   }
 
   const saveChanges = async () => {
@@ -325,6 +361,88 @@ export default function LessonEditPage() {
             <CardDescription className="text-sm">Add video content for this lesson</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Private upload (recommended) */}
+            <div className="space-y-2">
+              <Label className="text-sm flex items-center gap-1">
+                <Lock className="w-3 h-3" />
+                Private video upload (recommended)
+              </Label>
+              <input
+                ref={videoInputRef}
+                type="file"
+                accept="video/mp4,video/webm,video/ogg,video/quicktime"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) uploadLessonVideo(f)
+                }}
+              />
+              {videoUploadError && (
+                <p className="text-sm text-destructive">{videoUploadError}</p>
+              )}
+              {parseMediaRef(lesson.video_url)?.type === 'video' ? (
+                <div className="space-y-2 rounded-lg border p-3">
+                  <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                    <video
+                      src={resolveMediaUrl(lesson.video_url) || undefined}
+                      controls
+                      controlsList="nodownload"
+                      onContextMenu={(e) => e.preventDefault()}
+                      className="w-full h-full"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Lock className="w-3 h-3" /> Private · streamed through your site
+                    </span>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={uploadingVideo}
+                        onClick={() => videoInputRef.current?.click()}
+                      >
+                        {uploadingVideo ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Replace'}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={removeLessonVideo}
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={uploadingVideo}
+                  onClick={() => videoInputRef.current?.click()}
+                  className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-bhutan-yellow hover:text-foreground disabled:opacity-60"
+                >
+                  {uploadingVideo ? (
+                    <Loader2 className="w-6 h-6 animate-spin" />
+                  ) : (
+                    <UploadCloud className="w-6 h-6" />
+                  )}
+                  <span className="text-sm font-medium">
+                    {uploadingVideo ? 'Uploading & compressing...' : 'Upload lesson video'}
+                  </span>
+                  <span className="text-xs">MP4, WEBM, OGG or MOV · up to 100MB · auto-compressed</span>
+                </button>
+              )}
+            </div>
+
+            <div className="relative">
+              <Separator />
+              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
+                or
+              </span>
+            </div>
+
             <div>
               <Label htmlFor="video-url" className="text-sm flex items-center gap-1">
                 <Link className="w-3 h-3" />
@@ -332,15 +450,18 @@ export default function LessonEditPage() {
               </Label>
               <Input
                 id="video-url"
-                value={lesson.video_url || ''}
+                value={parseMediaRef(lesson.video_url) ? '' : lesson.video_url || ''}
                 onChange={(e) => setLesson({ ...lesson, video_url: e.target.value })}
                 onBlur={() => updateLesson({ video_url: lesson.video_url })}
                 placeholder="https://youtube.com/watch?v=..."
                 className="mt-1"
               />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Note: YouTube links can be discovered in the browser. Use the private upload above for confidential content.
+              </p>
             </div>
 
-            {/* Video Preview */}
+            {/* YouTube preview */}
             {lesson.video_url && getYoutubeId(lesson.video_url) && (
               <div className="p-3 bg-muted/30 rounded-lg">
                 <p className="text-xs text-muted-foreground mb-2">Video Preview:</p>

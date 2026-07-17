@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { DesktopSidebar } from './desktop-sidebar'
 import { MobileNavigation } from './mobile-navigation'
 
@@ -11,6 +12,7 @@ interface ResponsiveLayoutProps {
 
 export function ResponsiveLayout({ children, user }: ResponsiveLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const pathname = usePathname()
 
   useEffect(() => {
     const onToggle = (event: Event) => {
@@ -27,7 +29,13 @@ export function ResponsiveLayout({ children, user }: ResponsiveLayoutProps) {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-white dark:from-gray-900 dark:to-black overflow-x-hidden">
+    <div className="relative min-h-screen overflow-x-hidden bg-background">
+      {/* Ambient brand backdrop — subtle, premium, non-distracting */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(70rem_40rem_at_110%_-10%,rgba(255,199,44,0.10),transparent_60%),radial-gradient(60rem_38rem_at_-10%_10%,rgba(255,107,53,0.08),transparent_55%)] dark:bg-[radial-gradient(70rem_40rem_at_110%_-10%,rgba(255,199,44,0.06),transparent_60%),radial-gradient(60rem_38rem_at_-10%_10%,rgba(255,107,53,0.05),transparent_55%)]"
+      />
+
       {/* Desktop sidebar — hidden below lg */}
       <div className="hidden lg:block">
         <DesktopSidebar user={user} />
@@ -38,8 +46,8 @@ export function ResponsiveLayout({ children, user }: ResponsiveLayoutProps) {
           sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'
         }`}
       >
-        {/* Mobile bottom nav clearance */}
-        <div className="page-shell pb-24 lg:pb-0">
+        {/* Mobile bottom nav clearance; key on route for smooth enter animation */}
+        <div key={pathname} className="page-shell page-enter pb-28 lg:pb-0">
           {children}
         </div>
       </main>

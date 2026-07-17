@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   Home, BookOpen, GraduationCap, Settings, User,
   ChevronLeft, ChevronRight, LogOut, Search, TrendingUp, Users,
+  ClipboardCheck, ShieldCheck, Bell,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -17,6 +18,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { createClient } from '@/lib/supabase/client'
+import { resolveMediaUrl } from '@/lib/media'
 import { cn, haptic, warning as hapticWarning, tap as hapticTap } from '@/lib/utils'
 
 interface DesktopSidebarProps {
@@ -46,23 +48,28 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
     userRole === 'superadmin'
   const canAdmin = userRole === 'admin' || userRole === 'superadmin'
 
+  // Ordered by everyday priority for a learner.
   const navigation: NavItem[] = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Courses', href: '/courses', icon: BookOpen },
-    { name: 'Progress', href: '/learn/progress', icon: TrendingUp },
+    { name: 'My Progress', href: '/learn/progress', icon: TrendingUp },
+    { name: 'Announcements', href: '/announcements', icon: Bell },
     { name: 'Profile', href: '/profile', icon: User },
     { name: 'Settings', href: '/settings', icon: Settings },
   ]
 
   const teacherNavigation: NavItem[] = [
     { name: 'Teacher Dashboard', href: '/teach/dashboard', icon: GraduationCap },
-    { name: 'My Courses', href: '/teach/courses/new', icon: BookOpen },
+    { name: 'New Course', href: '/teach/courses/new', icon: BookOpen },
     { name: 'Analytics', href: '/teach/analytics', icon: TrendingUp },
+    { name: 'Announcements', href: '/teach/announcements', icon: Bell },
+    { name: 'Approvals', href: '/admin/approvals', icon: ClipboardCheck },
   ]
 
   const adminNavigation: NavItem[] = [
     { name: 'User Management', href: '/admin/users', icon: Users },
-    { name: 'Teacher Dashboard', href: '/teach/dashboard', icon: GraduationCap },
+    { name: 'Approvals', href: '/admin/approvals', icon: ClipboardCheck },
+    { name: 'Reviewers', href: '/admin/reviewers', icon: ShieldCheck },
   ]
 
   // Restore persisted collapse state and notify the layout on mount.
@@ -100,8 +107,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
   }
 
   const openCommandPalette = () => {
-    const event = new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true })
-    document.dispatchEvent(event)
+    window.dispatchEvent(new Event('pelbu:open-search'))
   }
 
   const handleLogout = async () => {
@@ -140,11 +146,11 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
           onClick={() => haptic()}
           aria-current={isActive ? 'page' : undefined}
           className={cn(
-            'group relative flex items-center rounded-lg text-sm font-medium transition-colors',
+            'group press relative flex items-center rounded-xl text-sm font-medium transition-all duration-300',
             collapsed ? 'h-11 w-11 justify-center' : 'gap-3 px-3 py-2.5',
             isActive
-              ? 'bg-bhutan-yellow/15 text-foreground'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              ? 'bg-gradient-to-r from-bhutan-yellow/20 to-bhutan-orange/10 text-foreground shadow-soft'
+              : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
           )}
         >
           {isActive && (
@@ -188,7 +194,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
     <TooltipProvider delay={200}>
       <aside
         className={cn(
-          'fixed left-0 top-0 z-50 flex h-full flex-col border-r border-border/40 bg-background/80 backdrop-blur-xl transition-[width] duration-300',
+          'fixed left-0 top-0 z-50 flex h-full flex-col border-r border-border/40 bg-background/80 shadow-[6px_0_24px_rgba(17,24,39,0.03)] backdrop-blur-xl transition-[width] duration-300 dark:shadow-[6px_0_24px_rgba(0,0,0,0.35)]',
           collapsed ? 'w-20' : 'w-64'
         )}
       >
@@ -229,7 +235,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
             )}
           >
             <Avatar className="h-9 w-9 shrink-0">
-              <AvatarImage src={profile?.avatar_url} alt={displayName} />
+              <AvatarImage src={resolveMediaUrl(profile?.avatar_url) || undefined} alt={displayName} />
               <AvatarFallback className="bg-bhutan-yellow font-semibold text-black">
                 {initials}
               </AvatarFallback>
@@ -244,7 +250,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+        <nav className="scroll-premium flex-1 space-y-1 overflow-y-auto p-3">
           {/* Search */}
           {collapsed ? (
             <Tooltip>

@@ -6,12 +6,12 @@ import { usePathname } from 'next/navigation'
 import {
   Home, BookOpen, GraduationCap, User,
   Menu, X, LogOut, Settings, Search,
-  Bell, TrendingUp, Users
+  Bell, TrendingUp, Users, Plus, ClipboardCheck, ShieldCheck
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { createClient } from '@/lib/supabase/client'
-import { haptic, warning as hapticWarning } from '@/lib/utils'
+import { cn, haptic, warning as hapticWarning } from '@/lib/utils'
 
 interface MobileNavigationProps {
   user?: any
@@ -39,18 +39,22 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
   ]
 
   const secondaryNavigation = [
-    { name: 'Settings', href: '/settings', icon: Settings },
     { name: 'Announcements', href: '/announcements', icon: Bell },
-    { name: 'Search', href: '/courses', icon: Search },
+    { name: 'Settings', href: '/settings', icon: Settings },
   ]
 
   const teacherNavigation = [
     { name: 'Teacher Hub', href: '/teach/dashboard', icon: GraduationCap },
-    { name: 'New Course', href: '/teach/courses/new', icon: BookOpen },
+    { name: 'New Course', href: '/teach/courses/new', icon: Plus },
+    { name: 'Analytics', href: '/teach/analytics', icon: TrendingUp },
+    { name: 'Announcements', href: '/teach/announcements', icon: Bell },
+    { name: 'Approvals', href: '/admin/approvals', icon: ClipboardCheck },
   ]
 
   const adminNavigation = [
     { name: 'Users', href: '/admin/users', icon: Users },
+    { name: 'Approvals', href: '/admin/approvals', icon: ClipboardCheck },
+    { name: 'Reviewers', href: '/admin/reviewers', icon: ShieldCheck },
   ]
 
   useEffect(() => {
@@ -104,10 +108,10 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
   return (
     <>
       <nav
-        className="fixed bottom-0 inset-x-0 z-50 border-t border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 safe-area-bottom"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2"
         aria-label="Mobile navigation"
       >
-        <div className="flex items-stretch justify-around h-16 px-1 max-w-lg mx-auto">
+        <div className="pointer-events-auto mx-auto flex max-w-md items-stretch justify-around gap-1 rounded-2xl border border-border/50 bg-background/80 p-1.5 shadow-floating backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
           {mainNavigation.map((item) => {
             const active = isActive(item.href)
             return (
@@ -115,12 +119,28 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
                 key={item.name}
                 href={item.href}
                 onClick={() => haptic()}
-                className={`flex flex-1 flex-col items-center justify-center gap-0.5 min-w-0 py-2 rounded-lg transition-colors ${
-                  active ? 'text-bhutan-yellow' : 'text-muted-foreground'
-                }`}
+                aria-current={active ? 'page' : undefined}
+                className="press relative flex flex-1 flex-col items-center justify-center gap-1 min-w-0 rounded-xl py-2"
               >
-                <item.icon className={`w-5 h-5 shrink-0 ${active ? 'text-bhutan-yellow' : ''}`} />
-                <span className="text-[10px] font-medium truncate max-w-full px-0.5">
+                {active && (
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 rounded-xl bg-bhutan-yellow/15 ring-1 ring-bhutan-yellow/25"
+                  />
+                )}
+                <item.icon
+                  className={cn(
+                    'relative h-5 w-5 shrink-0 transition-transform duration-300',
+                    active ? 'scale-110 text-bhutan-orange' : 'text-muted-foreground'
+                  )}
+                  style={{ transitionTimingFunction: 'var(--ease-spring)' }}
+                />
+                <span
+                  className={cn(
+                    'relative max-w-full truncate px-0.5 text-[10px] font-medium transition-colors',
+                    active ? 'text-foreground' : 'text-muted-foreground'
+                  )}
+                >
                   {item.name}
                 </span>
               </Link>
@@ -133,25 +153,42 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
               haptic()
               setMenuOpen((open) => !open)
             }}
-            className={`flex flex-1 flex-col items-center justify-center gap-0.5 min-w-0 py-2 rounded-lg transition-colors ${
-              menuOpen ? 'text-bhutan-yellow' : 'text-muted-foreground'
-            }`}
+            className="press relative flex flex-1 flex-col items-center justify-center gap-1 min-w-0 rounded-xl py-2"
             aria-expanded={menuOpen}
             aria-label="Open menu"
           >
-            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            <span className="text-[10px] font-medium">Menu</span>
+            {menuOpen && (
+              <span
+                aria-hidden
+                className="absolute inset-0 rounded-xl bg-bhutan-yellow/15 ring-1 ring-bhutan-yellow/25"
+              />
+            )}
+            <span className="relative">
+              {menuOpen ? (
+                <X className="h-5 w-5 text-bhutan-orange" />
+              ) : (
+                <Menu className="h-5 w-5 text-muted-foreground" />
+              )}
+            </span>
+            <span
+              className={cn(
+                'relative text-[10px] font-medium transition-colors',
+                menuOpen ? 'text-foreground' : 'text-muted-foreground'
+              )}
+            >
+              Menu
+            </span>
           </button>
         </div>
       </nav>
 
       {menuOpen && (
         <div
-          className="fixed inset-0 z-[60] bg-black/50 lg:hidden"
+          className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm animate-in fade-in duration-200 lg:hidden"
           onClick={() => setMenuOpen(false)}
         >
           <div
-            className="absolute bottom-0 inset-x-0 max-h-[85dvh] overflow-y-auto rounded-t-3xl border-t border-border/40 bg-background p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+            className="absolute bottom-0 inset-x-0 max-h-[85dvh] overflow-y-auto rounded-t-3xl border-t border-border/40 bg-background p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-overlay animate-in slide-in-from-bottom-8 duration-300"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted" />
@@ -169,6 +206,20 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
                 <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                haptic()
+                setMenuOpen(false)
+                window.dispatchEvent(new Event('pelbu:open-search'))
+              }}
+              className="mb-3 flex w-full items-center gap-3 rounded-xl border border-border/60 bg-muted/40 px-4 py-3 text-left text-sm text-muted-foreground transition-colors active:bg-muted"
+            >
+              <Search className="h-4 w-4" />
+              <span>Search courses…</span>
+              <span className="ml-auto rounded-md bg-background px-1.5 py-0.5 text-[10px] font-medium">Live</span>
+            </button>
 
             <div className="grid grid-cols-2 gap-2 mb-4">
               {secondaryNavigation.map((item) => (

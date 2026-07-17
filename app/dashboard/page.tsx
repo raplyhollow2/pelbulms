@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { BookOpen, Clock, Trophy, TrendingUp, Loader2, Bell, Megaphone } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
+import { DashboardCourseCard } from '@/components/dashboard/course-card'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 type Enrollment = Database['public']['Tables']['enrollments']['Row']
@@ -120,15 +121,22 @@ export default function DashboardPage() {
     )
   }
 
+  const statCards = [
+    { label: 'Active Courses', value: stats.activeCourses, hint: 'Enrolled', icon: BookOpen, tint: 'text-bhutan-yellow bg-bhutan-yellow/15' },
+    { label: 'Completed', value: stats.completedLessons, hint: 'Lessons', icon: TrendingUp, tint: 'text-bhutan-orange bg-bhutan-orange/10' },
+    { label: 'Achievements', value: stats.achievements, hint: 'Badges', icon: Trophy, tint: 'text-bhutan-red bg-bhutan-red/10' },
+    { label: 'Study Hours', value: stats.studyHours, hint: 'Learned', icon: Clock, tint: 'text-green-600 bg-green-600/10' },
+  ]
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="space-y-8">
+    <div className="container mx-auto px-4 py-6 sm:py-8">
+      <div className="space-y-6 sm:space-y-8">
         {/* Welcome Section */}
         <div>
-          <h1 className="text-4xl font-bold mb-2">
-            Welcome back, {profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0]}!
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
+            Welcome back, {profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0]}
           </h1>
-          <p className="text-xl text-muted-foreground">
+          <p className="mt-1.5 text-sm text-muted-foreground sm:text-base">
             {stats.activeCourses > 0
               ? `Continue your learning journey with ${stats.activeCourses} active course${stats.activeCourses > 1 ? 's' : ''}`
               : 'Start your learning journey by exploring our course catalog'
@@ -137,46 +145,21 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          <Card className="glass hover:shadow-xl transition-all duration-300">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium">Active Courses</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl md:text-3xl font-bold text-bhutan-yellow">{stats.activeCourses}</div>
-              <p className="text-xs text-muted-foreground mt-1">Enrolled courses</p>
-            </CardContent>
-          </Card>
-
-          <Card className="glass hover:shadow-xl transition-all duration-300">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium">Completed Lessons</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl md:text-3xl font-bold text-bhutan-orange">{stats.completedLessons}</div>
-              <p className="text-xs text-muted-foreground mt-1">Lessons finished</p>
-            </CardContent>
-          </Card>
-
-          <Card className="glass hover:shadow-xl transition-all duration-300">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium">Achievements</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl md:text-3xl font-bold text-bhutan-red">{stats.achievements}</div>
-              <p className="text-xs text-muted-foreground mt-1">Badges earned</p>
-            </CardContent>
-          </Card>
-
-          <Card className="glass hover:shadow-xl transition-all duration-300">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium">Study Hours</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl md:text-3xl font-bold text-green-600">{stats.studyHours}</div>
-              <p className="text-xs text-muted-foreground mt-1">Hours learned</p>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          {statCards.map((s) => (
+            <Card key={s.label} className="glass hover-lift">
+              <CardContent className="flex items-start justify-between gap-2 p-4">
+                <div className="min-w-0">
+                  <div className="text-2xl font-semibold tracking-tight md:text-3xl">{s.value}</div>
+                  <p className="mt-0.5 truncate text-xs font-medium">{s.label}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">{s.hint}</p>
+                </div>
+                <span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${s.tint}`}>
+                  <s.icon className="h-5 w-5" />
+                </span>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
         {/* Active Courses */}
@@ -188,50 +171,21 @@ export default function DashboardPage() {
                 Continue learning where you left off
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {courses.map((course: any, index: number) => {
-                const enrollment = enrollments[index]
+            <CardContent className="grid gap-4">
+              {enrollments.map((enrollment: any) => {
+                const course = enrollment.courses
+                if (!course) return null
                 return (
-                  <div
+                  <DashboardCourseCard
                     key={course.id}
-                    className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 sm:p-4 rounded-lg bg-background/50 hover:bg-background transition-colors border border-border/50"
-                  >
-                    <div className="flex items-center gap-3 w-full sm:w-auto">
-                      <div className="w-12 h-12 sm:w-16 sm:h-12 rounded bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20 flex items-center justify-center flex-shrink-0">
-                        {course.thumbnail_url ? (
-                          <img
-                            src={course.thumbnail_url}
-                            alt={course.title}
-                            className="w-full h-full object-cover rounded"
-                          />
-                        ) : (
-                          <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-bhutan-yellow" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm sm:text-base truncate">{course.title}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="outline" className="text-xs">{course.category}</Badge>
-                          <Badge variant="secondary" className="text-xs">{course.level}</Badge>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                      <div className="text-right">
-                        <div className="text-sm font-medium">{enrollment?.progress_percentage || 0}%</div>
-                        <div className="text-xs text-muted-foreground">Complete</div>
-                      </div>
-                      <Button
-                        size="sm"
-                        className="bg-bhutan-yellow hover:bg-bhutan-orange whitespace-nowrap"
-                        onClick={() => window.location.href = `/learn/${course.id}`}
-                      >
-                        <TrendingUp className="w-4 h-4 mr-1" />
-                        <span className="hidden sm:inline">Continue</span>
-                        <span className="sm:hidden">Go</span>
-                      </Button>
-                    </div>
-                  </div>
+                    id={course.id}
+                    title={course.title}
+                    description={course.description}
+                    category={course.category}
+                    level={course.level}
+                    thumbnailUrl={course.thumbnail_url}
+                    progress={enrollment.progress_percentage || 0}
+                  />
                 )
               })}
             </CardContent>

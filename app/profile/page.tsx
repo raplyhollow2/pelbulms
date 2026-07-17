@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { resolveMediaUrl } from '@/lib/media'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -232,7 +233,7 @@ export default function ProfilePage() {
             {/* Avatar Section */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
               <Avatar className="w-20 h-20 sm:w-24 sm:h-24 bg-bhutan-yellow shrink-0">
-                <AvatarImage src={formData.avatar_url} alt={formData.full_name} />
+                <AvatarImage src={resolveMediaUrl(formData.avatar_url) || undefined} alt={formData.full_name} />
                 <AvatarFallback className="bg-bhutan-yellow text-black font-semibold text-2xl">
                   {formData.full_name ? getInitials(formData.full_name) : 'U'}
                 </AvatarFallback>

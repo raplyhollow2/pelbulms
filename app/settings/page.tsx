@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTheme } from 'next-themes'
+import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -32,6 +34,7 @@ import {
 
 export default function SettingsPage() {
   const supabase = createClient()
+  const { setTheme } = useTheme()
   const [user, setUser] = useState<any>(null)
   const [settings, setSettings] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -86,6 +89,7 @@ export default function SettingsPage() {
         if (settingsData) {
           setSettings(settingsData)
           setLocalSettings(settingsData)
+          if (settingsData.theme) setTheme(settingsData.theme)
         }
       }
     } catch (error) {
@@ -103,18 +107,23 @@ export default function SettingsPage() {
       const { error } = await supabase
         .from('user_settings')
         // @ts-ignore - Supabase types not properly defined
-        .update({
-          ...localSettings,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id)
+        .upsert(
+          {
+            ...localSettings,
+            user_id: user.id,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' }
+        )
 
       if (error) throw error
 
       setSuccess(true)
+      toast.success('Settings saved')
       setTimeout(() => setSuccess(false), 3000)
     } catch (error) {
       console.error('Error saving settings:', error)
+      toast.error('Could not save settings')
     } finally {
       setSaving(false)
     }
@@ -126,6 +135,7 @@ export default function SettingsPage() {
 
   const handleSelect = (key: string, value: string) => {
     setLocalSettings({ ...localSettings, [key]: value })
+    if (key === 'theme') setTheme(value)
   }
 
   if (loading) {

@@ -45,24 +45,27 @@ export default function AnnouncementsPage() {
 
       const courseIds = (enrollments as any)?.map((e: any) => e.course_id) || []
 
-      // Fetch global announcements (course_id is null)
+      const nowIso = new Date().toISOString()
+
+      // Fetch global announcements (course_id is null). Show items that are
+      // published AND already live (publish_at <= now) AND not yet expired.
       const { data: globalAnnouncements } = await supabase
         .from('announcements')
-        .select('*, courses(title), profiles(full_name)')
+        .select('*, courses(title)')
         .is('course_id', null)
-        .is('is_published', true)
-        .gte('publish_at', new Date().toISOString())
-        .or('expires_at.is.null,expires_at.gte.' + new Date().toISOString())
+        .eq('is_published', true)
+        .lte('publish_at', nowIso)
+        .or(`expires_at.is.null,expires_at.gte.${nowIso}`)
         .order('created_at', { ascending: false })
 
-      // Fetch course-specific announcements
+      // Fetch course-specific announcements for the user's enrolled courses.
       const { data: courseSpecificAnnouncements } = courseIds.length > 0 ? await supabase
         .from('announcements')
-        .select('*, courses(title), profiles(full_name)')
+        .select('*, courses(title)')
         .in('course_id', courseIds)
-        .is('is_published', true)
-        .gte('publish_at', new Date().toISOString())
-        .or('expires_at.is.null,expires_at.gte.' + new Date().toISOString())
+        .eq('is_published', true)
+        .lte('publish_at', nowIso)
+        .or(`expires_at.is.null,expires_at.gte.${nowIso}`)
         .order('created_at', { ascending: false }) : { data: [] }
 
       const allAnnouncements = [

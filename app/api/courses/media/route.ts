@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRBAC } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
+import { cloudinary, isCloudinaryConfigured } from '@/lib/cloudinary'
+import { makeMediaRef } from '@/lib/media'
 
 const BUCKET = 'course-media'
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024 // 8MB
@@ -68,11 +70,52 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createServiceClient()
-    await ensureBucket(supabase)
+    const bytes = new Uint8Array(await file.arrayBuffer())
 
+    // Videos (and images) are stored privately in Cloudinary when configured so
+    // they are only ever delivered through the authenticated /api/media proxy.
+    if (isCloudinaryConfigured()) {
+      // Organized folder tree:
+      //   course-media/videos/<courseId>/...   course-media/images/<courseId>/...
+      const folder = `course-media/${isVideo ? 'videos' : 'images'}/${courseId}`
+
+      const uploadOptions: Record<string, unknown> = {
+        folder,
+        type: 'authenticated',
+        resource_type: isVideo ? 'video' : 'image',
+        overwrite: true,
+        invalidate: true,
+        use_filename: true,
+        unique_filename: true,
+      }
+
+      if (isVideo) {
+        // Transcode to a compressed, high-quality master (YouTube/Netflix style):
+        // q_auto picks the optimal bitrate, and we cap huge sources at 1080p.
+        // eager_async lets big uploads finish quickly; delivery also applies
+        // q_auto on the fly via the signed /api/media URL as a safety net.
+        uploadOptions.eager = [
+          { quality: 'auto', video_codec: 'auto', width: 1920, height: 1080, crop: 'limit' },
+        ]
+        uploadOptions.eager_async = true
+      } else {
+        uploadOptions.transformation = [{ fetch_format: 'auto', quality: 'auto' }]
+      }
+
+      const uploaded: any = await new Promise((resolve, reject) => {
+        cloudinary.uploader
+          .upload_stream(uploadOptions, (err, result) =>
+            err ? reject(err) : resolve(result)
+          )
+          .end(Buffer.from(bytes))
+      })
+      const ref = makeMediaRef(isVideo ? 'video' : 'image', uploaded.public_id)
+      return NextResponse.json({ url: ref, kind })
+    }
+
+    await ensureBucket(supabase)
     const ext = file.name.split('.').pop()?.toLowerCase() || (isVideo ? 'mp4' : 'png')
     const path = `${courseId}/${kind}-${Date.now()}.${ext}`
-    const bytes = new Uint8Array(await file.arrayBuffer())
 
     const { error: uploadError } = await supabase.storage
       .from(BUCKET)

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRBAC } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
+import { cloudinary, isCloudinaryConfigured } from '@/lib/cloudinary'
+import { makeMediaRef } from '@/lib/media'
 
 const BUCKET = 'avatars'
 const MAX_BYTES = 5 * 1024 * 1024 // 5MB
@@ -63,27 +65,52 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createServiceClient()
-    await ensureBucket(supabase)
-
-    const ext = file.name.split('.').pop()?.toLowerCase() || 'png'
-    const path = `${targetUserId}/${Date.now()}.${ext}`
     const bytes = new Uint8Array(await file.arrayBuffer())
 
-    const { error: uploadError } = await supabase.storage
-      .from(BUCKET)
-      .upload(path, bytes, { contentType: file.type, upsert: true })
+    // Preferred path: store privately in Cloudinary (authenticated delivery).
+    // Fallback: public Supabase Storage bucket (when Cloudinary isn't set up).
+    let storedRef: string
 
-    if (uploadError) {
-      return NextResponse.json({ error: uploadError.message }, { status: 400 })
+    if (isCloudinaryConfigured()) {
+      const uploaded: any = await new Promise((resolve, reject) => {
+        cloudinary.uploader
+          .upload_stream(
+            {
+              // Organized: all avatars live under profile-pics/, one stable
+              // asset per user (re-uploads overwrite the previous picture).
+              folder: 'profile-pics',
+              public_id: targetUserId,
+              type: 'authenticated',
+              resource_type: 'image',
+              overwrite: true,
+              invalidate: true,
+              // Store a light, square, face-focused master to save space.
+              transformation: [
+                { width: 512, height: 512, crop: 'fill', gravity: 'face' },
+                { quality: 'auto' },
+              ],
+            },
+            (err, result) => (err ? reject(err) : resolve(result))
+          )
+          .end(Buffer.from(bytes))
+      })
+      storedRef = makeMediaRef('image', uploaded.public_id)
+    } else {
+      await ensureBucket(supabase)
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'png'
+      const path = `${targetUserId}/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from(BUCKET)
+        .upload(path, bytes, { contentType: file.type, upsert: true })
+      if (uploadError) {
+        return NextResponse.json({ error: uploadError.message }, { status: 400 })
+      }
+      storedRef = supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl
     }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from(BUCKET).getPublicUrl(path)
 
     const { data: profile, error: updateError } = await supabase
       .from('profiles')
-      .update({ avatar_url: publicUrl, updated_at: new Date().toISOString() })
+      .update({ avatar_url: storedRef, updated_at: new Date().toISOString() })
       .eq('id', targetUserId)
       .select()
       .single()
@@ -92,7 +119,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: updateError.message }, { status: 400 })
     }
 
-    return NextResponse.json({ avatar_url: publicUrl, user: profile })
+    return NextResponse.json({ avatar_url: storedRef, user: profile })
   } catch (error: any) {
     return NextResponse.json(
       { error: error?.message || 'Failed to upload avatar' },

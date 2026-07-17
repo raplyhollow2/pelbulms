@@ -112,11 +112,27 @@
   --transition-fast: 150ms;
   --transition-normal: 300ms;
   --transition-slow: 500ms;
+
+  /* Premium motion easing */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Layered "expensive" shadows (soft, low-opacity, multi-step) */
+  --shadow-xs: 0 1px 2px rgba(17, 24, 39, 0.04);
+  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.05), 0 1px 3px rgba(17, 24, 39, 0.04);
+  --shadow-md: 0 2px 4px rgba(17, 24, 39, 0.04), 0 4px 12px rgba(17, 24, 39, 0.06);
+  --shadow-lg: 0 6px 16px rgba(17, 24, 39, 0.08), 0 12px 32px rgba(17, 24, 39, 0.08);
+  --shadow-xl: 0 12px 28px rgba(17, 24, 39, 0.10), 0 24px 56px rgba(17, 24, 39, 0.10);
+  --shadow-brand: 0 8px 24px rgba(255, 107, 53, 0.24);
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.147 0.004 49.3);
+  color-scheme: light;
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.147 0.004 49.3);
   --foreground: oklch(0.986 0.002 67.8);
   --card: oklch(0.214 0.009 43.1);
@@ -148,6 +164,14 @@
   --sidebar-accent-foreground: oklch(0.986 0.002 67.8);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.547 0.021 43.1);
+
+  /* Deeper shadows read better on dark surfaces */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.45), 0 6px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5), 0 16px 40px rgba(0, 0, 0, 0.45);
+  --shadow-xl: 0 16px 40px rgba(0, 0, 0, 0.55), 0 28px 64px rgba(0, 0, 0, 0.5);
+  --shadow-brand: 0 8px 28px rgba(255, 107, 53, 0.35);
 }
 
 @layer base {
@@ -156,9 +180,22 @@
   }
   body {
     @apply bg-background text-foreground;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
   html {
     @apply font-sans;
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+  /* Kill the blue tap flash and text selection on interactive chrome */
+  button,
+  a,
+  [role="button"] {
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
@@ -166,26 +203,42 @@
 @layer utilities {
   .glass {
     background: var(--glass-light);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
     border: 1px solid var(--glass-border);
-    box-shadow: 0 8px 32px var(--glass-shadow);
+    box-shadow: var(--shadow-md);
   }
 
   .glass-dark {
     background: var(--glass-dark);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 8px 32px var(--glass-shadow);
+    box-shadow: var(--shadow-md);
   }
 
   .glass-strong {
     background: rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
     border: 1px solid var(--glass-border);
-    box-shadow: 0 8px 32px var(--glass-shadow);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Dark-mode glass: translucent dark surfaces so cards don't glow white. */
+  .dark .glass {
+    background: rgba(24, 24, 27, 0.55);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .dark .glass-strong {
+    background: rgba(24, 24, 27, 0.8);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .dark .glass-dark {
+    background: rgba(0, 0, 0, 0.6);
+    border-color: rgba(255, 255, 255, 0.08);
   }
 
   /* Bhutan Brand Color Utilities */
@@ -337,5 +390,192 @@
     border: 2px solid currentColor;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+  }
+}
+
+/* ==========================================================================
+   PREMIUM UI LAYER — elevation, interaction, motion
+   ========================================================================== */
+@layer utilities {
+  /* Elevation helpers */
+  .shadow-soft { box-shadow: var(--shadow-sm); }
+  .shadow-elevated { box-shadow: var(--shadow-md); }
+  .shadow-floating { box-shadow: var(--shadow-lg); }
+  .shadow-overlay { box-shadow: var(--shadow-xl); }
+  .shadow-brand { box-shadow: var(--shadow-brand); }
+
+  /* Cards that gently lift on hover (desktop pointer only) */
+  .hover-lift {
+    transition: transform 320ms var(--ease-out-expo),
+      box-shadow 320ms var(--ease-out-expo);
+    will-change: transform;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .hover-lift:hover {
+      transform: translateY(-3px);
+      box-shadow: var(--shadow-lg);
+    }
+  }
+
+  /* Tactile press feedback for buttons/tiles */
+  .press {
+    transition: transform 140ms var(--ease-out-quart);
+  }
+  .press:active {
+    transform: scale(0.97);
+  }
+
+  /* Premium thin scrollbars */
+  .scroll-premium {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--foreground) 18%, transparent) transparent;
+  }
+  .scroll-premium::-webkit-scrollbar { width: 8px; height: 8px; }
+  .scroll-premium::-webkit-scrollbar-track { background: transparent; }
+  .scroll-premium::-webkit-scrollbar-thumb {
+    background: color-mix(in oklch, var(--foreground) 16%, transparent);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  .scroll-premium::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklch, var(--foreground) 28%, transparent);
+    background-clip: content-box;
+  }
+
+  /* Subtle brand gradient text */
+  .text-gradient-brand {
+    background: linear-gradient(135deg, var(--color-bhutan-yellow), var(--color-bhutan-orange));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Shimmer for skeleton loaders */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in oklch, var(--foreground) 6%, transparent),
+      transparent
+    );
+    animation: shimmer 1.6s infinite;
+  }
+}
+
+/* Apply premium scrollbar globally without extra markup */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--foreground) 16%, transparent) transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, var(--foreground) 14%, transparent);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklch, var(--foreground) 26%, transparent);
+  background-clip: content-box;
+}
+
+/* Route/page enter transition */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.page-enter {
+  animation: page-enter 420ms var(--ease-out-expo) both;
+}
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+
+/* ---- Landing hero animations ---- */
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+@keyframes float-y-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-24px); }
+}
+@keyframes orbit {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes orbit-reverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+@keyframes draw-stroke {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+@keyframes blink-caret {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+@keyframes rise-fade {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-float { animation: float-y 6s ease-in-out infinite; }
+.animate-float-slow { animation: float-y-slow 9s ease-in-out infinite; }
+.animate-orbit { animation: orbit 24s linear infinite; transform-origin: center; }
+.animate-orbit-reverse { animation: orbit-reverse 32s linear infinite; transform-origin: center; }
+.animate-pulse-glow { animation: pulse-glow 3.5s ease-in-out infinite; }
+.caret-blink { animation: blink-caret 1s step-end infinite; }
+
+.reveal {
+  animation: rise-fade 700ms var(--ease-out-expo) both;
+}
+.reveal-1 { animation-delay: 60ms; }
+.reveal-2 { animation-delay: 140ms; }
+.reveal-3 { animation-delay: 220ms; }
+.reveal-4 { animation-delay: 300ms; }
+.reveal-5 { animation-delay: 380ms; }
+
+/* Native-app momentum + no overscroll glow bleed */
+body {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Respect reduced motion everywhere */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

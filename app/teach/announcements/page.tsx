@@ -68,7 +68,7 @@ export default function TeacherAnnouncementsPage() {
       // Fetch announcements
       const { data: announcementsData } = await supabase
         .from('announcements')
-        .select('*, courses(title), profiles(full_name)')
+        .select('*, courses(title)')
         .in('course_id', (coursesData as any)?.map((c: any) => c.id) || [])
         .order('created_at', { ascending: false })
 
@@ -99,13 +99,14 @@ export default function TeacherAnnouncementsPage() {
       const { error } = await supabaseInsert
         .from('announcements')
         .insert({
-          created_by: user?.id,
+          author_id: user?.id,
           course_id: formData.course_id || null,
           title: formData.title,
           content: formData.content,
           priority: formData.priority,
-          is_global: (formData as any).is_published,
-          created_at: (formData as any).is_published ? new Date().toISOString() : null
+          is_published: (formData as any).is_published,
+          publish_at: new Date().toISOString(),
+          expires_at: (formData as any).expires_at || null,
         })
 
       if (error) throw error

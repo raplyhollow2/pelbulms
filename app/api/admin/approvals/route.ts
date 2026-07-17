@@ -53,17 +53,27 @@ export async function POST(request: Request) {
     // Type guard to ensure profile exists
     const safeProfile = profile as ProfileWithEmail
 
-    // Verify admin/teacher permissions
-    if (!['resource_person', 'admin', 'instructor'].includes(safeProfile.role)) {
-      return NextResponse.json(
-        { error: 'Forbidden', message: 'Insufficient permissions for approval operations' },
-        { status: 403 }
-      )
+    // Only a superadmin or a superadmin-assigned reviewer may act. The RPC does
+    // the fine-grained per-institution check; this is a coarse gate.
+    const isSuper = safeProfile.role === 'superadmin'
+    if (!isSuper) {
+      const { data: reviewerRows } = await supabase
+        .from('registration_reviewers')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .limit(1)
+      if (!reviewerRows || reviewerRows.length === 0) {
+        return NextResponse.json(
+          { error: 'Forbidden', message: 'You are not an assigned reviewer' },
+          { status: 403 }
+        )
+      }
     }
 
     // Parse request body
     const body = await request.json()
-    const { action, registrationId, userId, reviewNotes, rejectionReason, registrationIds } = body
+    const { action, registrationId, userId, reviewNotes, rejectionReason, registrationIds, assignedRole } = body
 
     // Validate action parameter
     if (!action || !['approve', 'reject', 'request_info', 'bulk_approve', 'bulk_reject'].includes(action)) {
@@ -95,7 +105,8 @@ export async function POST(request: Request) {
             target_registration_id: registrationId,
             review_action: action,
             review_notes_text: reviewNotes || null,
-            rejection_reason_text: rejectionReason || null
+            rejection_reason_text: rejectionReason || null,
+            assigned_role_text: assignedRole || null
           })
 
         if (approvalError) {
@@ -208,17 +219,28 @@ export async function GET(request: Request) {
     // Type guard to ensure profile exists
     const safeProfile = profile as ProfileWithEmail
 
-    // Verify admin/teacher permissions
-    if (!['resource_person', 'admin', 'instructor'].includes(safeProfile.role)) {
-      return NextResponse.json(
-        { error: 'Forbidden', message: 'Insufficient permissions' },
-        { status: 403 }
-      )
+    const isSuper = safeProfile.role === 'superadmin'
+
+    // Determine which institutions this reviewer may see.
+    let reviewerInstitutionIds: string[] = []
+    if (!isSuper) {
+      const { data: reviewerRows } = await supabase
+        .from('registration_reviewers')
+        .select('institution_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+      reviewerInstitutionIds = (reviewerRows || []).map((r: any) => r.institution_id)
+      if (reviewerInstitutionIds.length === 0) {
+        return NextResponse.json(
+          { error: 'Forbidden', message: 'You are not an assigned reviewer' },
+          { status: 403 }
+        )
+      }
     }
 
     // Get URL parameters for filtering
     const { searchParams } = new URL(request.url)
-    const institutionId = searchParams.get('institution_id') || safeProfile.institution_id
+    const institutionId = searchParams.get('institution_id')
     const status = searchParams.get('status')
 
     // Build query for registrations
@@ -226,7 +248,6 @@ export async function GET(request: Request) {
       .from('student_registrations')
       .select('*')
 
-    // Apply filters
     if (institutionId) {
       query = query.eq('institution_id', institutionId)
     }
@@ -235,9 +256,9 @@ export async function GET(request: Request) {
       query = query.eq('registration_status', status)
     }
 
-    // Only teachers can see their institution's registrations
-    if (safeProfile.role === 'instructor') {
-      query = query.eq('institution_id', safeProfile.institution_id)
+    // Reviewers are scoped to their assigned institutions; superadmin sees all.
+    if (!isSuper) {
+      query = query.in('institution_id', reviewerInstitutionIds)
     }
 
     const { data: registrations, error: registrationsError } = await query

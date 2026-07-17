@@ -1,6 +1,46 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { createServiceClient } from '@/lib/supabase/server'
+
+/**
+ * Decide where a freshly-authenticated user should land based on their
+ * account status and whether they've completed the KYC registration form.
+ */
+async function destinationFor(userId: string, origin: string): Promise<string> {
+  try {
+    const service = await createServiceClient()
+
+    const { data: profile } = await service
+      .from('profiles')
+      .select('account_status')
+      .eq('id', userId)
+      .maybeSingle()
+
+    const status = (profile as any)?.account_status as string | undefined
+
+    if (status === 'active') return `${origin}/dashboard`
+    if (status === 'rejected') return `${origin}/auth/access-denied`
+
+    // Pending / unknown: has the user already submitted a registration?
+    const { data: registration } = await service
+      .from('student_registrations')
+      .select('registration_status')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    const regStatus = (registration as any)?.registration_status as string | undefined
+    if (regStatus && ['submitted', 'under_review', 'approved'].includes(regStatus)) {
+      return `${origin}/auth/pending-approval`
+    }
+
+    return `${origin}/auth/register`
+  } catch {
+    // If the status lookup fails, fall back to the gated dashboard; middleware
+    // will re-route as needed.
+    return `${origin}/dashboard`
+  }
+}
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
@@ -55,9 +95,8 @@ export async function GET(request: Request) {
       }
 
       if (data.session) {
-        console.log('Authentication successful for:', (data.session.user as any).email)
-        // Successful authentication, redirect to dashboard
-        return NextResponse.redirect(`${requestUrl.origin}/dashboard`)
+        const destination = await destinationFor(data.session.user.id, requestUrl.origin)
+        return NextResponse.redirect(destination)
       }
     } catch (error) {
       console.error('Auth callback error:', error)

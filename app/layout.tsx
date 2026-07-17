@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { CommandPalette } from "@/components/search/command-palette";
+import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 // import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
@@ -34,12 +36,16 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={cn("h-full antialiased", "font-sans", inter.variable)}
       style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif' }}
     >
       <body className="min-h-full flex flex-col">
-        {children}
-        <CommandPalette />
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          {children}
+          <CommandPalette />
+          <Toaster richColors position="top-center" />
+        </ThemeProvider>
         {/* <ServiceWorkerRegistration /> */}
       </body>
     </html>

@@ -31,6 +31,22 @@ VALUES (
   signup_approval_required = true;
 
 -- ============================================================================
+-- WIDEN profiles.role CHECK CONSTRAINT (needed before assigning resource_person)
+-- ============================================================================
+
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+ALTER TABLE profiles
+  ADD CONSTRAINT profiles_role_check
+  CHECK (role IN ('student', 'instructor', 'admin', 'superadmin', 'resource_person'));
+
+-- ============================================================================
+-- ENSURE user_approvals HAS A UNIQUE (user_id, institution_id) FOR ON CONFLICT
+-- ============================================================================
+
+CREATE UNIQUE INDEX IF NOT EXISTS user_approvals_user_institution_key
+  ON user_approvals (user_id, institution_id);
+
+-- ============================================================================
 -- GET PELSUNG INSTITUTION ID
 -- ============================================================================
 
@@ -66,34 +82,36 @@ BEGIN
   WHERE slug = 'pelsung';
 
   -- Ensure dipanpradhan.biz@gmail.com has correct role and access
-  UPDATE profiles
-  SET
-    account_status = 'active',
-    role = 'resource_person',
-    institution_id = pelsung_institution_id,
-    enrollment_date = COALESCE(enrollment_date, NOW())
-  WHERE email = 'dipanpradhan.biz@gmail.com';
+  IF resource_person_profile_id IS NOT NULL THEN
+    UPDATE profiles
+    SET
+      account_status = 'active',
+      role = 'resource_person',
+      institution_id = pelsung_institution_id,
+      enrollment_date = COALESCE(enrollment_date, NOW())
+    WHERE id = resource_person_profile_id;
 
-  -- Grant institution access to resource person
-  INSERT INTO institution_access (
-    institution_id,
-    user_id,
-    role_within_institution,
-    granted_by,
-    granted_at,
-    is_active
-  ) VALUES (
-    pelsung_institution_id,
-    resource_person_profile_id,
-    'resource_person',
-    resource_person_profile_id,
-    NOW(),
-    true
-  ) ON CONFLICT (institution_id, user_id) DO UPDATE SET
-    role_within_institution = 'resource_person',
-    is_active = true;
+    -- Grant institution access to resource person
+    INSERT INTO institution_access (
+      institution_id,
+      user_id,
+      role_within_institution,
+      granted_by,
+      granted_at,
+      is_active
+    ) VALUES (
+      pelsung_institution_id,
+      resource_person_profile_id,
+      'resource_person',
+      resource_person_profile_id,
+      NOW(),
+      true
+    ) ON CONFLICT (institution_id, user_id) DO UPDATE SET
+      role_within_institution = 'resource_person',
+      is_active = true;
 
-  RAISE NOTICE 'Pelsung institution setup completed with resource person: dipanpradhan.biz@gmail.com';
+    RAISE NOTICE 'Pelsung institution setup completed with resource person: dipanpradhan.biz@gmail.com';
+  END IF;
 
   -- ============================================================================
   -- AUTO-MIGRATE EXISTING USERS TO ACTIVE STATUS
@@ -169,7 +187,7 @@ BEGIN
   FOR existing_user IN
     SELECT p.id, p.email, p.full_name, p.role
     FROM profiles p
-    WHERE p.account_status IS NULL OR p.account_status = 'pending'
+    WHERE (p.account_status IS NULL OR p.account_status = 'pending')
     AND p.id NOT IN (SELECT DISTINCT user_id FROM enrollments)
     AND p.email != 'dipanpradhan.biz@gmail.com'
   LOOP
@@ -204,9 +222,9 @@ BEGIN
   -- ============================================================================
 
   -- Call the sync function to update auth metadata
-  PERFORM sync_single_profile_to_auth_metadata(existing_user.id)
-  FROM profiles existing_user
-  WHERE existing_user.account_status IS NOT NULL;
+  PERFORM sync_single_profile_to_auth_metadata(p.id)
+  FROM profiles p
+  WHERE p.account_status IS NOT NULL;
 
   RAISE NOTICE '============================================================================';
   RAISE NOTICE 'MIGRATION SUMMARY:';
@@ -231,28 +249,29 @@ CREATE TABLE IF NOT EXISTS bhutan_dzongkhags (
   established_year INTEGER
 );
 
--- Insert all 20 dzongkhags
-INSERT INTO bhutan_dzongkhags (name, name_dzongkha, established_year) VALUES
-('Bumthang', 'བུམ་ཐང་, 1987),
-('Chukha', 'ཆུ་ཁ་, 1987),
-('Dagana', 'སྡར་གན་ད་, 1987),
-('Gasa', 'གས་ས་, 1987),
-('Haa', 'ཧཱ་, 1987),
-('Lhuentse', 'ལྷུན་ཙེ་, 1987),
-('Mongar', 'མོང་སྒར་, 1987),
-('Paro', 'སྤ་རོ་, 1987),
-('Pema Gatshel', 'དཔལ་མགོན་སྐྱིད་སྲིང་, 1987),
-('Punakha', 'སྤུ་ན་ཁ་, 1987),
-('Samdrup Jongkhar', 'བསམ་གྲུབ་ལྗོངས་དཀར་, 1987),
-('Samtse', 'བསམ་རྩེ་, 1987),
-('Sarpang', 'གསར་སྤང་, 1987),
-('Thimphu', 'ཐིམ་ཕུ་, 1987),
-('Trashigang',བཀྲ་ཤིས་སྒང་, 1987),
-('Trashiyangtse', 'བཀྲ་ཤིས་གཡང་རྩེ་, 1987),
-('Trongsa', 'ཀྲོང་གསར་, 1987),
-('Tsirang', 'རྩི་རང་, 1987),
-('Wangdue Phodrang', 'དབང་འདུས་ཕོ་བྲང་, 1987),
-('Zhemgang', 'གཞརམ་གང་, 1987)
+-- Insert all 20 dzongkhags (ASCII names; Dzongkha script omitted to keep the
+-- seed valid — the registration form ships its own dzongkhag list).
+INSERT INTO bhutan_dzongkhags (name, established_year) VALUES
+('Bumthang', 1987),
+('Chukha', 1987),
+('Dagana', 1987),
+('Gasa', 1987),
+('Haa', 1987),
+('Lhuentse', 1987),
+('Mongar', 1987),
+('Paro', 1987),
+('Pema Gatshel', 1987),
+('Punakha', 1987),
+('Samdrup Jongkhar', 1987),
+('Samtse', 1987),
+('Sarpang', 1987),
+('Thimphu', 1987),
+('Trashigang', 1987),
+('Trashiyangtse', 1987),
+('Trongsa', 1987),
+('Tsirang', 1987),
+('Wangdue Phodrang', 1987),
+('Zhemgang', 1987)
 ON CONFLICT (name) DO NOTHING;
 
 -- ============================================================================
@@ -290,11 +309,4 @@ $$ LANGUAGE plpgsql;
 
 -- ============================================================================
 -- MIGRATION COMPLETED
--- ============================================================================
--- All existing users have been processed:
--- - Enrolled users: Auto-migrated to active status
--- - Non-enrolled users: Set to pending (need to complete registration)
--- - Pelsung institution: Configured as primary institution
--- - dipanpradhan.biz@gmail.com: Set as resource person with full access
--- - Auth metadata: Synced for instant middleware access
 -- ============================================================================

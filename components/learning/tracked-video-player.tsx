@@ -45,7 +45,10 @@ function getYoutubeId(url: string): string | null {
 }
 
 function isDirectVideoFile(url: string): boolean {
-  return /\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(url)
+  if (/\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(url)) return true
+  // Our private media proxy streams raw video bytes at /api/media/...?type=video
+  if (url.includes('/api/media/') && /[?&]type=video/.test(url)) return true
+  return false
 }
 
 /** Loads the YouTube IFrame API exactly once and resolves when ready. */
@@ -259,6 +262,8 @@ export function TrackedVideoPlayer({
             ref={videoElRef}
             src={videoUrl}
             controls
+            controlsList="nodownload"
+            onContextMenu={(e) => e.preventDefault()}
             className="w-full h-full"
             onLoadedMetadata={handleLoadedMetadata}
             onTimeUpdate={handleTimeUpdate}

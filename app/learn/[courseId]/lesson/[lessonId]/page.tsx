@@ -11,6 +11,7 @@ import type { Database } from '@/types/database.types'
 import { QuizPlayer } from '@/components/quiz/quiz-player'
 import { CourseLearningTabs } from '@/components/course/course-learning-tabs'
 import { TrackedVideoPlayer, type VideoProgressData } from '@/components/learning/tracked-video-player'
+import { resolveMediaUrl } from '@/lib/media'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Module = Database['public']['Tables']['modules']['Row']
@@ -589,7 +590,7 @@ export default function LessonViewPage() {
                 <CardContent className="p-3 sm:p-4">
                   <TrackedVideoPlayer
                     key={lessonId}
-                    videoUrl={lesson.video_url || ''}
+                    videoUrl={resolveMediaUrl(lesson.video_url) || ''}
                     title={lesson.title}
                     initialPositionSeconds={(lessonProgress as any)?.last_position_seconds || 0}
                     thresholdPercent={90}

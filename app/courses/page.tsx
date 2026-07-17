@@ -252,28 +252,23 @@ export default function CoursesPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="space-y-8">
         {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <h1 className="text-3xl lg:text-4xl font-bold">Course Catalog</h1>
-            <p className="text-lg text-muted-foreground">
-              Discover and enroll in courses from our diverse catalog
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Course catalog</h1>
+            <p className="text-sm text-muted-foreground sm:text-base">
+              Discover and enroll in verified courses across Bhutan.
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="lg"
-              className="glass w-full sm:w-auto"
-              onClick={() => {
-                const event = new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true })
-                document.dispatchEvent(event)
-              }}
-            >
-              <Command className="w-5 h-5 mr-2" />
-              <span className="sm:hidden">Search</span>
-              <span className="hidden sm:inline">Search (⌘K)</span>
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            className="gap-2 rounded-full"
+            onClick={() => window.dispatchEvent(new Event('pelbu:open-search'))}
+          >
+            <Command className="h-4 w-4" />
+            <span className="sm:hidden">Search</span>
+            <span className="hidden sm:inline">Quick search</span>
+            <kbd className="ml-1 hidden rounded bg-muted px-1.5 py-0.5 text-[10px] sm:inline">⌘K</kbd>
+          </Button>
         </div>
 
         {/* Search and Filters */}
@@ -342,6 +337,23 @@ export default function CoursesPage() {
             </Sheet>
           </div>
 
+          {/* Mobile / tablet one-tap category chips */}
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-hide lg:hidden">
+            {categories.map((category: any) => (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={`shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                  selectedCategory === category
+                    ? 'border-transparent bg-gradient-to-r from-bhutan-yellow to-bhutan-orange text-black'
+                    : 'border-border/60 bg-background/60 text-muted-foreground'
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+
           {/* Desktop Filters */}
           <div className="hidden lg:flex flex-wrap gap-3">
             <div className="flex items-center gap-2">
@@ -388,7 +400,7 @@ export default function CoursesPage() {
         </div>
 
         {/* Enhanced Course Grid with Hover Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
           {filteredCourses.map((course) => {
             const isEnrolled = enrolledCourseIds.has(course.id)
             const progress = (course as any).progress || 0
