@@ -90,65 +90,58 @@ export function CourseCard({ course, progress = 0, isEnrolled = false }: CourseC
           )}
         </div>
 
-        <CardContent className="p-5 space-y-4">
+        <CardContent className="space-y-3 p-4">
           {/* Course Title and Category */}
-          <div>
-            <h3 className="font-bold text-lg mb-2 line-clamp-2 group-hover:text-bhutan-yellow transition-colors min-h-[3.5rem]">
+          <div className="space-y-1.5">
+            <h3 className="line-clamp-2 text-sm font-semibold leading-snug tracking-tight transition-colors group-hover:text-bhutan-orange sm:text-base">
               {course.title}
             </h3>
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="outline" className="text-xs font-medium">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge variant="outline" className="text-[10px] font-medium capitalize">
                 {course.category}
               </Badge>
-              <Badge className={`text-xs font-medium ${getLevelColor(course.level)}`}>
+              <Badge className={`text-[10px] font-medium capitalize ${getLevelColor(course.level)}`}>
                 {course.level}
               </Badge>
             </div>
           </div>
 
           {/* Course Stats */}
-          <div className="flex items-center justify-between text-sm text-muted-foreground border-t border-b pt-3 pb-3">
-            <div className="flex items-center gap-1.5">
-              <Clock className="w-4 h-4" />
+          <div className="flex items-center justify-between border-y py-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Clock className="h-3.5 w-3.5" />
               <span>{duration}</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <Users className="w-4 h-4" />
+            <div className="flex items-center gap-1">
+              <Users className="h-3.5 w-3.5" />
               <span>{(course as any).students_count || 0}</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+            <div className="flex items-center gap-1">
+              <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
               <span className="font-medium">{(course as any).rating || 'New'}</span>
             </div>
           </div>
 
           {/* Progress Bar for Enrolled Courses */}
           {isEnrolled && progress > 0 && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-medium">
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-[11px] font-medium">
                 <span className="text-muted-foreground">{progress}% complete</span>
-                <span className="text-bhutan-yellow">{Math.round((course.modules?.length || 0) * (progress / 100))} of {course.modules?.length || 0} modules</span>
               </div>
-              <Progress value={progress} className="h-2" />
+              <Progress value={progress} className="h-1.5" />
             </div>
           )}
 
           {/* Continue or Enroll Button */}
-          <div className="pt-2">
-            {isEnrolled ? (
-              <Button
-                className="w-full bg-green-600 hover:bg-green-700 h-11 font-medium"
-              >
-                Continue Learning
-              </Button>
-            ) : (
-              <Button
-                className="w-full bg-bhutan-yellow hover:bg-bhutan-orange text-black h-11 font-medium"
-              >
-                Enroll Now
-              </Button>
-            )}
-          </div>
+          <Button
+            className={`h-9 w-full rounded-full text-sm font-medium ${
+              isEnrolled
+                ? 'bg-green-600 hover:bg-green-700 text-white'
+                : 'bg-bhutan-yellow text-black hover:bg-bhutan-orange'
+            }`}
+          >
+            {isEnrolled ? 'Continue learning' : 'Enroll now'}
+          </Button>
         </CardContent>
       </Card>
         </Link>

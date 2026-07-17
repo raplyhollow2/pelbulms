@@ -274,98 +274,46 @@ export function InstructorShowcase({
     )
   }
 
-  // Default Grid Layout (Bento-style)
+  // Default Grid Layout — compact, uniform, refined
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Expert Instructors</h2>
-        <Button
-          variant="outline"
-          onClick={() => (window.location.href = viewAllHref)}
-        >
-          View All
-          <ChevronRight className="w-4 h-4 ml-2" />
-        </Button>
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-xl font-semibold tracking-tight sm:text-2xl">Expert instructors</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Learn from verified educators across Bhutan.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {displayedInstructors.map((instructor, index) => {
-          const isFirst = index === 0
-          const isSecond = index === 1
-
-          return (
-            <Card
-              key={instructor.id}
-              className={cn(
-                'glass hover:shadow-xl transition-all duration-300 cursor-pointer group',
-                isFirst && 'md:col-span-2 lg:col-span-1',
-                isSecond && 'md:row-span-2'
-              )}
-              onClick={() => (window.location.href = `/instructors/${instructor.id}`)}
-            >
-              <CardContent className="p-6">
-                <div className="flex items-start gap-4 mb-4">
-                  <Avatar className={cn(
-                    'border-2 border-bhutan-yellow/30',
-                    isSecond ? 'w-20 h-20' : 'w-16 h-16'
-                  )}>
-                    <AvatarImage src={instructor.avatar_url} />
-                    <AvatarFallback className="bg-bhutan-yellow/20 text-black font-bold">
-                      {getInitials(instructor.full_name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-bold text-lg mb-1 group-hover:text-bhutan-yellow transition-colors">
-                      {instructor.full_name}
-                    </h3>
-                    {instructor.bio && (
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {instructor.bio}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Stats */}
-                <div className="flex items-center gap-4 mb-4 text-sm">
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    <span className="font-medium">{instructor.rating || 'New'}</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <Users className="w-4 h-4" />
-                    <span>{instructor.students_count?.toLocaleString() || '0'}</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <BookOpen className="w-4 h-4" />
-                    <span>{instructor.courses_count || '0'}</span>
-                  </div>
-                </div>
-
-                {/* Expertise */}
-                {instructor.expertise && instructor.expertise.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {instructor.expertise.slice(0, isSecond ? 5 : 3).map((skill, idx) => (
-                      <Badge key={idx} variant="secondary" className="text-xs">
-                        {skill}
-                      </Badge>
-                    ))}
-                  </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {displayedInstructors.map((instructor) => (
+          <Card key={instructor.id} className="glass hover-lift">
+            <CardContent className="flex items-center gap-3 p-4">
+              <Avatar className="h-12 w-12 shrink-0 border border-bhutan-yellow/30">
+                <AvatarImage src={instructor.avatar_url} />
+                <AvatarFallback className="bg-bhutan-yellow/20 font-semibold text-bhutan-orange">
+                  {getInitials(instructor.full_name)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-sm font-semibold">{instructor.full_name}</h3>
+                {instructor.expertise && instructor.expertise.length > 0 ? (
+                  <p className="truncate text-xs text-muted-foreground">
+                    {instructor.expertise[0]}
+                  </p>
+                ) : (
+                  <p className="truncate text-xs text-muted-foreground">Instructor</p>
                 )}
-
-                {/* View Profile Button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full group-hover:bg-bhutan-yellow group-hover:text-black transition-colors"
-                >
-                  View Profile
-                  <ChevronRight className="w-4 h-4 ml-2" />
-                </Button>
-              </CardContent>
-            </Card>
-          )
-        })}
+                <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <BookOpen className="h-3 w-3" />
+                  <span>
+                    {instructor.courses_count || 0}{' '}
+                    {instructor.courses_count === 1 ? 'course' : 'courses'}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   )

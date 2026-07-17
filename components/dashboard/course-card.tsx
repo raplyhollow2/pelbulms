@@ -87,13 +87,11 @@ export function DashboardCourseCard({
           </div>
 
           <Button
-            asChild
-            className="w-full bg-bhutan-yellow text-black hover:bg-bhutan-orange sm:w-auto"
+            className="w-full gap-1.5 bg-bhutan-yellow text-black hover:bg-bhutan-orange sm:w-auto"
+            render={<Link href={`/learn/${id}`} />}
           >
-            <Link href={`/learn/${id}`}>
-              <PlayCircle className="mr-1.5 h-4 w-4" />
-              {completed ? 'Review course' : started ? 'Continue' : 'Start learning'}
-            </Link>
+            <PlayCircle className="h-4 w-4" />
+            {completed ? 'Review course' : started ? 'Continue' : 'Start learning'}
           </Button>
         </div>
       </div>

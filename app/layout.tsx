@@ -13,6 +13,14 @@ export const metadata: Metadata = {
   title: "Pelbu LMS - Advanced Learning Platform",
   description: "Empowering education in Bhutan with modern learning management",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon.svg", sizes: "any" },
+    ],
+    shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-icon" }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
