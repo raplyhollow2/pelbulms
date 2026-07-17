@@ -36,7 +36,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button
               size="lg"
-              className="min-h-[56px] px-8 text-lg bg-bhutan-yellow hover:bg-bhutan-orange transition-colors touch-feedback"
+              className="min-h-[56px] px-8 text-lg bg-bhutan-yellow hover:bg-bhutan-orange transition-colors"
               onClick={() => router.push('/auth/login')}
             >
               Get Started Free
@@ -44,7 +44,7 @@ export default function Home() {
             <Button
               size="lg"
               variant="outline"
-              className="min-h-[56px] px-8 text-lg border-2 touch-feedback"
+              className="min-h-[56px] px-8 text-lg border-2"
               onClick={() => router.push('/about')}
             >
               Learn More
@@ -82,7 +82,7 @@ export default function Home() {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {/* Feature 1 */}
-          <Card className="glass hover:shadow-xl transition-all duration-300 touch-feedback">
+          <Card className="glass hover:shadow-xl transition-all duration-300">
             <CardHeader>
               <div className="w-12 h-12 rounded-xl bg-bhutan-yellow/20 flex items-center justify-center mb-4">
                 <BookOpen className="w-6 h-6 text-bhutan-yellow" />
@@ -95,7 +95,7 @@ export default function Home() {
           </Card>
 
           {/* Feature 2 */}
-          <Card className="glass hover:shadow-xl transition-all duration-300 touch-feedback">
+          <Card className="glass hover:shadow-xl transition-all duration-300">
             <CardHeader>
               <div className="w-12 h-12 rounded-xl bg-bhutan-orange/20 flex items-center justify-center mb-4">
                 <Users className="w-6 h-6 text-bhutan-orange" />
@@ -108,7 +108,7 @@ export default function Home() {
           </Card>
 
           {/* Feature 3 */}
-          <Card className="glass hover:shadow-xl transition-all duration-300 touch-feedback">
+          <Card className="glass hover:shadow-xl transition-all duration-300">
             <CardHeader>
               <div className="w-12 h-12 rounded-xl bg-bhutan-red/20 flex items-center justify-center mb-4">
                 <Award className="w-6 h-6 text-bhutan-red" />
@@ -121,7 +121,7 @@ export default function Home() {
           </Card>
 
           {/* Feature 4 */}
-          <Card className="glass hover:shadow-xl transition-all duration-300 touch-feedback">
+          <Card className="glass hover:shadow-xl transition-all duration-300">
             <CardHeader>
               <div className="w-12 h-12 rounded-xl bg-green-600/20 flex items-center justify-center mb-4">
                 <Target className="w-6 h-6 text-green-600" />
@@ -134,7 +134,7 @@ export default function Home() {
           </Card>
 
           {/* Feature 5 */}
-          <Card className="glass hover:shadow-xl transition-all duration-300 touch-feedback">
+          <Card className="glass hover:shadow-xl transition-all duration-300">
             <CardHeader>
               <div className="w-12 h-12 rounded-xl bg-blue-600/20 flex items-center justify-center mb-4">
                 <BookOpen className="w-6 h-6 text-blue-600" />
@@ -147,7 +147,7 @@ export default function Home() {
           </Card>
 
           {/* Feature 6 */}
-          <Card className="glass hover:shadow-xl transition-all duration-300 touch-feedback">
+          <Card className="glass hover:shadow-xl transition-all duration-300">
             <CardHeader>
               <div className="w-12 h-12 rounded-xl bg-purple-600/20 flex items-center justify-center mb-4">
                 <Award className="w-6 h-6 text-purple-600" />
@@ -170,7 +170,7 @@ export default function Home() {
           </p>
           <Button
             size="lg"
-            className="min-h-[56px] px-12 text-lg bg-bhutan-yellow hover:bg-bhutan-orange transition-colors touch-feedback"
+            className="min-h-[56px] px-12 text-lg bg-bhutan-yellow hover:bg-bhutan-orange transition-colors"
             onClick={() => router.push('/auth/login')}
           >
             Start Learning Today

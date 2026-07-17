@@ -6,7 +6,6 @@ import { BookOpen, Loader2, AlertCircle, Fingerprint } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/client'
-import { success as hapticSuccess, warning as hapticWarning } from '@/lib/utils'
 
 // SVG Icons for OAuth providers
 const GoogleIcon = ({ className }: { className?: string }) => (
@@ -41,7 +40,6 @@ function LoginPage() {
     const urlError = searchParams.get('error')
     if (urlError) {
       setError(decodeURIComponent(urlError))
-      hapticWarning()
     }
   }, [searchParams])
 
@@ -55,17 +53,14 @@ function LoginPage() {
 
       if (passkeyError) {
         setError(passkeyError.message)
-        hapticWarning()
         setLoading(false)
       } else if (data) {
-        hapticSuccess()
         // Passkey authentication successful
         router.push('/dashboard')
       }
     } catch (err) {
       console.error('Passkey error:', err)
       setError('Passkey authentication failed. Please try again.')
-      hapticWarning()
       setLoading(false)
     }
   }
@@ -85,16 +80,13 @@ function LoginPage() {
 
       if (oauthError) {
         setError(oauthError.message)
-        hapticWarning()
         setLoading(false)
       } else if (data) {
-        hapticSuccess()
         // OAuth redirect will happen automatically
       }
     } catch (err) {
       console.error('OAuth error:', err)
       setError(`${provider.charAt(0).toUpperCase() + provider.slice(1)} authentication failed. Please try again.`)
-      hapticWarning()
       setLoading(false)
     }
   }
@@ -130,7 +122,7 @@ function LoginPage() {
               <Button
                 onClick={handlePasskeySignIn}
                 disabled={loading}
-                className="w-full h-12 bg-bhutan-yellow hover:bg-bhutan-orange transition-colors touch-feedback"
+                className="w-full h-12 bg-bhutan-yellow hover:bg-bhutan-orange transition-colors"
               >
                 <Fingerprint className="mr-2 h-5 w-5" />
                 {loading ? 'Setting up Passkey...' : 'Continue with Passkey'}
@@ -153,7 +145,7 @@ function LoginPage() {
                   onClick={() => handleOAuthSignIn('google')}
                   disabled={loading}
                   variant="outline"
-                  className="h-12 hover:bg-gray-100 transition-colors touch-feedback"
+                  className="h-12 hover:bg-gray-100 transition-colors"
                 >
                   <GoogleIcon className="h-5 w-5" />
                 </Button>
@@ -161,7 +153,7 @@ function LoginPage() {
                   onClick={() => handleOAuthSignIn('facebook')}
                   disabled={loading}
                   variant="outline"
-                  className="h-12 hover:bg-blue-100 transition-colors touch-feedback"
+                  className="h-12 hover:bg-blue-100 transition-colors"
                 >
                   <FacebookIcon className="h-5 w-5" />
                 </Button>
@@ -169,7 +161,7 @@ function LoginPage() {
                   onClick={() => handleOAuthSignIn('apple')}
                   disabled={loading}
                   variant="outline"
-                  className="h-12 hover:bg-gray-100 transition-colors touch-feedback"
+                  className="h-12 hover:bg-gray-100 transition-colors"
                 >
                   <AppleIcon className="h-5 w-5" />
                 </Button>

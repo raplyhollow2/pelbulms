@@ -89,7 +89,6 @@ export function TimestampNotes({
   const handleSaveNote = () => {
     if (!newNote.trim()) return
 
-    haptic()
     const note: Note = {
       id: crypto.randomUUID(),
       lessonId,
@@ -127,7 +126,6 @@ export function TimestampNotes({
 
   // Jump to timestamp
   const handleJumpToTimestamp = (timestamp: number) => {
-    haptic()
     if (videoRef?.current) {
       videoRef.current.currentTime = timestamp
       if (videoRef.current.paused) {
@@ -145,7 +143,6 @@ export function TimestampNotes({
   const handleSaveEdit = () => {
     if (!editingNote || !editContent.trim()) return
 
-    haptic()
     setNotes(prev => prev.map(note =>
       note.id === editingNote
         ? { ...note, content: editContent.trim(), updatedAt: new Date().toISOString() }
@@ -168,7 +165,6 @@ export function TimestampNotes({
 
   // Delete note
   const handleDeleteNote = (noteId: string) => {
-    haptic()
     setNotes(prev => prev.filter(note => note.id !== noteId))
 
     // Call parent delete callback
@@ -365,7 +361,7 @@ export function TimestampNotes({
                                     variant="outline"
                                     size="sm"
                                     onClick={() => handleJumpToTimestamp(note.timestamp)}
-                                    className="h-7 px-2 font-mono text-xs touch-feedback"
+                                    className="h-7 px-2 font-mono text-xs"
                                   >
                                     <Clock className="w-3 h-3 mr-1" />
                                     {formatTimestamp(note.timestamp)}
@@ -391,7 +387,7 @@ export function TimestampNotes({
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 touch-feedback"
+                              className="h-8 w-8"
                             >
                               <MoreVertical className="w-4 h-4" />
                             </Button>

@@ -160,19 +160,24 @@ export default function CourseStudentsPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => router.push('/teach/dashboard')}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-fit -ml-2"
+            onClick={() => router.push('/teach/dashboard')}
+          >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
+            Back
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold">Student Management</h1>
-            <p className="text-muted-foreground">{course?.title}</p>
+          <div className="min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-bold">Student Management</h1>
+            <p className="text-sm sm:text-base text-muted-foreground truncate">{course?.title}</p>
           </div>
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
           <Card className="glass hover:shadow-xl transition-all duration-300">
             <CardHeader>
               <CardTitle className="text-sm font-medium">Total Students</CardTitle>
@@ -218,13 +223,13 @@ export default function CourseStudentsPage() {
 
         {/* Students List */}
         <Card className="glass-strong">
-          <CardHeader>
-            <div className="flex items-center justify-between">
+          <CardHeader className="px-4 sm:px-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <CardTitle>All Students</CardTitle>
                 <CardDescription>View individual student progress and performance</CardDescription>
               </div>
-              <div className="relative w-64">
+              <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Search students..."
@@ -251,9 +256,9 @@ export default function CourseStudentsPage() {
                       key={student.id}
                       className="p-4 border rounded-lg hover:border-bhutan-yellow/50 transition-colors"
                     >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20 flex items-center justify-center">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-3">
+                        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20 flex items-center justify-center shrink-0">
                             {student.avatar_url ? (
                               <img
                                 src={student.avatar_url}
@@ -264,12 +269,12 @@ export default function CourseStudentsPage() {
                               <Users className="w-6 h-6 text-bhutan-yellow" />
                             )}
                           </div>
-                          <div>
-                            <h3 className="font-semibold">{student.full_name || 'Anonymous'}</h3>
+                          <div className="min-w-0">
+                            <h3 className="font-semibold truncate">{student.full_name || 'Anonymous'}</h3>
                             {(student as any).email && (
-                              <p className="text-sm text-muted-foreground">{(student as any).email}</p>
+                              <p className="text-sm text-muted-foreground truncate">{(student as any).email}</p>
                             )}
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
                               <Badge variant="outline" className="text-xs">
                                 <Clock className="w-3 h-3 mr-1" />
                                 Enrolled {enrolledDate}
@@ -283,7 +288,7 @@ export default function CourseStudentsPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-left sm:text-right shrink-0">
                           <div className="text-2xl font-bold text-bhutan-yellow">
                             {progressPercentage}%
                           </div>

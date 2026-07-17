@@ -112,7 +112,6 @@ export function VideoPlayerWithLearning({
 
   // Handle video play/pause
   const togglePlay = () => {
-    haptic()
     if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause()
@@ -125,7 +124,6 @@ export function VideoPlayerWithLearning({
 
   // Handle mute toggle
   const toggleMute = () => {
-    haptic()
     if (videoRef.current) {
       videoRef.current.muted = !isMuted
       setIsMuted(!isMuted)
@@ -134,7 +132,6 @@ export function VideoPlayerWithLearning({
 
   // Handle fullscreen
   const toggleFullscreen = () => {
-    haptic()
     if (!isFullscreen) {
       if (containerRef.current?.requestFullscreen) {
         containerRef.current.requestFullscreen()
@@ -172,7 +169,6 @@ export function VideoPlayerWithLearning({
 
   // Skip backward/forward
   const skipTime = (seconds: number) => {
-    haptic()
     if (videoRef.current) {
       videoRef.current.currentTime = Math.max(0, Math.min(duration, currentTime + seconds))
     }
@@ -187,7 +183,6 @@ export function VideoPlayerWithLearning({
 
   // Handle playback speed
   const handlePlaybackSpeed = () => {
-    haptic()
     const speeds = [0.5, 0.75, 1, 1.25, 1.5, 2]
     const currentIndex = speeds.indexOf(playbackSpeed)
     const nextIndex = (currentIndex + 1) % speeds.length
@@ -201,7 +196,6 @@ export function VideoPlayerWithLearning({
 
   // Navigate to next/previous lesson
   const navigateLesson = (direction: 'prev' | 'next') => {
-    haptic()
     if (!currentLesson) return
 
     let foundCurrent = false
@@ -225,7 +219,6 @@ export function VideoPlayerWithLearning({
 
   // Mark lesson as completed
   const markAsCompleted = () => {
-    haptic()
     // TODO: Implement lesson completion logic
     console.log('Lesson completed:', currentLesson?.id)
   }

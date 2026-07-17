@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   Home, BookOpen, GraduationCap, User,
   Menu, X, LogOut, Settings, Search,
-  Bell, MessageCircle, TrendingUp, Users
+  Bell, TrendingUp, Users
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -20,36 +20,55 @@ interface MobileNavigationProps {
 export function MobileNavigation({ user }: MobileNavigationProps) {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [userRole, setUserRole] = useState<'student' | 'instructor' | 'admin'>('student')
+  const [userRole, setUserRole] = useState<
+    'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
+  >('student')
+
+  const canTeach =
+    userRole === 'instructor' ||
+    userRole === 'admin' ||
+    userRole === 'resource_person' ||
+    userRole === 'superadmin'
+  const canAdmin = userRole === 'admin' || userRole === 'superadmin'
 
   const mainNavigation = [
     { name: 'Home', href: '/dashboard', icon: Home },
     { name: 'Courses', href: '/courses', icon: BookOpen },
-    { name: 'My Learning', href: '/learn/progress', icon: TrendingUp },
+    { name: 'Learn', href: '/learn/progress', icon: TrendingUp },
     { name: 'Profile', href: '/profile', icon: User },
   ]
 
   const secondaryNavigation = [
     { name: 'Settings', href: '/settings', icon: Settings },
-    { name: 'Notifications', href: '/notifications', icon: Bell },
-    { name: 'Messages', href: '/messages', icon: MessageCircle },
+    { name: 'Announcements', href: '/announcements', icon: Bell },
     { name: 'Search', href: '/courses', icon: Search },
   ]
 
   const teacherNavigation = [
-    { name: 'Teacher Dashboard', href: '/teach/dashboard', icon: GraduationCap },
-    { name: 'Create Course', href: '/teach/courses/new', icon: BookOpen },
+    { name: 'Teacher Hub', href: '/teach/dashboard', icon: GraduationCap },
+    { name: 'New Course', href: '/teach/courses/new', icon: BookOpen },
   ]
 
   const adminNavigation = [
-    { name: 'User Management', href: '/admin/users', icon: Users },
+    { name: 'Users', href: '/admin/users', icon: Users },
   ]
 
   useEffect(() => {
-    if (user) {
-      fetchUserRole()
-    }
+    if (user) fetchUserRole()
   }, [user])
+
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [pathname])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previous
+    }
+  }, [menuOpen])
 
   const fetchUserRole = async () => {
     try {
@@ -79,156 +98,141 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
     }
   }
 
-  const toggleMenu = () => {
-    haptic()
-    setMenuOpen(!menuOpen)
-  }
+  const isActive = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`)
 
   return (
     <>
-      {/* Bottom Navigation Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-border/40 z-50 safe-area-bottom">
-        {/* Main Navigation */}
-        <div className="flex items-center justify-around h-16 px-2">
+      <nav
+        className="fixed bottom-0 inset-x-0 z-50 border-t border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 safe-area-bottom"
+        aria-label="Mobile navigation"
+      >
+        <div className="flex items-stretch justify-around h-16 px-1 max-w-lg mx-auto">
           {mainNavigation.map((item) => {
-            const isActive = pathname === item.href
+            const active = isActive(item.href)
             return (
               <Link
                 key={item.name}
                 href={item.href}
                 onClick={() => haptic()}
-                className={`flex flex-col items-center justify-center min-w-[60px] py-2 px-1 rounded-lg transition-all duration-200 ${
-                  isActive
-                    ? 'text-bhutan-yellow'
-                    : 'text-muted-foreground'
+                className={`flex flex-1 flex-col items-center justify-center gap-0.5 min-w-0 py-2 rounded-lg transition-colors ${
+                  active ? 'text-bhutan-yellow' : 'text-muted-foreground'
                 }`}
               >
-                <item.icon className={`w-6 h-6 ${isActive ? 'fill-bhutan-yellow' : ''}`} />
-                <span className="text-xs mt-1 font-medium">{item.name}</span>
+                <item.icon className={`w-5 h-5 shrink-0 ${active ? 'text-bhutan-yellow' : ''}`} />
+                <span className="text-[10px] font-medium truncate max-w-full px-0.5">
+                  {item.name}
+                </span>
               </Link>
             )
           })}
 
-          {/* Menu Button for Secondary Navigation */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleMenu}
-            className={`flex flex-col items-center justify-center min-w-[60px] py-2 px-1 rounded-lg touch-feedback ${
+          <button
+            type="button"
+            onClick={() => {
+              haptic()
+              setMenuOpen((open) => !open)
+            }}
+            className={`flex flex-1 flex-col items-center justify-center gap-0.5 min-w-0 py-2 rounded-lg transition-colors ${
               menuOpen ? 'text-bhutan-yellow' : 'text-muted-foreground'
             }`}
+            aria-expanded={menuOpen}
+            aria-label="Open menu"
           >
-            {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            <span className="text-xs mt-1 font-medium">Menu</span>
-          </Button>
+            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            <span className="text-[10px] font-medium">Menu</span>
+          </button>
         </div>
+      </nav>
 
-        {/* Secondary Menu Drawer */}
-        {menuOpen && (
-          <div className="fixed inset-0 bg-black/50 z-50" onClick={toggleMenu}>
-            <div
-              className="absolute bottom-16 left-0 right-0 bg-white dark:bg-gray-900 rounded-t-3xl border-t border-border/40 p-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* User Info */}
-              <div className="flex items-center gap-3 p-4 mb-4 bg-gray-100 dark:bg-gray-800 rounded-xl">
-                <Avatar className="w-12 h-12 bg-bhutan-yellow">
-                  <AvatarFallback className="bg-bhutan-yellow text-black font-semibold text-lg">
-                    {user?.email?.[0]?.toUpperCase() || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">
-                    {user?.user_metadata?.full_name || user?.email?.split('@')[0]}
-                  </p>
-                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+      {menuOpen && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/50 lg:hidden"
+          onClick={() => setMenuOpen(false)}
+        >
+          <div
+            className="absolute bottom-0 inset-x-0 max-h-[85dvh] overflow-y-auto rounded-t-3xl border-t border-border/40 bg-background p-4 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted" />
+
+            <div className="flex items-center gap-3 p-3 mb-4 rounded-xl bg-muted/60">
+              <Avatar className="w-11 h-11 bg-bhutan-yellow shrink-0">
+                <AvatarFallback className="bg-bhutan-yellow text-black font-semibold">
+                  {user?.email?.[0]?.toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">
+                  {user?.user_metadata?.full_name || user?.email?.split('@')[0]}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {secondaryNavigation.map((item) => (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-muted/50 active:bg-muted transition-colors"
+                >
+                  <item.icon className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-xs font-medium text-center">{item.name}</span>
+                </Link>
+              ))}
+            </div>
+
+            {canTeach && (
+              <div className="mb-4">
+                <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Teacher
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {teacherNavigation.map((item) => (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      onClick={() => setMenuOpen(false)}
+                      className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-bhutan-yellow/10 active:bg-bhutan-yellow/20 transition-colors"
+                    >
+                      <item.icon className="w-5 h-5 text-bhutan-yellow" />
+                      <span className="text-xs font-medium text-center">{item.name}</span>
+                    </Link>
+                  ))}
                 </div>
               </div>
+            )}
 
-              {/* Secondary Navigation Items */}
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                {secondaryNavigation.map((item) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    onClick={() => {
-                      haptic()
-                      setMenuOpen(false)
-                    }}
-                    className="flex flex-col items-center justify-center p-4 bg-gray-100 dark:bg-gray-800 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-                  >
-                    <item.icon className="w-6 h-6 mb-2 text-muted-foreground" />
-                    <span className="text-xs font-medium">{item.name}</span>
-                  </Link>
-                ))}
+            {canAdmin && (
+              <div className="mb-4">
+                <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Admin
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {adminNavigation.map((item) => (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      onClick={() => setMenuOpen(false)}
+                      className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-red-600/10 active:bg-red-600/20 transition-colors"
+                    >
+                      <item.icon className="w-5 h-5 text-red-600" />
+                      <span className="text-xs font-medium text-center">{item.name}</span>
+                    </Link>
+                  ))}
+                </div>
               </div>
+            )}
 
-              {/* Teacher Navigation */}
-              {(userRole === 'instructor' || userRole === 'admin') && (
-                <>
-                  <div className="mb-2 text-sm font-semibold text-muted-foreground">
-                    Teacher Tools
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    {teacherNavigation.map((item) => (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        onClick={() => {
-                          haptic()
-                          setMenuOpen(false)
-                        }}
-                        className="flex flex-col items-center justify-center p-4 bg-bhutan-yellow/10 dark:bg-bhutan-yellow/20 rounded-xl hover:bg-bhutan-yellow/20 dark:hover:bg-bhutan-yellow/30 transition-colors"
-                      >
-                        <item.icon className="w-6 h-6 mb-2 text-bhutan-yellow" />
-                        <span className="text-xs font-medium">{item.name}</span>
-                      </Link>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {/* Admin Navigation */}
-              {userRole === 'admin' && (
-                <>
-                  <div className="mb-2 text-sm font-semibold text-muted-foreground">
-                    Administration
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    {adminNavigation.map((item) => (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        onClick={() => {
-                          haptic()
-                          setMenuOpen(false)
-                        }}
-                        className="flex flex-col items-center justify-center p-4 bg-red-600/10 dark:bg-red-600/20 rounded-xl hover:bg-red-600/20 dark:hover:bg-red-600/30 transition-colors"
-                      >
-                        <item.icon className="w-6 h-6 mb-2 text-red-600" />
-                        <span className="text-xs font-medium">{item.name}</span>
-                      </Link>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {/* Logout Button */}
-              <Button
-                variant="outline"
-                onClick={handleLogout}
-                className="w-full touch-feedback"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </Button>
-            </div>
+            <Button variant="outline" onClick={handleLogout} className="w-full">
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
           </div>
-        )}
-      </div>
-
-      {/* Safe Area Spacer for Mobile */}
-      <div className="h-16 safe-area-bottom-spacer" />
+        </div>
+      )}
     </>
   )
 }

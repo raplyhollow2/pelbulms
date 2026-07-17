@@ -29,7 +29,6 @@ import {
   Sun,
   Monitor,
 } from 'lucide-react'
-import { haptic } from '@/lib/utils'
 
 export default function SettingsPage() {
   const supabase = createClient()
@@ -97,13 +96,13 @@ export default function SettingsPage() {
   }
 
   const handleSave = async () => {
-    haptic()
     setSaving(true)
     setSuccess(false)
 
     try {
       const { error } = await supabase
         .from('user_settings')
+        // @ts-ignore - Supabase types not properly defined
         .update({
           ...localSettings,
           updated_at: new Date().toISOString()
@@ -141,9 +140,11 @@ export default function SettingsPage() {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Settings</h1>
-          <p className="text-muted-foreground">Manage your account preferences and configuration</p>
+        <div className="space-y-1">
+          <h1 className="text-2xl sm:text-3xl font-bold">Settings</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            Manage your account preferences and configuration
+          </p>
         </div>
 
         {/* Notification Settings */}
@@ -158,14 +159,15 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-0.5 min-w-0 flex-1">
                 <Label>Email Notifications</Label>
                 <p className="text-sm text-muted-foreground">
                   Receive notifications via email
                 </p>
               </div>
               <Switch
+                className="shrink-0"
                 checked={localSettings.email_notifications}
                 onCheckedChange={(checked) => handleToggle('email_notifications', checked)}
               />
@@ -173,14 +175,15 @@ export default function SettingsPage() {
 
             <Separator />
 
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-0.5 min-w-0 flex-1">
                 <Label>Push Notifications</Label>
                 <p className="text-sm text-muted-foreground">
                   Receive push notifications in browser
                 </p>
               </div>
               <Switch
+                className="shrink-0"
                 checked={localSettings.push_notifications}
                 onCheckedChange={(checked) => handleToggle('push_notifications', checked)}
               />
@@ -188,14 +191,15 @@ export default function SettingsPage() {
 
             <Separator />
 
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-0.5 min-w-0 flex-1">
                 <Label>Course Updates</Label>
                 <p className="text-sm text-muted-foreground">
                   Get notified when your courses are updated
                 </p>
               </div>
               <Switch
+                className="shrink-0"
                 checked={localSettings.course_updates}
                 onCheckedChange={(checked) => handleToggle('course_updates', checked)}
               />
@@ -203,14 +207,15 @@ export default function SettingsPage() {
 
             <Separator />
 
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-0.5 min-w-0 flex-1">
                 <Label>Announcements</Label>
                 <p className="text-sm text-muted-foreground">
                   Receive platform announcements and news
                 </p>
               </div>
               <Switch
+                className="shrink-0"
                 checked={localSettings.announcement_notifications}
                 onCheckedChange={(checked) => handleToggle('announcement_notifications', checked)}
               />
@@ -218,14 +223,15 @@ export default function SettingsPage() {
 
             <Separator />
 
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-0.5 min-w-0 flex-1">
                 <Label>Messages</Label>
                 <p className="text-sm text-muted-foreground">
                   Get notified for new messages
                 </p>
               </div>
               <Switch
+                className="shrink-0"
                 checked={localSettings.message_notifications}
                 onCheckedChange={(checked) => handleToggle('message_notifications', checked)}
               />
@@ -369,14 +375,15 @@ export default function SettingsPage() {
 
             <Separator />
 
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-0.5 min-w-0 flex-1">
                 <Label>Show Progress</Label>
                 <p className="text-sm text-muted-foreground">
                   Allow others to see your course progress
                 </p>
               </div>
               <Switch
+                className="shrink-0"
                 checked={localSettings.show_progress}
                 onCheckedChange={(checked) => handleToggle('show_progress', checked)}
               />
@@ -384,14 +391,15 @@ export default function SettingsPage() {
 
             <Separator />
 
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-0.5 min-w-0 flex-1">
                 <Label>Show Certificates</Label>
                 <p className="text-sm text-muted-foreground">
                   Display your certificates publicly
                 </p>
               </div>
               <Switch
+                className="shrink-0"
                 checked={localSettings.show_certificates}
                 onCheckedChange={(checked) => handleToggle('show_certificates', checked)}
               />
@@ -411,14 +419,15 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-0.5 min-w-0 flex-1">
                 <Label>Auto-play Videos</Label>
                 <p className="text-sm text-muted-foreground">
                   Automatically play next video in sequence
                 </p>
               </div>
               <Switch
+                className="shrink-0"
                 checked={localSettings.auto_play_video}
                 onCheckedChange={(checked) => handleToggle('auto_play_video', checked)}
               />
@@ -450,7 +459,7 @@ export default function SettingsPage() {
               <Label>Playback Speed: {localSettings.playback_speed}x</Label>
               <Select
                 value={localSettings.playback_speed.toString()}
-                onValueChange={(value) => handleSelect('playback_speed', parseFloat(value))}
+                onValueChange={(value) => handleSelect('playback_speed', value)}
               >
                 <SelectTrigger>
                   <SelectValue />

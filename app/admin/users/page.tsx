@@ -1,13 +1,15 @@
 // @ts-nocheck - Supabase type inference issues preventing build
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   Select,
   SelectContent,
@@ -15,6 +17,14 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,90 +42,127 @@ import {
   Trash2,
   Loader2,
   Search,
-  Users,
-  ArrowLeft,
-  Mail,
   Shield,
-  User as UserIcon
+  Camera,
 } from 'lucide-react'
-import { createBrowserClient } from '@supabase/ssr'
+import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 import { success as hapticSuccess, warning as hapticWarning } from '@/lib/utils'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
+type Role = 'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
 
-// Create client inline to avoid type caching issues
-const createClient = () => {
-  return createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+const EMPTY_FORM = {
+  email: '',
+  full_name: '',
+  role: 'student' as Role,
+  bio: '',
+  avatar_url: '',
+}
+
+function getInitials(name?: string | null) {
+  if (!name) return 'U'
+  return name
+    .split(' ')
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
+}
+
+function roleBadgeColor(role: string) {
+  switch (role) {
+    case 'superadmin':
+      return 'bg-purple-600'
+    case 'admin':
+      return 'bg-red-600'
+    case 'resource_person':
+      return 'bg-amber-600'
+    case 'instructor':
+      return 'bg-blue-600'
+    case 'student':
+      return 'bg-green-600'
+    default:
+      return 'bg-gray-600'
+  }
+}
+
+function roleLabel(role: string) {
+  switch (role) {
+    case 'superadmin':
+      return 'Super Admin'
+    case 'admin':
+      return 'Administrator'
+    case 'resource_person':
+      return 'Resource Person'
+    case 'instructor':
+      return 'Instructor'
+    case 'student':
+      return 'Student'
+    default:
+      return role
+  }
 }
 
 export default function AdminUsersPage() {
   const router = useRouter()
+  const supabase = createClient()
+
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [currentRole, setCurrentRole] = useState<Role>('admin')
+  const isSuperAdmin = currentRole === 'superadmin'
 
-  // Data states
   const [users, setUsers] = useState<Profile[]>([])
-  const [filteredUsers, setFilteredUsers] = useState<Profile[]>([])
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Form states
+  // Create form
   const [showCreateForm, setShowCreateForm] = useState(false)
-  const [editingUser, setEditingUser] = useState<Profile | null>(null)
-  const [formData, setFormData] = useState({
-    email: '',
-    full_name: '',
-    role: 'student' as 'student' | 'instructor' | 'admin',
-    bio: ''
-  })
+  const [formData, setFormData] = useState({ ...EMPTY_FORM })
   const [formLoading, setFormLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const supabase = createClient()
+  // Edit dialog
+  const [editingUser, setEditingUser] = useState<Profile | null>(null)
+  const [editData, setEditData] = useState({ ...EMPTY_FORM })
+  const [editLoading, setEditLoading] = useState(false)
+  const [editError, setEditError] = useState('')
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     checkAdminAccess()
   }, [])
 
-  useEffect(() => {
-    if (users.length > 0) {
-      filterUsers()
-    }
-  }, [searchQuery, users])
-
   const checkAdminAccess = async () => {
     try {
       setLoading(true)
-
-      // Get user session
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.user) {
         router.push('/auth/login')
         return
       }
-
       setCurrentUser(session.user)
 
-      // Check if user is admin
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', session.user.id)
         .single()
 
-      if (!profile || (profile as { role: string }).role !== 'admin') {
+      const role = (profile as { role?: string } | null)?.role
+      if (!profile || (role !== 'admin' && role !== 'superadmin')) {
         router.push('/dashboard')
         return
       }
 
+      setCurrentRole(role as Role)
       setIsAdmin(true)
       await fetchUsers()
-    } catch (error) {
-      console.error('Error checking admin access:', error)
+    } catch (err) {
+      console.error('Error checking admin access:', err)
       router.push('/dashboard')
     } finally {
       setLoading(false)
@@ -124,154 +171,150 @@ export default function AdminUsersPage() {
 
   const fetchUsers = async () => {
     try {
-      const { data: usersData } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (usersData) {
-        setUsers(usersData)
-        setFilteredUsers(usersData)
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error)
+      const res = await fetch('/api/users', { cache: 'no-store' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to load users')
+      setUsers(json.users || [])
+    } catch (err: any) {
+      console.error('Error fetching users:', err)
+      setError(err.message || 'Failed to load users')
     }
   }
 
-  const filterUsers = () => {
-    if (!searchQuery.trim()) {
-      setFilteredUsers(users)
-      return
-    }
-
-    const query = searchQuery.toLowerCase()
-    const filtered = users.filter(user =>
-      user.full_name?.toLowerCase().includes(query) ||
-      user.id.toLowerCase().includes(query)
+  const filteredUsers = users.filter((user) => {
+    if (!searchQuery.trim()) return true
+    const q = searchQuery.toLowerCase()
+    return (
+      user.full_name?.toLowerCase().includes(q) ||
+      (user as any).email?.toLowerCase().includes(q) ||
+      user.id.toLowerCase().includes(q)
     )
-    setFilteredUsers(filtered)
-  }
+  })
 
   const handleCreateUser = async () => {
     try {
       setFormLoading(true)
       setError('')
 
-      // Validate form
       if (!formData.email || !formData.full_name) {
         setError('Email and full name are required')
         return
       }
 
-      // Create auth user through Supabase Admin API
-      // Note: This would typically be done through a server action
-      // For now, we'll create the profile and let them sign up themselves
-      const { data: { user }, error: createError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: Math.random().toString(36).slice(-8), // Temporary password
-        options: {
-          data: {
-            full_name: formData.full_name,
-            role: formData.role
-          }
-        }
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
       })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to create user')
 
-      if (createError) {
-        setError(createError.message)
-        return
-      }
-
-      if (user) {
-        // Create profile with assigned role
-        const insertData: any = {
-          id: user.id,
-          full_name: formData.full_name,
-          role: formData.role,
-          bio: formData.bio || null
-        }
-
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert(insertData)
-
-        if (profileError) {
-          setError(profileError.message)
-          return
-        }
-
-        hapticSuccess()
-        await fetchUsers()
-        resetForm()
-        setShowCreateForm(false)
-      }
-    } catch (error) {
-      console.error('Error creating user:', error)
-      setError('Failed to create user')
+      hapticSuccess()
+      await fetchUsers()
+      setFormData({ ...EMPTY_FORM })
+      setShowCreateForm(false)
+    } catch (err: any) {
+      console.error('Error creating user:', err)
+      setError(err.message || 'Failed to create user')
     } finally {
       setFormLoading(false)
     }
   }
 
-  const handleUpdateRole = async (userId: string, newRole: 'student' | 'instructor' | 'admin') => {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: newRole })
-        .eq('id', userId)
+  const openEdit = (user: Profile) => {
+    setEditingUser(user)
+    setEditError('')
+    setEditData({
+      email: (user as any).email || '',
+      full_name: user.full_name || '',
+      role: (user.role as Role) || 'student',
+      bio: user.bio || '',
+      avatar_url: user.avatar_url || '',
+    })
+  }
 
-      if (error) {
-        setError(error.message)
-        return
-      }
+  const handleSaveEdit = async () => {
+    if (!editingUser) return
+    try {
+      setEditLoading(true)
+      setEditError('')
+
+      const res = await fetch(`/api/users/${editingUser.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: editData.full_name,
+          bio: editData.bio,
+          role: editData.role,
+          avatar_url: editData.avatar_url || null,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to update user')
 
       hapticSuccess()
       await fetchUsers()
       setEditingUser(null)
-    } catch (error) {
-      console.error('Error updating user role:', error)
-      setError('Failed to update user role')
+    } catch (err: any) {
+      console.error('Error updating user:', err)
+      setEditError(err.message || 'Failed to update user')
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  const handleUpdateRole = async (userId: string, newRole: Role) => {
+    try {
+      const res = await fetch(`/api/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to update role')
+      hapticSuccess()
+      await fetchUsers()
+    } catch (err: any) {
+      console.error('Error updating user role:', err)
+      setError(err.message || 'Failed to update user role')
+    }
+  }
+
+  const handleAvatarUpload = async (file: File) => {
+    if (!editingUser) return
+    try {
+      setUploadingAvatar(true)
+      setEditError('')
+
+      const body = new FormData()
+      body.append('file', file)
+      body.append('userId', editingUser.id)
+
+      const res = await fetch('/api/users/avatar', { method: 'POST', body })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to upload avatar')
+
+      setEditData((prev) => ({ ...prev, avatar_url: json.avatar_url }))
+      hapticSuccess()
+      await fetchUsers()
+    } catch (err: any) {
+      console.error('Error uploading avatar:', err)
+      setEditError(err.message || 'Failed to upload avatar')
+    } finally {
+      setUploadingAvatar(false)
     }
   }
 
   const handleDeleteUser = async (userId: string) => {
     try {
-      // Delete profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userId)
-
-      if (profileError) {
-        setError(profileError.message)
-        return
-      }
-
-      // Note: Auth user deletion would be done through server action
+      const res = await fetch(`/api/users/${userId}`, { method: 'DELETE' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to delete user')
       hapticWarning()
       await fetchUsers()
-    } catch (error) {
-      console.error('Error deleting user:', error)
-      setError('Failed to delete user')
-    }
-  }
-
-  const resetForm = () => {
-    setFormData({
-      email: '',
-      full_name: '',
-      role: 'student',
-      bio: ''
-    })
-    setError('')
-  }
-
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case 'admin': return 'bg-red-600'
-      case 'instructor': return 'bg-blue-600'
-      case 'student': return 'bg-green-600'
-      default: return 'bg-gray-600'
+    } catch (err: any) {
+      console.error('Error deleting user:', err)
+      setError(err.message || 'Failed to delete user')
     }
   }
 
@@ -286,34 +329,27 @@ export default function AdminUsersPage() {
     )
   }
 
-  if (!isAdmin) {
-    return null // Will redirect
-  }
+  if (!isAdmin) return null
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => router.push('/dashboard')}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
-            <div className="flex items-center gap-3">
-              <Shield className="w-8 h-8 text-bhutan-yellow" />
-              <div>
-                <h1 className="text-3xl font-bold">User Management</h1>
-                <p className="text-sm text-muted-foreground">Admin Panel</p>
-              </div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            <Shield className="w-7 h-7 sm:w-8 sm:h-8 text-bhutan-yellow shrink-0" />
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold truncate">User Management</h1>
+              <p className="text-sm text-muted-foreground">Create, edit and manage all users</p>
             </div>
           </div>
           <Button
+            className="w-full sm:w-auto shrink-0"
             onClick={() => {
-              resetForm()
-              setShowCreateForm(true)
+              setFormData({ ...EMPTY_FORM })
+              setError('')
+              setShowCreateForm((v) => !v)
             }}
-            className="touch-feedback"
           >
             <UserPlus className="w-4 h-4 mr-2" />
             Add User
@@ -321,40 +357,36 @@ export default function AdminUsersPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
           <Card className="glass">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium">Total Users</CardTitle>
+            <CardHeader className="pb-1 px-3 pt-3 sm:pb-2 sm:px-6 sm:pt-6">
+              <CardTitle className="text-[11px] sm:text-xs font-medium">Total Users</CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl font-bold text-bhutan-yellow">
-                {users.length}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">Registered users</p>
+            <CardContent className="pt-0 px-3 pb-3 sm:px-6 sm:pb-6">
+              <div className="text-xl sm:text-2xl font-bold text-bhutan-yellow">{users.length}</div>
+              <p className="hidden sm:block text-xs text-muted-foreground mt-1">Registered users</p>
             </CardContent>
           </Card>
-
           <Card className="glass">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium">Instructors</CardTitle>
+            <CardHeader className="pb-1 px-3 pt-3 sm:pb-2 sm:px-6 sm:pt-6">
+              <CardTitle className="text-[11px] sm:text-xs font-medium">Instructors</CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl font-bold text-blue-600">
-                {users.filter(u => u.role === 'instructor').length}
+            <CardContent className="pt-0 px-3 pb-3 sm:px-6 sm:pb-6">
+              <div className="text-xl sm:text-2xl font-bold text-blue-600">
+                {users.filter((u) => u.role === 'instructor').length}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Active teachers</p>
+              <p className="hidden sm:block text-xs text-muted-foreground mt-1">Active teachers</p>
             </CardContent>
           </Card>
-
           <Card className="glass">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium">Students</CardTitle>
+            <CardHeader className="pb-1 px-3 pt-3 sm:pb-2 sm:px-6 sm:pt-6">
+              <CardTitle className="text-[11px] sm:text-xs font-medium">Students</CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
-              <div className="text-2xl font-bold text-green-600">
-                {users.filter(u => u.role === 'student').length}
+            <CardContent className="pt-0 px-3 pb-3 sm:px-6 sm:pb-6">
+              <div className="text-xl sm:text-2xl font-bold text-green-600">
+                {users.filter((u) => u.role === 'student').length}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Active learners</p>
+              <p className="hidden sm:block text-xs text-muted-foreground mt-1">Active learners</p>
             </CardContent>
           </Card>
         </div>
@@ -363,23 +395,29 @@ export default function AdminUsersPage() {
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
           <Input
-            placeholder="Search by name or user ID..."
+            placeholder="Search by name, email or ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10 glass"
           />
         </div>
 
+        {error && (
+          <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-600">
+            {error}
+          </div>
+        )}
+
         {/* Create User Form */}
         {showCreateForm && (
           <Card className="glass-strong">
-            <CardHeader>
+            <CardHeader className="px-4 sm:px-6">
               <CardTitle>Create New User</CardTitle>
               <CardDescription>Add a new user to the platform</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 px-4 sm:px-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="email">Email *</Label>
                   <Input
                     id="email"
@@ -390,7 +428,7 @@ export default function AdminUsersPage() {
                     className="glass"
                   />
                 </div>
-                <div>
+                <div className="space-y-2">
                   <Label htmlFor="full_name">Full Name *</Label>
                   <Input
                     id="full_name"
@@ -402,7 +440,7 @@ export default function AdminUsersPage() {
                 </div>
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="role">Role *</Label>
                 <Select
                   value={formData.role}
@@ -414,34 +452,29 @@ export default function AdminUsersPage() {
                   <SelectContent>
                     <SelectItem value="student">Student</SelectItem>
                     <SelectItem value="instructor">Instructor (Teacher)</SelectItem>
+                    <SelectItem value="resource_person">Resource Person</SelectItem>
                     <SelectItem value="admin">Administrator</SelectItem>
+                    {isSuperAdmin && (
+                      <SelectItem value="superadmin">Super Admin</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="bio">Bio (Optional)</Label>
-                <Input
+                <Textarea
                   id="bio"
                   placeholder="Brief description..."
                   value={formData.bio}
                   onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                  className="glass"
+                  className="glass resize-none"
+                  rows={3}
                 />
               </div>
 
-              {error && (
-                <div className="text-sm text-red-600">
-                  {error}
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleCreateUser}
-                  disabled={formLoading}
-                  className="touch-feedback"
-                >
+              <div className="flex flex-col-reverse sm:flex-row gap-2">
+                <Button className="w-full sm:w-auto" onClick={handleCreateUser} disabled={formLoading}>
                   {formLoading ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -456,9 +489,11 @@ export default function AdminUsersPage() {
                 </Button>
                 <Button
                   variant="outline"
+                  className="w-full sm:w-auto"
                   onClick={() => {
                     setShowCreateForm(false)
-                    resetForm()
+                    setFormData({ ...EMPTY_FORM })
+                    setError('')
                   }}
                   disabled={formLoading}
                 >
@@ -471,69 +506,88 @@ export default function AdminUsersPage() {
 
         {/* Users List */}
         <Card className="glass-strong">
-          <CardHeader>
+          <CardHeader className="px-4 sm:px-6">
             <CardTitle>All Users</CardTitle>
             <CardDescription>
               {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'} found
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-3 sm:px-6">
             <div className="space-y-3">
               {filteredUsers.map((user) => (
                 <div
                   key={user.id}
-                  className="flex items-center justify-between p-4 bg-background/50 rounded-lg hover:bg-background/70 transition-colors"
+                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-background/50 rounded-lg hover:bg-background/70 transition-colors"
                 >
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="w-10 h-10 rounded-full bg-bhutan-yellow/20 flex items-center justify-center">
-                      <UserIcon className="w-5 h-5 text-bhutan-yellow" />
-                    </div>
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <Avatar className="w-10 h-10 shrink-0">
+                      <AvatarImage src={user.avatar_url || undefined} alt={user.full_name || 'User'} />
+                      <AvatarFallback className="bg-bhutan-yellow/20 text-bhutan-yellow font-semibold">
+                        {getInitials(user.full_name)}
+                      </AvatarFallback>
+                    </Avatar>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-medium truncate">{user.full_name || 'No name'}</p>
-                        <Badge className={getRoleBadgeColor(user.role)}>
-                          {user.role}
-                        </Badge>
+                        <Badge className={roleBadgeColor(user.role)}>{roleLabel(user.role)}</Badge>
                       </div>
-                      <p className="text-xs text-muted-foreground truncate">{user.id}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {(user as any).email || user.id}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
                     <Select
                       value={user.role}
-                      onValueChange={(value) => handleUpdateRole(user.id, value as any)}
-                      disabled={formLoading}
+                      onValueChange={(value) => handleUpdateRole(user.id, value as Role)}
+                      disabled={user.role === 'superadmin' && !isSuperAdmin}
                     >
-                      <SelectTrigger className="w-32">
+                      <SelectTrigger className="flex-1 sm:w-36">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="student">Student</SelectItem>
                         <SelectItem value="instructor">Instructor</SelectItem>
+                        <SelectItem value="resource_person">Resource Person</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
+                        {(isSuperAdmin || user.role === 'superadmin') && (
+                          <SelectItem value="superadmin">Super Admin</SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
 
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0"
+                      onClick={() => openEdit(user)}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+
                     <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="touch-feedback text-red-600 hover:text-red-700"
-                          disabled={user.id === currentUser?.id}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                      <AlertDialogTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 shrink-0"
+                            disabled={user.id === currentUser?.id}
+                          />
+                        }
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </AlertDialogTrigger>
-                      <AlertDialogContent>
+                      <AlertDialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
                         <AlertDialogHeader>
                           <AlertDialogTitle>Delete User?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete the user account.
+                            This permanently deletes {user.full_name || 'this user'} and their account.
+                            This action cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
-                        <AlertDialogFooter>
+                        <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => handleDeleteUser(user.id)}
@@ -557,6 +611,121 @@ export default function AdminUsersPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Edit User Dialog */}
+      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-lg max-h-[90dvh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>Update profile details and picture</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Avatar */}
+            <div className="flex items-center gap-4">
+              <Avatar className="w-20 h-20 shrink-0">
+                <AvatarImage src={editData.avatar_url || undefined} alt={editData.full_name} />
+                <AvatarFallback className="bg-bhutan-yellow/20 text-bhutan-yellow font-semibold text-xl">
+                  {getInitials(editData.full_name)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="space-y-2 min-w-0">
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) handleAvatarUpload(file)
+                    e.target.value = ''
+                  }}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  disabled={uploadingAvatar}
+                  onClick={() => avatarInputRef.current?.click()}
+                >
+                  {uploadingAvatar ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Camera className="w-4 h-4" />
+                  )}
+                  {uploadingAvatar ? 'Uploading...' : 'Change Picture'}
+                </Button>
+                <p className="text-xs text-muted-foreground">JPG, PNG, WEBP or GIF, up to 5MB</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit_name">Full Name</Label>
+              <Input
+                id="edit_name"
+                value={editData.full_name}
+                onChange={(e) => setEditData({ ...editData, full_name: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit_email">Email</Label>
+              <Input id="edit_email" value={editData.email} disabled className="bg-muted" />
+              <p className="text-xs text-muted-foreground">Email cannot be changed here</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit_role">Role</Label>
+              <Select
+                value={editData.role}
+                onValueChange={(value: any) => setEditData({ ...editData, role: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="student">Student</SelectItem>
+                  <SelectItem value="instructor">Instructor</SelectItem>
+                  <SelectItem value="resource_person">Resource Person</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  {(isSuperAdmin || editData.role === 'superadmin') && (
+                    <SelectItem value="superadmin">Super Admin</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit_bio">Bio</Label>
+              <Textarea
+                id="edit_bio"
+                value={editData.bio}
+                onChange={(e) => setEditData({ ...editData, bio: e.target.value })}
+                rows={3}
+                className="resize-none"
+              />
+            </div>
+
+            {editError && <p className="text-sm text-red-600">{editError}</p>}
+          </div>
+
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setEditingUser(null)} disabled={editLoading}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={editLoading}>
+              {editLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

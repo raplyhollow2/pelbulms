@@ -26,8 +26,8 @@ self.addEventListener('fetch', event => {
   // Don't intercept auth-related requests or API calls
   if (url.pathname.startsWith('/auth/') ||
       url.pathname.startsWith('/api/') ||
-      url.search.has('code') ||
-      url.search.has('error') ||
+      url.searchParams.has('code') ||
+      url.searchParams.has('error') ||
       event.request.method !== 'GET') {
     event.respondWith(fetch(event.request))
     return

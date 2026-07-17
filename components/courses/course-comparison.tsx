@@ -378,7 +378,7 @@ export function CourseComparison({
       ) : (
         <Button
           variant="outline"
-          className="glass touch-feedback"
+          className="glass"
           onClick={() => setIsOpen(true)}
         >
           <GraduationCap className="w-5 h-5 mr-2" />

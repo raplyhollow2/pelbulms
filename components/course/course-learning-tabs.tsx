@@ -51,21 +51,23 @@ export function CourseLearningTabs({
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <TabsList className="grid w-full grid-cols-6 bg-secondary/30">
-        {tabs.map((tab) => {
-          const Icon = tab.icon
-          return (
-            <TabsTrigger
-              key={tab.id}
-              value={tab.id}
-              className="flex items-center gap-2 data-[state=active]:bg-bhutan-yellow data-[state=active]:text-black"
-            >
-              <Icon className="w-4 h-4" />
-              <span className="hidden md:inline">{tab.label}</span>
-            </TabsTrigger>
-          )
-        })}
-      </TabsList>
+      <div className="overflow-x-auto -mx-1 px-1 scrollbar-hide">
+        <TabsList className="inline-flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-3 lg:grid-cols-6 bg-secondary/30 h-auto p-1 gap-1">
+          {tabs.map((tab) => {
+            const Icon = tab.icon
+            return (
+              <TabsTrigger
+                key={tab.id}
+                value={tab.id}
+                className="flex items-center gap-1.5 sm:gap-2 px-3 data-[state=active]:bg-bhutan-yellow data-[state=active]:text-black shrink-0"
+              >
+                <Icon className="w-4 h-4 shrink-0" />
+                <span className="text-xs sm:text-sm whitespace-nowrap">{tab.label}</span>
+              </TabsTrigger>
+            )
+          })}
+        </TabsList>
+      </div>
 
       <TabsContent value="syllabus" className="mt-6">
         <CourseSyllabus

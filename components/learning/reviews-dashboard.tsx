@@ -130,7 +130,6 @@ export function ReviewsDashboard({
 
   // Handle helpful vote
   const handleHelpfulClick = (reviewId: string, helpful: boolean) => {
-    haptic()
     setHelpfulVotes(prev => {
       const newSet = new Set(prev)
       // Remove any existing vote for this review

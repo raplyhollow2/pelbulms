@@ -10,7 +10,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
-import { ArrowLeft, Plus, Trash2, Loader2, Save, BookOpen, GripVertical, Link, Clock, FileText } from 'lucide-react'
+import {
+  ArrowLeft, Plus, Trash2, Loader2, Save, BookOpen, GripVertical,
+  Link, Clock, FileText, Users, Settings as SettingsIcon,
+} from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { createClient } from '@/lib/supabase/client'
 import { haptic } from '@/lib/utils'
 import type { Database } from '@/types/database.types'
@@ -32,6 +36,7 @@ export default function ModuleLessonsPage() {
   const [saving, setSaving] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
   const [draggedLesson, setDraggedLesson] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState('lessons')
 
   const supabase = createClient()
 
@@ -127,8 +132,19 @@ export default function ModuleLessonsPage() {
     }
   }
 
-  // Direct add lesson function (called internally)
-  const addLessonDirectly = async () => {
+  // Compute the next order_index from the DB to avoid unique-constraint collisions
+  const getNextOrderIndex = async () => {
+    const { data } = await supabase
+      .from('lessons')
+      .select('order_index')
+      .eq('module_id', moduleId)
+      .order('order_index', { ascending: false })
+      .limit(1)
+    const max = data && data.length > 0 ? ((data[0] as any).order_index ?? -1) : -1
+    return max + 1
+  }
+
+  const insertLesson = async () => {
     const newLesson = {
       id: crypto.randomUUID(),
       module_id: moduleId,
@@ -139,7 +155,7 @@ export default function ModuleLessonsPage() {
       duration_minutes: 0,
       transcript: '',
       resources: [],
-      order_index: lessons.length,
+      order_index: await getNextOrderIndex(),
       is_published: false,
       is_free: false,
       metadata: {},
@@ -147,55 +163,31 @@ export default function ModuleLessonsPage() {
       updated_at: new Date().toISOString()
     }
 
+    const supabaseInsert = supabase as any
+    const { data, error } = await supabaseInsert
+      .from('lessons')
+      .insert(newLesson)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    setLessons((prev) => [...prev, data as Lesson] as any)
+    setHasChanges(true)
+  }
+
+  // Direct add lesson function (called internally after auto-add navigation)
+  const addLessonDirectly = async () => {
     try {
-      const supabaseInsert = supabase as any
-      const { data, error } = await supabaseInsert
-        .from('lessons')
-        .insert(newLesson)
-        .select()
-        .single()
-
-      if (error) throw error
-
-      setLessons([...lessons, data as Lesson] as any)
-      setHasChanges(true)
+      await insertLesson()
     } catch (error) {
       console.error('Error adding lesson:', error)
     }
   }
 
   const addLesson = async () => {
-    haptic()
-    const newLesson = {
-      id: crypto.randomUUID(),
-      module_id: moduleId,
-      title: '',
-      description: '',
-      video_url: '',
-      video_duration: 0,
-      duration_minutes: 0,
-      transcript: '',
-      resources: [],
-      order_index: lessons.length,
-      is_published: false,
-      is_free: false,
-      metadata: {},
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-
     try {
-      const supabaseInsert = supabase as any
-      const { data, error } = await supabaseInsert
-        .from('lessons')
-        .insert(newLesson)
-        .select()
-        .single()
-
-      if (error) throw error
-
-      setLessons([...lessons, data as Lesson] as any)
-      setHasChanges(true)
+      await insertLesson()
     } catch (error) {
       console.error('Error adding lesson:', error)
       alert('Failed to add lesson. Please try again.')
@@ -203,8 +195,6 @@ export default function ModuleLessonsPage() {
   }
 
   const updateLesson = async (id: string, updates: Partial<Lesson>) => {
-    haptic()
-
     // Optimistic update
     setLessons(lessons.map((lesson: any) => lesson.id === id ? { ...lesson, ...updates } : lesson))
     setHasChanges(true)
@@ -231,7 +221,6 @@ export default function ModuleLessonsPage() {
   }
 
   const deleteLesson = async (id: string) => {
-    haptic()
     if (!confirm('Are you sure you want to delete this lesson?')) {
       return
     }
@@ -334,7 +323,6 @@ export default function ModuleLessonsPage() {
   }
 
   const saveAllChanges = async () => {
-    haptic()
     try {
       setSaving(true)
 
@@ -411,147 +399,93 @@ export default function ModuleLessonsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-6xl">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="space-y-4">
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-sm">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => router.push('/teach/dashboard')}
-              className="h-auto p-0 text-muted-foreground hover:text-foreground"
-            >
-              Dashboard
-            </Button>
-            <span className="text-muted-foreground">/</span>
-            <Button
-              variant="ghost"
-              size="sm"
+    <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6 max-w-5xl pb-28 lg:pb-6">
+      <div className="space-y-4">
+        {/* Sticky header with always-visible Save */}
+        <div className="sticky top-0 z-30 -mx-4 border-b border-border/40 bg-background/85 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6">
+          <div className="mb-1 flex items-center gap-1 overflow-x-auto scrollbar-hide whitespace-nowrap text-xs text-muted-foreground">
+            <button
               onClick={() => router.push(`/teach/courses/${courseId}/edit`)}
-              className="h-auto p-0 text-muted-foreground hover:text-foreground"
+              className="shrink-0 hover:text-foreground"
             >
               {course.title}
-            </Button>
-            <span className="text-muted-foreground">/</span>
-            <span className="text-foreground font-medium">{module.title || 'Untitled Module'}</span>
+            </button>
+            <span className="shrink-0">/</span>
+            <span className="truncate font-medium text-foreground">
+              {module.title || 'Untitled Module'}
+            </span>
           </div>
-
-          {/* Main Header */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="outline" className="text-xs">{course.category}</Badge>
-                <Badge className="text-xs bg-bhutan-yellow text-black">Module</Badge>
-                {lessons.length > 0 && (
-                  <Badge variant="secondary" className="text-xs">
-                    {lessons.length} {lessons.length === 1 ? 'lesson' : 'lessons'}
-                  </Badge>
-                )}
-              </div>
-              <h1 className="text-3xl font-bold">{module.title || 'Untitled Module'}</h1>
-              <p className="text-muted-foreground">{course.title}</p>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              onClick={() => router.push(`/teach/courses/${courseId}/edit`)}
+              aria-label="Back to course"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-base font-bold sm:text-xl">
+                {module.title || 'Untitled Module'}
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                {lessons.length} {lessons.length === 1 ? 'lesson' : 'lessons'}
+                {hasChanges && ' · Unsaved changes'}
+              </p>
             </div>
-
-            <div className="flex items-center gap-2">
-              {hasChanges && (
-                <Badge variant="secondary" className="text-sm">Unsaved changes</Badge>
+            <Button
+              onClick={saveAllChanges}
+              disabled={saving || !hasChanges}
+              className="shrink-0 bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+            >
+              {saving ? (
+                <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
+              ) : (
+                <Save className="w-4 h-4 sm:mr-2" />
               )}
-              <Button
-                onClick={saveAllChanges}
-                disabled={saving || !hasChanges}
-                className="bg-bhutan-yellow hover:bg-bhutan-orange text-black"
-                size="lg"
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Changes
-                  </>
-                )}
-              </Button>
-            </div>
+              <span className="hidden sm:inline">{saving ? 'Saving...' : 'Save'}</span>
+            </Button>
           </div>
         </div>
 
-        {/* Module Info Card */}
-        <Card className="glass">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg">Module Details</CardTitle>
-            <CardDescription className="text-sm">Basic information about this module</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="module-title" className="text-sm">Module Title</Label>
-              <Input
-                id="module-title"
-                value={module.title}
-                onChange={(e) => {
-                  setModule({ ...module, title: e.target.value })
-                  setHasChanges(true)
-                }}
-                placeholder="Module title"
-                className="mt-1"
-              />
-            </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="w-full justify-start overflow-x-auto scrollbar-hide">
+            <TabsTrigger value="lessons" className="gap-1.5">
+              <BookOpen className="w-4 h-4" /> Lessons
+              {lessons.length > 0 && (
+                <span className="ml-1 rounded-full bg-muted-foreground/15 px-1.5 text-[10px] font-semibold">
+                  {lessons.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-1.5">
+              <SettingsIcon className="w-4 h-4" /> Module Settings
+            </TabsTrigger>
+          </TabsList>
 
-            <div>
-              <Label htmlFor="module-description" className="text-sm">Module Description</Label>
-              <Textarea
-                id="module-description"
-                value={module.description || ''}
-                onChange={(e) => {
-                  setModule({ ...module, description: e.target.value })
-                  setHasChanges(true)
-                }}
-                placeholder="Module description..."
-                rows={3}
-                className="mt-1 resize-none"
-              />
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="module-published"
-                checked={(module as any).is_published || false}
-                onCheckedChange={(checked) => {
-                  setModule({ ...module, is_published: checked } as any)
-                  setHasChanges(true)
-                }}
-              />
-              <Label htmlFor="module-published" className="text-sm">Published</Label>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Lessons Card */}
-        <Card className="glass">
-          <CardHeader className="pb-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <CardTitle className="text-lg">Lessons</CardTitle>
-                <CardDescription className="text-sm">
-                  {lessons.length} {lessons.length === 1 ? 'lesson' : 'lessons'}
-                </CardDescription>
-              </div>
+          {/* LESSONS TAB */}
+          <TabsContent value="lessons" className="mt-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">
+                {lessons.length} {lessons.length === 1 ? 'lesson' : 'lessons'} in this module
+              </p>
               <Button onClick={addLesson} size="sm" className="bg-bhutan-yellow hover:bg-bhutan-orange text-black">
-                <Plus className="w-4 h-4 mr-2" />
+                <Plus className="w-4 h-4 mr-1.5" />
                 Add Lesson
               </Button>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
+
             {lessons.length === 0 ? (
-              <div className="text-center py-12 bg-muted/30 rounded-lg">
-                <BookOpen className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-                <p className="text-muted-foreground">No lessons yet</p>
-                <p className="text-sm text-muted-foreground">Add your first lesson to get started</p>
+              <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed py-12 text-center">
+                <BookOpen className="mb-3 h-10 w-10 text-muted-foreground/40" />
+                <p className="text-sm font-medium">No lessons yet</p>
+                <p className="mb-4 text-xs text-muted-foreground">
+                  Add your first lesson to get started
+                </p>
+                <Button onClick={addLesson} size="sm">
+                  <Plus className="w-4 h-4 mr-1.5" /> Add Lesson
+                </Button>
               </div>
             ) : (
               lessons.map((lesson, index) => (
@@ -561,171 +495,206 @@ export default function ModuleLessonsPage() {
                   onDragStart={(e) => handleDragStart(e, lesson.id)}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, lesson.id)}
-                  className="group border rounded-lg hover:border-bhutan-yellow/50 transition-all overflow-hidden"
+                  className="rounded-lg border bg-card/50 transition-colors hover:border-bhutan-yellow/50"
                 >
-                  <div className="p-4 space-y-3">
-                    {/* Lesson Header */}
-                    <div className="flex items-start gap-3">
-                      <div className="cursor-move flex-shrink-0 mt-1">
-                        <GripVertical className="w-5 h-5 text-muted-foreground" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-2">
-                          <Badge variant="secondary" className="text-xs">
-                            {index + 1}
-                          </Badge>
-                          {lesson.duration_minutes > 0 && (
-                            <Badge variant="outline" className="text-xs flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {Math.floor(lesson.duration_minutes / 60)}m
-                            </Badge>
-                          )}
-                          {!(lesson as any).is_published && (
-                            <Badge variant="secondary" className="text-xs">Draft</Badge>
-                          )}
-                          {lesson.is_free && (
-                            <Badge variant="default" className="text-xs bg-bhutan-yellow text-black">Preview</Badge>
-                          )}
-                        </div>
+                  <div className="space-y-3 p-3 sm:p-4">
+                    {/* Badges row */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <GripVertical className="hidden h-4 w-4 shrink-0 cursor-move text-muted-foreground sm:block" />
+                      <Badge variant="secondary" className="text-xs">Lesson {index + 1}</Badge>
+                      {lesson.duration_minutes > 0 && (
+                        <Badge variant="outline" className="flex items-center gap-1 text-xs">
+                          <Clock className="w-3 h-3" />
+                          {Math.round(lesson.duration_minutes / 60)}m
+                        </Badge>
+                      )}
+                      {!(lesson as any).is_published && (
+                        <Badge variant="secondary" className="text-xs">Draft</Badge>
+                      )}
+                      {lesson.is_free && (
+                        <Badge className="bg-bhutan-yellow text-black text-xs">Preview</Badge>
+                      )}
+                    </div>
 
-                        {/* Title */}
+                    {/* Title */}
+                    <Input
+                      value={lesson.title}
+                      onChange={(e) => updateLesson(lesson.id, { title: e.target.value })}
+                      placeholder="Lesson title"
+                    />
+
+                    {/* Description */}
+                    <Textarea
+                      value={lesson.description || ''}
+                      onChange={(e) => updateLesson(lesson.id, { description: e.target.value })}
+                      placeholder="Lesson description..."
+                      rows={2}
+                      className="resize-none"
+                    />
+
+                    {/* YouTube URL & Duration */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label className="flex items-center gap-1 text-xs">
+                          <Link className="w-3 h-3" /> YouTube URL
+                        </Label>
                         <Input
-                          value={lesson.title}
-                          onChange={(e) => {
-                            updateLesson(lesson.id, { title: e.target.value })
-                          }}
-                          placeholder="Lesson title"
-                          className="mb-2"
+                          value={lesson.video_url || ''}
+                          onChange={(e) => updateLesson(lesson.id, { video_url: e.target.value })}
+                          placeholder="https://youtube.com/watch?v=..."
                         />
-
-                        {/* Description */}
-                        <Textarea
-                          value={lesson.description || ''}
-                          onChange={(e) => {
-                            updateLesson(lesson.id, { description: e.target.value })
-                          }}
-                          placeholder="Lesson description..."
-                          rows={2}
-                          className="resize-none mb-2"
-                        />
-
-                        {/* YouTube URL & Duration */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <div>
-                            <Label className="text-xs flex items-center gap-1">
-                              <Link className="w-3 h-3" />
-                              YouTube URL
-                            </Label>
-                            <Input
-                              value={lesson.video_url || ''}
-                              onChange={(e) => {
-                                updateLesson(lesson.id, { video_url: e.target.value })
-                              }}
-                              placeholder="https://youtube.com/watch?v=..."
-                              className="mt-1"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              Duration (minutes)
-                            </Label>
-                            <Input
-                              type="number"
-                              value={lesson.duration_minutes ? Math.round(lesson.duration_minutes / 60) : ''}
-                              onChange={(e) => {
-                                updateLesson(lesson.id, {
-                                  duration_minutes: parseInt(e.target.value) * 60 || 0
-                                })
-                              }}
-                              placeholder="30"
-                              className="mt-1"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Video Preview */}
-                        {lesson.video_url && getYoutubeId(lesson.video_url) && (
-                          <div className="mt-2 p-2 bg-muted/30 rounded">
-                            <p className="text-xs text-muted-foreground mb-1">Preview:</p>
-                            <div className="aspect-video bg-black rounded overflow-hidden">
-                              <iframe
-                                src={`https://www.youtube.com/embed/${getYoutubeId(lesson.video_url)}?enablejsapi=1&rel=0&modestbranding=1`}
-                                className="w-full h-full"
-                                allowFullScreen
-                                title={lesson.title || 'Lesson video'}
-                              />
-                            </div>
-                          </div>
-                        )}
                       </div>
+                      <div className="space-y-1.5">
+                        <Label className="flex items-center gap-1 text-xs">
+                          <Clock className="w-3 h-3" /> Duration (minutes)
+                        </Label>
+                        <Input
+                          type="number"
+                          value={lesson.duration_minutes ? Math.round(lesson.duration_minutes / 60) : ''}
+                          onChange={(e) =>
+                            updateLesson(lesson.id, {
+                              duration_minutes: parseInt(e.target.value) * 60 || 0,
+                            })
+                          }
+                          placeholder="30"
+                        />
+                      </div>
+                    </div>
 
-                      {/* Actions */}
-                      <div className="flex flex-col gap-3 items-end">
-                        <div className="flex items-center gap-3">
+                    {/* Video Preview */}
+                    {lesson.video_url && getYoutubeId(lesson.video_url) && (
+                      <div className="overflow-hidden rounded-lg border">
+                        <div className="aspect-video bg-black">
+                          <iframe
+                            src={`https://www.youtube.com/embed/${getYoutubeId(lesson.video_url)}?enablejsapi=1&rel=0&modestbranding=1`}
+                            className="h-full w-full"
+                            allowFullScreen
+                            title={lesson.title || 'Lesson video'}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <Separator />
+
+                    {/* Action toolbar */}
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-4">
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Switch
                             checked={(lesson as any).is_published}
-                            onCheckedChange={(checked) => {
-                              updateLesson(lesson.id, { is_published: checked })
-                            }}
+                            onCheckedChange={(checked) => updateLesson(lesson.id, { is_published: checked })}
                           />
-                          <span className="text-xs text-muted-foreground">Published</span>
-                        </div>
-
-                        <div className="flex items-center gap-3">
+                          Published
+                        </label>
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Switch
                             checked={lesson.is_free}
-                            onCheckedChange={(checked) => {
-                              updateLesson(lesson.id, { is_free: checked })
-                            }}
+                            onCheckedChange={(checked) => updateLesson(lesson.id, { is_free: checked })}
                           />
-                          <span className="text-xs text-muted-foreground">Free</span>
-                        </div>
-
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteLesson(lesson.id)}
-                          className="text-red-600 hover:text-red-700 mt-auto"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete
-                        </Button>
+                          Free preview
+                        </label>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteLesson(lesson.id)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1.5" />
+                        Delete
+                      </Button>
                     </div>
                   </div>
                 </div>
               ))
             )}
-          </CardContent>
-        </Card>
+          </TabsContent>
 
-        {/* Quick Actions */}
-        <Card className="glass">
-          <CardHeader>
-            <CardTitle className="text-lg">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <Button
-                variant="outline"
-                onClick={() => router.push(`/teach/courses/${courseId}/edit`)}
-                className="justify-start"
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                Edit Course Details
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => router.push(`/teach/courses/${courseId}/students`)}
-                className="justify-start"
-              >
-                <BookOpen className="w-4 h-4 mr-2" />
-                View Students
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          {/* SETTINGS TAB */}
+          <TabsContent value="settings" className="mt-4 space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <SettingsIcon className="w-5 h-5" /> Module Details
+                </CardTitle>
+                <CardDescription>Basic information about this module</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="module-title" className="text-sm">Module Title</Label>
+                  <Input
+                    id="module-title"
+                    value={module.title}
+                    onChange={(e) => {
+                      setModule({ ...module, title: e.target.value })
+                      setHasChanges(true)
+                    }}
+                    placeholder="Module title"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="module-description" className="text-sm">Module Description</Label>
+                  <Textarea
+                    id="module-description"
+                    value={module.description || ''}
+                    onChange={(e) => {
+                      setModule({ ...module, description: e.target.value })
+                      setHasChanges(true)
+                    }}
+                    placeholder="Module description..."
+                    rows={3}
+                    className="resize-none"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+                  <div className="min-w-0">
+                    <Label htmlFor="module-published" className="font-medium">Published</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Make this module visible to enrolled students
+                    </p>
+                  </div>
+                  <Switch
+                    id="module-published"
+                    checked={(module as any).is_published || false}
+                    onCheckedChange={(checked) => {
+                      setModule({ ...module, is_published: checked } as any)
+                      setHasChanges(true)
+                    }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Quick Actions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push(`/teach/courses/${courseId}/edit`)}
+                    className="justify-start"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Edit Course Details
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push(`/teach/courses/${courseId}/students`)}
+                    className="justify-start"
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    View Students
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )

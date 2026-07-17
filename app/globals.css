@@ -266,15 +266,6 @@
     transition-duration: var(--transition-slow);
   }
 
-  /* Touch interaction feedback */
-  .touch-feedback {
-    transition: transform var(--transition-fast) ease-out;
-  }
-
-  .touch-feedback:active {
-    transform: scale(0.95);
-  }
-
   /* Performance optimizations */
   .gpu-accelerated {
     transform: translateZ(0);
@@ -316,10 +307,26 @@
     min-height: 44px;
     min-width: 44px;
   }
+}
 
-  .touch-feedback {
-    transition: transform var(--transition-fast) ease-out, background-color var(--transition-fast) ease-out;
-  }
+/* Safe areas + page shell for mobile nav */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.page-shell {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }
 
 /* High contrast mode support */

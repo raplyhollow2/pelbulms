@@ -95,7 +95,6 @@ export function CourseAnnouncements({
 
   // Handle like toggle
   const handleLikeToggle = (announcementId: string) => {
-    haptic()
     setLikedAnnouncements(prev => {
       const newSet = new Set(prev)
       if (newSet.has(announcementId)) {
@@ -113,7 +112,6 @@ export function CourseAnnouncements({
 
   // Handle expand/collapse
   const handleExpandToggle = (announcementId: string) => {
-    haptic()
     setExpandedAnnouncements(prev => {
       const newSet = new Set(prev)
       if (newSet.has(announcementId)) {

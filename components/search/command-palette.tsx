@@ -36,8 +36,8 @@ export function CommandPalette() {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] bg-background/80 backdrop-blur-sm">
-      <div className="relative w-full max-w-lg mx-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] bg-background/80 backdrop-blur-sm" onClick={() => setOpen(false)}>
+      <div className="relative w-full max-w-lg mx-4" onClick={(e) => e.stopPropagation()}>
         <div className="overflow-hidden rounded-lg border bg-popover shadow-xl">
           <Command>
             <CommandInput placeholder="Search courses, navigate to pages..." />
@@ -80,12 +80,6 @@ export function CommandPalette() {
             </CommandList>
           </Command>
         </div>
-
-        {/* Backdrop to close */}
-        <div
-          className="fixed inset-0 z-[-1]"
-          onClick={() => setOpen(false)}
-        />
       </div>
     </div>
   )

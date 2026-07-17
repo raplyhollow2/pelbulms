@@ -134,7 +134,6 @@ export function CourseSyllabus({
 
   // Handle lesson completion toggle
   const handleToggleComplete = (lessonId: string, checked: boolean) => {
-    haptic()
     setCompletedLessons(prev => {
       const newSet = new Set(prev)
       if (checked) {
@@ -153,7 +152,6 @@ export function CourseSyllabus({
 
   // Handle lesson click
   const handleLessonClick = (lessonId: string) => {
-    haptic()
     onLessonClick(lessonId)
   }
 

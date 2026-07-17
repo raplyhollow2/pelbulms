@@ -10,66 +10,60 @@ interface ResponsiveLayoutProps {
 }
 
 export function ResponsiveLayout({ children, user }: ResponsiveLayoutProps) {
-  const [isMobile, setIsMobile] = useState(false)
-  const [isMounted, setIsMounted] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   useEffect(() => {
-    setIsMounted(true)
-
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024)
+    const onToggle = (event: Event) => {
+      const custom = event as CustomEvent<{ collapsed: boolean }>
+      if (typeof custom.detail?.collapsed === 'boolean') {
+        setSidebarCollapsed(custom.detail.collapsed)
+      }
     }
 
-    // Initial check
-    checkMobile()
-
-    // Listen for resize changes
-    window.addEventListener('resize', checkMobile)
-
-    // Cleanup
-    return () => window.removeEventListener('resize', checkMobile)
+    window.addEventListener('pelbu:sidebar-collapse', onToggle as EventListener)
+    return () => {
+      window.removeEventListener('pelbu:sidebar-collapse', onToggle as EventListener)
+    }
   }, [])
 
-  if (!isMounted) {
-    return null // Prevent hydration mismatch
-  }
-
-  if (isMobile) {
-    // Mobile/Tablet Layout
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-white dark:from-gray-900 dark:to-black">
-        {children}
-        <MobileNavigation user={user} />
-      </div>
-    )
-  }
-
-  // Desktop Layout
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-white dark:from-gray-900 dark:to-black">
-      <DesktopSidebar user={user} />
-      <main className="transition-all duration-300" style={{ marginLeft: isMobile ? '0' : '256px' }}>
-        <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-white dark:from-gray-900 dark:to-black overflow-x-hidden">
+      {/* Desktop sidebar — hidden below lg */}
+      <div className="hidden lg:block">
+        <DesktopSidebar user={user} />
+      </div>
+
+      <main
+        className={`min-h-screen w-full transition-[padding] duration-300 ${
+          sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'
+        }`}
+      >
+        {/* Mobile bottom nav clearance */}
+        <div className="page-shell pb-24 lg:pb-0">
           {children}
         </div>
       </main>
+
+      {/* Mobile bottom nav — hidden on lg+ */}
+      <div className="lg:hidden">
+        <MobileNavigation user={user} />
+      </div>
     </div>
   )
 }
 
-// Helper hook to get current sidebar width for desktop content padding
 export function useSidebarWidth() {
-  const [sidebarWidth, setSidebarWidth] = useState(256) // Default expanded width
+  const [sidebarWidth, setSidebarWidth] = useState(256)
 
   useEffect(() => {
-    const checkSidebar = () => {
-      const isMobile = window.innerWidth < 1024
-      setSidebarWidth(isMobile ? 0 : 256) // 256px for desktop, 0 for mobile
+    const sync = () => {
+      const isDesktop = window.innerWidth >= 1024
+      setSidebarWidth(isDesktop ? 256 : 0)
     }
 
-    checkSidebar()
-    window.addEventListener('resize', checkSidebar)
-    return () => window.removeEventListener('resize', checkSidebar)
+    sync()
+    window.addEventListener('resize', sync)
+    return () => window.removeEventListener('resize', sync)
   }, [])
 
   return sidebarWidth

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,7 +9,12 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { ArrowLeft, Plus, Trash2, Loader2, Save, BookOpen } from 'lucide-react'
+import {
+  ArrowLeft, Plus, Trash2, Loader2, Save, BookOpen,
+  Image as ImageIcon, Video, UploadCloud, X, Link as LinkIcon,
+  Info, Settings as SettingsIcon, ListChecks, CheckCircle2, GripVertical,
+} from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 
@@ -23,6 +28,7 @@ export default function EditCoursePage() {
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [activeTab, setActiveTab] = useState('details')
 
   const [course, setCourse] = useState<Course | null>(null)
   const [modules, setModules] = useState<Array<Module & { lessons_count?: number }>>([])
@@ -41,8 +47,18 @@ export default function EditCoursePage() {
     requirements: [] as string[],
     tags: [] as string[],
     is_published: false,
-    is_featured: false
+    is_featured: false,
+    thumbnail_url: '',
+    preview_video_url: '',
   })
+
+  // Featured media
+  const imageInputRef = useRef<HTMLInputElement>(null)
+  const videoInputRef = useRef<HTMLInputElement>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [uploadingVideo, setUploadingVideo] = useState(false)
+  const [mediaError, setMediaError] = useState('')
+  const [newObjective, setNewObjective] = useState('')
 
   const supabase = createClient()
 
@@ -98,7 +114,9 @@ export default function EditCoursePage() {
         requirements: course.requirements || [],
         tags: course.tags || [],
         is_published: (course as any).is_published,
-        is_featured: course.is_featured
+        is_featured: course.is_featured,
+        thumbnail_url: course.thumbnail_url || '',
+        preview_video_url: (course.metadata as any)?.preview_video_url || '',
       } as any)
 
       // Fetch modules
@@ -146,6 +164,12 @@ export default function EditCoursePage() {
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '')
 
+      // Merge preview video URL into the existing metadata JSON
+      const mergedMetadata = {
+        ...((course?.metadata as Record<string, unknown>) || {}),
+        preview_video_url: courseData.preview_video_url || null,
+      }
+
       // Update course
       const supabaseUpdate = supabase as any
       const { error } = await supabaseUpdate
@@ -165,6 +189,8 @@ export default function EditCoursePage() {
           tags: courseData.tags.length > 0 ? courseData.tags : null,
           is_published: (courseData as any).is_published,
           is_featured: courseData.is_featured,
+          thumbnail_url: courseData.thumbnail_url || null,
+          metadata: mergedMetadata,
           updated_at: new Date().toISOString()
         })
         .eq('id', courseId)
@@ -268,6 +294,55 @@ export default function EditCoursePage() {
     }))
   }
 
+  const uploadMedia = async (file: File, kind: 'image' | 'video') => {
+    setMediaError('')
+    const setUploading = kind === 'image' ? setUploadingImage : setUploadingVideo
+    setUploading(true)
+    try {
+      const body = new FormData()
+      body.append('file', file)
+      body.append('courseId', courseId)
+      body.append('kind', kind)
+
+      const res = await fetch('/api/courses/media', { method: 'POST', body })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+
+      setCourseData((prev) => ({
+        ...prev,
+        ...(kind === 'image'
+          ? { thumbnail_url: data.url }
+          : { preview_video_url: data.url }),
+      }))
+    } catch (err: any) {
+      console.error('Media upload error:', err)
+      setMediaError(err?.message || 'Failed to upload media')
+    } finally {
+      setUploading(false)
+      if (kind === 'image' && imageInputRef.current) imageInputRef.current.value = ''
+      if (kind === 'video' && videoInputRef.current) videoInputRef.current.value = ''
+    }
+  }
+
+  // Convert common video URLs (YouTube/Vimeo) into embeddable form; return null
+  // for direct video files so we can render them with a <video> element.
+  const getEmbedUrl = (url: string): { type: 'iframe' | 'file'; src: string } | null => {
+    if (!url) return null
+    const yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/)
+    if (yt) return { type: 'iframe', src: `https://www.youtube.com/embed/${yt[1]}` }
+    const vimeo = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)
+    if (vimeo) return { type: 'iframe', src: `https://player.vimeo.com/video/${vimeo[1]}` }
+    if (/\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url)) return { type: 'file', src: url }
+    return { type: 'iframe', src: url }
+  }
+
+  const addObjective = () => {
+    if (newObjective.trim()) {
+      addArrayItem('learning_objectives', newObjective)
+      setNewObjective('')
+    }
+  }
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -298,196 +373,395 @@ export default function EditCoursePage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => router.push('/teach/dashboard')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
-          </Button>
-          <h1 className="text-3xl font-bold">Edit Course</h1>
+    <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8 max-w-4xl pb-28 lg:pb-8">
+      <div className="space-y-4">
+        {/* Sticky header with always-visible Save */}
+        <div className="sticky top-0 z-30 -mx-4 border-b border-border/40 bg-background/85 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              onClick={() => router.push('/teach/dashboard')}
+              aria-label="Back to dashboard"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-base font-bold sm:text-xl">
+                {courseData.title || 'Edit Course'}
+              </h1>
+              <div className="mt-0.5 flex items-center gap-1.5">
+                <Badge
+                  variant={(courseData as any).is_published ? 'default' : 'secondary'}
+                  className={(courseData as any).is_published ? 'bg-green-600 text-white' : ''}
+                >
+                  {(courseData as any).is_published ? 'Published' : 'Draft'}
+                </Badge>
+                {courseData.is_featured && (
+                  <Badge className="bg-bhutan-yellow text-black">Featured</Badge>
+                )}
+              </div>
+            </div>
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="shrink-0 bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+            >
+              {saving ? (
+                <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
+              ) : (
+                <Save className="w-4 h-4 sm:mr-2" />
+              )}
+              <span className="hidden sm:inline">{saving ? 'Saving...' : 'Save'}</span>
+            </Button>
+          </div>
         </div>
 
-        {/* Course Details Form */}
-        <Card className="glass-strong">
-          <CardHeader>
-            <CardTitle>Course Details</CardTitle>
-            <CardDescription>Basic information about your course</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="title">Title *</Label>
-                <Input
-                  id="title"
-                  value={courseData.title}
-                  onChange={(e) => setCourseData({ ...courseData, title: e.target.value } as any)}
-                  placeholder="Introduction to Python Programming"
-                  className="mt-1"
-                />
-              </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="w-full justify-start overflow-x-auto scrollbar-hide">
+            <TabsTrigger value="details" className="gap-1.5">
+              <Info className="w-4 h-4" /> Details
+            </TabsTrigger>
+            <TabsTrigger value="media" className="gap-1.5">
+              <ImageIcon className="w-4 h-4" /> Media
+            </TabsTrigger>
+            <TabsTrigger value="curriculum" className="gap-1.5">
+              <BookOpen className="w-4 h-4" /> Curriculum
+              {modules.length > 0 && (
+                <span className="ml-1 rounded-full bg-muted-foreground/15 px-1.5 text-[10px] font-semibold">
+                  {modules.length}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-1.5">
+              <SettingsIcon className="w-4 h-4" /> Settings
+            </TabsTrigger>
+          </TabsList>
 
-              <div>
-                <Label htmlFor="category">Category *</Label>
-                <Input
-                  id="category"
-                  value={courseData.category}
-                  onChange={(e) => setCourseData({ ...courseData, category: e.target.value } as any)}
-                  placeholder="Programming"
-                  className="mt-1"
-                />
-              </div>
-            </div>
+          {/* DETAILS TAB */}
+          <TabsContent value="details" className="mt-4 space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Info className="w-5 h-5" /> Course Details
+                </CardTitle>
+                <CardDescription>Basic information about your course</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="title">Title *</Label>
+                    <Input
+                      id="title"
+                      value={courseData.title}
+                      onChange={(e) => setCourseData({ ...courseData, title: e.target.value } as any)}
+                      placeholder="Introduction to Python Programming"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="category">Category *</Label>
+                    <Input
+                      id="category"
+                      value={courseData.category}
+                      onChange={(e) => setCourseData({ ...courseData, category: e.target.value } as any)}
+                      placeholder="Programming"
+                    />
+                  </div>
+                </div>
 
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={courseData.description}
-                onChange={(e) => setCourseData({ ...courseData, description: e.target.value } as any)}
-                placeholder="Learn Python from scratch..."
-                rows={3}
-                className="mt-1 resize-none"
-              />
-            </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={courseData.description}
+                    onChange={(e) => setCourseData({ ...courseData, description: e.target.value } as any)}
+                    placeholder="Learn Python from scratch..."
+                    rows={4}
+                    className="resize-none"
+                  />
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="level">Level</Label>
-                <select
-                  id="level"
-                  value={courseData.level}
-                  onChange={(e) => setCourseData({ ...courseData, level: e.target.value } as any)}
-                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="beginner">Beginner</option>
-                  <option value="intermediate">Intermediate</option>
-                  <option value="advanced">Advanced</option>
-                </select>
-              </div>
-
-              <div>
-                <Label htmlFor="language">Language</Label>
-                <Input
-                  id="language"
-                  value={courseData.language}
-                  onChange={(e) => setCourseData({ ...courseData, language: e.target.value } as any)}
-                  placeholder="English"
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="duration">Duration (minutes)</Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  value={courseData.duration_minutes}
-                  onChange={(e) => setCourseData({ ...courseData, duration_minutes: parseInt(e.target.value) || 0 } as any)}
-                  placeholder="300"
-                  className="mt-1"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="published"
-                  checked={(courseData as any).is_published}
-                  onCheckedChange={(checked) => setCourseData({ ...courseData, is_published: checked } as any)}
-                />
-                <Label htmlFor="published">Published</Label>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="featured"
-                  checked={courseData.is_featured}
-                  onCheckedChange={(checked) => setCourseData({ ...courseData, is_featured: checked } as any)}
-                />
-                <Label htmlFor="featured">Featured course</Label>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Learning Objectives */}
-        <Card className="glass-strong">
-          <CardHeader>
-            <CardTitle>Learning Objectives</CardTitle>
-            <CardDescription>What students will learn from this course</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Add learning objective..."
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    addArrayItem('learning_objectives', e.currentTarget.value)
-                    e.currentTarget.value = ''
-                  }
-                }}
-              />
-              <Button
-                type="button"
-                onClick={() => {
-                  const input = document.getElementById('add-obj') as HTMLInputElement
-                  if (input?.value) {
-                    addArrayItem('learning_objectives', input.value)
-                    input.value = ''
-                  }
-                }}
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
-            </div>
-
-            {courseData.learning_objectives.length > 0 && (
-              <div className="space-y-2">
-                {courseData.learning_objectives.map((objective, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-background/50 rounded-lg">
-                    <span className="text-sm">• {objective}</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeArrayItem('learning_objectives', index)}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="level">Level</Label>
+                    <select
+                      id="level"
+                      value={courseData.level}
+                      onChange={(e) => setCourseData({ ...courseData, level: e.target.value } as any)}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     >
-                      <Trash2 className="w-4 h-4 text-red-600" />
+                      <option value="beginner">Beginner</option>
+                      <option value="intermediate">Intermediate</option>
+                      <option value="advanced">Advanced</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="language">Language</Label>
+                    <Input
+                      id="language"
+                      value={courseData.language}
+                      onChange={(e) => setCourseData({ ...courseData, language: e.target.value } as any)}
+                      placeholder="English"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="duration">Duration (min)</Label>
+                    <Input
+                      id="duration"
+                      type="number"
+                      value={courseData.duration_minutes}
+                      onChange={(e) => setCourseData({ ...courseData, duration_minutes: parseInt(e.target.value) || 0 } as any)}
+                      placeholder="300"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ListChecks className="w-5 h-5" /> Learning Objectives
+                </CardTitle>
+                <CardDescription>What students will learn from this course</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  <Input
+                    value={newObjective}
+                    onChange={(e) => setNewObjective(e.target.value)}
+                    placeholder="Add learning objective..."
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        addObjective()
+                      }
+                    }}
+                  />
+                  <Button type="button" onClick={addObjective} className="shrink-0">
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                {courseData.learning_objectives.length > 0 ? (
+                  <div className="space-y-2">
+                    {courseData.learning_objectives.map((objective, index) => (
+                      <div key={index} className="flex items-center justify-between gap-2 rounded-lg bg-muted/50 p-3">
+                        <span className="flex min-w-0 items-center gap-2 text-sm">
+                          <CheckCircle2 className="w-4 h-4 shrink-0 text-green-600" />
+                          <span className="truncate">{objective}</span>
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0"
+                          onClick={() => removeArrayItem('learning_objectives', index)}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-600" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No objectives added yet.</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* MEDIA TAB */}
+          <TabsContent value="media" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="w-5 h-5" />
+                  Featured Media
+                </CardTitle>
+                <CardDescription>
+                  Add a cover image and an intro/preview video for your course
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {mediaError && <p className="text-sm text-destructive">{mediaError}</p>}
+
+                {/* Featured Image */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4" /> Featured Image
+                  </Label>
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0]
+                      if (f) uploadMedia(f, 'image')
+                    }}
+                  />
+                  {courseData.thumbnail_url ? (
+                    <div className="relative overflow-hidden rounded-lg border">
+                      <img
+                        src={courseData.thumbnail_url}
+                        alt="Course cover"
+                        className="aspect-video w-full object-cover"
+                      />
+                      <div className="absolute right-2 top-2 flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="secondary"
+                          disabled={uploadingImage}
+                          onClick={() => imageInputRef.current?.click()}
+                        >
+                          {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Replace'}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="destructive"
+                          className="h-8 w-8"
+                          onClick={() => setCourseData({ ...courseData, thumbnail_url: '' } as any)}
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={uploadingImage}
+                      onClick={() => imageInputRef.current?.click()}
+                      className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-bhutan-yellow hover:text-foreground disabled:opacity-60"
+                    >
+                      {uploadingImage ? (
+                        <Loader2 className="w-6 h-6 animate-spin" />
+                      ) : (
+                        <UploadCloud className="w-6 h-6" />
+                      )}
+                      <span className="text-sm font-medium">
+                        {uploadingImage ? 'Uploading...' : 'Upload cover image'}
+                      </span>
+                      <span className="text-xs">JPG, PNG, WEBP, AVIF or GIF · up to 8MB</span>
+                    </button>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <LinkIcon className="w-4 h-4 shrink-0 text-muted-foreground" />
+                    <Input
+                      value={courseData.thumbnail_url}
+                      onChange={(e) => setCourseData({ ...courseData, thumbnail_url: e.target.value } as any)}
+                      placeholder="…or paste an image URL"
+                    />
+                  </div>
+                </div>
+
+                {/* Preview Video */}
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Video className="w-4 h-4" /> Preview Video
+                  </Label>
+                  <input
+                    ref={videoInputRef}
+                    type="file"
+                    accept="video/mp4,video/webm,video/ogg,video/quicktime"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0]
+                      if (f) uploadMedia(f, 'video')
+                    }}
+                  />
+                  {courseData.preview_video_url ? (
+                    <div className="space-y-2">
+                      <div className="relative aspect-video overflow-hidden rounded-lg border bg-black">
+                        {(() => {
+                          const embed = getEmbedUrl(courseData.preview_video_url)
+                          if (!embed) return null
+                          return embed.type === 'file' ? (
+                            <video src={embed.src} controls className="h-full w-full" />
+                          ) : (
+                            <iframe
+                              src={embed.src}
+                              className="h-full w-full"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
+                          )
+                        })()}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        onClick={() => setCourseData({ ...courseData, preview_video_url: '' } as any)}
+                      >
+                        <X className="w-4 h-4 mr-1" /> Remove video
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={uploadingVideo}
+                      onClick={() => videoInputRef.current?.click()}
+                      className="w-full gap-2"
+                    >
+                      {uploadingVideo ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <UploadCloud className="w-4 h-4" />
+                      )}
+                      {uploadingVideo ? 'Uploading...' : 'Upload video (up to 100MB)'}
+                    </Button>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <LinkIcon className="w-4 h-4 shrink-0 text-muted-foreground" />
+                    <Input
+                      value={courseData.preview_video_url}
+                      onChange={(e) => setCourseData({ ...courseData, preview_video_url: e.target.value } as any)}
+                      placeholder="…or paste a YouTube / Vimeo / video URL"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* CURRICULUM TAB */}
+          <TabsContent value="curriculum" className="mt-4">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <BookOpen className="w-5 h-5" /> Course Structure
+                    </CardTitle>
+                    <CardDescription>Manage your course modules and lessons</CardDescription>
+                  </div>
+                  <Button onClick={addModule} size="sm" className="w-full sm:w-auto">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Module
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {modules.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed py-10 text-center">
+                    <BookOpen className="mb-3 h-10 w-10 text-muted-foreground/40" />
+                    <p className="text-sm font-medium">No modules yet</p>
+                    <p className="mb-4 text-xs text-muted-foreground">
+                      Add your first module to start building the course
+                    </p>
+                    <Button onClick={addModule} size="sm">
+                      <Plus className="w-4 h-4 mr-2" /> Add Module
                     </Button>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Course Structure */}
-        <Card className="glass-strong">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Course Structure</CardTitle>
-                <CardDescription>Manage your course modules</CardDescription>
-              </div>
-              <Button onClick={addModule} size="sm">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Module
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {modules.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No modules yet. Add your first module to get started.
-              </div>
-            ) : (
-              modules.map((module, index) => (
-                <div key={module.id} className="p-4 border rounded-lg space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
+                ) : (
+                  modules.map((module, index) => (
+                    <div key={module.id} className="rounded-lg border bg-card/50 p-3 space-y-3 sm:p-4">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <GripVertical className="hidden h-4 w-4 text-muted-foreground sm:block" />
                         <Badge variant="secondary">Module {index + 1}</Badge>
                         <Badge variant="outline" className="text-xs">
                           {module.lessons_count || 0} lessons
@@ -500,7 +774,6 @@ export default function EditCoursePage() {
                         value={module.title}
                         onChange={(e) => updateModule(module.id, { title: e.target.value })}
                         placeholder="Module title"
-                        className="mb-2"
                       />
                       <Textarea
                         value={module.description || ''}
@@ -509,67 +782,82 @@ export default function EditCoursePage() {
                         rows={2}
                         className="resize-none"
                       />
+                      <div className="grid grid-cols-[1fr_1fr_auto] gap-2 sm:flex sm:flex-wrap">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full justify-center sm:w-auto"
+                          onClick={() => router.push(`/teach/courses/${courseId}/modules/${module.id}`)}
+                        >
+                          <BookOpen className="w-4 h-4 mr-1" />
+                          Manage
+                        </Button>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => router.push(`/teach/courses/${courseId}/modules/${module.id}?action=add-lesson`)}
+                          className="w-full justify-center sm:w-auto bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+                        >
+                          <Plus className="w-4 h-4 mr-1" />
+                          Add Lesson
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="shrink-0"
+                          onClick={() => deleteModule(module.id)}
+                          aria-label="Delete module"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-600" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 ml-4">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => router.push(`/teach/courses/${courseId}/modules/${module.id}`)}
-                      >
-                        <BookOpen className="w-4 h-4 mr-1" />
-                        Manage
-                      </Button>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => router.push(`/teach/courses/${courseId}/modules/${module.id}?action=add-lesson`)}
-                        className="bg-bhutan-yellow hover:bg-bhutan-orange text-black"
-                      >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Add Lesson
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deleteModule(module.id)}
-                      >
-                        <Trash2 className="w-4 h-4 text-red-600" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        {/* Actions */}
-        <div className="flex justify-end gap-3">
-          <Button
-            variant="outline"
-            onClick={() => router.push('/teach/dashboard')}
-            disabled={saving}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-bhutan-yellow hover:bg-bhutan-orange"
-          >
-            {saving ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4 mr-2" />
-                Save Changes
-              </>
-            )}
-          </Button>
-        </div>
+          {/* SETTINGS TAB */}
+          <TabsContent value="settings" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <SettingsIcon className="w-5 h-5" /> Publishing & Visibility
+                </CardTitle>
+                <CardDescription>Control how this course appears to students</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+                  <div className="min-w-0">
+                    <Label htmlFor="published" className="font-medium">Published</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Make this course visible and enrollable by students
+                    </p>
+                  </div>
+                  <Switch
+                    id="published"
+                    checked={(courseData as any).is_published}
+                    onCheckedChange={(checked) => setCourseData({ ...courseData, is_published: checked } as any)}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+                  <div className="min-w-0">
+                    <Label htmlFor="featured" className="font-medium">Featured course</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Highlight this course on the homepage and catalog
+                    </p>
+                  </div>
+                  <Switch
+                    id="featured"
+                    checked={courseData.is_featured}
+                    onCheckedChange={(checked) => setCourseData({ ...courseData, is_featured: checked } as any)}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )

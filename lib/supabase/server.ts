@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
-import type { Database } from '@/types/database'
+import type { Database } from '@/types/database.types'
 
 /**
  * Server Supabase Client
@@ -63,43 +64,19 @@ export const createServiceClient = async () => {
     throw new Error('Missing Supabase service role credentials')
   }
 
-  const cookieStore = await cookies()
-
-  // Create a stable cookies object for Supabase
-  const cookieHandlers = {
-    get: (name: string) => {
-      const cookie = cookieStore.get(name)
-      return cookie?.value
+  // IMPORTANT: do NOT pass the request cookies here. The SSR client would
+  // attach the logged-in user's JWT as the Authorization bearer, which
+  // downgrades this client to the "authenticated" role and re-enables RLS.
+  // A plain client keyed on the service_role secret always runs as service_role.
+  return createClient<Database>(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
     },
-    set: (name: string, value: string, options: any) => {
-      try {
-        cookieStore.set({
-          name,
-          value,
-          ...options
-        })
-      } catch (e) {
-        console.error('Error setting cookie:', e)
-      }
+    global: {
+      headers: { Authorization: `Bearer ${supabaseServiceKey}` },
     },
-    remove: (name: string, options: any) => {
-      try {
-        cookieStore.set({
-          name,
-          value: '',
-          ...options
-        })
-      } catch (e) {
-        console.error('Error removing cookie:', e)
-      }
-    },
-  }
-
-  return createServerClient<Database>(
-    supabaseUrl,
-    supabaseServiceKey,
-    { cookies: cookieHandlers }
-  )
+  })
 }
 
 /**

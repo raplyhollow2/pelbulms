@@ -1,7 +1,18 @@
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
-export type UserRole = 'student' | 'instructor' | 'admin'
+export type UserRole =
+  | 'student'
+  | 'instructor'
+  | 'admin'
+  | 'resource_person'
+  | 'superadmin'
+
+/**
+ * Superadmin sits at the top of the hierarchy and implicitly satisfies every
+ * role requirement. Any check that a superadmin performs is granted.
+ */
+export const SUPERADMIN_ROLE: UserRole = 'superadmin'
 
 export interface RBACCheck {
   hasAccess: boolean
@@ -19,24 +30,38 @@ export async function checkRBAC(
   allowedRoles: UserRole[]
 ): Promise<RBACCheck> {
   try {
-    const supabase = createSupabaseServerClient()
+    const supabase = await createSupabaseServerClient()
 
-    // Get user session
-    const { data: { session } } = await supabase.auth.getSession()
+    // Authenticate the request against the Supabase Auth server (secure).
+    const { data: { user } } = await supabase.auth.getUser()
 
-    if (!session?.user) {
+    if (!user) {
       return {
         hasAccess: false,
         error: 'Unauthorized - No session found'
       }
     }
 
-    // Get user profile with role
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', session.user.id)
-      .single()
+    // Read the role with the service client so row-level security can never
+    // hide the caller's own profile (which would otherwise 403 legit admins).
+    let profile: { role?: string } | null = null
+    try {
+      const service = await createServiceClient()
+      const { data } = await service
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+      profile = data as any
+    } catch {
+      // Service credentials missing/unavailable — fall back to the RLS client.
+      const { data } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+      profile = data as any
+    }
 
     if (!profile) {
       return {
@@ -47,13 +72,14 @@ export async function checkRBAC(
 
     const userRole = (profile as any).role as UserRole
 
-    // Check if user's role is in the allowed roles
-    const hasAccess = allowedRoles.includes(userRole)
+    // Superadmin has top-level access and satisfies every requirement.
+    const hasAccess =
+      userRole === SUPERADMIN_ROLE || allowedRoles.includes(userRole)
 
     return {
       hasAccess,
       userRole,
-      userId: session.user.id
+      userId: user.id
     }
   } catch (error) {
     return {
@@ -98,10 +124,23 @@ export const isInstructor = async (request: NextRequest): Promise<RBACCheck> =>
   checkRBAC(request, ['instructor'])
 
 export const isAdmin = async (request: NextRequest): Promise<RBACCheck> =>
-  checkRBAC(request, ['admin'])
+  checkRBAC(request, ['admin', 'superadmin'])
+
+export const isSuperAdmin = async (request: NextRequest): Promise<RBACCheck> =>
+  checkRBAC(request, ['superadmin'])
+
+/** Client/server-safe role helpers for gating UI and logic. */
+export const ADMIN_ROLES: UserRole[] = ['admin', 'superadmin']
+export const TEACHER_ROLES: UserRole[] = ['instructor', 'admin', 'resource_person', 'superadmin']
+
+export const canAccessAdmin = (role?: string | null): boolean =>
+  role === 'admin' || role === 'superadmin'
+
+export const canAccessTeaching = (role?: string | null): boolean =>
+  role === 'instructor' || role === 'admin' || role === 'resource_person' || role === 'superadmin'
 
 export const isTeacherOrAdmin = async (request: NextRequest): Promise<RBACCheck> =>
-  checkRBAC(request, ['instructor', 'admin'])
+  checkRBAC(request, ['instructor', 'admin', 'resource_person', 'superadmin'])
 
 export const isAnyAuthenticated = async (request: NextRequest): Promise<RBACCheck> =>
-  checkRBAC(request, ['student', 'instructor', 'admin'])
+  checkRBAC(request, ['student', 'instructor', 'admin', 'resource_person', 'superadmin'])

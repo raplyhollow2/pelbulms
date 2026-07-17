@@ -52,7 +52,6 @@ export function SimpleNotes({ lessonId, courseId }: SimpleNotesProps) {
   const handleSaveNote = async () => {
     if (!newNote.trim()) return
 
-    haptic()
     setSaving(true)
 
     try {
@@ -96,8 +95,6 @@ export function SimpleNotes({ lessonId, courseId }: SimpleNotesProps) {
   const handleSaveEdit = async (noteId: string) => {
     if (!editContent.trim()) return
 
-    haptic()
-
     try {
       const response = await fetch('/api/notes', {
         method: 'PUT',
@@ -122,8 +119,6 @@ export function SimpleNotes({ lessonId, courseId }: SimpleNotesProps) {
 
   // Delete note
   const handleDeleteNote = async (noteId: string) => {
-    haptic()
-
     try {
       const response = await fetch(`/api/notes?noteId=${noteId}`, {
         method: 'DELETE'

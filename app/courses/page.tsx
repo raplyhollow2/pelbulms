@@ -263,15 +263,15 @@ export default function CoursesPage() {
             <Button
               variant="outline"
               size="lg"
-              className="glass touch-feedback"
+              className="glass w-full sm:w-auto"
               onClick={() => {
-                // Trigger command palette via keyboard event
                 const event = new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true })
                 document.dispatchEvent(event)
               }}
             >
               <Command className="w-5 h-5 mr-2" />
-              Search (⌘K)
+              <span className="sm:hidden">Search</span>
+              <span className="hidden sm:inline">Search (⌘K)</span>
             </Button>
           </div>
         </div>
@@ -293,8 +293,8 @@ export default function CoursesPage() {
 
             {/* Mobile Filter Sheet */}
             <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="outline" size="icon" className="lg:hidden touch-feedback">
+              <SheetTrigger>
+                <Button variant="outline" size="icon" className="lg:hidden">
                   <Filter className="w-5 h-5" />
                 </Button>
               </SheetTrigger>
@@ -342,8 +342,8 @@ export default function CoursesPage() {
             </Sheet>
           </div>
 
-          {/* Filters */}
-          <div className="flex flex-wrap gap-3">
+          {/* Desktop Filters */}
+          <div className="hidden lg:flex flex-wrap gap-3">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium">Category:</span>
@@ -361,7 +361,7 @@ export default function CoursesPage() {
             ))}
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="hidden lg:flex flex-wrap gap-3">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium">Level:</span>

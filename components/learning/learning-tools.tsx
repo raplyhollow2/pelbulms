@@ -125,7 +125,6 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
   // Handle pomodoro complete
   const handlePomodoroComplete = () => {
     setPomodoroRunning(false)
-    haptic()
 
     if (pomodoroMode === 'focus') {
       setPomodoroStreak(prev => prev + 1)
@@ -157,23 +156,19 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
 
   // Handle pomodoro controls
   const handlePomodoroStart = () => {
-    haptic()
     setPomodoroRunning(true)
   }
 
   const handlePomodoroPause = () => {
-    haptic()
     setPomodoroRunning(false)
   }
 
   const handlePomodoroReset = () => {
-    haptic()
     setPomodoroRunning(false)
     setPomodoroTime(pomodoroMode === 'focus' ? 25 * 60 : pomodoroMode === 'short-break' ? 5 * 60 : 15 * 60)
   }
 
   const handlePomodoroModeChange = (mode: 'focus' | 'short-break' | 'long-break') => {
-    haptic()
     setPomodoroRunning(false)
     setPomodoroMode(mode)
 
@@ -192,19 +187,16 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
 
   // Flashcard handlers
   const handleFlashcardFlip = () => {
-    haptic()
     setFlipped(!flipped)
   }
 
   const handleFlashcardNext = () => {
-    haptic()
     setFlipped(false)
     setFlashcardResult(null)
     setCurrentFlashcard(prev => (prev + 1) % flashcards.length)
   }
 
   const handleFlashcardResult = (result: 'correct' | 'review') => {
-    haptic()
     setFlashcardResult(result)
 
     // Update flashcard review stats
@@ -243,16 +235,17 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
   return (
     <div className="h-full">
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)} className="h-full flex flex-col">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="pomodoro" className="touch-feedback">
+        <TabsList className="grid w-full grid-cols-3 h-auto gap-1 p-1">
+          {/* keep labels short-friendly via text-xs on small screens if needed */}
+          <TabsTrigger value="pomodoro" className>
             <Clock className="w-4 h-4 mr-2" />
             Pomodoro
           </TabsTrigger>
-          <TabsTrigger value="scheduler" className="touch-feedback">
+          <TabsTrigger value="scheduler" className>
             <CalendarIcon className="w-4 h-4 mr-2" />
             Scheduler
           </TabsTrigger>
-          <TabsTrigger value="flashcards" className="touch-feedback">
+          <TabsTrigger value="flashcards" className>
             <Brain className="w-4 h-4 mr-2" />
             Flashcards
           </TabsTrigger>
@@ -354,7 +347,6 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
                       variant="outline"
                       size="lg"
                       onClick={handlePomodoroReset}
-                      className="touch-feedback"
                     >
                       <RotateCw className="w-5 h-5" />
                     </Button>
@@ -363,7 +355,7 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
                       <Button
                         size="lg"
                         onClick={handlePomodoroStart}
-                        className="bg-bhutan-yellow hover:bg-bhutan-orange touch-feedback"
+                        className="bg-bhutan-yellow hover:bg-bhutan-orange"
                       >
                         <Play className="w-5 h-5 mr-2" />
                         Start
@@ -372,7 +364,7 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
                       <Button
                         size="lg"
                         onClick={handlePomodoroPause}
-                        className="bg-bhutan-yellow hover:bg-bhutan-orange touch-feedback"
+                        className="bg-bhutan-yellow hover:bg-bhutan-orange"
                       >
                         <Pause className="w-5 h-5 mr-2" />
                         Pause
@@ -440,7 +432,7 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
                     <CalendarIcon className="w-5 h-5 text-bhutan-red" />
                     Study Scheduler
                   </div>
-                  <Button variant="outline" size="sm" className="touch-feedback">
+                  <Button variant="outline" size="sm" className>
                     <Download className="w-4 h-4 mr-2" />
                     Export Calendar
                   </Button>
@@ -535,7 +527,7 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
                             variant="outline"
                             size="lg"
                             onClick={() => handleFlashcardResult('correct')}
-                            className="flex-1 touch-feedback"
+                            className="flex-1"
                           >
                             <CheckCircle2 className="w-5 h-5 mr-2 text-green-600" />
                             Got it!
@@ -544,7 +536,7 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
                             variant="outline"
                             size="lg"
                             onClick={() => handleFlashcardResult('review')}
-                            className="flex-1 touch-feedback"
+                            className="flex-1"
                           >
                             <RefreshCw className="w-5 h-5 mr-2 text-yellow-600" />
                             Review
@@ -555,7 +547,6 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
                         variant="ghost"
                         size="lg"
                         onClick={handleFlashcardNext}
-                        className="touch-feedback"
                       >
                         Skip →
                       </Button>

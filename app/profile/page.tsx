@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -23,7 +23,6 @@ import {
   CheckCircle,
   GraduationCap,
 } from 'lucide-react'
-import { haptic } from '@/lib/utils'
 
 export default function ProfilePage() {
   const supabase = createClient()
@@ -32,6 +31,9 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [error, setError] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -45,6 +47,8 @@ export default function ProfilePage() {
     certificates: 0,
     totalProgress: 0
   })
+
+  const [certificates, setCertificates] = useState<any[]>([])
 
   useEffect(() => {
     fetchUserData()
@@ -67,10 +71,11 @@ export default function ProfilePage() {
         setProfile(profileData)
 
         if (profileData) {
+          const safeProfile = profileData as any
           setFormData({
-            full_name: profileData.full_name || '',
-            bio: profileData.bio || '',
-            avatar_url: profileData.avatar_url || ''
+            full_name: safeProfile.full_name || '',
+            bio: safeProfile.bio || '',
+            avatar_url: safeProfile.avatar_url || ''
           })
         }
 
@@ -80,16 +85,17 @@ export default function ProfilePage() {
           .select('*, courses(*)')
           .eq('user_id', currentUser.id)
 
-        if (enrollments) {
-          const completed = enrollments.filter((e: any) => e.progress === 100).length
+        if (enrollments && enrollments.length > 0) {
+          const completedEnrollments = enrollments.filter((e: any) => e.progress === 100)
           setStats({
             enrolledCourses: enrollments.length,
-            completedCourses: completed,
-            certificates: completed,
+            completedCourses: completedEnrollments.length,
+            certificates: completedEnrollments.length,
             totalProgress: Math.round(
               enrollments.reduce((sum: number, e: any) => sum + (e.progress || 0), 0) / enrollments.length
             )
           })
+          setCertificates(completedEnrollments)
         }
       }
     } catch (error) {
@@ -99,14 +105,42 @@ export default function ProfilePage() {
     }
   }
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingAvatar(true)
+    setError('')
+
+    try {
+      const body = new FormData()
+      body.append('file', file)
+
+      const res = await fetch('/api/users/avatar', { method: 'POST', body })
+      const data = await res.json()
+
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+
+      setFormData((prev) => ({ ...prev, avatar_url: data.avatar_url }))
+      setSuccess(true)
+      setTimeout(() => setSuccess(false), 3000)
+    } catch (err: any) {
+      console.error('Error uploading avatar:', err)
+      setError(err?.message || 'Failed to upload avatar')
+    } finally {
+      setUploadingAvatar(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   const handleSubmit = async () => {
-    haptic()
     setSaving(true)
     setSuccess(false)
 
     try {
       const { error } = await supabase
         .from('profiles')
+        // @ts-ignore - Supabase types not properly defined
         .update({
           full_name: formData.full_name,
           bio: formData.bio,
@@ -157,9 +191,11 @@ export default function ProfilePage() {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold mb-2">My Profile</h1>
-          <p className="text-muted-foreground">Manage your personal information and preferences</p>
+        <div className="space-y-1">
+          <h1 className="text-2xl sm:text-3xl font-bold">My Profile</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            Manage your personal information and preferences
+          </p>
         </div>
 
         {/* Profile Card */}
@@ -175,21 +211,44 @@ export default function ProfilePage() {
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Avatar Section */}
-            <div className="flex items-center gap-6">
-              <Avatar className="w-24 h-24 bg-bhutan-yellow">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+              <Avatar className="w-20 h-20 sm:w-24 sm:h-24 bg-bhutan-yellow shrink-0">
                 <AvatarImage src={formData.avatar_url} alt={formData.full_name} />
                 <AvatarFallback className="bg-bhutan-yellow text-black font-semibold text-2xl">
                   {formData.full_name ? getInitials(formData.full_name) : 'U'}
                 </AvatarFallback>
               </Avatar>
-              <div className="space-y-2">
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Camera className="w-4 h-4" />
-                  Change Avatar
+              <div className="space-y-2 min-w-0">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={handleAvatarUpload}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  disabled={uploadingAvatar}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {uploadingAvatar ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Camera className="w-4 h-4" />
+                      Change Avatar
+                    </>
+                  )}
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  Recommended: Square image, at least 200x200px
+                  JPG, PNG, WEBP or GIF. Max 5MB. Square image recommended.
                 </p>
+                {error && <p className="text-xs text-destructive">{error}</p>}
               </div>
             </div>
 
@@ -351,6 +410,58 @@ export default function ProfilePage() {
                 <p className="text-2xl font-bold">{stats.totalProgress}%</p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Certificates Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Award className="w-5 h-5" />
+              Certificates
+            </CardTitle>
+            <CardDescription>
+              Certificates earned from completed courses
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {certificates.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Award className="w-10 h-10 text-muted-foreground/40 mb-3" />
+                <p className="text-sm font-medium">No certificates yet</p>
+                <p className="text-xs text-muted-foreground">
+                  Complete a course to earn your first certificate
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {certificates.map((cert: any) => (
+                  <div
+                    key={cert.id}
+                    className="flex items-center gap-3 rounded-lg border p-3"
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-950">
+                      <Award className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {cert.courses?.title || 'Course'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Completed
+                        {cert.updated_at
+                          ? ` · ${new Date(cert.updated_at).toLocaleDateString()}`
+                          : ''}
+                      </p>
+                    </div>
+                    <Badge className="ml-auto shrink-0 bg-green-600">
+                      <CheckCircle className="mr-1 h-3 w-3" />
+                      Earned
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -45,6 +45,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       courses: {
         Row: {
@@ -61,6 +62,7 @@ export interface Database {
           duration_minutes: number | null
           prerequisites: string[] | null
           learning_objectives: string[] | null
+          learning_outcomes: string[] | null
           requirements: string[] | null
           tags: string[] | null
           is_published: boolean
@@ -88,6 +90,7 @@ export interface Database {
           duration_minutes?: number | null
           prerequisites?: string[] | null
           learning_objectives?: string[] | null
+          learning_outcomes?: string[] | null
           requirements?: string[] | null
           tags?: string[] | null
           is_published?: boolean
@@ -115,6 +118,7 @@ export interface Database {
           duration_minutes?: number | null
           prerequisites?: string[] | null
           learning_objectives?: string[] | null
+          learning_outcomes?: string[] | null
           requirements?: string[] | null
           tags?: string[] | null
           is_published?: boolean
@@ -128,6 +132,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       enrollments: {
         Row: {
@@ -160,6 +165,7 @@ export interface Database {
           last_accessed_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       lesson_progress: {
         Row: {
@@ -189,6 +195,7 @@ export interface Database {
           time_spent_seconds?: number
           last_accessed_at?: string
         }
+        Relationships: []
       }
       lessons: {
         Row: {
@@ -198,10 +205,15 @@ export interface Database {
           description: string | null
           content: Json | null
           video_url: string | null
+          video_duration: number | null
           duration_minutes: number
           order_index: number
           is_free: boolean
           is_published: boolean
+          transcript: string | null
+          resources: Json | null
+          metadata: Json | null
+          lesson_type: string | null
           created_at: string
           updated_at: string
         }
@@ -212,10 +224,15 @@ export interface Database {
           description?: string | null
           content?: Json | null
           video_url?: string | null
+          video_duration?: number | null
           duration_minutes?: number
           order_index?: number
           is_free?: boolean
           is_published?: boolean
+          transcript?: string | null
+          resources?: Json | null
+          metadata?: Json | null
+          lesson_type?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -226,13 +243,19 @@ export interface Database {
           description?: string | null
           content?: Json | null
           video_url?: string | null
+          video_duration?: number | null
           duration_minutes?: number
           order_index?: number
           is_free?: boolean
           is_published?: boolean
+          transcript?: string | null
+          resources?: Json | null
+          metadata?: Json | null
+          lesson_type?: string | null
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       modules: {
         Row: {
@@ -262,6 +285,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       notes: {
         Row: {
@@ -297,14 +321,17 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       profiles: {
         Row: {
           id: string
           full_name: string | null
           avatar_url: string | null
-          role: 'student' | 'instructor' | 'admin'
+          email: string | null
+          role: 'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
           bio: string | null
+          institution_id: string | null
           created_at: string
           updated_at: string
         }
@@ -312,8 +339,10 @@ export interface Database {
           id?: string
           full_name?: string | null
           avatar_url?: string | null
-          role?: 'student' | 'instructor' | 'admin'
+          email?: string | null
+          role?: 'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
           bio?: string | null
+          institution_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -321,11 +350,14 @@ export interface Database {
           id?: string
           full_name?: string | null
           avatar_url?: string | null
-          role?: 'student' | 'instructor' | 'admin'
+          email?: string | null
+          role?: 'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
           bio?: string | null
+          institution_id?: string | null
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       reviews: {
         Row: {
@@ -361,6 +393,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       quiz_attempts: {
         Row: {
@@ -405,6 +438,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       quiz_questions: {
         Row: {
@@ -440,6 +474,7 @@ export interface Database {
           order_index?: number
           points?: number
         }
+        Relationships: []
       }
       quizzes: {
         Row: {
@@ -475,6 +510,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       user_settings: {
         Row: {
@@ -543,7 +579,20 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }

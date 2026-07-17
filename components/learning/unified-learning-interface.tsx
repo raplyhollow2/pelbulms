@@ -196,12 +196,10 @@ export function UnifiedLearningInterface({
   ]
 
   const handleTabChange = (value: string) => {
-    haptic()
     setActiveTab(value)
   }
 
   const handleFullscreenToggle = () => {
-    haptic()
     if (onFullscreenToggle) {
       onFullscreenToggle()
     }
@@ -229,7 +227,6 @@ export function UnifiedLearningInterface({
             variant="ghost"
             size="icon"
             onClick={() => setIsCompactMode(!isCompactMode)}
-            className="touch-feedback"
             title={isCompactMode ? 'Expand View' : 'Compact View'}
           >
             {isCompactMode ? (
@@ -244,7 +241,6 @@ export function UnifiedLearningInterface({
             variant="ghost"
             size="icon"
             onClick={handleFullscreenToggle}
-            className="touch-feedback"
             title="Toggle Fullscreen"
           >
             {isFullscreen ? (
@@ -275,7 +271,6 @@ export function UnifiedLearningInterface({
                     onClick={() => handleTabChange(tab.value)}
                     className={cn(
                       'flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-all duration-200',
-                      'touch-feedback',
                       isActive
                         ? 'bg-primary text-primary-foreground shadow-md'
                         : 'hover:bg-accent/50 text-muted-foreground'

@@ -5,23 +5,48 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   Home, BookOpen, GraduationCap, Settings, User,
-  ChevronLeft, ChevronRight, LogOut, Menu, X, Search, TrendingUp, Users
+  ChevronLeft, ChevronRight, LogOut, Search, TrendingUp, Users,
+  type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { createClient } from '@/lib/supabase/client'
-import { tap as hapticTap, warning as hapticWarning } from '@/lib/utils'
+import { cn, haptic, warning as hapticWarning, tap as hapticTap } from '@/lib/utils'
 
 interface DesktopSidebarProps {
   user?: any
 }
 
+interface NavItem {
+  name: string
+  href: string
+  icon: LucideIcon
+}
+
+const STORAGE_KEY = 'pelbu:sidebar-collapsed'
+
 export function DesktopSidebar({ user }: DesktopSidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
-  const [userRole, setUserRole] = useState<'student' | 'instructor' | 'admin'>('student')
+  const [userRole, setUserRole] = useState<
+    'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
+  >('student')
+  const [profile, setProfile] = useState<{ full_name?: string; avatar_url?: string } | null>(null)
 
-  const navigation = [
+  const canTeach =
+    userRole === 'instructor' ||
+    userRole === 'admin' ||
+    userRole === 'resource_person' ||
+    userRole === 'superadmin'
+  const canAdmin = userRole === 'admin' || userRole === 'superadmin'
+
+  const navigation: NavItem[] = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Courses', href: '/courses', icon: BookOpen },
     { name: 'Progress', href: '/learn/progress', icon: TrendingUp },
@@ -29,47 +54,53 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
     { name: 'Settings', href: '/settings', icon: Settings },
   ]
 
-  const teacherNavigation = [
+  const teacherNavigation: NavItem[] = [
     { name: 'Teacher Dashboard', href: '/teach/dashboard', icon: GraduationCap },
     { name: 'My Courses', href: '/teach/courses/new', icon: BookOpen },
     { name: 'Analytics', href: '/teach/analytics', icon: TrendingUp },
   ]
 
-  const adminNavigation = [
+  const adminNavigation: NavItem[] = [
     { name: 'User Management', href: '/admin/users', icon: Users },
     { name: 'Teacher Dashboard', href: '/teach/dashboard', icon: GraduationCap },
   ]
 
+  // Restore persisted collapse state and notify the layout on mount.
   useEffect(() => {
-    if (user) {
-      fetchUserRole()
+    const stored = typeof window !== 'undefined' && localStorage.getItem(STORAGE_KEY) === 'true'
+    if (stored) {
+      setCollapsed(true)
+      window.dispatchEvent(
+        new CustomEvent('pelbu:sidebar-collapse', { detail: { collapsed: true } })
+      )
     }
+  }, [])
+
+  useEffect(() => {
+    if (user) fetchProfile()
   }, [user])
 
-  const fetchUserRole = async () => {
+  const fetchProfile = async () => {
     try {
       const supabase = createClient()
-      const { data: profile } = await supabase
+      const { data } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, full_name, avatar_url')
         .eq('id', user.id)
         .single()
 
-      if (profile) {
-        setUserRole((profile as any).role || 'student')
+      if (data) {
+        const p = data as any
+        setUserRole(p.role || 'student')
+        setProfile({ full_name: p.full_name, avatar_url: p.avatar_url })
       }
     } catch (error) {
-      console.error('Error fetching user role:', error)
+      console.error('Error fetching profile:', error)
     }
   }
 
   const openCommandPalette = () => {
-    // Trigger command palette keyboard shortcut
-    const event = new KeyboardEvent('keydown', {
-      key: 'k',
-      metaKey: true,
-      ctrlKey: true
-    })
+    const event = new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true })
     document.dispatchEvent(event)
   }
 
@@ -86,165 +117,214 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
 
   const toggleCollapse = () => {
     hapticTap()
-    setCollapsed(!collapsed)
+    const next = !collapsed
+    setCollapsed(next)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, String(next))
+    }
+    window.dispatchEvent(
+      new CustomEvent('pelbu:sidebar-collapse', { detail: { collapsed: next } })
+    )
   }
 
-  return (
-    <div
-      className={`fixed left-0 top-0 h-full glass-strong border-r border-border/40 transition-all duration-300 z-50 ${
-        collapsed ? 'w-20' : 'w-64'
-      }`}
-    >
-      {/* Logo & Collapse Button */}
-      <div className="flex items-center justify-between p-4 border-b border-border/40">
-        {!collapsed && (
-          <div className="flex items-center gap-3">
-            <BookOpen className="w-8 h-8 text-bhutan-yellow" />
-            <span className="text-lg font-bold bg-gradient-to-r from-bhutan-yellow to-bhutan-orange bg-clip-text text-transparent">
-              Pelbu LMS
-            </span>
-          </div>
-        )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={toggleCollapse}
-          className="ml-auto touch-feedback"
-        >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-        </Button>
-      </div>
+  const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'
+  const initials = displayName.charAt(0).toUpperCase()
 
-      {/* Profile Card */}
-      <div className="p-4 border-b border-border/40">
-        <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
-          <Avatar className="w-10 h-10 bg-bhutan-yellow">
-            <AvatarFallback className="bg-bhutan-yellow text-black font-semibold">
-              {user?.email?.[0]?.toUpperCase() || 'U'}
-            </AvatarFallback>
-          </Avatar>
-          {!collapsed && (
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">
-                {user?.user_metadata?.full_name || user?.email?.split('@')[0]}
-              </p>
-              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+  const renderNav = (items: NavItem[]) =>
+    items.map((item) => {
+      const isActive = pathname === item.href
+      const link = (
+        <Link
+          key={item.name}
+          href={item.href}
+          onClick={() => haptic()}
+          aria-current={isActive ? 'page' : undefined}
+          className={cn(
+            'group relative flex items-center rounded-lg text-sm font-medium transition-colors',
+            collapsed ? 'h-11 w-11 justify-center' : 'gap-3 px-3 py-2.5',
+            isActive
+              ? 'bg-bhutan-yellow/15 text-foreground'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          )}
+        >
+          {isActive && (
+            <span
+              className={cn(
+                'absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-bhutan-yellow',
+                collapsed && 'left-0'
+              )}
+            />
+          )}
+          <item.icon
+            className={cn('h-5 w-5 shrink-0', isActive && 'text-bhutan-orange')}
+          />
+          {!collapsed && <span className="truncate">{item.name}</span>}
+        </Link>
+      )
+
+      if (collapsed) {
+        return (
+          <Tooltip key={item.name}>
+            <TooltipTrigger render={link} />
+            <TooltipContent side="right">{item.name}</TooltipContent>
+          </Tooltip>
+        )
+      }
+      return link
+    })
+
+  const sectionLabel = (label: string, short: string) => (
+    <p
+      className={cn(
+        'px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70',
+        collapsed && 'text-center px-0'
+      )}
+    >
+      {collapsed ? short : label}
+    </p>
+  )
+
+  return (
+    <TooltipProvider delay={200}>
+      <aside
+        className={cn(
+          'fixed left-0 top-0 z-50 flex h-full flex-col border-r border-border/40 bg-background/80 backdrop-blur-xl transition-[width] duration-300',
+          collapsed ? 'w-20' : 'w-64'
+        )}
+      >
+        {/* Logo & Collapse Button */}
+        <div className="flex h-16 shrink-0 items-center gap-3 border-b border-border/40 px-4">
+          {!collapsed ? (
+            <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-bhutan-yellow/15">
+                <BookOpen className="h-5 w-5 text-bhutan-orange" />
+              </div>
+              <span className="truncate bg-gradient-to-r from-bhutan-yellow to-bhutan-orange bg-clip-text text-base font-bold text-transparent">
+                Pelbu LMS
+              </span>
+            </Link>
+          ) : (
+            <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg bg-bhutan-yellow/15">
+              <BookOpen className="h-5 w-5 text-bhutan-orange" />
             </div>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleCollapse}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className={cn('h-8 w-8 shrink-0', collapsed && 'absolute -right-3 top-5 h-6 w-6 rounded-full border border-border/60 bg-background shadow-sm')}
+          >
+            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </Button>
         </div>
-      </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {/* Search Button */}
-        <Button
-          variant="outline"
-          className={`w-full justify-start mb-2 ${collapsed ? 'px-4' : ''}`}
-          onClick={openCommandPalette}
-        >
-          <Search className="w-5 h-5" />
-          {!collapsed && (
+        {/* Profile */}
+        <div className="shrink-0 border-b border-border/40 p-3">
+          <Link
+            href="/profile"
+            className={cn(
+              'flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted',
+              collapsed && 'justify-center'
+            )}
+          >
+            <Avatar className="h-9 w-9 shrink-0">
+              <AvatarImage src={profile?.avatar_url} alt={displayName} />
+              <AvatarFallback className="bg-bhutan-yellow font-semibold text-black">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            {!collapsed && (
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{displayName}</p>
+                <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+              </div>
+            )}
+          </Link>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+          {/* Search */}
+          {collapsed ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={openCommandPalette}
+                    className="mx-auto mb-2 h-11 w-11"
+                    aria-label="Search"
+                  >
+                    <Search className="h-5 w-5" />
+                  </Button>
+                }
+              />
+              <TooltipContent side="right">
+                Search <kbd className="ml-1 rounded bg-background/20 px-1 text-[10px]">⌘K</kbd>
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button
+              variant="outline"
+              className="mb-2 w-full justify-start gap-3 text-muted-foreground"
+              onClick={openCommandPalette}
+            >
+              <Search className="h-5 w-5" />
+              <span>Search</span>
+              <kbd className="ml-auto rounded bg-muted px-1.5 py-0.5 text-xs">⌘K</kbd>
+            </Button>
+          )}
+
+          {renderNav(navigation)}
+
+          {canTeach && (
             <>
-              <span className="ml-3">Search</span>
-              <kbd className="ml-auto text-xs bg-muted px-1.5 py-0.5 rounded">⌘K</kbd>
+              {sectionLabel('Teacher Tools', 'Teach')}
+              {renderNav(teacherNavigation)}
             </>
           )}
-        </Button>
 
-        {navigation.map((item) => {
-          const isActive = pathname === item.href
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              onClick={() => haptic.tap()}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 touch-feedback ${
-                isActive
-                  ? 'bg-bhutan-yellow text-black shadow-lg'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-muted-foreground hover:text-foreground'
-              }`}
+          {canAdmin && (
+            <>
+              {sectionLabel('Administration', 'Admin')}
+              {renderNav(adminNavigation)}
+            </>
+          )}
+        </nav>
+
+        {/* Logout */}
+        <div className="shrink-0 border-t border-border/40 p-3">
+          {collapsed ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleLogout}
+                    aria-label="Logout"
+                    className="mx-auto h-11 w-11 text-muted-foreground hover:text-destructive"
+                  >
+                    <LogOut className="h-5 w-5" />
+                  </Button>
+                }
+              />
+              <TooltipContent side="right">Logout</TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button
+              variant="ghost"
+              onClick={handleLogout}
+              className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive"
             >
-              <item.icon className={`w-5 h-5 ${collapsed ? 'mx-auto' : ''}`} />
-              {!collapsed && (
-                <span className="font-medium">{item.name}</span>
-              )}
-            </Link>
-          )
-        })}
-
-        {/* Role-based Navigation */}
-        {(userRole === 'instructor' || userRole === 'admin') && (
-          <>
-            <div className="px-4 pt-4 pb-2">
-              <p className={`text-xs font-semibold text-muted-foreground uppercase ${collapsed ? 'text-center' : ''}`}>
-                {collapsed ? 'Teach' : 'Teacher Tools'}
-              </p>
-            </div>
-            {teacherNavigation.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  onClick={() => haptic.tap()}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 touch-feedback ${
-                    isActive
-                      ? 'bg-bhutan-yellow text-black shadow-lg'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <item.icon className={`w-5 h-5 ${collapsed ? 'mx-auto' : ''}`} />
-                  {!collapsed && (
-                    <span className="font-medium">{item.name}</span>
-                  )}
-                </Link>
-              )
-            })}
-          </>
-        )}
-
-        {userRole === 'admin' && (
-          <>
-            <div className="px-4 pt-4 pb-2">
-              <p className={`text-xs font-semibold text-muted-foreground uppercase ${collapsed ? 'text-center' : ''}`}>
-                {collapsed ? 'Admin' : 'Administration'}
-              </p>
-            </div>
-            {adminNavigation.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  onClick={() => haptic.tap()}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 touch-feedback ${
-                    isActive
-                      ? 'bg-bhutan-yellow text-black shadow-lg'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <item.icon className={`w-5 h-5 ${collapsed ? 'mx-auto' : ''}`} />
-                  {!collapsed && (
-                    <span className="font-medium">{item.name}</span>
-                  )}
-                </Link>
-              )
-            })}
-          </>
-        )}
-      </nav>
-
-      {/* Logout Button */}
-      <div className="p-4 border-t border-border/40">
-        <Button
-          variant="ghost"
-          onClick={handleLogout}
-          className={`w-full justify-start touch-feedback ${collapsed ? 'px-4' : ''}`}
-        >
-          <LogOut className="w-5 h-5" />
-          {!collapsed && <span className="ml-3">Logout</span>}
-        </Button>
-      </div>
-    </div>
+              <LogOut className="h-5 w-5" />
+              <span>Logout</span>
+            </Button>
+          )}
+        </div>
+      </aside>
+    </TooltipProvider>
   )
 }
