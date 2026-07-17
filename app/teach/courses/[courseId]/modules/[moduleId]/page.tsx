@@ -450,7 +450,7 @@ export default function ModuleLessonsPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full justify-start overflow-x-auto scrollbar-hide">
+          <TabsList className="w-full justify-start gap-1 overflow-x-auto scrollbar-hide [&>*]:flex-none [&>*]:px-3.5">
             <TabsTrigger value="lessons" className="gap-1.5">
               <BookOpen className="w-4 h-4" /> Lessons
               {lessons.length > 0 && (

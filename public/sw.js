@@ -1,84 +1,69 @@
 // Service Worker for Pelbu LMS PWA
-const CACHE_NAME = 'pelbu-lms-v1'
-const urlsToCache = [
-  '/',
-  '/dashboard',
-  '/courses',
-  '/manifest.json',
-  '/favicon.ico'
-]
+// Bump this version whenever the SW logic changes so clients pick up the update
+// and old caches are purged.
+const CACHE_NAME = 'pelbu-lms-v2'
+const PRECACHE_URLS = ['/', '/offline.html', '/manifest.json', '/icon.svg']
 
-// Install event - cache assets
-self.addEventListener('install', event => {
+// Install - precache core assets (best-effort so a single 404 can't break install)
+self.addEventListener('install', (event) => {
+  self.skipWaiting()
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Opened cache')
-        return cache.addAll(urlsToCache)
-      })
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.allSettled(PRECACHE_URLS.map((url) => cache.add(url)))
+    )
   )
 })
 
-// Fetch event - serve from cache, fallback to network
-self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url)
+// Activate - drop old caches and take control of open clients immediately
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      const names = await caches.keys()
+      await Promise.all(
+        names.filter((name) => name !== CACHE_NAME).map((name) => caches.delete(name))
+      )
+      await self.clients.claim()
+    })()
+  )
+})
 
-  // Don't intercept auth-related requests or API calls
-  if (url.pathname.startsWith('/auth/') ||
-      url.pathname.startsWith('/api/') ||
-      url.searchParams.has('code') ||
-      url.searchParams.has('error') ||
-      event.request.method !== 'GET') {
-    event.respondWith(fetch(event.request))
+// Fetch - cache-first for same-origin GET assets; bypass everything else
+self.addEventListener('fetch', (event) => {
+  let url
+  try {
+    url = new URL(event.request.url)
+  } catch {
+    return
+  }
+
+  // Let the browser handle: non-GET, cross-origin (e.g. Supabase), auth/API,
+  // and OAuth callback URLs. We intentionally do NOT call respondWith here so
+  // these requests are never intercepted by the service worker.
+  if (
+    event.request.method !== 'GET' ||
+    url.origin !== self.location.origin ||
+    url.pathname.startsWith('/auth/') ||
+    url.pathname.startsWith('/api/') ||
+    url.searchParams.has('code') ||
+    url.searchParams.has('error')
+  ) {
     return
   }
 
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Cache hit - return response
-        if (response) {
-          return response
-        }
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached
 
-        // Clone the request
-        const fetchRequest = event.request.clone()
-
-        return fetch(fetchRequest).then(response => {
-          // Check if valid response
+      return fetch(event.request)
+        .then((response) => {
           if (!response || response.status !== 200 || response.type !== 'basic') {
             return response
           }
-
-          // Clone the response
-          const responseToCache = response.clone()
-
-          caches.open(CACHE_NAME)
-            .then(cache => {
-              cache.put(event.request, responseToCache)
-            })
-
+          const copy = response.clone()
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy))
           return response
-        }).catch(() => {
-          // Return offline page for failed requests
-          return caches.match('/offline.html')
         })
-      })
-  )
-})
-
-// Activate event - clean up old caches
-self.addEventListener('activate', event => {
-  const cacheWhitelist = [CACHE_NAME]
-  event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            return caches.delete(cacheName)
-          }
-        })
-      )
+        .catch(() => caches.match('/offline.html'))
     })
   )
 })

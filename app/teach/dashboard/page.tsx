@@ -18,6 +18,8 @@ export default function TeacherDashboard() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [courses, setCourses] = useState<Course[]>([])
   const [totalEnrollments, setTotalEnrollments] = useState(0)
+  const [avgProgress, setAvgProgress] = useState<number | null>(null)
+  const [activeQuizzes, setActiveQuizzes] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
 
   const supabase = createClient()
@@ -64,15 +66,54 @@ export default function TeacherDashboard() {
       if (coursesData) {
         setCourses(coursesData)
 
-        // Get total enrollments across all courses
+        // Get enrollments across all courses (count + average progress)
         const courseIds = coursesData.map((m: any) => m.id)
         if (courseIds.length > 0) {
-          const { count } = await supabase
+          const { data: enrollRows, count } = await supabase
             .from('enrollments')
-            .select('*', { count: 'exact', head: true })
+            .select('progress_percentage', { count: 'exact' })
             .in('course_id', courseIds)
 
           setTotalEnrollments(count || 0)
+
+          if (enrollRows && enrollRows.length > 0) {
+            const sum = (enrollRows as any[]).reduce(
+              (acc, e) => acc + (e.progress_percentage || 0),
+              0
+            )
+            setAvgProgress(Math.round(sum / enrollRows.length))
+          } else {
+            setAvgProgress(0)
+          }
+
+          // Count published quizzes across the instructor's lessons
+          const { data: mods } = await supabase
+            .from('modules')
+            .select('id')
+            .in('course_id', courseIds)
+          const modIds = (mods || []).map((m: any) => m.id)
+          if (modIds.length > 0) {
+            const { data: lessonRows } = await supabase
+              .from('lessons')
+              .select('id')
+              .in('module_id', modIds)
+            const lessonIds = (lessonRows || []).map((l: any) => l.id)
+            if (lessonIds.length > 0) {
+              const { count: quizCount } = await supabase
+                .from('quizzes')
+                .select('*', { count: 'exact', head: true })
+                .in('lesson_id', lessonIds)
+                .eq('is_published', true)
+              setActiveQuizzes(quizCount || 0)
+            } else {
+              setActiveQuizzes(0)
+            }
+          } else {
+            setActiveQuizzes(0)
+          }
+        } else {
+          setAvgProgress(0)
+          setActiveQuizzes(0)
         }
       }
 
@@ -166,7 +207,9 @@ export default function TeacherDashboard() {
               <CardTitle className="text-xs lg:text-sm font-medium">Avg Progress</CardTitle>
             </CardHeader>
             <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
-              <div className="text-2xl lg:text-3xl font-bold text-bhutan-red">--%</div>
+              <div className="text-2xl lg:text-3xl font-bold text-bhutan-red">
+                {avgProgress === null ? '--' : `${avgProgress}%`}
+              </div>
               <p className="text-xs text-muted-foreground mt-1">Course completion</p>
             </CardContent>
           </Card>
@@ -176,7 +219,9 @@ export default function TeacherDashboard() {
               <CardTitle className="text-xs lg:text-sm font-medium">Active Quizzes</CardTitle>
             </CardHeader>
             <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
-              <div className="text-2xl lg:text-3xl font-bold text-green-600">--</div>
+              <div className="text-2xl lg:text-3xl font-bold text-green-600">
+                {activeQuizzes === null ? '--' : activeQuizzes}
+              </div>
               <p className="text-xs text-muted-foreground mt-1">Published quizzes</p>
             </CardContent>
           </Card>

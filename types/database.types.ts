@@ -142,6 +142,7 @@ export interface Database {
           enrolled_at: string
           completed_at: string | null
           progress_percentage: number
+          status: string
           last_accessed_at: string
           updated_at: string
         }
@@ -152,6 +153,7 @@ export interface Database {
           enrolled_at?: string
           completed_at?: string | null
           progress_percentage?: number
+          status?: string
           last_accessed_at?: string
           updated_at?: string
         }
@@ -162,6 +164,7 @@ export interface Database {
           enrolled_at?: string
           completed_at?: string | null
           progress_percentage?: number
+          status?: string
           last_accessed_at?: string
           updated_at?: string
         }
@@ -172,8 +175,11 @@ export interface Database {
           id: string
           user_id: string
           lesson_id: string
+          course_id: string | null
           completed: boolean
           completed_at: string | null
+          progress_percentage: number
+          last_position_seconds: number
           time_spent_seconds: number
           last_accessed_at: string
         }
@@ -181,8 +187,11 @@ export interface Database {
           id?: string
           user_id: string
           lesson_id: string
+          course_id?: string | null
           completed?: boolean
           completed_at?: string | null
+          progress_percentage?: number
+          last_position_seconds?: number
           time_spent_seconds?: number
           last_accessed_at?: string
         }
@@ -190,10 +199,49 @@ export interface Database {
           id?: string
           user_id?: string
           lesson_id?: string
+          course_id?: string | null
           completed?: boolean
           completed_at?: string | null
+          progress_percentage?: number
+          last_position_seconds?: number
           time_spent_seconds?: number
           last_accessed_at?: string
+        }
+        Relationships: []
+      }
+      certificates: {
+        Row: {
+          id: string
+          user_id: string
+          course_id: string
+          enrollment_id: string | null
+          certificate_url: string | null
+          issued_at: string
+          verification_code: string
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          course_id: string
+          enrollment_id?: string | null
+          certificate_url?: string | null
+          issued_at?: string
+          verification_code: string
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          course_id?: string
+          enrollment_id?: string | null
+          certificate_url?: string | null
+          issued_at?: string
+          verification_code?: string
+          metadata?: Json
+          created_at?: string
         }
         Relationships: []
       }

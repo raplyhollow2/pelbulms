@@ -22,6 +22,8 @@ import {
   Save,
   CheckCircle,
   GraduationCap,
+  Download,
+  ShieldCheck,
 } from 'lucide-react'
 
 export default function ProfilePage() {
@@ -85,17 +87,34 @@ export default function ProfilePage() {
           .select('*, courses(*)')
           .eq('user_id', currentUser.id)
 
+        // Fetch real issued certificates
+        let issuedCertificates: any[] = []
+        try {
+          const res = await fetch('/api/certificates', { cache: 'no-store' })
+          if (res.ok) {
+            const json = await res.json()
+            issuedCertificates = json.certificates || []
+          }
+        } catch (e) {
+          console.log('Certificates fetch error (continuing):', e)
+        }
+        setCertificates(issuedCertificates)
+
         if (enrollments && enrollments.length > 0) {
-          const completedEnrollments = enrollments.filter((e: any) => e.progress === 100)
+          const completedEnrollments = enrollments.filter(
+            (e: any) => (e.progress_percentage ?? 0) >= 100 || e.status === 'completed'
+          )
           setStats({
             enrolledCourses: enrollments.length,
             completedCourses: completedEnrollments.length,
-            certificates: completedEnrollments.length,
+            certificates: issuedCertificates.length,
             totalProgress: Math.round(
-              enrollments.reduce((sum: number, e: any) => sum + (e.progress || 0), 0) / enrollments.length
-            )
+              enrollments.reduce(
+                (sum: number, e: any) => sum + (e.progress_percentage || 0),
+                0
+              ) / enrollments.length
+            ),
           })
-          setCertificates(completedEnrollments)
         }
       }
     } catch (error) {
@@ -438,26 +457,52 @@ export default function ProfilePage() {
                 {certificates.map((cert: any) => (
                   <div
                     key={cert.id}
-                    className="flex items-center gap-3 rounded-lg border p-3"
+                    className="flex flex-col gap-3 rounded-lg border p-3"
                   >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-950">
-                      <Award className="h-5 w-5 text-purple-600" />
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-950">
+                        <Award className="h-5 w-5 text-purple-600" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {cert.courses?.title || cert.metadata?.course_title || 'Course'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Issued
+                          {cert.issued_at
+                            ? ` · ${new Date(cert.issued_at).toLocaleDateString()}`
+                            : ''}
+                        </p>
+                      </div>
+                      <Badge className="shrink-0 bg-green-600">
+                        <CheckCircle className="mr-1 h-3 w-3" />
+                        Earned
+                      </Badge>
                     </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">
-                        {cert.courses?.title || 'Course'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Completed
-                        {cert.updated_at
-                          ? ` · ${new Date(cert.updated_at).toLocaleDateString()}`
-                          : ''}
-                      </p>
+                    <div className="flex items-center gap-2">
+                      {cert.certificate_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => window.open(cert.certificate_url, '_blank')}
+                        >
+                          <Download className="mr-1 h-3.5 w-3.5" />
+                          Download
+                        </Button>
+                      )}
+                      {cert.verification_code && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => window.open(`/verify/${cert.verification_code}`, '_blank')}
+                        >
+                          <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+                          Verify
+                        </Button>
+                      )}
                     </div>
-                    <Badge className="ml-auto shrink-0 bg-green-600">
-                      <CheckCircle className="mr-1 h-3 w-3" />
-                      Earned
-                    </Badge>
                   </div>
                 ))}
               </div>

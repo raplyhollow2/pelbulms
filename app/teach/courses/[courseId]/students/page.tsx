@@ -18,6 +18,7 @@ type StudentWithProgress = Profile & {
   enrollment: Enrollment
   completed_lessons: number
   total_lessons: number
+  has_certificate: boolean
 }
 
 export default function CourseStudentsPage() {
@@ -77,23 +78,29 @@ export default function CourseStudentsPage() {
         .order('enrolled_at', { ascending: false })
 
       if (enrollments) {
-        // Count total lessons in course
+        // Count total PUBLISHED lessons in course (matches completion rollup)
         const { data: modules } = await supabase
           .from('modules')
           .select('id')
           .eq('course_id', courseId)
 
         let totalLessons = 0
-        if (modules) {
-          for (const module of (modules as any)) {
-            const { count } = await supabase
-              .from('lessons')
-              .select('*', { count: 'exact', head: true })
-              .eq('module_id', module.id)
-
-            totalLessons += count || 0
-          }
+        if (modules && (modules as any).length > 0) {
+          const moduleIds = (modules as any).map((m: any) => m.id)
+          const { count } = await supabase
+            .from('lessons')
+            .select('*', { count: 'exact', head: true })
+            .in('module_id', moduleIds)
+            .eq('is_published', true)
+          totalLessons = count || 0
         }
+
+        // Which students have an issued certificate
+        const { data: certs } = await supabase
+          .from('certificates')
+          .select('user_id')
+          .eq('course_id', courseId)
+        const certifiedIds = new Set((certs || []).map((c: any) => c.user_id))
 
         // Get progress data for each student
         const studentsWithProgress = await Promise.all(
@@ -109,7 +116,8 @@ export default function CourseStudentsPage() {
               ...(enrollment as any).profiles,
               enrollment: enrollment,
               completed_lessons: count || 0,
-              total_lessons: totalLessons
+              total_lessons: totalLessons,
+              has_certificate: certifiedIds.has(enrollment.user_id),
             } as StudentWithProgress
           })
         )
@@ -283,8 +291,14 @@ export default function CourseStudentsPage() {
                                 variant={(student.enrollment as any).status === 'completed' ? 'default' : 'secondary'}
                                 className="text-xs capitalize"
                               >
-                                {(student.enrollment as any).status}
+                                {(student.enrollment as any).status || 'active'}
                               </Badge>
+                              {student.has_certificate && (
+                                <Badge className="text-xs bg-green-600">
+                                  <Award className="w-3 h-3 mr-1" />
+                                  Certified
+                                </Badge>
+                              )}
                             </div>
                           </div>
                         </div>

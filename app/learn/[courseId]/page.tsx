@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BookOpen, Clock, Users, Star, ArrowLeft, Loader2, CheckCircle, PlayCircle, Lock, ChevronRight } from 'lucide-react'
+import { BookOpen, Clock, Users, Star, ArrowLeft, Loader2, CheckCircle, PlayCircle, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 
@@ -27,6 +27,7 @@ export default function LearningPage() {
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [completedLessonIds, setCompletedLessonIds] = useState<Set<string>>(new Set())
 
   const supabase = createClient()
 
@@ -126,6 +127,27 @@ export default function LearningPage() {
         }
         setLessons(lessonsByModule)
       }
+
+      // Fetch completed lessons for this user + course (for checkmarks)
+      try {
+        const { data: courseProgress } = await supabase
+          .from('lesson_progress')
+          .select('lesson_id, completed')
+          .eq('user_id', user.id)
+          .eq('course_id', courseId)
+
+        if (courseProgress) {
+          setCompletedLessonIds(
+            new Set(
+              (courseProgress as any[])
+                .filter((r) => r.completed)
+                .map((r) => r.lesson_id as string)
+            )
+          )
+        }
+      } catch (e) {
+        console.log('Course progress fetch error (continuing):', e)
+      }
     } catch (error) {
       console.error('Error fetching course data:', error)
     } finally {
@@ -220,7 +242,9 @@ export default function LearningPage() {
             ) : (
               modules.map((module, moduleIndex) => {
                 const moduleLessons = lessons[module.id] || []
-                const completedLessons = 0 // TODO: Track from lesson_progress table
+                const moduleCompletedCount = moduleLessons.filter((l) =>
+                  completedLessonIds.has(l.id)
+                ).length
 
                 return (
                   <Card key={module.id} className="glass overflow-hidden">
@@ -238,7 +262,7 @@ export default function LearningPage() {
                           )}
                         </div>
                         <Badge variant="secondary" className="text-xs">
-                          {moduleLessons.length} lessons
+                          {moduleCompletedCount}/{moduleLessons.length} lessons
                         </Badge>
                       </div>
                     </CardHeader>
@@ -257,10 +281,10 @@ export default function LearningPage() {
                             >
                               <div className="flex items-center gap-3 flex-1">
                                 <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
-                                  {completedLessons > lessonIndex ? (
+                                  {completedLessonIds.has(lesson.id) ? (
                                     <CheckCircle className="w-4 h-4 text-green-600" />
                                   ) : (
-                                    <Lock className="w-4 h-4 text-muted-foreground" />
+                                    <PlayCircle className="w-4 h-4 text-muted-foreground" />
                                   )}
                                 </div>
                                 <div className="flex-1">

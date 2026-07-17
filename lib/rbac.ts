@@ -45,6 +45,7 @@ export async function checkRBAC(
     // Read the role with the service client so row-level security can never
     // hide the caller's own profile (which would otherwise 403 legit admins).
     let profile: { role?: string } | null = null
+    let serviceClientFailed = false
     try {
       const service = await createServiceClient()
       const { data } = await service
@@ -53,8 +54,13 @@ export async function checkRBAC(
         .eq('id', user.id)
         .single()
       profile = data as any
-    } catch {
+    } catch (serviceError) {
       // Service credentials missing/unavailable — fall back to the RLS client.
+      serviceClientFailed = true
+      console.error(
+        '[RBAC] Service client unavailable (is SUPABASE_SERVICE_ROLE_KEY set in this environment?):',
+        serviceError
+      )
       const { data } = await supabase
         .from('profiles')
         .select('role')
@@ -66,7 +72,9 @@ export async function checkRBAC(
     if (!profile) {
       return {
         hasAccess: false,
-        error: 'User profile not found'
+        error: serviceClientFailed
+          ? 'Server misconfigured: missing SUPABASE_SERVICE_ROLE_KEY'
+          : 'User profile not found'
       }
     }
 

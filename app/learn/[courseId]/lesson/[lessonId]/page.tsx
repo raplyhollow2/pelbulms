@@ -5,11 +5,12 @@ import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BookOpen, Clock, ArrowLeft, Loader2, CheckCircle, ChevronLeft, ChevronRight, Play } from 'lucide-react'
+import { BookOpen, Clock, ArrowLeft, Loader2, CheckCircle, ChevronLeft, ChevronRight, Award } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 import { QuizPlayer } from '@/components/quiz/quiz-player'
 import { CourseLearningTabs } from '@/components/course/course-learning-tabs'
+import { TrackedVideoPlayer, type VideoProgressData } from '@/components/learning/tracked-video-player'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Module = Database['public']['Tables']['modules']['Row']
@@ -39,6 +40,12 @@ export default function LessonViewPage() {
   const [lessonProgress, setLessonProgress] = useState<LessonProgress | null>(null)
   const [isCompleted, setIsCompleted] = useState(false)
   const [savingProgress, setSavingProgress] = useState(false)
+  const [completedLessonIds, setCompletedLessonIds] = useState<Set<string>>(new Set())
+  const [certificateUrl, setCertificateUrl] = useState<string | null>(null)
+  const [issuingCert, setIssuingCert] = useState(false)
+  const lessonProgressIdRef = useRef<string | null>(null)
+  const timeSpentBaseRef = useRef(0)
+  const certAutoRequestedRef = useRef(false)
 
   // Notes state
   const [notes, setNotes] = useState<Note[]>([])
@@ -158,9 +165,8 @@ export default function LessonViewPage() {
         setCurrentLessonIndex(index >= 0 ? index : 0)
       }
 
-      // Fetch lesson progress
+      // Fetch lesson progress for THIS lesson
       try {
-        console.log('Fetching lesson progress...')
         const { data: progressData } = await supabase
           .from('lesson_progress')
           .select('*')
@@ -169,12 +175,38 @@ export default function LessonViewPage() {
           .maybeSingle()
 
         if (progressData) {
-          setLessonProgress(progressData as LessonProgress)
-          setIsCompleted((progressData as LessonProgress).completed || false)
+          const pd = progressData as any
+          setLessonProgress(pd as LessonProgress)
+          setIsCompleted(pd.completed || false)
+          lessonProgressIdRef.current = pd.id
+          timeSpentBaseRef.current = pd.time_spent_seconds || 0
+        } else {
+          lessonProgressIdRef.current = null
+          timeSpentBaseRef.current = 0
         }
-        console.log('Lesson progress fetched successfully')
       } catch (progressError) {
         console.log('Lesson progress fetch error (continuing anyway):', progressError)
+      }
+
+      // Fetch completed-lesson ids across the whole course (for checkmarks/progress)
+      try {
+        const { data: courseProgress } = await supabase
+          .from('lesson_progress')
+          .select('lesson_id, completed')
+          .eq('user_id', user.id)
+          .eq('course_id', courseId)
+
+        if (courseProgress) {
+          setCompletedLessonIds(
+            new Set(
+              (courseProgress as any[])
+                .filter((r) => r.completed)
+                .map((r) => r.lesson_id as string)
+            )
+          )
+        }
+      } catch (e) {
+        console.log('Course progress fetch error (continuing anyway):', e)
       }
 
       // Fetch notes for this lesson
@@ -337,63 +369,129 @@ export default function LessonViewPage() {
     }
   }
 
-  const toggleLessonComplete = async () => {
+  // Persist watch progress (throttled by the player). Never un-completes.
+  const persistWatchProgress = async (data: VideoProgressData) => {
     if (!currentUser || !lesson) return
+    const payload: any = {
+      course_id: courseId,
+      progress_percentage: data.percent,
+      last_position_seconds: data.positionSeconds,
+      time_spent_seconds: timeSpentBaseRef.current + data.watchedSeconds,
+      last_accessed_at: new Date().toISOString(),
+    }
+    try {
+      const db = supabase as any
+      if (lessonProgressIdRef.current) {
+        await db.from('lesson_progress').update(payload).eq('id', lessonProgressIdRef.current)
+      } else {
+        const { data: inserted } = await db
+          .from('lesson_progress')
+          .insert({ user_id: currentUser.id, lesson_id: lessonId, completed: false, ...payload })
+          .select()
+          .single()
+        if (inserted) lessonProgressIdRef.current = (inserted as any).id
+      }
+    } catch (error) {
+      // Non-fatal: progress will be retried on the next tick
+      console.log('persistWatchProgress error (continuing):', error)
+    }
+  }
 
+  // Set the completed flag for the current lesson and refresh rollups.
+  const setLessonCompletedState = async (completed: boolean) => {
+    if (!currentUser || !lesson) return
     try {
       setSavingProgress(true)
-
-      if (lessonProgress) {
-        // Update existing progress
-        const supabaseUpdate = supabase as any
-        const { error } = await supabaseUpdate
+      const payload: any = {
+        course_id: courseId,
+        completed,
+        completed_at: completed ? new Date().toISOString() : null,
+        last_accessed_at: new Date().toISOString(),
+      }
+      const db = supabase as any
+      if (lessonProgressIdRef.current) {
+        const { error } = await db
           .from('lesson_progress')
-          .update({
-            completed: !isCompleted,
-            completed_at: !isCompleted ? new Date().toISOString() : null,
-            last_accessed_at: new Date().toISOString()
-          })
-          .eq('id', lessonProgress.id)
-
+          .update(payload)
+          .eq('id', lessonProgressIdRef.current)
         if (error) throw error
       } else {
-        // Create new progress record
-        const supabaseInsert = supabase as any
-        const { error } = await supabaseInsert
+        const { data: inserted, error } = await db
           .from('lesson_progress')
           .insert({
             user_id: currentUser.id,
             lesson_id: lessonId,
-            completed: !isCompleted,
-            completed_at: !isCompleted ? new Date().toISOString() : null,
-            time_spent_seconds: 0,
-            last_accessed_at: new Date().toISOString()
+            time_spent_seconds: timeSpentBaseRef.current,
+            ...payload,
           })
-
+          .select()
+          .single()
         if (error) throw error
+        if (inserted) lessonProgressIdRef.current = (inserted as any).id
       }
 
-      // Update local state
-      setIsCompleted(!isCompleted)
+      setIsCompleted(completed)
+      setCompletedLessonIds((prev) => {
+        const next = new Set(prev)
+        if (completed) next.add(lessonId)
+        else next.delete(lessonId)
+        return next
+      })
 
-      // Refresh enrollment data to show updated progress
+      // Refresh enrollment (the DB trigger recomputes % and completion)
       const { data: updatedEnrollment } = await supabase
         .from('enrollments')
         .select('*')
         .eq('user_id', currentUser.id)
         .eq('course_id', courseId)
-        .single()
+        .maybeSingle()
 
       if (updatedEnrollment) {
         setEnrollment(updatedEnrollment)
+        if ((updatedEnrollment as any).progress_percentage >= 100 && !certAutoRequestedRef.current) {
+          certAutoRequestedRef.current = true
+          issueCertificate()
+        }
       }
-
     } catch (error) {
       console.error('Error updating progress:', error)
       alert('Failed to update progress. Please try again.')
     } finally {
       setSavingProgress(false)
     }
+  }
+
+  const toggleLessonComplete = () => setLessonCompletedState(!isCompleted)
+
+  // Auto-complete when the watch threshold is reached
+  const handleThresholdReached = () => {
+    if (!isCompleted) setLessonCompletedState(true)
+  }
+
+  // Issue (or fetch existing) certificate; returns the PDF URL if available
+  const issueCertificate = async (): Promise<string | null> => {
+    try {
+      setIssuingCert(true)
+      const res = await fetch('/api/certificates/issue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId }),
+      })
+      const json = await res.json().catch(() => ({}))
+      const url = json?.certificate?.certificate_url || null
+      if (url) setCertificateUrl(url)
+      return url
+    } catch (e) {
+      console.log('Certificate issuance request failed:', e)
+      return null
+    } finally {
+      setIssuingCert(false)
+    }
+  }
+
+  const handleGetCertificate = async () => {
+    const url = certificateUrl || (await issueCertificate())
+    if (url) window.open(url, '_blank')
   }
 
   const goToNextLesson = () => {
@@ -412,14 +510,6 @@ export default function LessonViewPage() {
 
   const goBackToModules = () => {
     router.push(`/learn/${courseId}`)
-  }
-
-  // Get YouTube embed URL with proper parameters
-  const getYoutubeEmbedUrl = (url: string) => {
-    if (!url) return ''
-    const videoId = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/)?.[1]
-    if (!videoId) return url
-    return `https://www.youtube.com/embed/${videoId}?enablejsapi=1&rel=0&modestbranding=1`
   }
 
   if (loading) {
@@ -496,26 +586,21 @@ export default function LessonViewPage() {
             {/* Video Player Section */}
             <div className="mb-6">
               <Card className="glass overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="aspect-video bg-black flex items-center justify-center">
-                    {lesson.video_url ? (
-                      <div className="w-full h-full">
-                        <iframe
-                          ref={videoRef as any}
-                          src={getYoutubeEmbedUrl(lesson.video_url)}
-                          className="w-full h-full"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          allowFullScreen
-                          title={lesson.title}
-                        />
-                      </div>
-                    ) : (
-                      <div className="text-center text-white">
-                        <Play className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                        <p className="text-lg opacity-75">No video available</p>
-                      </div>
-                    )}
-                  </div>
+                <CardContent className="p-3 sm:p-4">
+                  <TrackedVideoPlayer
+                    key={lessonId}
+                    videoUrl={lesson.video_url || ''}
+                    title={lesson.title}
+                    initialPositionSeconds={(lessonProgress as any)?.last_position_seconds || 0}
+                    thresholdPercent={90}
+                    onProgress={persistWatchProgress}
+                    onThresholdReached={handleThresholdReached}
+                  />
+                  {lesson.video_url && !isCompleted && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      This lesson auto-completes once you have watched about 90% of the video.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -529,14 +614,14 @@ export default function LessonViewPage() {
                 currentLessonId={lessonId}
                 videoRef={videoRef}
                 userId={currentUser?.id}
-                completedLessons={new Set([isCompleted ? lessonId : ''])}
-                onLessonClick={(lessonId) => {
-                  router.push(`/learn/${courseId}/lesson/${lessonId}`)
+                completedLessons={completedLessonIds}
+                onLessonClick={(clickedLessonId) => {
+                  router.push(`/learn/${courseId}/lesson/${clickedLessonId}`)
                 }}
-                onLessonComplete={(lessonId, completed) => {
-                  // Handle lesson completion using the existing function
-                  if (lessonId === lessonId) {
-                    toggleLessonComplete()
+                onLessonComplete={(targetLessonId, completed) => {
+                  // Only the currently open lesson can be toggled here
+                  if (targetLessonId === lessonId) {
+                    setLessonCompletedState(completed)
                   }
                 }}
               />
@@ -563,8 +648,35 @@ export default function LessonViewPage() {
                       />
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {allLessons.filter((_, i) => i < currentLessonIndex).length} of {allLessons.length} lessons completed
+                      {allLessons.filter((l) => completedLessonIds.has(l.id)).length} of {allLessons.length} lessons completed
                     </div>
+
+                    {(enrollment.progress_percentage || 0) >= 100 && (
+                      <div className="mt-2 rounded-lg border border-green-600/30 bg-green-600/5 p-4 text-center">
+                        <CheckCircle className="mx-auto mb-2 h-8 w-8 text-green-600" />
+                        <p className="text-sm font-semibold">Course complete!</p>
+                        <p className="mb-3 text-xs text-muted-foreground">
+                          You have earned your certificate of completion.
+                        </p>
+                        <Button
+                          onClick={handleGetCertificate}
+                          disabled={issuingCert}
+                          className="w-full bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+                        >
+                          {issuingCert ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Preparing...
+                            </>
+                          ) : (
+                            <>
+                              <Award className="mr-2 h-4 w-4" />
+                              {certificateUrl ? 'View Certificate' : 'Get Certificate'}
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -613,7 +725,7 @@ export default function LessonViewPage() {
                 <CardContent>
                   <div className="space-y-2">
                     {allLessons.map((l, index) => {
-                      const isPastLesson = index < currentLessonIndex
+                      const isLessonDone = completedLessonIds.has(l.id)
                       const isCurrentLesson = l.id === lesson.id
 
                       return (
@@ -628,7 +740,7 @@ export default function LessonViewPage() {
                         >
                           <div className="flex items-start gap-3">
                             <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 mt-0.5">
-                              {isPastLesson ? (
+                              {isLessonDone ? (
                                 <CheckCircle className="w-4 h-4 text-green-600" />
                               ) : (
                                 <span className="text-xs font-medium">{index + 1}</span>

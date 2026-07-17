@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // @react-pdf/renderer must not be bundled; it runs in the Node runtime
+  // for server-side certificate PDF generation.
+  serverExternalPackages: ['@react-pdf/renderer'],
 };
 
 export default nextConfig;
