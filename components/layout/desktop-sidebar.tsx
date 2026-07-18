@@ -49,6 +49,9 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
     userRole === 'superadmin'
   const canAdmin = userRole === 'admin' || userRole === 'superadmin'
   const isSuper = userRole === 'superadmin'
+  const isResourcePerson = userRole === 'resource_person'
+  // Always show Approvals for superadmin + resource_person; also assigned reviewers
+  const showApprovals = isSuper || isResourcePerson || canApprove
 
   // Ordered by everyday priority for a learner.
   const navigation: NavItem[] = [
@@ -65,15 +68,15 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
     { name: 'New Course', href: '/teach/courses/new', icon: BookOpen },
     { name: 'Analytics', href: '/teach/analytics', icon: TrendingUp },
     { name: 'Announcements', href: '/teach/announcements', icon: Bell },
-    ...(canApprove && !canAdmin
-      ? [{ name: 'Approvals', href: '/admin/approvals', icon: ClipboardCheck }]
+    ...(showApprovals && !canAdmin
+      ? [{ name: 'Approvals', href: '/admin/approvals', icon: ClipboardCheck } as NavItem]
       : []),
   ]
 
   const adminNavigation: NavItem[] = [
     { name: 'User Management', href: '/admin/users', icon: Users },
-    ...(canApprove ? [{ name: 'Approvals', href: '/admin/approvals', icon: ClipboardCheck }] : []),
-    ...(isSuper ? [{ name: 'Reviewers', href: '/admin/reviewers', icon: ShieldCheck }] : []),
+    ...(showApprovals ? [{ name: 'Approvals', href: '/admin/approvals', icon: ClipboardCheck } as NavItem] : []),
+    ...(isSuper ? [{ name: 'Reviewers', href: '/admin/reviewers', icon: ShieldCheck } as NavItem] : []),
   ]
 
   // Restore persisted collapse state and notify the layout on mount.
@@ -100,23 +103,31 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
         .eq('id', user.id)
         .single()
 
-      if (data) {
-        const p = data as any
-        const role = p.role || 'student'
-        setUserRole(role)
-        setProfile({ full_name: p.full_name, avatar_url: p.avatar_url })
+      const metaRole =
+        user?.app_metadata?.role || user?.user_metadata?.role || null
+      const profileRole = (data as any)?.role || null
+      const role =
+        profileRole === 'superadmin' || metaRole === 'superadmin'
+          ? 'superadmin'
+          : profileRole === 'resource_person' || metaRole === 'resource_person'
+            ? 'resource_person'
+            : profileRole || metaRole || 'student'
 
-        if (role === 'superadmin') {
-          setCanApprove(true)
-        } else {
-          const { data: reviewerRows } = await supabase
-            .from('registration_reviewers')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('is_active', true)
-            .limit(1)
-          setCanApprove(!!(reviewerRows && reviewerRows.length > 0))
-        }
+      setUserRole(role)
+      if (data) {
+        setProfile({ full_name: (data as any).full_name, avatar_url: (data as any).avatar_url })
+      }
+
+      if (role === 'superadmin' || role === 'resource_person') {
+        setCanApprove(true)
+      } else {
+        const { data: reviewerRows } = await supabase
+          .from('registration_reviewers')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('is_active', true)
+          .limit(1)
+        setCanApprove(!!(reviewerRows && reviewerRows.length > 0))
       }
     } catch (error) {
       console.error('Error fetching profile:', error)

@@ -118,7 +118,7 @@ export default function ApprovalsPage() {
         </h1>
         <p className="text-sm text-muted-foreground">
           Verify each applicant&apos;s identity, confirm their role, then approve or reject.
-          Only superadmin-assigned reviewers can act on each institute&apos;s queue.
+          Superadmins see all institutes; resource persons see their assigned institutes.
         </p>
       </div>
 

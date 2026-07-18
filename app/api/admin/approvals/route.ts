@@ -50,14 +50,19 @@ export async function POST(request: Request) {
 
     const safeProfile = profile as ProfileWithEmail
     const effectiveRole = resolveEffectiveRole(safeProfile.role, user)
-    const scope = await getApprovalScope(supabase, user.id, effectiveRole)
+    const scope = await getApprovalScope(
+      supabase,
+      user.id,
+      effectiveRole,
+      safeProfile.institution_id
+    )
 
     if (!scope.allowed) {
       return NextResponse.json(
         {
           error: 'Forbidden',
           message:
-            'You are not an assigned reviewer for any institution. Ask a superadmin to assign you on Reviewers.',
+            'You cannot approve registrations. Superadmin and resource persons see their queues; other users must be assigned on Reviewers.',
         },
         { status: 403 }
       )
@@ -195,14 +200,19 @@ export async function GET(request: Request) {
 
     const safeProfile = profile as ProfileWithEmail
     const effectiveRole = resolveEffectiveRole(safeProfile.role, user)
-    const scope = await getApprovalScope(supabase, user.id, effectiveRole)
+    const scope = await getApprovalScope(
+      supabase,
+      user.id,
+      effectiveRole,
+      safeProfile.institution_id
+    )
 
     if (!scope.allowed) {
       return NextResponse.json(
         {
           error: 'Forbidden',
           message:
-            'You are not an assigned reviewer for any institution. Ask a superadmin to assign you on Reviewers.',
+            'You cannot approve registrations. Superadmin and resource persons see their queues; other users must be assigned on Reviewers.',
         },
         { status: 403 }
       )

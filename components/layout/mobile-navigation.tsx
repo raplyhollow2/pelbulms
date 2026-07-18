@@ -32,6 +32,8 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
     userRole === 'superadmin'
   const canAdmin = userRole === 'admin' || userRole === 'superadmin'
   const isSuper = userRole === 'superadmin'
+  const isResourcePerson = userRole === 'resource_person'
+  const showApprovals = isSuper || isResourcePerson || canApprove
 
   const mainNavigation = [
     { name: 'Home', href: '/dashboard', icon: Home },
@@ -50,14 +52,14 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
     { name: 'New Course', href: '/teach/courses/new', icon: Plus },
     { name: 'Analytics', href: '/teach/analytics', icon: TrendingUp },
     { name: 'Announcements', href: '/teach/announcements', icon: Bell },
-    ...(canApprove && !canAdmin
+    ...(showApprovals && !canAdmin
       ? [{ name: 'Approvals', href: '/admin/approvals', icon: ClipboardCheck }]
       : []),
   ]
 
   const adminNavigation = [
     { name: 'Users', href: '/admin/users', icon: Users },
-    ...(canApprove ? [{ name: 'Approvals', href: '/admin/approvals', icon: ClipboardCheck }] : []),
+    ...(showApprovals ? [{ name: 'Approvals', href: '/admin/approvals', icon: ClipboardCheck }] : []),
     ...(isSuper ? [{ name: 'Reviewers', href: '/admin/reviewers', icon: ShieldCheck }] : []),
   ]
 
@@ -87,20 +89,28 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
         .eq('id', user.id)
         .single()
 
-      if (profile) {
-        const role = (profile as any).role || 'student'
-        setUserRole(role)
-        if (role === 'superadmin') {
-          setCanApprove(true)
-        } else {
-          const { data: reviewerRows } = await supabase
-            .from('registration_reviewers')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('is_active', true)
-            .limit(1)
-          setCanApprove(!!(reviewerRows && reviewerRows.length > 0))
-        }
+      const metaRole =
+        user?.app_metadata?.role || user?.user_metadata?.role || null
+      const profileRole = (profile as any)?.role || null
+      const role =
+        profileRole === 'superadmin' || metaRole === 'superadmin'
+          ? 'superadmin'
+          : profileRole === 'resource_person' || metaRole === 'resource_person'
+            ? 'resource_person'
+            : profileRole || metaRole || 'student'
+
+      setUserRole(role)
+
+      if (role === 'superadmin' || role === 'resource_person') {
+        setCanApprove(true)
+      } else {
+        const { data: reviewerRows } = await supabase
+          .from('registration_reviewers')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('is_active', true)
+          .limit(1)
+        setCanApprove(!!(reviewerRows && reviewerRows.length > 0))
       }
     } catch (error) {
       console.error('Error fetching user role:', error)
