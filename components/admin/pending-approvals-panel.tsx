@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
@@ -119,95 +118,111 @@ export function PendingApprovalsPanel({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-8 w-8 animate-spin text-bhutan-yellow" />
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-5 w-5 animate-spin text-bhutan-yellow" />
+        <span className="ml-2 text-sm text-muted-foreground">Loading approvals…</span>
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-1">
-        <h2 className="text-lg font-semibold">Pending registrations</h2>
-        <p className="text-sm text-muted-foreground">
-          Review KYC details, confirm the role, then approve or reject. Superadmins see all
-          institutes; resource persons see their assigned institutes.
+    <div className="space-y-3">
+      <div>
+        <h2 className="text-sm font-semibold tracking-tight sm:text-base">Pending registrations</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+          Review KYC, confirm role, then approve or reject.
         </p>
       </div>
 
       {error && (
-        <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+        <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
         </div>
       )}
 
       {!error && registrations.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <ClipboardCheck className="mb-3 h-12 w-12 text-muted-foreground" />
-            <p className="font-medium">No pending registrations</p>
-            <p className="text-sm text-muted-foreground">New submissions will appear here.</p>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl border border-dashed border-border/60 py-10 text-center">
+          <ClipboardCheck className="mx-auto mb-2 h-6 w-6 text-muted-foreground" />
+          <p className="text-sm font-medium">No pending registrations</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">New submissions will appear here.</p>
+        </div>
       ) : !error ? (
-        <div className="space-y-4">
+        <div className="space-y-2.5">
           {registrations.map((reg) => (
-            <Card key={reg.id}>
-              <CardHeader>
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <CardTitle className="text-lg">{reg.full_name}</CardTitle>
-                    <CardDescription>{reg.email}</CardDescription>
-                  </div>
-                  <Badge variant="outline">
+            <div
+              key={reg.id}
+              className="overflow-hidden rounded-xl border border-border/50 bg-card/70"
+            >
+              {/* Identity header */}
+              <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border/40 px-3 py-2.5 sm:px-4">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold leading-tight">{reg.full_name}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">{reg.email}</p>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  <Badge variant="outline" className="h-5 px-1.5 text-[10px] capitalize">
                     {reg.registration_status?.replace(/_/g, ' ') || 'pending'}
                   </Badge>
-                  <Badge variant="outline">Requested: {reg.requested_role || 'student'}</Badge>
+                  <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+                    Req: {reg.requested_role || 'student'}
+                  </Badge>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-2 text-sm sm:grid-cols-2">
-                  <span className="flex items-center gap-2">
-                    <IdCard className="h-4 w-4 text-muted-foreground" /> CID: {reg.cid_number}
+              </div>
+
+              {/* Compact KYC detail */}
+              <div className="space-y-3 px-3 py-3 sm:px-4">
+                <div className="grid gap-1.5 text-xs sm:grid-cols-2">
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <IdCard className="h-3.5 w-3.5 shrink-0" />
+                    <span className="text-foreground">CID {reg.cid_number}</span>
                   </span>
-                  <span className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-muted-foreground" /> {reg.phone_number}
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <Phone className="h-3.5 w-3.5 shrink-0" />
+                    <span className="text-foreground">{reg.phone_number}</span>
                   </span>
-                  <span className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground" /> {reg.gewog}, {reg.dzongkhag}
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <MapPin className="h-3.5 w-3.5 shrink-0" />
+                    <span className="text-foreground">
+                      {[reg.gewog, reg.dzongkhag].filter(Boolean).join(', ') || '—'}
+                    </span>
                   </span>
                   {reg.class && (
-                    <span className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" /> {reg.class}
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <FileText className="h-3.5 w-3.5 shrink-0" />
+                      <span className="text-foreground">{reg.class}</span>
                     </span>
                   )}
                 </div>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {docUrl(reg.passport_photo_url) && (
                     <a href={docUrl(reg.passport_photo_url)!} target="_blank" rel="noreferrer">
-                      <Button variant="outline" size="sm">
-                        <FileText className="mr-1 h-4 w-4" /> Passport photo
+                      <Button variant="outline" size="sm" className="h-7 gap-1 px-2 text-xs">
+                        <FileText className="h-3 w-3" /> Passport
                       </Button>
                     </a>
                   )}
                   {docUrl(reg.cid_photo_url) && (
                     <a href={docUrl(reg.cid_photo_url)!} target="_blank" rel="noreferrer">
-                      <Button variant="outline" size="sm">
-                        <IdCard className="mr-1 h-4 w-4" /> CID photo
+                      <Button variant="outline" size="sm" className="h-7 gap-1 px-2 text-xs">
+                        <IdCard className="h-3 w-3" /> CID photo
                       </Button>
                     </a>
                   )}
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-2">
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground">Assign role</label>
+                    <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Assign role
+                    </label>
                     <Select
                       value={roleChoice[reg.id] || reg.requested_role || 'student'}
-                      onValueChange={(v) => setRoleChoice((s) => ({ ...s, [reg.id]: v ?? 'student' }))}
+                      onValueChange={(v) =>
+                        setRoleChoice((s) => ({ ...s, [reg.id]: v ?? 'student' }))
+                      }
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="h-8 w-full text-xs">
                         <SelectValue>
                           {(v: string | null) =>
                             ROLE_OPTIONS.find((r) => r.value === v)?.label || 'Select role'
@@ -224,9 +239,12 @@ export function PendingApprovalsPanel({
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground">Notes (optional)</label>
+                    <label className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Notes
+                    </label>
                     <Textarea
                       rows={1}
+                      className="min-h-8 resize-none text-xs"
                       value={notes[reg.id] || ''}
                       onChange={(e) => setNotes((s) => ({ ...s, [reg.id]: e.target.value }))}
                       placeholder="Review notes / rejection reason"
@@ -236,29 +254,31 @@ export function PendingApprovalsPanel({
 
                 <div className="flex gap-2">
                   <Button
+                    size="sm"
                     disabled={busyId === reg.id}
                     onClick={() => act(reg, 'approve')}
-                    className="flex-1 bg-green-600 text-white hover:bg-green-700"
+                    className="h-8 flex-1 gap-1 bg-green-600 text-xs text-white hover:bg-green-700"
                   >
                     {busyId === reg.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
                     ) : (
                       <>
-                        <Check className="mr-1 h-4 w-4" /> Approve
+                        <Check className="h-3.5 w-3.5" /> Approve
                       </>
                     )}
                   </Button>
                   <Button
+                    size="sm"
                     disabled={busyId === reg.id}
                     variant="outline"
                     onClick={() => act(reg, 'reject')}
-                    className="flex-1 border-destructive/40 text-destructive hover:bg-destructive/10"
+                    className="h-8 flex-1 gap-1 border-destructive/40 text-xs text-destructive hover:bg-destructive/10"
                   >
-                    <X className="mr-1 h-4 w-4" /> Reject
+                    <X className="h-3.5 w-3.5" /> Reject
                   </Button>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
         </div>
       ) : null}

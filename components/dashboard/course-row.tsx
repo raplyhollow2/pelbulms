@@ -34,15 +34,15 @@ export function DashboardCourseRow({
   return (
     <Link
       href={`/learn/${id}`}
-      className={cn(
-        'group flex items-center gap-3 rounded-xl border border-border/50 bg-card/80 px-3 py-2.5 transition-all hover:border-bhutan-yellow/40 hover:bg-card hover:shadow-sm',
-        compact && 'py-2'
-      )}
-    >
+        className={cn(
+          'group flex items-center gap-2.5 rounded-lg border border-border/50 bg-card/80 px-2.5 py-2 transition-all hover:border-bhutan-yellow/40 hover:bg-card hover:shadow-sm',
+          compact && 'py-1.5'
+        )}
+      >
       <div
         className={cn(
-          'relative shrink-0 overflow-hidden rounded-lg bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20',
-          compact ? 'h-11 w-11' : 'h-14 w-14 sm:h-12 sm:w-16'
+          'relative shrink-0 overflow-hidden rounded-md bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20',
+          compact ? 'h-9 w-9' : 'h-10 w-10 sm:h-9 sm:w-12'
         )}
       >
         {image ? (
@@ -50,12 +50,12 @@ export function DashboardCourseRow({
           <img src={image} alt="" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
-            <BookOpen className="h-5 w-5 text-bhutan-orange/70" />
+            <BookOpen className="h-3.5 w-3.5 text-bhutan-orange/70" />
           </div>
         )}
         {completed && (
           <span className="absolute inset-0 flex items-center justify-center bg-green-600/80">
-            <CheckCircle2 className="h-4 w-4 text-white" />
+            <CheckCircle2 className="h-3.5 w-3.5 text-white" />
           </span>
         )}
       </div>

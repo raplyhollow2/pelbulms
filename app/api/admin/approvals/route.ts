@@ -1,72 +1,95 @@
 // @ts-nocheck - Pelsung registration tables/RPCs not fully in generated Database types
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import {
   getApprovalScope,
   resolveEffectiveRole,
 } from '@/lib/approvals-access'
-import type { Database } from '@/types/database.types'
-
-type Profile = Database['public']['Tables']['profiles']['Row']
-
-type ProfileWithEmail = Profile & {
-  email?: string
-  institution_id?: string
-}
 
 /**
  * Secure API for student registration approvals.
  *
- * Access model (enterprise / online LMS):
- * - superadmin: all institutes
- * - active registration_reviewers assignee: only their assigned institutes
- * Teachers are NOT auto-granted access — assign them on /admin/reviewers.
+ * Auth uses the user session; data reads/writes use the service client so
+ * platform admins are not blocked by institution_access-only RLS policies.
  */
 
-export async function POST(request: Request) {
+async function loadCaller() {
+  const supabase = await createSupabaseServerClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { error: NextResponse.json(
+      { error: 'Unauthorized', message: 'Authentication required' },
+      { status: 401 }
+    ) }
+  }
+
+  // Prefer service client for profile so RLS can't hide the caller's own row
+  let service
   try {
-    const supabase = await createSupabaseServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized', message: 'Authentication required' },
-        { status: 401 }
-      )
+    service = await createServiceClient()
+  } catch (e) {
+    console.error('[approvals] service client unavailable:', e)
+    return {
+      error: NextResponse.json(
+        {
+          error: 'Server misconfigured',
+          message: 'Missing SUPABASE_SERVICE_ROLE_KEY',
+        },
+        { status: 500 }
+      ),
     }
+  }
 
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id, role, institution_id, email, full_name')
-      .eq('id', user.id)
-      .single()
+  const { data: profile, error: profileError } = await service
+    .from('profiles')
+    .select('id, role, institution_id, email, full_name')
+    .eq('id', user.id)
+    .maybeSingle()
 
-    if (profileError || !profile) {
-      return NextResponse.json(
-        { error: 'Profile not found', message: 'User profile could not be loaded' },
+  if (profileError || !profile) {
+    return {
+      error: NextResponse.json(
+        {
+          error: 'Profile not found',
+          message: profileError?.message || 'User profile could not be loaded',
+        },
         { status: 404 }
-      )
+      ),
     }
+  }
 
-    const safeProfile = profile as ProfileWithEmail
-    const effectiveRole = resolveEffectiveRole(safeProfile.role, user)
-    const scope = await getApprovalScope(
-      supabase,
-      user.id,
-      effectiveRole,
-      safeProfile.institution_id
-    )
+  const effectiveRole = resolveEffectiveRole(profile.role, user)
+  const scope = await getApprovalScope(
+    service,
+    user.id,
+    effectiveRole,
+    profile.institution_id
+  )
 
-    if (!scope.allowed) {
-      return NextResponse.json(
+  if (!scope.allowed) {
+    return {
+      error: NextResponse.json(
         {
           error: 'Forbidden',
           message:
-            'You cannot approve registrations. Superadmin and resource persons see their queues; other users must be assigned on Reviewers.',
+            'You cannot approve registrations. Superadmin/admin see all queues; resource persons and assigned reviewers see their institutes.',
         },
         { status: 403 }
-      )
+      ),
     }
+  }
+
+  return { user, profile, effectiveRole, scope, service, supabase }
+}
+
+export async function POST(request: Request) {
+  try {
+    const loaded = await loadCaller()
+    if ('error' in loaded && loaded.error instanceof NextResponse) return loaded.error
+    const { scope, supabase } = loaded as any
 
     const body = await request.json()
     const { action, registrationId, reviewNotes, rejectionReason, registrationIds, assignedRole } =
@@ -102,6 +125,7 @@ export async function POST(request: Request) {
           )
         }
 
+        // RPC uses auth.uid() — must run on the user-scoped client
         const { data: approvalResult, error: approvalError } = await supabase.rpc(
           'approve_student_registration',
           {
@@ -163,11 +187,14 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Unhandled action' }, { status: 400 })
     }
 
-    return NextResponse.json({ success: true, result })
-  } catch (error) {
+    return NextResponse.json({ success: true, result, scope })
+  } catch (error: any) {
     console.error('Approval API error:', error)
     return NextResponse.json(
-      { error: 'Internal server error', message: 'An unexpected error occurred' },
+      {
+        error: 'Internal server error',
+        message: error?.message || 'An unexpected error occurred',
+      },
       { status: 500 }
     )
   }
@@ -175,54 +202,15 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const supabase = await createSupabaseServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized', message: 'Authentication required' },
-        { status: 401 }
-      )
-    }
-
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id, role, institution_id')
-      .eq('id', user.id)
-      .single()
-
-    if (profileError || !profile) {
-      return NextResponse.json(
-        { error: 'Profile not found', message: 'User profile could not be loaded' },
-        { status: 404 }
-      )
-    }
-
-    const safeProfile = profile as ProfileWithEmail
-    const effectiveRole = resolveEffectiveRole(safeProfile.role, user)
-    const scope = await getApprovalScope(
-      supabase,
-      user.id,
-      effectiveRole,
-      safeProfile.institution_id
-    )
-
-    if (!scope.allowed) {
-      return NextResponse.json(
-        {
-          error: 'Forbidden',
-          message:
-            'You cannot approve registrations. Superadmin and resource persons see their queues; other users must be assigned on Reviewers.',
-        },
-        { status: 403 }
-      )
-    }
+    const loaded = await loadCaller()
+    if ('error' in loaded && loaded.error instanceof NextResponse) return loaded.error
+    const { profile, scope, service } = loaded as any
 
     const { searchParams } = new URL(request.url)
     const institutionId = searchParams.get('institution_id')
     const status = searchParams.get('status')
 
-    let query = supabase.from('student_registrations').select('*')
+    let query = service.from('student_registrations').select('*')
 
     if (institutionId) {
       if (!scope.isSuper && !scope.institutionIds.includes(institutionId)) {
@@ -233,6 +221,14 @@ export async function GET(request: Request) {
       }
       query = query.eq('institution_id', institutionId)
     } else if (!scope.isSuper) {
+      if (!scope.institutionIds.length) {
+        return NextResponse.json({
+          success: true,
+          registrations: [],
+          statistics: null,
+          scope: { isSuper: false, institutionIds: [] },
+        })
+      }
       query = query.in('institution_id', scope.institutionIds)
     }
 
@@ -253,18 +249,22 @@ export async function GET(request: Request) {
       )
     }
 
-    const { data: stats, error: statsError } = await supabase.rpc('get_institution_stats', {
-      target_institution_id: safeProfile.institution_id,
-    })
-
-    if (statsError) {
-      console.error('Statistics query error:', statsError)
+    let stats = null
+    if (profile.institution_id) {
+      const { data, error: statsError } = await service.rpc('get_institution_stats', {
+        target_institution_id: profile.institution_id,
+      })
+      if (statsError) {
+        console.error('Statistics query error:', statsError)
+      } else {
+        stats = data
+      }
     }
 
     return NextResponse.json({
       success: true,
       registrations: registrations || [],
-      statistics: stats || null,
+      statistics: stats,
       scope: {
         isSuper: scope.isSuper,
         institutionIds: scope.isSuper ? null : scope.institutionIds,
@@ -274,10 +274,13 @@ export async function GET(request: Request) {
         status,
       },
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Approvals GET error:', error)
     return NextResponse.json(
-      { error: 'Internal server error', message: 'An unexpected error occurred' },
+      {
+        error: 'Internal server error',
+        message: error?.message || 'An unexpected error occurred',
+      },
       { status: 500 }
     )
   }

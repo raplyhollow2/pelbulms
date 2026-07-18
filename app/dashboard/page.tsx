@@ -233,7 +233,7 @@ export default function DashboardPage() {
               <span className="text-lg font-semibold tabular-nums tracking-tight sm:text-xl">
                 {s.value}
               </span>
-              <s.icon className="h-3.5 w-3.5 text-muted-foreground sm:h-4 sm:w-4" />
+              <s.icon className="h-3 w-3 text-muted-foreground" />
             </div>
             <p className="mt-0.5 truncate text-[10px] font-medium text-muted-foreground sm:text-xs">
               {s.label}
@@ -248,7 +248,7 @@ export default function DashboardPage() {
           {continueCourse?.courses && (
             <section className="overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-bhutan-yellow/10 via-card to-bhutan-orange/5">
               <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4 sm:p-5">
-                <div className="relative h-28 w-full shrink-0 overflow-hidden rounded-xl bg-muted sm:h-24 sm:w-40">
+                <div className="relative h-20 w-full shrink-0 overflow-hidden rounded-lg bg-muted sm:h-16 sm:w-28">
                   {continueThumb ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -258,18 +258,18 @@ export default function DashboardPage() {
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center">
-                      <BookOpen className="h-8 w-8 text-bhutan-orange/60" />
+                      <BookOpen className="h-5 w-5 text-bhutan-orange/60" />
                     </div>
                   )}
                 </div>
                 <div className="min-w-0 flex-1 space-y-2">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="h-3.5 w-3.5 text-bhutan-orange" />
-                    <span className="text-xs font-semibold uppercase tracking-wide text-bhutan-orange">
+                    <Sparkles className="h-3 w-3 text-bhutan-orange" />
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-bhutan-orange">
                       Continue learning
                     </span>
                   </div>
-                  <h2 className="line-clamp-2 text-base font-semibold leading-snug sm:text-lg">
+                  <h2 className="line-clamp-2 text-sm font-semibold leading-snug sm:text-base">
                     {continueCourse.courses.title}
                   </h2>
                   <div className="flex items-center gap-3">
@@ -285,10 +285,11 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <Button
-                  className="h-10 w-full shrink-0 gap-1.5 bg-bhutan-yellow text-black hover:bg-bhutan-orange sm:w-auto"
+                  size="sm"
+                  className="h-8 w-full shrink-0 gap-1.5 bg-bhutan-yellow text-black hover:bg-bhutan-orange sm:w-auto"
                   render={<Link href={`/learn/${continueCourse.courses.id}`} />}
                 >
-                  <PlayCircle className="h-4 w-4" />
+                  <PlayCircle className="h-3.5 w-3.5" />
                   Resume
                 </Button>
               </div>
@@ -390,11 +391,11 @@ export default function DashboardPage() {
               </>
             ) : (
               <Card className="border-dashed">
-                <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-                  <BookOpen className="h-10 w-10 text-muted-foreground" />
+                <CardContent className="flex flex-col items-center gap-2 py-10 text-center">
+                  <BookOpen className="h-6 w-6 text-muted-foreground" />
                   <div>
-                    <p className="font-medium">No enrollments yet</p>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <p className="text-sm font-medium">No enrollments yet</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
                       Browse the catalog and enroll to start learning.
                     </p>
                   </div>
@@ -417,26 +418,29 @@ export default function DashboardPage() {
             <div className="mt-3 space-y-2">
               <Button
                 variant="outline"
-                className="h-9 w-full justify-start gap-2"
+                size="sm"
+                className="h-8 w-full justify-start gap-2 text-xs"
                 render={<Link href="/courses" />}
               >
-                <BookOpen className="h-4 w-4" />
+                <BookOpen className="h-3.5 w-3.5" />
                 Course catalog
               </Button>
               <Button
                 variant="outline"
-                className="h-9 w-full justify-start gap-2"
+                size="sm"
+                className="h-8 w-full justify-start gap-2 text-xs"
                 render={<Link href="/learn/progress" />}
               >
-                <TrendingUp className="h-4 w-4" />
+                <TrendingUp className="h-3.5 w-3.5" />
                 My progress
               </Button>
               <Button
                 variant="outline"
-                className="h-9 w-full justify-start gap-2"
+                size="sm"
+                className="h-8 w-full justify-start gap-2 text-xs"
                 render={<Link href="/announcements" />}
               >
-                <Sparkles className="h-4 w-4" />
+                <Sparkles className="h-3.5 w-3.5" />
                 Announcements
               </Button>
             </div>

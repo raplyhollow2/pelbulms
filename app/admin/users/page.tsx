@@ -412,11 +412,9 @@ export default function AdminUsersPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-bhutan-yellow" />
-          <span className="ml-3 text-muted-foreground">Checking permissions...</span>
-        </div>
+      <div className="container mx-auto flex items-center justify-center px-4 py-16">
+        <Loader2 className="h-5 w-5 animate-spin text-bhutan-yellow" />
+        <span className="ml-2 text-sm text-muted-foreground">Loading…</span>
       </div>
     )
   }
@@ -424,63 +422,69 @@ export default function AdminUsersPage() {
   if (!canAccessPage) return null
 
   const tabCols = isSuperAdmin ? 3 : canManageUsers && canApproveRegs ? 2 : 1
+  const instructorCount = users.filter((u) => u.role === 'instructor').length
+  const studentCount = users.filter((u) => u.role === 'student').length
 
   return (
-    <div className="container mx-auto max-w-7xl space-y-6 px-4 py-8 pb-[calc(8rem+env(safe-area-inset-bottom))] lg:pb-8">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
-          <Shield className="h-7 w-7 shrink-0 text-bhutan-yellow sm:h-8 sm:w-8" />
-          <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold sm:text-3xl">Users</h1>
-            <p className="text-sm text-muted-foreground">
-              Manage accounts, approve new registrations, and assign reviewers.
-            </p>
+    <div className="container mx-auto max-w-6xl space-y-5 px-4 py-5 sm:py-7 pb-[calc(8rem+env(safe-area-inset-bottom))] lg:pb-8">
+      {/* Compact header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            Administration
+          </p>
+          <div className="mt-0.5 flex items-center gap-2">
+            <Shield className="h-4 w-4 shrink-0 text-bhutan-orange" />
+            <h1 className="truncate text-xl font-semibold tracking-tight sm:text-2xl">Users</h1>
           </div>
+          <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+            Accounts, KYC approvals, and reviewer assignments
+          </p>
         </div>
         {canManageUsers && activeTab === 'users' && (
           <Button
-            className="w-full shrink-0 sm:w-auto"
+            size="sm"
+            className="h-9 w-full shrink-0 gap-1.5 sm:w-auto"
             onClick={() => {
               setFormData({ ...EMPTY_FORM })
               setError('')
               setShowCreateForm((v) => !v)
             }}
           >
-            <UserPlus className="mr-2 h-4 w-4" />
-            Add User
+            <UserPlus className="h-3.5 w-3.5" />
+            Add user
           </Button>
         )}
       </div>
 
       <Tabs value={activeTab} onValueChange={setTab} className="w-full">
         <TabsList
-          className={`grid h-auto min-h-10 w-full max-w-full ${
+          className={`grid h-9 w-full max-w-md ${
             tabCols === 3 ? 'grid-cols-3' : tabCols === 2 ? 'grid-cols-2' : 'grid-cols-1'
           }`}
         >
           {canManageUsers && (
-            <TabsTrigger value="users" className="gap-1.5">
-              <UsersIcon className="h-4 w-4" />
+            <TabsTrigger value="users" className="gap-1.5 text-xs sm:text-sm">
+              <UsersIcon className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">All users</span>
               <span className="sm:hidden">Users</span>
             </TabsTrigger>
           )}
           {canApproveRegs && (
-            <TabsTrigger value="approvals" className="gap-1.5">
-              <ClipboardCheck className="h-4 w-4" />
+            <TabsTrigger value="approvals" className="gap-1.5 text-xs sm:text-sm">
+              <ClipboardCheck className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Approvals</span>
               <span className="sm:hidden">Approve</span>
               {pendingCount > 0 && (
-                <Badge className="ml-0.5 h-5 min-w-5 justify-center rounded-full bg-bhutan-orange px-1.5 text-[10px] text-white">
+                <Badge className="ml-0.5 h-4 min-w-4 justify-center rounded-full bg-bhutan-orange px-1 text-[10px] text-white">
                   {pendingCount}
                 </Badge>
               )}
             </TabsTrigger>
           )}
           {isSuperAdmin && (
-            <TabsTrigger value="reviewers" className="gap-1.5">
-              <ShieldCheck className="h-4 w-4" />
+            <TabsTrigger value="reviewers" className="gap-1.5 text-xs sm:text-sm">
+              <ShieldCheck className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Reviewers</span>
               <span className="sm:hidden">Assign</span>
             </TabsTrigger>
@@ -488,110 +492,94 @@ export default function AdminUsersPage() {
         </TabsList>
 
         {canApproveRegs && (
-          <TabsContent value="approvals" className="mt-6 space-y-4">
+          <TabsContent value="approvals" className="mt-5 space-y-4">
             <PendingApprovalsPanel onCountChange={setPendingCount} />
           </TabsContent>
         )}
 
         {isSuperAdmin && (
-          <TabsContent value="reviewers" className="mt-6 space-y-4">
+          <TabsContent value="reviewers" className="mt-5 space-y-4">
             <ReviewersPanel />
           </TabsContent>
         )}
 
         {canManageUsers && (
-          <TabsContent value="users" className="mt-6 space-y-6">
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-4">
-          <Card className="glass">
-            <CardHeader className="pb-1 px-3 pt-3 sm:pb-2 sm:px-6 sm:pt-6">
-              <CardTitle className="text-[11px] sm:text-xs font-medium">Total Users</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0 px-3 pb-3 sm:px-6 sm:pb-6">
-              <div className="text-xl sm:text-2xl font-bold text-bhutan-yellow">{users.length}</div>
-              <p className="hidden sm:block text-xs text-muted-foreground mt-1">Registered users</p>
-            </CardContent>
-          </Card>
-          <Card className="glass">
-            <CardHeader className="pb-1 px-3 pt-3 sm:pb-2 sm:px-6 sm:pt-6">
-              <CardTitle className="text-[11px] sm:text-xs font-medium">Instructors</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0 px-3 pb-3 sm:px-6 sm:pb-6">
-              <div className="text-xl sm:text-2xl font-bold text-blue-600">
-                {users.filter((u) => u.role === 'instructor').length}
-              </div>
-              <p className="hidden sm:block text-xs text-muted-foreground mt-1">Active teachers</p>
-            </CardContent>
-          </Card>
-          <Card className="glass">
-            <CardHeader className="pb-1 px-3 pt-3 sm:pb-2 sm:px-6 sm:pt-6">
-              <CardTitle className="text-[11px] sm:text-xs font-medium">Students</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0 px-3 pb-3 sm:px-6 sm:pb-6">
-              <div className="text-xl sm:text-2xl font-bold text-green-600">
-                {users.filter((u) => u.role === 'student').length}
-              </div>
-              <p className="hidden sm:block text-xs text-muted-foreground mt-1">Active learners</p>
-            </CardContent>
-          </Card>
+          <TabsContent value="users" className="mt-5 space-y-4">
+        {/* Dense stats strip */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          {[
+            { label: 'Total', value: users.length, color: 'text-bhutan-orange' },
+            { label: 'Instructors', value: instructorCount, color: 'text-blue-600' },
+            { label: 'Students', value: studentCount, color: 'text-green-600' },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="rounded-xl border border-border/50 bg-card/70 px-3 py-2.5"
+            >
+              <p className={`text-lg font-semibold tabular-nums tracking-tight sm:text-xl ${s.color}`}>
+                {s.value}
+              </p>
+              <p className="text-[10px] font-medium text-muted-foreground sm:text-xs">{s.label}</p>
+            </div>
+          ))}
         </div>
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by name, email or ID..."
+            placeholder="Search by name, email or ID…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 glass"
+            className="h-9 pl-9 text-sm"
           />
         </div>
 
         {error && (
-          <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-600">
+          <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-600">
             {error}
           </div>
         )}
 
         {/* Create User Form */}
         {showCreateForm && (
-          <Card className="glass-strong">
-            <CardHeader className="px-4 sm:px-6">
-              <CardTitle>Create New User</CardTitle>
-              <CardDescription>Add a new user to the platform</CardDescription>
+          <Card className="border-border/60">
+            <CardHeader className="space-y-1 px-4 py-3 sm:px-5">
+              <CardTitle className="text-base">Create user</CardTitle>
+              <CardDescription className="text-xs">Add a new account to the platform</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4 px-4 sm:px-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email *</Label>
+            <CardContent className="space-y-3 px-4 pb-4 sm:px-5">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-xs">Email *</Label>
                   <Input
                     id="email"
                     type="email"
                     placeholder="user@pelsung.bt"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="glass"
+                    className="h-9"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="full_name">Full Name *</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="full_name" className="text-xs">Full name *</Label>
                   <Input
                     id="full_name"
                     placeholder="Tashi Wangyel"
                     value={formData.full_name}
                     onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                    className="glass"
+                    className="h-9"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="role">Role *</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="role" className="text-xs">Role *</Label>
                 <Select
                   value={formData.role}
                   onValueChange={(value: any) => setFormData({ ...formData, role: value })}
                 >
-                  <SelectTrigger className="glass">
+                  <SelectTrigger className="h-9">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -606,35 +594,36 @@ export default function AdminUsersPage() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="bio">Bio (Optional)</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="bio" className="text-xs">Bio (optional)</Label>
                 <Textarea
                   id="bio"
-                  placeholder="Brief description..."
+                  placeholder="Brief description…"
                   value={formData.bio}
                   onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                  className="glass resize-none"
-                  rows={3}
+                  className="resize-none text-sm"
+                  rows={2}
                 />
               </div>
 
-              <div className="flex flex-col-reverse sm:flex-row gap-2">
-                <Button className="w-full sm:w-auto" onClick={handleCreateUser} disabled={formLoading}>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                <Button size="sm" className="h-9 w-full sm:w-auto" onClick={handleCreateUser} disabled={formLoading}>
                   {formLoading ? (
                     <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Creating...
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                      Creating…
                     </>
                   ) : (
                     <>
-                      <UserPlus className="w-4 h-4 mr-2" />
-                      Create User
+                      <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+                      Create
                     </>
                   )}
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full sm:w-auto"
+                  size="sm"
+                  className="h-9 w-full sm:w-auto"
                   onClick={() => {
                     setShowCreateForm(false)
                     setFormData({ ...EMPTY_FORM })
@@ -649,46 +638,49 @@ export default function AdminUsersPage() {
           </Card>
         )}
 
-        {/* Users List */}
-        <Card className="glass-strong">
-          <CardHeader className="px-4 sm:px-6">
-            <CardTitle>All Users</CardTitle>
-            <CardDescription>
-              {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'} found
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-3 sm:px-6">
-            <div className="space-y-3">
+        {/* Users List — dense rows */}
+        <div className="overflow-hidden rounded-xl border border-border/50 bg-card/70">
+          <div className="flex items-center justify-between border-b border-border/40 px-3 py-2.5 sm:px-4">
+            <h2 className="text-sm font-semibold tracking-tight">Directory</h2>
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'}
+            </span>
+          </div>
+          <div className="divide-y divide-border/40">
               {filteredUsers.map((user) => (
                 <div
                   key={user.id}
-                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 bg-background/50 rounded-lg hover:bg-background/70 transition-colors"
+                  className="flex flex-col gap-2.5 px-3 py-2.5 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:px-4"
                 >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <Avatar className="w-10 h-10 shrink-0">
+                  <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                    <Avatar className="h-8 w-8 shrink-0">
                       <AvatarImage src={user.avatar_url || undefined} alt={user.full_name || 'User'} />
-                      <AvatarFallback className="bg-bhutan-yellow/20 text-bhutan-yellow font-semibold">
+                      <AvatarFallback className="bg-bhutan-yellow/15 text-[10px] font-semibold text-bhutan-orange">
                         {getInitials(user.full_name)}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-medium truncate">{user.full_name || 'No name'}</p>
-                        <Badge className={roleBadgeColor(user.role)}>{roleLabel(user.role)}</Badge>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <p className="truncate text-sm font-medium leading-tight">
+                          {user.full_name || 'No name'}
+                        </p>
+                        <Badge className={`h-5 px-1.5 text-[10px] ${roleBadgeColor(user.role)}`}>
+                          {roleLabel(user.role)}
+                        </Badge>
                       </div>
-                      <p className="text-xs text-muted-foreground truncate">
+                      <p className="truncate text-[11px] text-muted-foreground">
                         {(user as any).email || user.id}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <div className="flex items-center gap-1.5 sm:w-auto">
                     <Select
                       value={user.role}
                       onValueChange={(value) => handleUpdateRole(user.id, value as Role)}
                       disabled={user.role === 'superadmin' && !isSuperAdmin}
                     >
-                      <SelectTrigger className="flex-1 sm:w-36">
+                      <SelectTrigger className="h-8 flex-1 text-xs sm:w-32">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -705,10 +697,11 @@ export default function AdminUsersPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="shrink-0"
+                      className="h-8 w-8 shrink-0 p-0"
                       onClick={() => openEdit(user)}
+                      title="Edit details"
                     >
-                      <Pencil className="w-4 h-4" />
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
 
                     <AlertDialog>
@@ -717,22 +710,22 @@ export default function AdminUsersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-red-600 hover:text-red-700 shrink-0"
+                            className="h-8 w-8 shrink-0 p-0 text-red-600 hover:text-red-700"
                             disabled={user.id === currentUser?.id}
                           />
                         }
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </AlertDialogTrigger>
                       <AlertDialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Delete User?</AlertDialogTitle>
-                          <AlertDialogDescription>
+                          <AlertDialogTitle className="text-base">Delete user?</AlertDialogTitle>
+                          <AlertDialogDescription className="text-sm">
                             This permanently deletes {user.full_name || 'this user'} and their account.
-                            This action cannot be undone.
+                            This cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
-                        <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+                        <AlertDialogFooter className="flex-col-reverse gap-2 sm:flex-row">
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => handleDeleteUser(user.id)}
@@ -748,35 +741,40 @@ export default function AdminUsersPage() {
               ))}
 
               {filteredUsers.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="px-4 py-10 text-center text-sm text-muted-foreground">
                   No users found. Try adjusting your search.
                 </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
           </TabsContent>
         )}
       </Tabs>
 
-      {/* Edit User Dialog */}
+      {/* Edit User — compact detail panel */}
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
-        <DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-lg max-h-[90dvh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
-            <DialogDescription>Update profile details and picture</DialogDescription>
+        <DialogContent className="max-h-[90dvh] max-w-[calc(100%-2rem)] gap-0 overflow-y-auto p-0 sm:max-w-md">
+          <DialogHeader className="space-y-1 border-b border-border/50 px-4 py-3 sm:px-5">
+            <DialogTitle className="text-base">User details</DialogTitle>
+            <DialogDescription className="text-xs">
+              Update profile, role, and photo
+            </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {/* Avatar */}
-            <div className="flex items-center gap-4">
-              <Avatar className="w-20 h-20 shrink-0">
+          <div className="space-y-3 px-4 py-4 sm:px-5">
+            {/* Compact identity row */}
+            <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-muted/20 p-2.5">
+              <Avatar className="h-11 w-11 shrink-0">
                 <AvatarImage src={editData.avatar_url || undefined} alt={editData.full_name} />
-                <AvatarFallback className="bg-bhutan-yellow/20 text-bhutan-yellow font-semibold text-xl">
+                <AvatarFallback className="bg-bhutan-yellow/15 text-sm font-semibold text-bhutan-orange">
                   {getInitials(editData.full_name)}
                 </AvatarFallback>
               </Avatar>
-              <div className="space-y-2 min-w-0">
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="truncate text-sm font-medium leading-tight">
+                  {editData.full_name || 'Unnamed'}
+                </p>
+                <p className="truncate text-[11px] text-muted-foreground">{editData.email}</p>
                 <input
                   ref={avatarInputRef}
                   type="file"
@@ -791,83 +789,91 @@ export default function AdminUsersPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-2"
+                  className="h-7 gap-1.5 px-2 text-xs"
                   disabled={uploadingAvatar}
                   onClick={() => avatarInputRef.current?.click()}
                 >
                   {uploadingAvatar ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
-                    <Camera className="w-4 h-4" />
+                    <Camera className="h-3 w-3" />
                   )}
-                  {uploadingAvatar ? 'Uploading...' : 'Change Picture'}
+                  {uploadingAvatar ? 'Uploading…' : 'Change photo'}
                 </Button>
-                <p className="text-xs text-muted-foreground">JPG, PNG, WEBP or GIF, up to 5MB</p>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit_name">Full Name</Label>
-              <Input
-                id="edit_name"
-                value={editData.full_name}
-                onChange={(e) => setEditData({ ...editData, full_name: e.target.value })}
-              />
-            </div>
+            <div className="grid gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_name" className="text-xs">Full name</Label>
+                <Input
+                  id="edit_name"
+                  className="h-9"
+                  value={editData.full_name}
+                  onChange={(e) => setEditData({ ...editData, full_name: e.target.value })}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit_email">Email</Label>
-              <Input id="edit_email" value={editData.email} disabled className="bg-muted" />
-              <p className="text-xs text-muted-foreground">Email cannot be changed here</p>
-            </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_email" className="text-xs">Email</Label>
+                <Input id="edit_email" value={editData.email} disabled className="h-9 bg-muted text-sm" />
+                <p className="text-[10px] text-muted-foreground">Email cannot be changed here</p>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit_role">Role</Label>
-              <Select
-                value={editData.role}
-                onValueChange={(value: any) => setEditData({ ...editData, role: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="student">Student</SelectItem>
-                  <SelectItem value="instructor">Instructor</SelectItem>
-                  <SelectItem value="resource_person">Resource Person</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  {(isSuperAdmin || editData.role === 'superadmin') && (
-                    <SelectItem value="superadmin">Super Admin</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_role" className="text-xs">Role</Label>
+                <Select
+                  value={editData.role}
+                  onValueChange={(value: any) => setEditData({ ...editData, role: value })}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="student">Student</SelectItem>
+                    <SelectItem value="instructor">Instructor</SelectItem>
+                    <SelectItem value="resource_person">Resource Person</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    {(isSuperAdmin || editData.role === 'superadmin') && (
+                      <SelectItem value="superadmin">Super Admin</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="edit_bio">Bio</Label>
-              <Textarea
-                id="edit_bio"
-                value={editData.bio}
-                onChange={(e) => setEditData({ ...editData, bio: e.target.value })}
-                rows={3}
-                className="resize-none"
-              />
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_bio" className="text-xs">Bio</Label>
+                <Textarea
+                  id="edit_bio"
+                  value={editData.bio}
+                  onChange={(e) => setEditData({ ...editData, bio: e.target.value })}
+                  rows={2}
+                  className="resize-none text-sm"
+                />
+              </div>
             </div>
 
             {editError && <p className="text-sm text-red-600">{editError}</p>}
           </div>
 
-          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setEditingUser(null)} disabled={editLoading}>
+          <DialogFooter className="flex-col-reverse gap-2 border-t border-border/50 px-4 py-3 sm:flex-row sm:px-5">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9"
+              onClick={() => setEditingUser(null)}
+              disabled={editLoading}
+            >
               Cancel
             </Button>
-            <Button onClick={handleSaveEdit} disabled={editLoading}>
+            <Button size="sm" className="h-9" onClick={handleSaveEdit} disabled={editLoading}>
               {editLoading ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Saving...
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Saving…
                 </>
               ) : (
-                'Save Changes'
+                'Save changes'
               )}
             </Button>
           </DialogFooter>
