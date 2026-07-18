@@ -20,6 +20,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { resolveMediaUrl } from '@/lib/media'
 import { cn, haptic, warning as hapticWarning, tap as hapticTap } from '@/lib/utils'
+import { NotificationBell } from '@/components/layout/notification-bell'
 
 interface DesktopSidebarProps {
   user?: any
@@ -253,26 +254,34 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
 
         {/* Profile */}
         <div className="shrink-0 border-b border-border/40 p-3">
-          <Link
-            href="/profile"
+          <div
             className={cn(
-              'flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted',
-              collapsed && 'justify-center'
+              'flex items-center gap-2',
+              collapsed && 'flex-col'
             )}
           >
-            <Avatar className="h-9 w-9 shrink-0">
-              <AvatarImage src={resolveMediaUrl(profile?.avatar_url) || undefined} alt={displayName} />
-              <AvatarFallback className="bg-bhutan-yellow font-semibold text-black">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            {!collapsed && (
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{displayName}</p>
-                <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
-              </div>
-            )}
-          </Link>
+            <Link
+              href="/profile"
+              className={cn(
+                'flex min-w-0 flex-1 items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted',
+                collapsed && 'justify-center'
+              )}
+            >
+              <Avatar className="h-9 w-9 shrink-0">
+                <AvatarImage src={resolveMediaUrl(profile?.avatar_url) || undefined} alt={displayName} />
+                <AvatarFallback className="bg-bhutan-yellow font-semibold text-black">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              {!collapsed && (
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{displayName}</p>
+                  <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+                </div>
+              )}
+            </Link>
+            <NotificationBell compact={collapsed} />
+          </div>
         </div>
 
         {/* Navigation */}

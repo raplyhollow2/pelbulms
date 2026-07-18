@@ -196,5 +196,18 @@ export async function POST(request: Request) {
     })
     .eq('id', user.id)
 
+  // Alert superadmins, admins, resource persons, and assigned reviewers
+  try {
+    const { notifyApproversOfRegistration } = await import('@/lib/notify-approvers')
+    await notifyApproversOfRegistration(service, {
+      applicantName: full_name.trim(),
+      applicantEmail: user.email,
+      institutionId: institution_id,
+      registrationUserId: user.id,
+    })
+  } catch (notifyErr) {
+    console.error('[register] notification fan-out failed:', notifyErr)
+  }
+
   return NextResponse.json({ success: true, message: 'Registration submitted for review.' })
 }

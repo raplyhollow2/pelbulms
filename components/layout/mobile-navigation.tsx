@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { createClient } from '@/lib/supabase/client'
 import { cn, haptic, warning as hapticWarning } from '@/lib/utils'
+import { NotificationBell } from '@/components/layout/notification-bell'
 
 interface MobileNavigationProps {
   user?: any
@@ -217,18 +218,19 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted" />
 
-            <div className="flex items-center gap-3 p-3 mb-4 rounded-xl bg-muted/60">
-              <Avatar className="w-11 h-11 bg-bhutan-yellow shrink-0">
-                <AvatarFallback className="bg-bhutan-yellow text-black font-semibold">
+            <div className="mb-4 flex items-center gap-3 rounded-xl bg-muted/60 p-3">
+              <Avatar className="h-11 w-11 shrink-0 bg-bhutan-yellow">
+                <AvatarFallback className="bg-bhutan-yellow font-semibold text-black">
                   {user?.email?.[0]?.toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">
                   {user?.user_metadata?.full_name || user?.email?.split('@')[0]}
                 </p>
-                <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
               </div>
+              <NotificationBell compact />
             </div>
 
             <button
