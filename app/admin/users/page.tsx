@@ -181,9 +181,13 @@ export default function AdminUsersPage() {
       ) as Role
 
       const manage = role === 'admin' || role === 'superadmin'
-      let approve = role === 'superadmin' || role === 'resource_person'
+      // Admins and superadmins always manage the approval queue; RPs and assigned reviewers too.
+      let approve =
+        role === 'superadmin' ||
+        role === 'admin' ||
+        role === 'resource_person'
 
-      if (!approve && role !== 'student') {
+      if (!approve) {
         const { data: reviewerRows } = await supabase
           .from('registration_reviewers')
           .select('id')
@@ -224,6 +228,31 @@ export default function AdminUsersPage() {
       }
 
       if (manage) await fetchUsers()
+
+      // Prefetch pending count so the Approvals tab badge is visible immediately
+      if (approve) {
+        try {
+          const res = await fetch('/api/admin/approvals')
+          if (res.ok) {
+            const data = await res.json()
+            const pendingStatuses = new Set([
+              'submitted',
+              'under_review',
+              'additional_info_requested',
+            ])
+            const count = (data.registrations || []).filter((r: any) =>
+              pendingStatuses.has(r.registration_status)
+            ).length
+            setPendingCount(count)
+            // Surface Approvals first when there is work waiting
+            if (count > 0 && !requested) {
+              setActiveTab('approvals')
+            }
+          }
+        } catch {
+          // ignore badge prefetch errors
+        }
+      }
     } catch (err) {
       console.error('Error checking admin access:', err)
       router.push('/dashboard')
@@ -426,7 +455,7 @@ export default function AdminUsersPage() {
 
       <Tabs value={activeTab} onValueChange={setTab} className="w-full">
         <TabsList
-          className={`grid w-full ${
+          className={`grid h-auto min-h-10 w-full max-w-full ${
             tabCols === 3 ? 'grid-cols-3' : tabCols === 2 ? 'grid-cols-2' : 'grid-cols-1'
           }`}
         >

@@ -2,9 +2,8 @@
  * Registration approval access.
  *
  * Who may approve:
- *   1. superadmin — all institutes
- *   2. resource_person — institutes they are assigned to (resource_person_id,
- *      profiles.institution_id, or institution_access)
+ *   1. superadmin / admin — all institutes
+ *   2. resource_person — institutes they are assigned to
  *   3. active registration_reviewers row — explicitly assigned helpers
  *
  * Regular instructors are NOT auto-approvers unless assigned as reviewers.
@@ -27,7 +26,7 @@ export function resolveEffectiveRole(
   const profile = profileRole || null
 
   // Prefer elevated roles from either source so stale profile sync can't lock out superadmin.
-  const elevated = ['superadmin', 'resource_person', 'admin'] as const
+  const elevated = ['superadmin', 'admin', 'resource_person'] as const
   for (const r of elevated) {
     if (profile === r || meta === r) {
       if (profile && meta && profile !== meta) {
@@ -45,12 +44,16 @@ export function resolveEffectiveRole(
   return profile || meta || 'student'
 }
 
+export function isGlobalApproverRole(role: string | null | undefined): boolean {
+  return role === 'superadmin' || role === 'admin'
+}
+
 export function isSuperadminRole(role: string | null | undefined): boolean {
   return role === 'superadmin'
 }
 
 export function canSeeApprovalsNav(role: string | null | undefined, assignedReviewer: boolean): boolean {
-  return role === 'superadmin' || role === 'resource_person' || assignedReviewer
+  return isGlobalApproverRole(role) || role === 'resource_person' || assignedReviewer
 }
 
 /** Coarse gate: may open the approvals API at all */
@@ -60,7 +63,8 @@ export async function getApprovalScope(
   role: string,
   profileInstitutionId?: string | null
 ) {
-  if (isSuperadminRole(role)) {
+  // Platform admins see every institute's queue
+  if (isGlobalApproverRole(role)) {
     return { allowed: true as const, isSuper: true as const, institutionIds: [] as string[] }
   }
 

@@ -59,7 +59,7 @@ export function PendingApprovalsPanel({
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/admin/approvals?status=submitted')
+      const res = await fetch('/api/admin/approvals')
       const data = await res.json()
       if (res.status === 403) {
         throw new Error(
@@ -68,7 +68,10 @@ export function PendingApprovalsPanel({
         )
       }
       if (!res.ok) throw new Error(data.error || data.message || 'Failed to load')
-      const list = data.registrations || []
+      const pendingStatuses = new Set(['submitted', 'under_review', 'additional_info_requested'])
+      const list = (data.registrations || []).filter((r: Registration) =>
+        pendingStatuses.has(r.registration_status)
+      )
       setRegistrations(list)
       onCountChange?.(list.length)
     } catch (e: any) {
@@ -156,6 +159,9 @@ export function PendingApprovalsPanel({
                     <CardTitle className="text-lg">{reg.full_name}</CardTitle>
                     <CardDescription>{reg.email}</CardDescription>
                   </div>
+                  <Badge variant="outline">
+                    {reg.registration_status?.replace(/_/g, ' ') || 'pending'}
+                  </Badge>
                   <Badge variant="outline">Requested: {reg.requested_role || 'student'}</Badge>
                 </div>
               </CardHeader>
