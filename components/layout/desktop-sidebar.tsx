@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   Home, BookOpen, GraduationCap, Settings, User,
   ChevronLeft, ChevronRight, LogOut, Search, TrendingUp, Users,
-  ClipboardCheck, ShieldCheck, Bell,
+  Bell,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -69,14 +69,12 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
     { name: 'Analytics', href: '/teach/analytics', icon: TrendingUp },
     { name: 'Announcements', href: '/teach/announcements', icon: Bell },
     ...(showApprovals && !canAdmin
-      ? [{ name: 'Approvals', href: '/admin/approvals', icon: ClipboardCheck } as NavItem]
+      ? [{ name: 'Users', href: '/admin/users?tab=approvals', icon: Users } as NavItem]
       : []),
   ]
 
   const adminNavigation: NavItem[] = [
-    { name: 'User Management', href: '/admin/users', icon: Users },
-    ...(showApprovals ? [{ name: 'Approvals', href: '/admin/approvals', icon: ClipboardCheck } as NavItem] : []),
-    ...(isSuper ? [{ name: 'Reviewers', href: '/admin/reviewers', icon: ShieldCheck } as NavItem] : []),
+    { name: 'Users', href: '/admin/users', icon: Users },
   ]
 
   // Restore persisted collapse state and notify the layout on mount.

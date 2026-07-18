@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   Home, BookOpen, GraduationCap, User,
   Menu, X, LogOut, Settings, Search,
-  Bell, TrendingUp, Users, Plus, ClipboardCheck, ShieldCheck
+  Bell, TrendingUp, Users, Plus
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -53,14 +53,12 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
     { name: 'Analytics', href: '/teach/analytics', icon: TrendingUp },
     { name: 'Announcements', href: '/teach/announcements', icon: Bell },
     ...(showApprovals && !canAdmin
-      ? [{ name: 'Approvals', href: '/admin/approvals', icon: ClipboardCheck }]
+      ? [{ name: 'Users', href: '/admin/users?tab=approvals', icon: Users }]
       : []),
   ]
 
   const adminNavigation = [
     { name: 'Users', href: '/admin/users', icon: Users },
-    ...(showApprovals ? [{ name: 'Approvals', href: '/admin/approvals', icon: ClipboardCheck }] : []),
-    ...(isSuper ? [{ name: 'Reviewers', href: '/admin/reviewers', icon: ShieldCheck }] : []),
   ]
 
   useEffect(() => {
