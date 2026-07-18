@@ -10,8 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { Separator } from '@/components/ui/separator'
-import { ArrowLeft, Loader2, Save, Play, Edit, Clock, FileText, BookOpen, CheckCircle2, Link, UploadCloud, Lock, Trash2 } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, Edit, Clock, FileText, BookOpen, CheckCircle2, Link, UploadCloud, Lock, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { resolveMediaUrl, parseMediaRef } from '@/lib/media'
 import type { Database } from '@/types/database.types'
@@ -354,139 +353,123 @@ export default function LessonEditPage() {
           </CardContent>
         </Card>
 
-        {/* Video Content Card */}
+        {/* Video Content Card — one control: YouTube URL or private upload */}
         <Card className="glass">
           <CardHeader className="pb-4">
-            <CardTitle className="text-lg">Video Content</CardTitle>
-            <CardDescription className="text-sm">Add video content for this lesson</CardDescription>
+            <CardTitle className="text-lg">Lesson video</CardTitle>
+            <CardDescription className="text-sm">
+              Paste a YouTube link or upload a private video — one field for either.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Private upload (recommended) */}
+            <input
+              ref={videoInputRef}
+              type="file"
+              accept="video/mp4,video/webm,video/ogg,video/quicktime"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) uploadLessonVideo(f)
+              }}
+            />
+
             <div className="space-y-2">
-              <Label className="text-sm flex items-center gap-1">
-                <Lock className="w-3 h-3" />
-                Private video upload (recommended)
+              <Label htmlFor="video-url" className="text-sm">
+                Video (YouTube link or upload)
               </Label>
-              <input
-                ref={videoInputRef}
-                type="file"
-                accept="video/mp4,video/webm,video/ogg,video/quicktime"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0]
-                  if (f) uploadLessonVideo(f)
-                }}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="video-url"
+                  value={parseMediaRef(lesson.video_url) ? '' : lesson.video_url || ''}
+                  onChange={(e) => setLesson({ ...lesson, video_url: e.target.value })}
+                  onBlur={() => {
+                    if (!parseMediaRef(lesson.video_url)) {
+                      updateLesson({ video_url: lesson.video_url })
+                    }
+                  }}
+                  placeholder="https://youtube.com/watch?v=… or upload →"
+                  className="flex-1"
+                  disabled={!!parseMediaRef(lesson.video_url) || uploadingVideo}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0 gap-1.5"
+                  disabled={uploadingVideo}
+                  onClick={() => videoInputRef.current?.click()}
+                >
+                  {uploadingVideo ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <UploadCloud className="h-4 w-4" />
+                  )}
+                  <span className="hidden sm:inline">Upload</span>
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Private uploads are streamed through your site (recommended for confidential content).
+                YouTube links remain discoverable in the browser.
+              </p>
               {videoUploadError && (
                 <p className="text-sm text-destructive">{videoUploadError}</p>
               )}
-              {parseMediaRef(lesson.video_url)?.type === 'video' ? (
-                <div className="space-y-2 rounded-lg border p-3">
-                  <div className="aspect-video bg-black rounded-lg overflow-hidden">
-                    <video
-                      src={resolveMediaUrl(lesson.video_url) || undefined}
-                      controls
-                      controlsList="nodownload"
-                      onContextMenu={(e) => e.preventDefault()}
-                      className="w-full h-full"
-                    />
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Lock className="w-3 h-3" /> Private · streamed through your site
-                    </span>
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={uploadingVideo}
-                        onClick={() => videoInputRef.current?.click()}
-                      >
-                        {uploadingVideo ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Replace'}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={removeLessonVideo}
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
+            </div>
+
+            {parseMediaRef(lesson.video_url)?.type === 'video' && (
+              <div className="space-y-2 rounded-lg border p-3">
+                <div className="aspect-video overflow-hidden rounded-lg bg-black">
+                  <video
+                    src={resolveMediaUrl(lesson.video_url) || undefined}
+                    controls
+                    controlsList="nodownload"
+                    onContextMenu={(e) => e.preventDefault()}
+                    className="h-full w-full"
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Lock className="h-3 w-3" /> Private · streamed through your site
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={uploadingVideo}
+                      onClick={() => videoInputRef.current?.click()}
+                    >
+                      {uploadingVideo ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Replace'}
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={removeLessonVideo}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
                   </div>
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  disabled={uploadingVideo}
-                  onClick={() => videoInputRef.current?.click()}
-                  className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-bhutan-yellow hover:text-foreground disabled:opacity-60"
-                >
-                  {uploadingVideo ? (
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  ) : (
-                    <UploadCloud className="w-6 h-6" />
-                  )}
-                  <span className="text-sm font-medium">
-                    {uploadingVideo ? 'Uploading & compressing...' : 'Upload lesson video'}
-                  </span>
-                  <span className="text-xs">MP4, WEBM, OGG or MOV · up to 100MB · auto-compressed</span>
-                </button>
-              )}
-            </div>
+              </div>
+            )}
 
-            <div className="relative">
-              <Separator />
-              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
-                or
-              </span>
-            </div>
-
-            <div>
-              <Label htmlFor="video-url" className="text-sm flex items-center gap-1">
-                <Link className="w-3 h-3" />
-                YouTube URL
-              </Label>
-              <Input
-                id="video-url"
-                value={parseMediaRef(lesson.video_url) ? '' : lesson.video_url || ''}
-                onChange={(e) => setLesson({ ...lesson, video_url: e.target.value })}
-                onBlur={() => updateLesson({ video_url: lesson.video_url })}
-                placeholder="https://youtube.com/watch?v=..."
-                className="mt-1"
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Note: YouTube links can be discovered in the browser. Use the private upload above for confidential content.
-              </p>
-            </div>
-
-            {/* YouTube preview */}
             {lesson.video_url && getYoutubeId(lesson.video_url) && (
-              <div className="p-3 bg-muted/30 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-2">Video Preview:</p>
-                <div className="aspect-video bg-black rounded-lg overflow-hidden">
+              <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+                <div className="aspect-video overflow-hidden rounded-lg bg-black">
                   <iframe
                     src={`https://www.youtube.com/embed/${getYoutubeId(lesson.video_url)}?enablejsapi=1&rel=0&modestbranding=1`}
-                    className="w-full h-full"
+                    className="h-full w-full"
                     allowFullScreen
                     title={lesson.title || 'Lesson video'}
                   />
                 </div>
-                <div className="mt-2 flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.open(lesson.video_url || '', '_blank')}
-                  >
-                    <Play className="w-3 h-3 mr-1" />
-                    Open in YouTube
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Link className="h-3 w-3" /> YouTube
+                  </span>
+                  <Button type="button" variant="ghost" size="sm" onClick={removeLessonVideo}>
+                    <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="duration" className="text-sm flex items-center gap-1">
                   <Clock className="w-3 h-3" />

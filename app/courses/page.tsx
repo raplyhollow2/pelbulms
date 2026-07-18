@@ -249,8 +249,8 @@ export default function CoursesPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="space-y-8">
+    <div className="container mx-auto px-4 py-8 pb-4 lg:pb-8">
+      <div className="space-y-6 sm:space-y-8">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
@@ -272,7 +272,7 @@ export default function CoursesPage() {
         </div>
 
         {/* Search and Filters */}
-        <div className="space-y-4">
+        <div className="space-y-5">
           {/* Search Bar with Mobile Filters */}
           <div className="flex gap-3">
             <div className="relative flex-1">
@@ -289,22 +289,22 @@ export default function CoursesPage() {
             {/* Mobile Filter Sheet */}
             <Sheet>
               <SheetTrigger>
-                <Button variant="outline" size="icon" className="lg:hidden">
+                <Button variant="outline" size="icon" className="lg:hidden h-12 w-12 shrink-0">
                   <Filter className="w-5 h-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent>
+              <SheetContent className="pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
                 <SheetHeader>
                   <SheetTitle>Filters</SheetTitle>
                   <SheetDescription>
                     Refine your course search
                   </SheetDescription>
                 </SheetHeader>
-                <div className="space-y-4 pt-4">
+                <div className="space-y-5 pt-6">
                   <div>
                     <label className="text-sm font-medium mb-2 block">Category</label>
                     <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -320,7 +320,7 @@ export default function CoursesPage() {
                   <div>
                     <label className="text-sm font-medium mb-2 block">Level</label>
                     <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -338,12 +338,12 @@ export default function CoursesPage() {
           </div>
 
           {/* Mobile / tablet one-tap category chips */}
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-hide lg:hidden">
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 py-1 scrollbar-hide lg:hidden">
             {categories.map((category: any) => (
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
-                className={`shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                className={`shrink-0 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors ${
                   selectedCategory === category
                     ? 'border-transparent bg-gradient-to-r from-bhutan-yellow to-bhutan-orange text-black'
                     : 'border-border/60 bg-background/60 text-muted-foreground'

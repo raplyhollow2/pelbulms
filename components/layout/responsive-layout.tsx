@@ -47,7 +47,7 @@ export function ResponsiveLayout({ children, user }: ResponsiveLayoutProps) {
         }`}
       >
         {/* Mobile bottom nav clearance; key on route for smooth enter animation */}
-        <div key={pathname} className="page-shell page-enter pb-28 lg:pb-0">
+        <div key={pathname} className="page-shell page-enter pb-[calc(8rem+env(safe-area-inset-bottom))] lg:pb-0">
           {children}
         </div>
       </main>

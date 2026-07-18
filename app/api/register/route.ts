@@ -21,10 +21,37 @@ export async function GET() {
 
   const service = await createServiceClient()
 
-  const { data: institutions } = await service
-    .from('institutions')
-    .select('id, name, slug')
-    .order('name', { ascending: true })
+  const shortLabel = (i: { name?: string; slug?: string; display_name?: string | null }) => {
+    if (i.display_name?.trim()) return i.display_name.trim()
+    if (i.slug === 'pelsung') return 'Pelsung'
+    const name = (i.name || '').trim()
+    if (name.includes(' - ')) return name.split(' - ')[0].trim()
+    return name || i.slug || 'Institution'
+  }
+
+  let institutions: any[] | null = null
+  {
+    const withDisplay = await service
+      .from('institutions')
+      .select('id, name, slug, display_name')
+      .order('name', { ascending: true })
+    if (!withDisplay.error) {
+      institutions = withDisplay.data
+    } else {
+      const fallback = await service
+        .from('institutions')
+        .select('id, name, slug')
+        .order('name', { ascending: true })
+      institutions = fallback.data
+    }
+  }
+
+  const institutionsForUi = (institutions || []).map((i: any) => ({
+    id: i.id,
+    slug: i.slug,
+    name: shortLabel(i),
+    display_name: shortLabel(i),
+  }))
 
   const { data: registration } = await service
     .from('student_registrations')
@@ -40,7 +67,7 @@ export async function GET() {
 
   return NextResponse.json({
     user: { id: user.id, email: user.email, full_name: user.user_metadata?.full_name || '' },
-    institutions: institutions || [],
+    institutions: institutionsForUi,
     registration: registration || null,
     account_status: profile?.account_status || 'pending',
   })

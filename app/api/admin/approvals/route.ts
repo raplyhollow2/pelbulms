@@ -1,27 +1,26 @@
 // @ts-nocheck - Pelsung registration tables/RPCs not fully in generated Database types
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import {
+  getApprovalScope,
+  resolveEffectiveRole,
+} from '@/lib/approvals-access'
 import type { Database } from '@/types/database.types'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
-// Extended profile type with additional fields from the query
 type ProfileWithEmail = Profile & {
   email?: string
   institution_id?: string
 }
 
 /**
- * Secure API Route for Student Registration Approvals
+ * Secure API for student registration approvals.
  *
- * This is the ONLY endpoint that should handle approval operations.
- * All client-side components must call this API instead of direct DB operations.
- *
- * Security Features:
- * - Server-side validation of user permissions
- * - Calls secure RPC functions with SECURITY DEFINER
- * - No direct database writes from client-side
- * - Comprehensive audit logging
+ * Access model (enterprise / online LMS):
+ * - superadmin: all institutes
+ * - active registration_reviewers assignee: only their assigned institutes
+ * Teachers are NOT auto-granted access — assign them on /admin/reviewers.
  */
 
 export async function POST(request: Request) {
@@ -36,7 +35,6 @@ export async function POST(request: Request) {
       )
     }
 
-    // Get user profile to check permissions
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('id, role, institution_id, email, full_name')
@@ -50,64 +48,65 @@ export async function POST(request: Request) {
       )
     }
 
-    // Type guard to ensure profile exists
     const safeProfile = profile as ProfileWithEmail
+    const effectiveRole = resolveEffectiveRole(safeProfile.role, user)
+    const scope = await getApprovalScope(supabase, user.id, effectiveRole)
 
-    // Only a superadmin or a superadmin-assigned reviewer may act. The RPC does
-    // the fine-grained per-institution check; this is a coarse gate.
-    const isSuper = safeProfile.role === 'superadmin'
-    if (!isSuper) {
-      const { data: reviewerRows } = await supabase
-        .from('registration_reviewers')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .limit(1)
-      if (!reviewerRows || reviewerRows.length === 0) {
-        return NextResponse.json(
-          { error: 'Forbidden', message: 'You are not an assigned reviewer' },
-          { status: 403 }
-        )
-      }
+    if (!scope.allowed) {
+      return NextResponse.json(
+        {
+          error: 'Forbidden',
+          message:
+            'You are not an assigned reviewer for any institution. Ask a superadmin to assign you on Reviewers.',
+        },
+        { status: 403 }
+      )
     }
 
-    // Parse request body
     const body = await request.json()
-    const { action, registrationId, userId, reviewNotes, rejectionReason, registrationIds, assignedRole } = body
+    const { action, registrationId, reviewNotes, rejectionReason, registrationIds, assignedRole } =
+      body
 
-    // Validate action parameter
-    if (!action || !['approve', 'reject', 'request_info', 'bulk_approve', 'bulk_reject'].includes(action)) {
+    if (
+      !action ||
+      !['approve', 'reject', 'request_info', 'bulk_approve', 'bulk_reject'].includes(action)
+    ) {
       return NextResponse.json(
-        { error: 'Invalid action', message: 'Action must be one of: approve, reject, request_info, bulk_approve, bulk_reject' },
+        {
+          error: 'Invalid action',
+          message:
+            'Action must be one of: approve, reject, request_info, bulk_approve, bulk_reject',
+        },
         { status: 400 }
       )
     }
 
     let result
 
-    // Handle different action types
     switch (action) {
       case 'approve':
       case 'reject':
-      case 'request_info':
-        // Single registration approval/rejection
+      case 'request_info': {
         if (!registrationId) {
           return NextResponse.json(
-            { error: 'Missing registration ID', message: 'registrationId is required for single approval actions' },
+            {
+              error: 'Missing registration ID',
+              message: 'registrationId is required for single approval actions',
+            },
             { status: 400 }
           )
         }
 
-        // Call the secure RPC function
-        const { data: approvalResult, error: approvalError } = await supabase
-          // @ts-ignore - RPC function types not properly defined in Supabase types
-          .rpc('approve_student_registration', {
+        const { data: approvalResult, error: approvalError } = await supabase.rpc(
+          'approve_student_registration',
+          {
             target_registration_id: registrationId,
             review_action: action,
             review_notes_text: reviewNotes || null,
             rejection_reason_text: rejectionReason || null,
-            assigned_role_text: assignedRole || null
-          })
+            assigned_role_text: assignedRole || null,
+          }
+        )
 
         if (approvalError) {
           console.error('Approval function error:', approvalError)
@@ -119,65 +118,47 @@ export async function POST(request: Request) {
 
         result = approvalResult
         break
+      }
 
       case 'bulk_approve':
-      case 'bulk_reject':
-        // Bulk approval operations
-        if (!registrationIds || !Array.isArray(registrationIds) || registrationIds.length === 0) {
+      case 'bulk_reject': {
+        if (!Array.isArray(registrationIds) || registrationIds.length === 0) {
           return NextResponse.json(
-            { error: 'Missing registration IDs', message: 'registrationIds array is required for bulk operations' },
+            {
+              error: 'Missing registration IDs',
+              message: 'registrationIds array is required for bulk actions',
+            },
             { status: 400 }
           )
         }
 
-        // Call the bulk approval RPC function
-        const { data: bulkResult, error: bulkError } = await supabase
-          // @ts-ignore - RPC function types not properly defined in Supabase types
-          .rpc('bulk_approve_registrations', {
-            registration_ids: registrationIds,
-            review_action: action === 'bulk_approve' ? 'approve' : 'reject',
-            review_notes_text: reviewNotes || null
-          })
+        const reviewAction = action === 'bulk_approve' ? 'approve' : 'reject'
+        const results = []
 
-        if (bulkError) {
-          console.error('Bulk approval error:', bulkError)
-          return NextResponse.json(
-            { error: 'Bulk approval failed', message: bulkError.message },
-            { status: 500 }
-          )
+        for (const id of registrationIds) {
+          const { data, error } = await supabase.rpc('approve_student_registration', {
+            target_registration_id: id,
+            review_action: reviewAction,
+            review_notes_text: reviewNotes || null,
+            rejection_reason_text: rejectionReason || null,
+            assigned_role_text: assignedRole || null,
+          })
+          if (error) {
+            results.push({ id, error: error.message })
+          } else {
+            results.push({ id, result: data })
+          }
         }
 
-        result = bulkResult
+        result = results
         break
+      }
 
       default:
-        return NextResponse.json(
-          { error: 'Invalid action', message: 'Unknown action type' },
-          { status: 400 }
-        )
+        return NextResponse.json({ error: 'Unhandled action' }, { status: 400 })
     }
 
-    // Log the approval action for audit purposes
-    console.log(`Approval action completed:`, {
-      action,
-      performedBy: safeProfile.email,
-      performerRole: safeProfile.role,
-      timestamp: new Date().toISOString(),
-      result: result
-    })
-
-    return NextResponse.json({
-      success: true,
-      message: `Operation completed successfully`,
-      action,
-      performedBy: {
-        email: safeProfile.email,
-        name: safeProfile.full_name,
-        role: safeProfile.role
-      },
-      result
-    })
-
+    return NextResponse.json({ success: true, result })
   } catch (error) {
     console.error('Approval API error:', error)
     return NextResponse.json(
@@ -187,9 +168,6 @@ export async function POST(request: Request) {
   }
 }
 
-/**
- * GET endpoint for retrieving approval statistics
- */
 export async function GET(request: Request) {
   try {
     const supabase = await createSupabaseServerClient()
@@ -202,7 +180,6 @@ export async function GET(request: Request) {
       )
     }
 
-    // Get user profile to check permissions
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('id, role, institution_id')
@@ -216,53 +193,47 @@ export async function GET(request: Request) {
       )
     }
 
-    // Type guard to ensure profile exists
     const safeProfile = profile as ProfileWithEmail
+    const effectiveRole = resolveEffectiveRole(safeProfile.role, user)
+    const scope = await getApprovalScope(supabase, user.id, effectiveRole)
 
-    const isSuper = safeProfile.role === 'superadmin'
-
-    // Determine which institutions this reviewer may see.
-    let reviewerInstitutionIds: string[] = []
-    if (!isSuper) {
-      const { data: reviewerRows } = await supabase
-        .from('registration_reviewers')
-        .select('institution_id')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-      reviewerInstitutionIds = (reviewerRows || []).map((r: any) => r.institution_id)
-      if (reviewerInstitutionIds.length === 0) {
-        return NextResponse.json(
-          { error: 'Forbidden', message: 'You are not an assigned reviewer' },
-          { status: 403 }
-        )
-      }
+    if (!scope.allowed) {
+      return NextResponse.json(
+        {
+          error: 'Forbidden',
+          message:
+            'You are not an assigned reviewer for any institution. Ask a superadmin to assign you on Reviewers.',
+        },
+        { status: 403 }
+      )
     }
 
-    // Get URL parameters for filtering
     const { searchParams } = new URL(request.url)
     const institutionId = searchParams.get('institution_id')
     const status = searchParams.get('status')
 
-    // Build query for registrations
-    let query = supabase
-      .from('student_registrations')
-      .select('*')
+    let query = supabase.from('student_registrations').select('*')
 
     if (institutionId) {
+      if (!scope.isSuper && !scope.institutionIds.includes(institutionId)) {
+        return NextResponse.json(
+          { error: 'Forbidden', message: 'Not assigned to this institution' },
+          { status: 403 }
+        )
+      }
       query = query.eq('institution_id', institutionId)
+    } else if (!scope.isSuper) {
+      query = query.in('institution_id', scope.institutionIds)
     }
 
     if (status) {
       query = query.eq('registration_status', status)
     }
 
-    // Reviewers are scoped to their assigned institutions; superadmin sees all.
-    if (!isSuper) {
-      query = query.in('institution_id', reviewerInstitutionIds)
-    }
-
-    const { data: registrations, error: registrationsError } = await query
-      .order('submitted_at', { ascending: false })
+    const { data: registrations, error: registrationsError } = await query.order(
+      'submitted_at',
+      { ascending: false }
+    )
 
     if (registrationsError) {
       console.error('Registrations query error:', registrationsError)
@@ -272,12 +243,9 @@ export async function GET(request: Request) {
       )
     }
 
-    // Get institution statistics
-    const { data: stats, error: statsError } = await supabase
-      // @ts-ignore - RPC function types not properly defined in Supabase types
-      .rpc('get_institution_stats', {
-        target_institution_id: safeProfile.institution_id
-      })
+    const { data: stats, error: statsError } = await supabase.rpc('get_institution_stats', {
+      target_institution_id: safeProfile.institution_id,
+    })
 
     if (statsError) {
       console.error('Statistics query error:', statsError)
@@ -287,12 +255,15 @@ export async function GET(request: Request) {
       success: true,
       registrations: registrations || [],
       statistics: stats || null,
+      scope: {
+        isSuper: scope.isSuper,
+        institutionIds: scope.isSuper ? null : scope.institutionIds,
+      },
       filters: {
         institution_id: institutionId,
-        status: status
-      }
+        status,
+      },
     })
-
   } catch (error) {
     console.error('Approvals GET error:', error)
     return NextResponse.json(

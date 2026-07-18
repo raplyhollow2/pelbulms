@@ -274,7 +274,7 @@ export function InstructorShowcase({
     )
   }
 
-  // Default Grid Layout — compact, uniform, refined
+  // Default Grid Layout — portrait 2:3 cards
   return (
     <div className="space-y-4">
       <div>
@@ -284,31 +284,41 @@ export function InstructorShowcase({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         {displayedInstructors.map((instructor) => (
-          <Card key={instructor.id} className="glass hover-lift">
-            <CardContent className="flex items-center gap-3 p-4">
-              <Avatar className="h-12 w-12 shrink-0 border border-bhutan-yellow/30">
-                <AvatarImage src={instructor.avatar_url} />
-                <AvatarFallback className="bg-bhutan-yellow/20 font-semibold text-bhutan-orange">
-                  {getInitials(instructor.full_name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <h3 className="truncate text-sm font-semibold">{instructor.full_name}</h3>
-                {instructor.expertise && instructor.expertise.length > 0 ? (
-                  <p className="truncate text-xs text-muted-foreground">
-                    {instructor.expertise[0]}
-                  </p>
+          <Card key={instructor.id} className="glass hover-lift overflow-hidden p-0">
+            <CardContent className="flex h-full flex-col p-0">
+              <div className="relative aspect-[2/3] w-full overflow-hidden bg-gradient-to-br from-bhutan-yellow/25 to-bhutan-orange/20">
+                {instructor.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={instructor.avatar_url}
+                    alt={instructor.full_name}
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
                 ) : (
-                  <p className="truncate text-xs text-muted-foreground">Instructor</p>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Avatar className="h-20 w-20 border-2 border-bhutan-yellow/40 sm:h-24 sm:w-24">
+                      <AvatarFallback className="bg-bhutan-yellow/30 text-lg font-semibold text-bhutan-orange sm:text-xl">
+                        {getInitials(instructor.full_name)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
                 )}
-                <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
-                  <BookOpen className="h-3 w-3" />
-                  <span>
-                    {instructor.courses_count || 0}{' '}
-                    {instructor.courses_count === 1 ? 'course' : 'courses'}
-                  </span>
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-3 pt-10">
+                  <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-white">
+                    {instructor.full_name}
+                  </h3>
+                  <p className="mt-0.5 line-clamp-1 text-[11px] text-white/80">
+                    {instructor.expertise?.[0] || 'Instructor'}
+                  </p>
+                  <div className="mt-1.5 flex items-center gap-1 text-[11px] text-white/70">
+                    <BookOpen className="h-3 w-3" />
+                    <span>
+                      {instructor.courses_count || 0}{' '}
+                      {instructor.courses_count === 1 ? 'course' : 'courses'}
+                    </span>
+                  </div>
                 </div>
               </div>
             </CardContent>

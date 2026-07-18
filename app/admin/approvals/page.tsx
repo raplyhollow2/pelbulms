@@ -57,6 +57,12 @@ export default function ApprovalsPage() {
     try {
       const res = await fetch('/api/admin/approvals?status=submitted')
       const data = await res.json()
+      if (res.status === 403) {
+        throw new Error(
+          data.message ||
+            'You are not an assigned reviewer. Ask a superadmin to assign you on Reviewers.'
+        )
+      }
       if (!res.ok) throw new Error(data.error || data.message || 'Failed to load')
       setRegistrations(data.registrations || [])
     } catch (e: any) {
@@ -105,13 +111,14 @@ export default function ApprovalsPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-4xl space-y-6 px-4 py-8">
+    <div className="container mx-auto max-w-4xl space-y-6 px-4 py-8 pb-[calc(8rem+env(safe-area-inset-bottom))] lg:pb-8">
       <div className="space-y-1">
         <h1 className="flex items-center gap-2 text-2xl font-bold sm:text-3xl">
           <ClipboardCheck className="h-7 w-7 text-bhutan-orange" /> Pending Approvals
         </h1>
         <p className="text-sm text-muted-foreground">
           Verify each applicant&apos;s identity, confirm their role, then approve or reject.
+          Only superadmin-assigned reviewers can act on each institute&apos;s queue.
         </p>
       </div>
 
@@ -121,7 +128,7 @@ export default function ApprovalsPage() {
         </div>
       )}
 
-      {registrations.length === 0 ? (
+      {!error && registrations.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <ClipboardCheck className="mb-3 h-12 w-12 text-muted-foreground" />
@@ -129,7 +136,7 @@ export default function ApprovalsPage() {
             <p className="text-sm text-muted-foreground">New submissions will appear here.</p>
           </CardContent>
         </Card>
-      ) : (
+      ) : !error ? (
         <div className="space-y-4">
           {registrations.map((reg) => (
             <Card key={reg.id}>
@@ -210,7 +217,7 @@ export default function ApprovalsPage() {
             </Card>
           ))}
         </div>
-      )}
+      ) : null}
     </div>
   )
 }
