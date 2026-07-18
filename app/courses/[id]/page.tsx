@@ -101,28 +101,24 @@ export default function CourseDetailPage() {
     }
 
     try {
-      const { error } = await (supabase as any)
-        .from('enrollments')
-        .insert({
-          user_id: currentUser.id,
-          course_id: courseId,
-          status: 'active' as const,
-          progress_percentage: 0
-        } as any)
+      const res = await fetch('/api/enrollments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Failed to enroll')
 
-      if (error) {
-        if (error.code === '23505') {
-          alert('You are already enrolled in this course!')
-        } else {
-          throw error
-        }
-      } else {
-        alert('Successfully enrolled! Redirecting to your course...')
-        setIsEnrolled(true)
-        setTimeout(() => {
-          router.push(`/learn/${courseId}`)
-        }, 1000)
+      setIsEnrolled(true)
+      if (data.alreadyEnrolled) {
+        router.push(`/learn/${courseId}`)
+        return
       }
+
+      alert('Successfully enrolled! Redirecting to your course...')
+      setTimeout(() => {
+        router.push(`/learn/${courseId}`)
+      }, 800)
     } catch (error) {
       console.error('Enrollment error:', error)
       alert('Failed to enroll. Please try again.')

@@ -181,33 +181,28 @@ export default function CoursesPage() {
     }
 
     try {
-      const supabaseInsert = supabase as any
-      const { error: enrollmentError } = await supabaseInsert
-        .from('enrollments')
-        .insert({
-          user_id: currentUser.id,
-          course_id: courseId,
-          status: 'active' as const,
-          progress_percentage: 0
-        } as any)
+      const res = await fetch('/api/enrollments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId }),
+      })
+      const data = await res.json().catch(() => ({}))
 
-      if (enrollmentError) {
-        // Check if already enrolled
-        if (enrollmentError.code === '23505') {
-          alert('You are already enrolled in this course!')
-          // Add to enrolled set
-          setEnrolledCourseIds(prev => new Set(prev).add(courseId))
-        } else {
-          throw enrollmentError
-        }
-      } else {
-        alert('Successfully enrolled! Redirecting to your course...')
-        // Add to enrolled set
-        setEnrolledCourseIds(prev => new Set(prev).add(courseId))
-        setTimeout(() => {
-          window.location.href = `/learn/${courseId}`
-        }, 1000)
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to enroll')
       }
+
+      setEnrolledCourseIds((prev) => new Set(prev).add(courseId))
+
+      if (data.alreadyEnrolled) {
+        window.location.href = `/learn/${courseId}`
+        return
+      }
+
+      alert('Successfully enrolled! Redirecting to your course...')
+      setTimeout(() => {
+        window.location.href = `/learn/${courseId}`
+      }, 800)
     } catch (error) {
       console.error('Enrollment error:', error)
       alert('Failed to enroll. Please try again.')

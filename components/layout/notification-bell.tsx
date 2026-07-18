@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Bell, CheckCheck, ClipboardCheck, Loader2 } from 'lucide-react'
+import { Bell, CheckCheck, ClipboardCheck, Loader2, UserPlus, GraduationCap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -167,10 +167,20 @@ export function NotificationBell({
                           'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
                           n.type === 'registration_pending'
                             ? 'bg-bhutan-orange/15 text-bhutan-orange'
-                            : 'bg-muted text-muted-foreground'
+                            : n.type === 'student_enrolled'
+                              ? 'bg-blue-500/15 text-blue-600'
+                              : n.type === 'student_completed'
+                                ? 'bg-green-600/15 text-green-600'
+                                : 'bg-muted text-muted-foreground'
                         )}
                       >
-                        <ClipboardCheck className="h-4 w-4" />
+                        {n.type === 'student_enrolled' ? (
+                          <UserPlus className="h-4 w-4" />
+                        ) : n.type === 'student_completed' ? (
+                          <GraduationCap className="h-4 w-4" />
+                        ) : (
+                          <ClipboardCheck className="h-4 w-4" />
+                        )}
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">

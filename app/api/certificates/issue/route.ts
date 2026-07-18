@@ -161,6 +161,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: upsertError.message }, { status: 400 })
     }
 
+    // First-time completion → notify the course instructor
+    try {
+      const { notifyTeacherOfCompletion } = await import('@/lib/notify-teachers')
+      await notifyTeacherOfCompletion(service, {
+        courseId,
+        studentId: user.id,
+      })
+    } catch (notifyErr) {
+      console.error('[certificates] teacher notify failed:', notifyErr)
+    }
+
     return NextResponse.json({ certificate }, { status: 201 })
   } catch (error: any) {
     return NextResponse.json(
