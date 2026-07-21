@@ -13,7 +13,7 @@ import {
   TrendingUp,
   Calendar,
   MapPin,
-  Link,
+  Link as LinkIcon,
   GitBranch,
   Globe,
   ChevronRight,
