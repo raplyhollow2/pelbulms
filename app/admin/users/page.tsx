@@ -3,12 +3,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   Select,
@@ -42,15 +40,16 @@ import {
   Trash2,
   Loader2,
   Search,
-  Shield,
   Camera,
   ClipboardCheck,
   ShieldCheck,
   Users as UsersIcon,
+  MoreHorizontal,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
-import { success as hapticSuccess, warning as hapticWarning } from '@/lib/utils'
+import { cn, success as hapticSuccess, warning as hapticWarning } from '@/lib/utils'
+import { resolveMediaUrl } from '@/lib/media'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PendingApprovalsPanel } from '@/components/admin/pending-approvals-panel'
 import { ReviewersPanel } from '@/components/admin/reviewers-panel'
@@ -77,31 +76,31 @@ function getInitials(name?: string | null) {
     .toUpperCase()
 }
 
-function roleBadgeColor(role: string) {
+function roleBadgeClass(role: string) {
   switch (role) {
     case 'superadmin':
-      return 'bg-purple-600'
+      return 'border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300'
     case 'admin':
-      return 'bg-red-600'
+      return 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300'
     case 'resource_person':
-      return 'bg-amber-600'
+      return 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300'
     case 'instructor':
-      return 'bg-blue-600'
+      return 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300'
     case 'student':
-      return 'bg-green-600'
+      return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
     default:
-      return 'bg-gray-600'
+      return 'border-border bg-muted text-muted-foreground'
   }
 }
 
 function roleLabel(role: string) {
   switch (role) {
     case 'superadmin':
-      return 'Super Admin'
+      return 'Super admin'
     case 'admin':
-      return 'Administrator'
+      return 'Admin'
     case 'resource_person':
-      return 'Resource Person'
+      return 'Resource person'
     case 'instructor':
       return 'Instructor'
     case 'student':
@@ -109,6 +108,19 @@ function roleLabel(role: string) {
     default:
       return role
   }
+}
+
+function RoleBadge({ role }: { role: string }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex h-5 items-center rounded-md border px-1.5 text-[10px] font-medium capitalize tracking-wide',
+        roleBadgeClass(role)
+      )}
+    >
+      {roleLabel(role)}
+    </span>
+  )
 }
 
 export default function AdminUsersPage() {
@@ -412,9 +424,9 @@ export default function AdminUsersPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto flex items-center justify-center px-4 py-16">
-        <Loader2 className="h-5 w-5 animate-spin text-bhutan-yellow" />
-        <span className="ml-2 text-sm text-muted-foreground">Loading…</span>
+      <div className="flex min-h-[40vh] items-center justify-center px-4">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-sm text-muted-foreground">Loading users…</span>
       </div>
     )
   }
@@ -424,357 +436,386 @@ export default function AdminUsersPage() {
   const tabCols = isSuperAdmin ? 3 : canManageUsers && canApproveRegs ? 2 : 1
   const instructorCount = users.filter((u) => u.role === 'instructor').length
   const studentCount = users.filter((u) => u.role === 'student').length
+  const staffCount = users.filter((u) =>
+    ['admin', 'superadmin', 'resource_person'].includes(u.role || '')
+  ).length
 
   return (
-    <div className="container mx-auto max-w-6xl space-y-5 px-4 py-5 sm:py-7 pb-[calc(8rem+env(safe-area-inset-bottom))] lg:pb-8">
-      {/* Compact header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-5 sm:px-6 sm:py-8 pb-[calc(8rem+env(safe-area-inset-bottom))] lg:pb-10">
+      {/* Page header */}
+      <header className="flex flex-col gap-4 border-b border-border/50 pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0 space-y-1">
+          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
             Administration
           </p>
-          <div className="mt-0.5 flex items-center gap-2">
-            <Shield className="h-4 w-4 shrink-0 text-bhutan-orange" />
-            <h1 className="truncate text-xl font-semibold tracking-tight sm:text-2xl">Users</h1>
-          </div>
-          <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-            Accounts, KYC approvals, and reviewer assignments
+          <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
+          <p className="max-w-xl text-sm text-muted-foreground">
+            Manage accounts, review registrations, and assign institute reviewers.
           </p>
         </div>
         {canManageUsers && activeTab === 'users' && (
           <Button
             size="sm"
-            className="h-9 w-full shrink-0 gap-1.5 sm:w-auto"
+            className="h-9 w-full shrink-0 gap-2 sm:w-auto"
             onClick={() => {
               setFormData({ ...EMPTY_FORM })
               setError('')
               setShowCreateForm((v) => !v)
             }}
           >
-            <UserPlus className="h-3.5 w-3.5" />
-            Add user
+            <UserPlus className="h-4 w-4" />
+            {showCreateForm ? 'Close form' : 'Add user'}
           </Button>
         )}
-      </div>
+      </header>
 
-      <Tabs value={activeTab} onValueChange={setTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={setTab} className="w-full space-y-5">
         <TabsList
-          className={`grid h-9 w-full max-w-md ${
-            tabCols === 3 ? 'grid-cols-3' : tabCols === 2 ? 'grid-cols-2' : 'grid-cols-1'
-          }`}
+          className={cn(
+            'grid h-10 w-full rounded-lg bg-muted/60 p-1',
+            tabCols === 3 ? 'max-w-lg grid-cols-3' : tabCols === 2 ? 'max-w-sm grid-cols-2' : 'max-w-[10rem] grid-cols-1'
+          )}
         >
           {canManageUsers && (
             <TabsTrigger value="users" className="gap-1.5 text-xs sm:text-sm">
-              <UsersIcon className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">All users</span>
-              <span className="sm:hidden">Users</span>
+              <UsersIcon className="h-3.5 w-3.5 shrink-0" />
+              Directory
             </TabsTrigger>
           )}
           {canApproveRegs && (
             <TabsTrigger value="approvals" className="gap-1.5 text-xs sm:text-sm">
-              <ClipboardCheck className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Approvals</span>
-              <span className="sm:hidden">Approve</span>
+              <ClipboardCheck className="h-3.5 w-3.5 shrink-0" />
+              Approvals
               {pendingCount > 0 && (
-                <Badge className="ml-0.5 h-4 min-w-4 justify-center rounded-full bg-bhutan-orange px-1 text-[10px] text-white">
-                  {pendingCount}
-                </Badge>
+                <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-bhutan-orange px-1 text-[10px] font-semibold text-white">
+                  {pendingCount > 99 ? '99+' : pendingCount}
+                </span>
               )}
             </TabsTrigger>
           )}
           {isSuperAdmin && (
             <TabsTrigger value="reviewers" className="gap-1.5 text-xs sm:text-sm">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Reviewers</span>
-              <span className="sm:hidden">Assign</span>
+              <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+              Reviewers
             </TabsTrigger>
           )}
         </TabsList>
 
         {canApproveRegs && (
-          <TabsContent value="approvals" className="mt-5 space-y-4">
+          <TabsContent value="approvals" className="mt-0 focus-visible:outline-none">
             <PendingApprovalsPanel onCountChange={setPendingCount} />
           </TabsContent>
         )}
 
         {isSuperAdmin && (
-          <TabsContent value="reviewers" className="mt-5 space-y-4">
+          <TabsContent value="reviewers" className="mt-0 focus-visible:outline-none">
             <ReviewersPanel />
           </TabsContent>
         )}
 
         {canManageUsers && (
-          <TabsContent value="users" className="mt-5 space-y-4">
-        {/* Dense stats strip */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          {[
-            { label: 'Total', value: users.length, color: 'text-bhutan-orange' },
-            { label: 'Instructors', value: instructorCount, color: 'text-blue-600' },
-            { label: 'Students', value: studentCount, color: 'text-green-600' },
-          ].map((s) => (
-            <div
-              key={s.label}
-              className="rounded-xl border border-border/50 bg-card/70 px-3 py-2.5"
-            >
-              <p className={`text-lg font-semibold tabular-nums tracking-tight sm:text-xl ${s.color}`}>
-                {s.value}
-              </p>
-              <p className="text-[10px] font-medium text-muted-foreground sm:text-xs">{s.label}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by name, email or ID…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 pl-9 text-sm"
-          />
-        </div>
-
-        {error && (
-          <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-600">
-            {error}
-          </div>
-        )}
-
-        {/* Create User Form */}
-        {showCreateForm && (
-          <Card className="border-border/60">
-            <CardHeader className="space-y-1 px-4 py-3 sm:px-5">
-              <CardTitle className="text-base">Create user</CardTitle>
-              <CardDescription className="text-xs">Add a new account to the platform</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 px-4 pb-4 sm:px-5">
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-xs">Email *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="user@pelsung.bt"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="h-9"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="full_name" className="text-xs">Full name *</Label>
-                  <Input
-                    id="full_name"
-                    placeholder="Tashi Wangyel"
-                    value={formData.full_name}
-                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                    className="h-9"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="role" className="text-xs">Role *</Label>
-                <Select
-                  value={formData.role}
-                  onValueChange={(value: any) => setFormData({ ...formData, role: value })}
+          <TabsContent value="users" className="mt-0 space-y-4 focus-visible:outline-none">
+            {/* Summary metrics */}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {[
+                { label: 'Total users', value: users.length },
+                { label: 'Students', value: studentCount },
+                { label: 'Instructors', value: instructorCount },
+                { label: 'Staff', value: staffCount },
+              ].map((s) => (
+                <div
+                  key={s.label}
+                  className="rounded-xl border border-border/60 bg-card px-3.5 py-3"
                 >
-                  <SelectTrigger className="h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="student">Student</SelectItem>
-                    <SelectItem value="instructor">Instructor (Teacher)</SelectItem>
-                    <SelectItem value="resource_person">Resource Person</SelectItem>
-                    <SelectItem value="admin">Administrator</SelectItem>
-                    {isSuperAdmin && (
-                      <SelectItem value="superadmin">Super Admin</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
+                  <p className="text-xl font-semibold tabular-nums tracking-tight">{s.value}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{s.label}</p>
+                </div>
+              ))}
+            </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="bio" className="text-xs">Bio (optional)</Label>
-                <Textarea
-                  id="bio"
-                  placeholder="Brief description…"
-                  value={formData.bio}
-                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                  className="resize-none text-sm"
-                  rows={2}
+            {/* Toolbar */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name or email…"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-10 pl-9"
+                  aria-label="Search users"
                 />
               </div>
+              <p className="shrink-0 text-xs tabular-nums text-muted-foreground sm:text-right">
+                {filteredUsers.length} of {users.length}
+              </p>
+            </div>
 
-              <div className="flex flex-col-reverse gap-2 sm:flex-row">
-                <Button size="sm" className="h-9 w-full sm:w-auto" onClick={handleCreateUser} disabled={formLoading}>
-                  {formLoading ? (
-                    <>
-                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                      Creating…
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="mr-1.5 h-3.5 w-3.5" />
-                      Create
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-9 w-full sm:w-auto"
-                  onClick={() => {
-                    setShowCreateForm(false)
-                    setFormData({ ...EMPTY_FORM })
-                    setError('')
-                  }}
-                  disabled={formLoading}
-                >
-                  Cancel
-                </Button>
+            {error && (
+              <div
+                role="alert"
+                className="rounded-lg border border-destructive/25 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive"
+              >
+                {error}
               </div>
-            </CardContent>
-          </Card>
-        )}
+            )}
 
-        {/* Users List — dense rows */}
-        <div className="overflow-hidden rounded-xl border border-border/50 bg-card/70">
-          <div className="flex items-center justify-between border-b border-border/40 px-3 py-2.5 sm:px-4">
-            <h2 className="text-sm font-semibold tracking-tight">Directory</h2>
-            <span className="text-xs tabular-nums text-muted-foreground">
-              {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'}
-            </span>
-          </div>
-          <div className="divide-y divide-border/40">
-              {filteredUsers.map((user) => (
-                <div
-                  key={user.id}
-                  className="flex flex-col gap-2.5 px-3 py-2.5 transition-colors hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between sm:px-4"
-                >
-                  <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                    <Avatar className="h-8 w-8 shrink-0">
-                      <AvatarImage src={user.avatar_url || undefined} alt={user.full_name || 'User'} />
-                      <AvatarFallback className="bg-bhutan-yellow/15 text-[10px] font-semibold text-bhutan-orange">
-                        {getInitials(user.full_name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <p className="truncate text-sm font-medium leading-tight">
-                          {user.full_name || 'No name'}
-                        </p>
-                        <Badge className={`h-5 px-1.5 text-[10px] ${roleBadgeColor(user.role)}`}>
-                          {roleLabel(user.role)}
-                        </Badge>
-                      </div>
-                      <p className="truncate text-[11px] text-muted-foreground">
-                        {(user as any).email || user.id}
-                      </p>
-                    </div>
+            {/* Create user */}
+            {showCreateForm && (
+              <section className="rounded-xl border border-border/60 bg-card p-4 sm:p-5">
+                <div className="mb-4">
+                  <h2 className="text-sm font-semibold">Create user</h2>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Invite a new account. They can sign in once created.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email" className="text-xs font-medium">
+                      Email <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="name@institution.bt"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="h-10"
+                    />
                   </div>
-
-                  <div className="flex items-center gap-1.5 sm:w-auto">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="full_name" className="text-xs font-medium">
+                      Full name <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="full_name"
+                      autoComplete="name"
+                      placeholder="Full legal name"
+                      value={formData.full_name}
+                      onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                      className="h-10"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="role" className="text-xs font-medium">
+                      Role <span className="text-destructive">*</span>
+                    </Label>
                     <Select
-                      value={user.role}
-                      onValueChange={(value) => handleUpdateRole(user.id, value as Role)}
-                      disabled={user.role === 'superadmin' && !isSuperAdmin}
+                      value={formData.role}
+                      onValueChange={(value: any) => setFormData({ ...formData, role: value })}
                     >
-                      <SelectTrigger className="h-8 flex-1 text-xs sm:w-32">
+                      <SelectTrigger id="role" className="h-10">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="student">Student</SelectItem>
                         <SelectItem value="instructor">Instructor</SelectItem>
-                        <SelectItem value="resource_person">Resource Person</SelectItem>
+                        <SelectItem value="resource_person">Resource person</SelectItem>
                         <SelectItem value="admin">Admin</SelectItem>
-                        {(isSuperAdmin || user.role === 'superadmin') && (
-                          <SelectItem value="superadmin">Super Admin</SelectItem>
+                        {isSuperAdmin && (
+                          <SelectItem value="superadmin">Super admin</SelectItem>
                         )}
                       </SelectContent>
                     </Select>
-
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 shrink-0 p-0"
-                      onClick={() => openEdit(user)}
-                      title="Edit details"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-
-                    <AlertDialog>
-                      <AlertDialogTrigger
-                        render={
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 shrink-0 p-0 text-red-600 hover:text-red-700"
-                            disabled={user.id === currentUser?.id}
-                          />
-                        }
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </AlertDialogTrigger>
-                      <AlertDialogContent className="max-w-[calc(100%-2rem)] sm:max-w-md">
-                        <AlertDialogHeader>
-                          <AlertDialogTitle className="text-base">Delete user?</AlertDialogTitle>
-                          <AlertDialogDescription className="text-sm">
-                            This permanently deletes {user.full_name || 'this user'} and their account.
-                            This cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter className="flex-col-reverse gap-2 sm:flex-row">
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDeleteUser(user.id)}
-                            className="bg-red-600 hover:bg-red-700"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor="bio" className="text-xs font-medium">
+                      Bio <span className="font-normal text-muted-foreground">(optional)</span>
+                    </Label>
+                    <Textarea
+                      id="bio"
+                      placeholder="Short description…"
+                      value={formData.bio}
+                      onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                      className="min-h-[4.5rem] resize-none"
+                      rows={2}
+                    />
                   </div>
                 </div>
-              ))}
-
-              {filteredUsers.length === 0 && (
-                <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-                  No users found. Try adjusting your search.
+                <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9"
+                    onClick={() => {
+                      setShowCreateForm(false)
+                      setFormData({ ...EMPTY_FORM })
+                      setError('')
+                    }}
+                    disabled={formLoading}
+                  >
+                    Cancel
+                  </Button>
+                  <Button size="sm" className="h-9 gap-1.5" onClick={handleCreateUser} disabled={formLoading}>
+                    {formLoading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <UserPlus className="h-3.5 w-3.5" />
+                    )}
+                    {formLoading ? 'Creating…' : 'Create user'}
+                  </Button>
                 </div>
-              )}
-          </div>
-        </div>
+              </section>
+            )}
+
+            {/* Directory */}
+            <section className="overflow-hidden rounded-xl border border-border/60 bg-card">
+              {/* Desktop column headers */}
+              <div className="hidden border-b border-border/50 bg-muted/30 px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground lg:grid lg:grid-cols-[minmax(0,1.6fr)_9rem_minmax(11rem,auto)] lg:gap-4 lg:px-5">
+                <span>User</span>
+                <span>Role</span>
+                <span className="text-right">Actions</span>
+              </div>
+
+              <ul className="divide-y divide-border/50">
+                {filteredUsers.map((user) => {
+                  const email = (user as any).email || '—'
+                  const avatar = resolveMediaUrl(user.avatar_url) || undefined
+                  return (
+                    <li
+                      key={user.id}
+                      className="px-4 py-3.5 transition-colors hover:bg-muted/25 sm:px-5 lg:grid lg:grid-cols-[minmax(0,1.6fr)_9rem_minmax(11rem,auto)] lg:items-center lg:gap-4 lg:py-3"
+                    >
+                      {/* Identity */}
+                      <div className="flex min-w-0 items-start gap-3">
+                        <Avatar className="h-10 w-10 shrink-0 ring-1 ring-border/60">
+                          <AvatarImage src={avatar} alt={user.full_name || 'User'} />
+                          <AvatarFallback className="bg-muted text-xs font-semibold text-muted-foreground">
+                            {getInitials(user.full_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="truncate text-sm font-medium leading-snug">
+                              {user.full_name || 'Unnamed user'}
+                            </p>
+                            <span className="lg:hidden">
+                              <RoleBadge role={user.role || 'student'} />
+                            </span>
+                          </div>
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">{email}</p>
+                        </div>
+                      </div>
+
+                      {/* Role (desktop) */}
+                      <div className="hidden lg:block">
+                        <RoleBadge role={user.role || 'student'} />
+                      </div>
+
+                      {/* Actions */}
+                      <div className="mt-3 flex items-center gap-2 lg:mt-0 lg:justify-end">
+                        <Select
+                          value={user.role}
+                          onValueChange={(value) => handleUpdateRole(user.id, value as Role)}
+                          disabled={user.role === 'superadmin' && !isSuperAdmin}
+                        >
+                          <SelectTrigger
+                            className="h-9 flex-1 text-xs lg:w-[9.5rem] lg:flex-none"
+                            aria-label={`Change role for ${user.full_name || email}`}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="student">Student</SelectItem>
+                            <SelectItem value="instructor">Instructor</SelectItem>
+                            <SelectItem value="resource_person">Resource person</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            {(isSuperAdmin || user.role === 'superadmin') && (
+                              <SelectItem value="superadmin">Super admin</SelectItem>
+                            )}
+                          </SelectContent>
+                        </Select>
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 w-9 shrink-0 p-0"
+                          onClick={() => openEdit(user)}
+                          aria-label={`Edit ${user.full_name || email}`}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+
+                        <AlertDialog>
+                          <AlertDialogTrigger
+                            render={
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-9 w-9 shrink-0 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                disabled={user.id === currentUser?.id}
+                                aria-label={`Delete ${user.full_name || email}`}
+                              />
+                            }
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="max-w-[calc(100%-1.5rem)] sm:max-w-md">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete this user?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Permanently remove{' '}
+                                <span className="font-medium text-foreground">
+                                  {user.full_name || email}
+                                </span>{' '}
+                                and their account. This cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter className="flex-col-reverse gap-2 sm:flex-row">
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeleteUser(user.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete user
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </li>
+                  )
+                })}
+
+                {filteredUsers.length === 0 && (
+                  <li className="flex flex-col items-center justify-center gap-2 px-4 py-14 text-center">
+                    <MoreHorizontal className="h-5 w-5 text-muted-foreground/50" />
+                    <p className="text-sm font-medium">No users match your search</p>
+                    <p className="text-xs text-muted-foreground">
+                      Try a different name or email, or clear the search field.
+                    </p>
+                  </li>
+                )}
+              </ul>
+            </section>
           </TabsContent>
         )}
       </Tabs>
 
-      {/* Edit User — compact detail panel */}
+      {/* Edit user dialog */}
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
-        <DialogContent className="max-h-[90dvh] max-w-[calc(100%-2rem)] gap-0 overflow-y-auto p-0 sm:max-w-md">
-          <DialogHeader className="space-y-1 border-b border-border/50 px-4 py-3 sm:px-5">
-            <DialogTitle className="text-base">User details</DialogTitle>
+        <DialogContent className="max-h-[92dvh] max-w-[calc(100%-1.5rem)] gap-0 overflow-hidden p-0 sm:max-w-md">
+          <DialogHeader className="space-y-1 border-b border-border/50 px-5 py-4">
+            <DialogTitle className="text-base">Edit user</DialogTitle>
             <DialogDescription className="text-xs">
-              Update profile, role, and photo
+              Update profile details and role assignment.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 px-4 py-4 sm:px-5">
-            {/* Compact identity row */}
-            <div className="flex items-center gap-3 rounded-lg border border-border/50 bg-muted/20 p-2.5">
-              <Avatar className="h-11 w-11 shrink-0">
-                <AvatarImage src={editData.avatar_url || undefined} alt={editData.full_name} />
-                <AvatarFallback className="bg-bhutan-yellow/15 text-sm font-semibold text-bhutan-orange">
+          <div className="max-h-[min(70dvh,32rem)] space-y-4 overflow-y-auto px-5 py-4">
+            <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/20 p-3">
+              <Avatar className="h-12 w-12 shrink-0 ring-1 ring-border/60">
+                <AvatarImage
+                  src={resolveMediaUrl(editData.avatar_url) || undefined}
+                  alt={editData.full_name}
+                />
+                <AvatarFallback className="bg-muted text-sm font-semibold text-muted-foreground">
                   {getInitials(editData.full_name)}
                 </AvatarFallback>
               </Avatar>
-              <div className="min-w-0 flex-1 space-y-1">
-                <p className="truncate text-sm font-medium leading-tight">
-                  {editData.full_name || 'Unnamed'}
-                </p>
-                <p className="truncate text-[11px] text-muted-foreground">{editData.email}</p>
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <p className="truncate text-sm font-medium">{editData.full_name || 'Unnamed'}</p>
+                <p className="truncate text-xs text-muted-foreground">{editData.email}</p>
                 <input
                   ref={avatarInputRef}
                   type="file"
@@ -789,7 +830,7 @@ export default function AdminUsersPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 gap-1.5 px-2 text-xs"
+                  className="h-8 gap-1.5 text-xs"
                   disabled={uploadingAvatar}
                   onClick={() => avatarInputRef.current?.click()}
                 >
@@ -803,60 +844,68 @@ export default function AdminUsersPage() {
               </div>
             </div>
 
-            <div className="grid gap-3">
+            <div className="grid gap-3.5">
               <div className="space-y-1.5">
-                <Label htmlFor="edit_name" className="text-xs">Full name</Label>
+                <Label htmlFor="edit_name" className="text-xs font-medium">
+                  Full name
+                </Label>
                 <Input
                   id="edit_name"
-                  className="h-9"
+                  className="h-10"
                   value={editData.full_name}
                   onChange={(e) => setEditData({ ...editData, full_name: e.target.value })}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="edit_email" className="text-xs">Email</Label>
-                <Input id="edit_email" value={editData.email} disabled className="h-9 bg-muted text-sm" />
-                <p className="text-[10px] text-muted-foreground">Email cannot be changed here</p>
+                <Label htmlFor="edit_email" className="text-xs font-medium">
+                  Email
+                </Label>
+                <Input id="edit_email" value={editData.email} disabled className="h-10 bg-muted/50" />
+                <p className="text-[11px] text-muted-foreground">Email cannot be changed here.</p>
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="edit_role" className="text-xs">Role</Label>
+                <Label htmlFor="edit_role" className="text-xs font-medium">
+                  Role
+                </Label>
                 <Select
                   value={editData.role}
                   onValueChange={(value: any) => setEditData({ ...editData, role: value })}
                 >
-                  <SelectTrigger className="h-9">
+                  <SelectTrigger id="edit_role" className="h-10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="student">Student</SelectItem>
                     <SelectItem value="instructor">Instructor</SelectItem>
-                    <SelectItem value="resource_person">Resource Person</SelectItem>
+                    <SelectItem value="resource_person">Resource person</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
                     {(isSuperAdmin || editData.role === 'superadmin') && (
-                      <SelectItem value="superadmin">Super Admin</SelectItem>
+                      <SelectItem value="superadmin">Super admin</SelectItem>
                     )}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="edit_bio" className="text-xs">Bio</Label>
+                <Label htmlFor="edit_bio" className="text-xs font-medium">
+                  Bio
+                </Label>
                 <Textarea
                   id="edit_bio"
                   value={editData.bio}
                   onChange={(e) => setEditData({ ...editData, bio: e.target.value })}
-                  rows={2}
-                  className="resize-none text-sm"
+                  rows={3}
+                  className="resize-none"
                 />
               </div>
             </div>
 
-            {editError && <p className="text-sm text-red-600">{editError}</p>}
+            {editError && <p className="text-sm text-destructive">{editError}</p>}
           </div>
 
-          <DialogFooter className="flex-col-reverse gap-2 border-t border-border/50 px-4 py-3 sm:flex-row sm:px-5">
+          <DialogFooter className="flex-col-reverse gap-2 border-t border-border/50 px-5 py-3.5 sm:flex-row">
             <Button
               variant="outline"
               size="sm"
