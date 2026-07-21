@@ -323,6 +323,16 @@ export default function EditCoursePage() {
           ? { thumbnail_url: data.url }
           : { preview_video_url: data.url }),
       }))
+
+      // Persist cover immediately so featured image survives navigation without Save.
+      if (kind === 'image' && data.url) {
+        const supabaseUpdate = supabase as any
+        const { error: persistError } = await supabaseUpdate
+          .from('courses')
+          .update({ thumbnail_url: data.url, updated_at: new Date().toISOString() })
+          .eq('id', courseId)
+        if (persistError) throw new Error(persistError.message || 'Upload ok but failed to save cover')
+      }
     } catch (err: any) {
       console.error('Media upload error:', err)
       setMediaError(err?.message || 'Failed to upload media')

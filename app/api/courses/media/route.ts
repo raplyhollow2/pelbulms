@@ -78,13 +78,14 @@ export async function POST(request: NextRequest) {
     // Videos (and images) are stored privately in Cloudinary when configured so
     // they are only ever delivered through the authenticated /api/media proxy.
     if (isCloudinaryConfigured()) {
-      // Organized folder tree:
-      //   course-media/videos/<courseId>/...   course-media/images/<courseId>/...
+      // Course covers (images) are stored as public Cloudinary uploads so catalog
+      // cards can use the HTTPS URL directly. Videos stay private (authenticated)
+      // and are only delivered through /api/media.
       const folder = `course-media/${isVideo ? 'videos' : 'images'}/${courseId}`
 
       const uploadOptions: Record<string, unknown> = {
         folder,
-        type: 'authenticated',
+        type: isVideo ? 'authenticated' : 'upload',
         resource_type: isVideo ? 'video' : 'image',
         overwrite: true,
         invalidate: true,
@@ -112,8 +113,14 @@ export async function POST(request: NextRequest) {
           )
           .end(Buffer.from(bytes))
       })
-      const ref = makeMediaRef(isVideo ? 'video' : 'image', uploaded.public_id)
-      return NextResponse.json({ url: ref, kind })
+
+      if (isVideo) {
+        const ref = makeMediaRef('video', uploaded.public_id)
+        return NextResponse.json({ url: ref, kind })
+      }
+
+      // Public image URL — no /api/media proxy required for course covers.
+      return NextResponse.json({ url: uploaded.secure_url as string, kind })
     }
 
     await ensureBucket(supabase)

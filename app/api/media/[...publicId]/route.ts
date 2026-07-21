@@ -28,6 +28,11 @@ export async function GET(
     data: { user },
   } = await supabase.auth.getUser()
 
+  const { publicId } = await params
+  const id = (publicId || []).join('/')
+  const resourceType =
+    request.nextUrl.searchParams.get('type') === 'video' ? 'video' : 'image'
+
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -36,22 +41,20 @@ export async function GET(
     return NextResponse.json({ error: 'Media backend not configured' }, { status: 503 })
   }
 
-  const { publicId } = await params
-  const id = (publicId || []).join('/')
   if (!id) {
     return NextResponse.json({ error: 'Missing media id' }, { status: 400 })
   }
 
-  const resourceType =
-    request.nextUrl.searchParams.get('type') === 'video' ? 'video' : 'image'
   const upstreamUrl = signedUrl(id, { resourceType })
 
-  // Forward Range (for video seeking) and Accept (so f_auto can pick a format).
+  // Forward Range (for video seeking). Avoid forwarding browser Accept for images.
   const forwardHeaders: Record<string, string> = {}
   const range = request.headers.get('range')
   if (range) forwardHeaders['Range'] = range
-  const accept = request.headers.get('accept')
-  if (accept) forwardHeaders['Accept'] = accept
+  if (resourceType === 'video') {
+    const accept = request.headers.get('accept')
+    if (accept) forwardHeaders['Accept'] = accept
+  }
 
   let upstream: Response
   try {
@@ -80,7 +83,6 @@ export async function GET(
     const value = upstream.headers.get(key)
     if (value) headers.set(key, value)
   }
-  // Private, revalidate-on-use; keep it off shared caches.
   headers.set('Cache-Control', 'private, max-age=0, must-revalidate')
 
   return new NextResponse(upstream.body, {
