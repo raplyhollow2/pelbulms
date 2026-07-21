@@ -76,16 +76,16 @@ export default function CourseDetailPage() {
 
       setModules(modulesData || [])
 
-      // Check if user is enrolled
+      // Check if user is enrolled (limit(1) avoids PostgREST 406 from .single/.maybeSingle on 0 rows)
       if (user) {
-        const { data: enrollmentData } = await supabase
+        const { data: enrollmentRows } = await supabase
           .from('enrollments')
-          .select('*')
+          .select('id')
           .eq('user_id', user.id)
           .eq('course_id', courseId)
-          .single()
+          .limit(1)
 
-        setIsEnrolled(!!enrollmentData)
+        setIsEnrolled((enrollmentRows?.length ?? 0) > 0)
       }
     } catch (error) {
       console.error('Error fetching course details:', error)
@@ -106,8 +106,14 @@ export default function CourseDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ courseId }),
       })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Failed to enroll')
+      const raw = await res.text()
+      let data: any = {}
+      try {
+        data = raw ? JSON.parse(raw) : {}
+      } catch {
+        data = { error: raw?.slice(0, 200) || `HTTP ${res.status}` }
+      }
+      if (!res.ok) throw new Error(data.error || `Failed to enroll (HTTP ${res.status})`)
 
       setIsEnrolled(true)
       if (data.alreadyEnrolled) {
@@ -119,9 +125,10 @@ export default function CourseDetailPage() {
       setTimeout(() => {
         router.push(`/learn/${courseId}`)
       }, 800)
-    } catch (error) {
-      console.error('Enrollment error:', error)
-      alert('Failed to enroll. Please try again.')
+    } catch (error: any) {
+      if (error?.name === 'AbortError') return
+      console.error('Enrollment error:', error?.message || error)
+      alert(error?.message ? `Failed to enroll: ${error.message}` : 'Failed to enroll. Please try again.')
     }
   }
 

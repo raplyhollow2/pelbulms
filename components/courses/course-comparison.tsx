@@ -35,6 +35,7 @@ import {
   GraduationCap,
 } from 'lucide-react'
 import { cn as cnUtils } from '@/lib/utils'
+import { resolveMediaUrl } from '@/lib/media'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
@@ -175,7 +176,7 @@ export function CourseComparison({
                     <div className="font-semibold text-base line-clamp-2">{course.title}</div>
                     {course.thumbnail_url && (
                       <img
-                        src={course.thumbnail_url}
+                        src={resolveMediaUrl(course.thumbnail_url) || course.thumbnail_url}
                         alt={course.title}
                         className="w-full h-28 object-cover rounded"
                       />

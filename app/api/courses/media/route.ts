@@ -13,10 +13,13 @@ const ALLOWED_VIDEO = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'
 async function ensureBucket(supabase: Awaited<ReturnType<typeof createServiceClient>>) {
   const { data: buckets } = await supabase.storage.listBuckets()
   if (!buckets?.some((b) => b.name === BUCKET)) {
-    await supabase.storage.createBucket(BUCKET, {
+    const { error: createError } = await supabase.storage.createBucket(BUCKET, {
       public: true,
       fileSizeLimit: MAX_VIDEO_BYTES,
     })
+    if (createError) {
+      throw new Error(createError.message || 'Failed to create course-media bucket')
+    }
   }
 }
 

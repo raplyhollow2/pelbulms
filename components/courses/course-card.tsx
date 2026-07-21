@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/hover-card'
 import { BookOpen, Clock, Users, Star, Play, Award, TrendingUp } from 'lucide-react'
 import type { Database } from '@/types/database.types'
+import { resolveMediaUrl } from '@/lib/media'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Module = Database['public']['Tables']['modules']['Row']
@@ -25,6 +26,7 @@ interface CourseCardProps {
 
 export function CourseCard({ course, progress = 0, isEnrolled = false }: CourseCardProps) {
   const [imageError, setImageError] = useState(false)
+  const thumbSrc = resolveMediaUrl(course.thumbnail_url)
 
   const calculateDuration = () => {
     if (!course.modules || course.modules.length === 0) return 'Self-paced'
@@ -57,14 +59,15 @@ export function CourseCard({ course, progress = 0, isEnrolled = false }: CourseC
 
   return (
     <HoverCard openDelay={300} closeDelay={200}>
-      <HoverCardTrigger>
-        <Link href={`/courses/${course.id}`} className="block h-full">
+      <HoverCardTrigger
+        render={<Link href={`/courses/${course.id}`} className="block h-full" />}
+      >
           <Card className="group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer h-full overflow-hidden border-border/50 hover:border-bhutan-yellow/30">
         {/* Thumbnail - 16:9 Aspect Ratio (Standard Video Format) */}
         <div className="relative w-full pt-[56.25%] overflow-hidden bg-gray-900 rounded-t-lg">
-          {course.thumbnail_url && !imageError ? (
+          {thumbSrc && !imageError ? (
             <img
-              src={course.thumbnail_url}
+              src={thumbSrc}
               alt={course.title}
               className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
               onError={() => setImageError(true)}
@@ -144,7 +147,6 @@ export function CourseCard({ course, progress = 0, isEnrolled = false }: CourseC
           </Button>
         </CardContent>
       </Card>
-        </Link>
       </HoverCardTrigger>
 
       <HoverCardContent className="w-80 p-4" side="right" sideOffset={10}>

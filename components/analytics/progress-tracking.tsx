@@ -29,6 +29,7 @@ import {
   Gauge,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { resolveMediaUrl } from '@/lib/media'
 
 interface ProgressData {
   course_id: string
@@ -335,7 +336,7 @@ export function ProgressTracking() {
                   <div className="w-32 h-24 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
                     {course.thumbnail_url ? (
                       <img
-                        src={course.thumbnail_url}
+                        src={resolveMediaUrl(course.thumbnail_url) || course.thumbnail_url}
                         alt={course.course_title}
                         className="w-full h-full object-cover"
                       />

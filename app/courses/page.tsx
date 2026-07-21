@@ -203,9 +203,9 @@ export default function CoursesPage() {
       setTimeout(() => {
         window.location.href = `/learn/${courseId}`
       }, 800)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Enrollment error:', error)
-      alert('Failed to enroll. Please try again.')
+      alert(error?.message ? `Failed to enroll: ${error.message}` : 'Failed to enroll. Please try again.')
     }
   }
 
@@ -283,10 +283,12 @@ export default function CoursesPage() {
 
             {/* Mobile Filter Sheet */}
             <Sheet>
-              <SheetTrigger>
-                <Button variant="outline" size="icon" className="lg:hidden h-12 w-12 shrink-0">
-                  <Filter className="w-5 h-5" />
-                </Button>
+              <SheetTrigger
+                render={
+                  <Button variant="outline" size="icon" className="lg:hidden h-12 w-12 shrink-0" />
+                }
+              >
+                <Filter className="w-5 h-5" />
               </SheetTrigger>
               <SheetContent className="pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
                 <SheetHeader>

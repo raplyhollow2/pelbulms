@@ -27,13 +27,15 @@ export async function POST(request: Request) {
 
     const service = await createServiceClient()
 
-    const { data: course } = await service
+    // Do not select a non-existent `status` column — PostgREST returns an error
+    // and maybeSingle() looks like "course not found".
+    const { data: course, error: courseLookupError } = await service
       .from('courses')
-      .select('id, title, status, is_published')
+      .select('id, title, is_published')
       .eq('id', courseId)
       .maybeSingle()
 
-    if (!course) {
+    if (courseLookupError || !course) {
       return NextResponse.json({ error: 'Course not found' }, { status: 404 })
     }
 

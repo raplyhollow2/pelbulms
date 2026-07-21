@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, BookOpen, Users, Loader2, Edit, BarChart3 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
+import { resolveMediaUrl } from '@/lib/media'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -244,7 +245,7 @@ export default function TeacherDashboard() {
                     <div className="w-12 h-12 lg:w-16 lg:h-12 rounded bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20 flex items-center justify-center flex-shrink-0">
                       {course.thumbnail_url ? (
                         <img
-                          src={course.thumbnail_url}
+                          src={resolveMediaUrl(course.thumbnail_url) || course.thumbnail_url}
                           alt={course.title}
                           className="w-full h-full object-cover rounded"
                         />

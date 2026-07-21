@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
+import { resolveMediaUrl } from '@/lib/media'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Enrollment = Database['public']['Tables']['enrollments']['Row']
@@ -436,7 +437,7 @@ export function LearningDashboard() {
                       <div className="aspect-video mb-4 rounded-lg overflow-hidden bg-muted">
                         {course.thumbnail_url ? (
                           <img
-                            src={course.thumbnail_url}
+                            src={resolveMediaUrl(course.thumbnail_url) || course.thumbnail_url}
                             alt={course.title}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
