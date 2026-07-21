@@ -21,7 +21,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
-import { DashboardCourseRow } from '@/components/dashboard/course-row'
+import { DashboardCourseCard } from '@/components/dashboard/course-card'
 import { resolveMediaUrl } from '@/lib/media'
 import { cn } from '@/lib/utils'
 
@@ -336,15 +336,16 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {pageItems.map((enrollment) => {
                     const course = enrollment.courses
                     if (!course) return null
                     return (
-                      <DashboardCourseRow
+                      <DashboardCourseCard
                         key={enrollment.id}
                         id={course.id}
                         title={course.title}
+                        description={course.description}
                         category={course.category}
                         level={course.level}
                         thumbnailUrl={course.thumbnail_url}
@@ -353,7 +354,7 @@ export default function DashboardPage() {
                     )
                   })}
                   {pageItems.length === 0 && (
-                    <div className="rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
+                    <div className="col-span-full rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
                       No courses match this filter.
                     </div>
                   )}

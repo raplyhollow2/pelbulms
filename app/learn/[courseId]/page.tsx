@@ -325,12 +325,12 @@ export default function LearningPage() {
                   <CardTitle className="text-lg">Your Instructor</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center gap-3 mb-4">
+                  <div className="flex flex-col items-center text-center gap-3">
                     {instructor.avatar_url && (
                       <img
                         src={instructor.avatar_url}
                         alt={instructor.full_name || 'Instructor'}
-                        className="w-12 h-12 rounded-full object-cover"
+                        className="w-20 h-20 rounded-full object-cover"
                       />
                     )}
                     <div>
