@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Play, FileText, Code, Clock, CheckCircle, Circle, ChevronRight } from 'lucide-react'
+import { Play, FileText, Code, Clock, CheckCircle, Circle, ChevronRight, Lock } from 'lucide-react'
 import type { Database } from '@/types/database.types'
 
 type Lesson = Database['public']['Tables']['lessons']['Row']
@@ -20,6 +20,7 @@ interface CourseSyllabusProps {
   onLessonClick: (lessonId: string) => void
   completedLessons: Set<string>
   onLessonComplete: (lessonId: string, completed: boolean) => void
+  lockedLessonIds?: Set<string>
 }
 
 export function CourseSyllabus({
@@ -28,7 +29,8 @@ export function CourseSyllabus({
   currentLessonId,
   onLessonClick,
   completedLessons,
-  onLessonComplete
+  onLessonComplete,
+  lockedLessonIds,
 }: CourseSyllabusProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [autoScrolled, setAutoScrolled] = useState(false)
@@ -108,19 +110,27 @@ export function CourseSyllabus({
                       const Icon = getLessonIcon(lesson)
                       const isCompleted = completedLessons.has(lesson.id)
                       const isActive = lesson.id === currentLessonId
+                      const isLocked = lockedLessonIds?.has(lesson.id)
 
                       return (
                         <div
                           key={lesson.id}
                           data-lesson-id={lesson.id}
-                          className={`group flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer ${
+                          className={`group flex items-center gap-3 p-3 rounded-lg transition-all ${
+                            isLocked
+                              ? 'opacity-60 cursor-not-allowed'
+                              : 'cursor-pointer'
+                          } ${
                             isActive
                               ? 'bg-primary/10 border-l-4 border-primary'
-                              : 'hover:bg-secondary/50'
+                              : isLocked
+                                ? 'bg-secondary/20'
+                                : 'hover:bg-secondary/50'
                           }`}
                         >
                           <Checkbox
                             checked={isCompleted}
+                            disabled={Boolean(isLocked)}
                             onCheckedChange={(checked) => {
                               onLessonComplete(lesson.id, checked as boolean)
                             }}
@@ -130,15 +140,27 @@ export function CourseSyllabus({
 
                           <div
                             className="flex items-center gap-3 flex-1 min-w-0"
-                            onClick={() => onLessonClick(lesson.id)}
+                            onClick={() => {
+                              if (isLocked) return
+                              onLessonClick(lesson.id)
+                            }}
                           >
                             <div className={`p-2 rounded-lg ${isActive ? 'bg-primary/20' : 'bg-secondary'}`}>
-                              <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                              {isLocked ? (
+                                <Lock className={`w-4 h-4 text-muted-foreground`} />
+                              ) : (
+                                <Icon className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                              )}
                             </div>
 
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-medium truncate">{lesson.title}</span>
+                                {isLocked && (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    Locked
+                                  </Badge>
+                                )}
                                 {isCompleted && (
                                   <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
                                 )}

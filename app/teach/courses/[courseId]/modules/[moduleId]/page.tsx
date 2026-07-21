@@ -12,11 +12,13 @@ import { Switch } from '@/components/ui/switch'
 import { Separator } from '@/components/ui/separator'
 import {
   ArrowLeft, Plus, Trash2, Loader2, Save, BookOpen, GripVertical,
-  Link, Clock, FileText, Users, Settings as SettingsIcon,
+  Link, Clock, FileText, Users, Settings as SettingsIcon, Paperclip, ExternalLink,
 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { createClient } from '@/lib/supabase/client'
 import { haptic } from '@/lib/utils'
+import { LessonActivitiesPanel } from '@/components/teach/lesson-activities-panel'
+import { withGateSettings, readGateSettings } from '@/lib/progression-gates'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
@@ -339,7 +341,9 @@ export default function ModuleLessonsPage() {
               duration_minutes: lesson.duration_minutes,
               is_published: (lesson as any).is_published,
               is_free: lesson.is_free,
-              updated_at: new Date().toISOString()
+              resources: (lesson as any).resources ?? [],
+              order_index: lesson.order_index,
+              updated_at: new Date().toISOString(),
             })
             .eq('id', lesson.id)
         })
@@ -354,6 +358,7 @@ export default function ModuleLessonsPage() {
             title: module.title,
             description: module.description,
             is_published: (module as any).is_published,
+            metadata: (module as any).metadata || {},
             updated_at: new Date().toISOString()
           })
           .eq('id', moduleId)
@@ -577,6 +582,19 @@ export default function ModuleLessonsPage() {
 
                     <Separator />
 
+                    <div className="rounded-lg border bg-background/40 p-3">
+                      <LessonActivitiesPanel
+                        courseId={courseId}
+                        lessonId={lesson.id}
+                        resources={(lesson as any).resources}
+                        onChange={async (next) => {
+                          updateLesson(lesson.id, { resources: next as any })
+                        }}
+                      />
+                    </div>
+
+                    <Separator />
+
                     {/* Action toolbar */}
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-4">
@@ -595,15 +613,32 @@ export default function ModuleLessonsPage() {
                           Free preview
                         </label>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deleteLesson(lesson.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4 mr-1.5" />
-                        Delete
-                      </Button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() =>
+                            router.push(
+                              `/teach/courses/${courseId}/lessons/${lesson.id}`
+                            )
+                          }
+                        >
+                          <Paperclip className="w-4 h-4" />
+                          Full lesson editor
+                          <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteLesson(lesson.id)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4 mr-1.5" />
+                          Delete
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -664,6 +699,75 @@ export default function ModuleLessonsPage() {
                       setHasChanges(true)
                     }}
                   />
+                </div>
+
+                <div className="rounded-lg border p-4 space-y-3">
+                  <div>
+                    <p className="text-sm font-medium">Progression lock (optional)</p>
+                    <p className="text-xs text-muted-foreground">
+                      Off by default for all lessons. Enable only if you want gated progress in this module.
+                    </p>
+                  </div>
+                  {(() => {
+                    const gates = readGateSettings((module as any).metadata)
+                    const patchMeta = (patch: Parameters<typeof withGateSettings>[1]) => {
+                      setModule({
+                        ...module,
+                        metadata: withGateSettings((module as any).metadata, patch),
+                      } as any)
+                      setHasChanges(true)
+                    }
+                    return (
+                      <>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <Label className="text-sm">Sequential unlock</Label>
+                            <p className="text-xs text-muted-foreground">
+                              Optional. Complete each lesson before the next opens
+                            </p>
+                          </div>
+                          <Switch
+                            checked={Boolean(gates.sequentialUnlock)}
+                            onCheckedChange={(checked) =>
+                              patchMeta({ sequentialUnlock: checked })
+                            }
+                          />
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <Label className="text-sm">
+                              Resources &amp; flashcards after complete
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              Hide resources/flashcards until the lesson is completed
+                            </p>
+                          </div>
+                          <Switch
+                            checked={Boolean(gates.gateResourcesUntilComplete)}
+                            onCheckedChange={(checked) =>
+                              patchMeta({ gateResourcesUntilComplete: checked })
+                            }
+                          />
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <Label className="text-sm">
+                              Next after activities done
+                            </Label>
+                            <p className="text-xs text-muted-foreground">
+                              Unlock the next lesson only after resources/flashcards are finished
+                            </p>
+                          </div>
+                          <Switch
+                            checked={Boolean(gates.gateNextUntilActivitiesDone)}
+                            onCheckedChange={(checked) =>
+                              patchMeta({ gateNextUntilActivitiesDone: checked })
+                            }
+                          />
+                        </div>
+                      </>
+                    )
+                  })()}
                 </div>
               </CardContent>
             </Card>

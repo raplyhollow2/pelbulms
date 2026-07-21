@@ -70,6 +70,8 @@ export default function EditCoursePage() {
   const [videoUploadProgress, setVideoUploadProgress] = useState(0)
   const [mediaError, setMediaError] = useState('')
   const [newObjective, setNewObjective] = useState('')
+  const [discussionEnabled, setDiscussionEnabled] = useState(false)
+  const [discussionSaving, setDiscussionSaving] = useState(false)
 
   const supabase = createClient()
 
@@ -162,11 +164,60 @@ export default function EditCoursePage() {
         setModules(modulesWithCounts)
       }
 
+      const { data: forum } = await (supabase as any)
+        .from('forums')
+        .select('id, is_enabled')
+        .eq('course_id', courseId)
+        .is('module_id', null)
+        .is('lesson_id', null)
+        .maybeSingle()
+      setDiscussionEnabled(Boolean(forum?.is_enabled))
+
     } catch (error) {
       console.error('Error fetching course data:', error)
       alert('Failed to load course data. Please try again.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const toggleCourseDiscussion = async (enabled: boolean) => {
+    setDiscussionSaving(true)
+    const prev = discussionEnabled
+    setDiscussionEnabled(enabled)
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      const { data: existing } = await (supabase as any)
+        .from('forums')
+        .select('id, is_enabled')
+        .eq('course_id', courseId)
+        .is('module_id', null)
+        .is('lesson_id', null)
+        .maybeSingle()
+
+      if (existing) {
+        const { error } = await (supabase as any)
+          .from('forums')
+          .update({ is_enabled: enabled })
+          .eq('id', existing.id)
+        if (error) throw error
+      } else if (enabled) {
+        const { error } = await (supabase as any).from('forums').insert({
+          course_id: courseId,
+          title: `${courseData.title || 'Course'} Discussion`,
+          description: 'Course discussion for enrolled students',
+          is_enabled: true,
+          created_by: user?.id,
+        })
+        if (error) throw error
+      }
+    } catch (e: any) {
+      setDiscussionEnabled(prev)
+      alert(e?.message || 'Failed to update discussion')
+    } finally {
+      setDiscussionSaving(false)
     }
   }
 
@@ -1015,48 +1066,19 @@ export default function EditCoursePage() {
                 </div>
                 <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
                   <div className="min-w-0">
-                    <Label className="font-medium">Course discussion</Label>
+                    <Label htmlFor="course-discussion" className="font-medium">
+                      Course discussion
+                    </Label>
                     <p className="text-xs text-muted-foreground">
                       Enable a forum so enrolled students can post and comment
                     </p>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
-                      try {
-                        const { data: { user } } = await supabase.auth.getUser()
-                        const { data: existing } = await (supabase as any)
-                          .from('forums')
-                          .select('id, is_enabled')
-                          .eq('course_id', courseId)
-                          .is('module_id', null)
-                          .is('lesson_id', null)
-                          .maybeSingle()
-                        if (existing) {
-                          await (supabase as any)
-                            .from('forums')
-                            .update({ is_enabled: !existing.is_enabled })
-                            .eq('id', existing.id)
-                          alert(existing.is_enabled ? 'Discussion disabled' : 'Discussion enabled')
-                        } else {
-                          await (supabase as any).from('forums').insert({
-                            course_id: courseId,
-                            title: `${courseData.title || 'Course'} Discussion`,
-                            description: 'Course discussion for enrolled students',
-                            is_enabled: true,
-                            created_by: user?.id,
-                          })
-                          alert('Discussion enabled for this course')
-                        }
-                      } catch (e: any) {
-                        alert(e?.message || 'Failed to update discussion')
-                      }
-                    }}
-                  >
-                    Enable / toggle
-                  </Button>
+                  <Switch
+                    id="course-discussion"
+                    checked={discussionEnabled}
+                    disabled={discussionSaving}
+                    onCheckedChange={(checked) => void toggleCourseDiscussion(checked)}
+                  />
                 </div>
                 <div className="rounded-lg border p-4 space-y-3">
                   <div>

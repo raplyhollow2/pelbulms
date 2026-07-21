@@ -14,6 +14,8 @@ import { ArrowLeft, Loader2, Save, Edit, Clock, FileText, BookOpen, CheckCircle2
 import { createClient } from '@/lib/supabase/client'
 import { resolveMediaUrl, parseMediaRef } from '@/lib/media'
 import { uploadVideoDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
+import { LessonActivitiesPanel } from '@/components/teach/lesson-activities-panel'
+import { withGateSettings, readGateSettings } from '@/lib/progression-gates'
 import {
   DRIVE_SHARE_HINT,
   getGoogleDriveEmbedUrl,
@@ -372,6 +374,85 @@ export default function LessonEditPage() {
                 <Label htmlFor="lesson-free" className="text-sm">Free Preview</Label>
               </div>
             </div>
+
+            <div className="rounded-lg border p-4 space-y-3">
+              <div>
+                <p className="text-sm font-medium">Progression lock (optional)</p>
+                <p className="text-xs text-muted-foreground">
+                  All options are off by default. Turn on only what you need.
+                </p>
+              </div>
+              {(() => {
+                const gates = readGateSettings((lesson as any).metadata)
+                return (
+                  <>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <Label htmlFor="gate-resources" className="text-sm">
+                          Resources &amp; flashcards after lesson complete
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Hide Resources and Learning Tools flashcards until this lesson is completed
+                        </p>
+                      </div>
+                      <Switch
+                        id="gate-resources"
+                        checked={Boolean(gates.gateResourcesUntilComplete)}
+                        onCheckedChange={(checked) =>
+                          updateLesson({
+                            metadata: withGateSettings((lesson as any).metadata, {
+                              gateResourcesUntilComplete: checked,
+                            }),
+                          } as any)
+                        }
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <Label htmlFor="gate-next" className="text-sm">
+                          Unlock next only after activities done
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Next lesson stays locked until the student finishes resources/flashcards
+                        </p>
+                      </div>
+                      <Switch
+                        id="gate-next"
+                        checked={Boolean(gates.gateNextUntilActivitiesDone)}
+                        onCheckedChange={(checked) =>
+                          updateLesson({
+                            metadata: withGateSettings((lesson as any).metadata, {
+                              gateNextUntilActivitiesDone: checked,
+                            }),
+                          } as any)
+                        }
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <Label htmlFor="gate-seq" className="text-sm">
+                          Sequential unlock
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Optional. When on, students must finish earlier lessons before opening later ones
+                        </p>
+                      </div>
+                      <Switch
+                        id="gate-seq"
+                        checked={Boolean(gates.sequentialUnlock)}
+                        onCheckedChange={(checked) =>
+                          updateLesson({
+                            metadata: withGateSettings((lesson as any).metadata, {
+                              sequentialUnlock: checked,
+                            }),
+                          } as any)
+                        }
+                      />
+                    </div>
+                  </>
+                )
+              })()}
+            </div>
           </CardContent>
         </Card>
 
@@ -572,17 +653,23 @@ export default function LessonEditPage() {
           </CardContent>
         </Card>
 
-        {/* Additional Content Card */}
-        <Card className="glass">
+        {/* Activities & resources (Moodle-style) */}
+        <Card className="glass border-bhutan-yellow/30">
           <CardHeader className="pb-4">
-            <CardTitle className="text-lg">Additional Content</CardTitle>
-            <CardDescription className="text-sm">Transcript and learning resources</CardDescription>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-bhutan-yellow" />
+              Lesson content
+            </CardTitle>
+            <CardDescription className="text-sm">
+              Add activities and resources (assignment, file, forum, quiz, and more). Students see
+              them under this lesson.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <Label htmlFor="transcript" className="text-sm flex items-center gap-1">
                 <FileText className="w-3 h-3" />
-                Transcript
+                Transcript (optional)
               </Label>
               <Textarea
                 id="transcript"
@@ -590,87 +677,19 @@ export default function LessonEditPage() {
                 onChange={(e) => setLesson({ ...lesson, transcript: e.target.value })}
                 onBlur={() => updateLesson({ transcript: lesson.transcript })}
                 placeholder="Lesson transcript for accessibility and search..."
-                rows={6}
+                rows={4}
                 className="mt-1 resize-none"
               />
             </div>
-
-            <div>
-              <Label className="text-sm flex items-center gap-1">
-                <BookOpen className="w-3 h-3" />
-                Resources (PDF, PPT, reading materials)
-              </Label>
-              <div className="mt-2 space-y-2">
-                {(() => {
-                  const list = Array.isArray(lesson.resources)
-                    ? (lesson.resources as any[])
-                    : []
-                  return list.map((item: any, index: number) => (
-                    <div
-                      key={`${item.url || item.title}-${index}`}
-                      className="flex items-center justify-between gap-2 rounded-md border p-2 text-sm"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-medium truncate">{item.title || 'Resource'}</p>
-                        <p className="text-xs text-muted-foreground truncate">{item.type || item.url}</p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          const next = list.filter((_: any, i: number) => i !== index)
-                          setLesson({ ...lesson, resources: next as any })
-                          updateLesson({ resources: next as any })
-                        }}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  ))
-                })()}
-                <input
-                  type="file"
-                  accept=".pdf,.ppt,.pptx,.doc,.docx,.txt,.png,.jpg,.jpeg,.webp,.xls,.xlsx,application/pdf"
-                  className="hidden"
-                  id="lesson-resource-upload"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0]
-                    if (!file || !lesson) return
-                    try {
-                      const body = new FormData()
-                      body.append('file', file)
-                      body.append('courseId', courseId)
-                      body.append('lessonId', lessonId)
-                      body.append('title', file.name)
-                      const res = await fetch('/api/courses/resources', { method: 'POST', body })
-                      const data = await res.json()
-                      if (!res.ok) throw new Error(data.error || 'Upload failed')
-                      const current = Array.isArray(lesson.resources)
-                        ? [...(lesson.resources as any[])]
-                        : []
-                      const next = [...current, data.resource]
-                      setLesson({ ...lesson, resources: next as any })
-                      await updateLesson({ resources: next as any })
-                    } catch (err: any) {
-                      alert(err?.message || 'Failed to upload resource')
-                    } finally {
-                      e.target.value = ''
-                    }
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5"
-                  onClick={() => document.getElementById('lesson-resource-upload')?.click()}
-                >
-                  <UploadCloud className="w-4 h-4" />
-                  Upload PDF / PPT / document
-                </Button>
-              </div>
-            </div>
+            <LessonActivitiesPanel
+              courseId={courseId}
+              lessonId={lessonId}
+              resources={lesson.resources}
+              onChange={async (next) => {
+                setLesson({ ...lesson, resources: next as any })
+                await updateLesson({ resources: next as any })
+              }}
+            />
           </CardContent>
         </Card>
 

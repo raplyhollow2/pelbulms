@@ -12,6 +12,13 @@ import { QuizPlayer } from '@/components/quiz/quiz-player'
 import { CourseLearningTabs } from '@/components/course/course-learning-tabs'
 import { TrackedVideoPlayer, type VideoProgressData } from '@/components/learning/tracked-video-player'
 import { resolveMediaUrl } from '@/lib/media'
+import {
+  mergeGateSettings,
+  canViewResourcesAndFlashcards,
+  canGoToNextLesson,
+  isLessonUnlocked,
+  type LessonProgressLite,
+} from '@/lib/progression-gates'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Module = Database['public']['Tables']['modules']['Row']
@@ -46,8 +53,13 @@ export default function LessonViewPage() {
   // Progress tracking state
   const [lessonProgress, setLessonProgress] = useState<LessonProgress | null>(null)
   const [isCompleted, setIsCompleted] = useState(false)
+  const [activityCompleted, setActivityCompleted] = useState(false)
+  const [markingActivities, setMarkingActivities] = useState(false)
   const [savingProgress, setSavingProgress] = useState(false)
   const [completedLessonIds, setCompletedLessonIds] = useState<Set<string>>(new Set())
+  const [progressByLesson, setProgressByLesson] = useState<Map<string, LessonProgressLite>>(
+    new Map()
+  )
   const [certificateUrl, setCertificateUrl] = useState<string | null>(null)
   const [issuingCert, setIssuingCert] = useState(false)
   const lessonProgressIdRef = useRef<string | null>(null)
@@ -73,6 +85,38 @@ export default function LessonViewPage() {
   useEffect(() => {
     fetchLessonData()
   }, [courseId, lessonId])
+
+  // If sequential unlock is enabled and this lesson isn't open yet, bounce back
+  useEffect(() => {
+    if (loading || !lesson || allLessons.length === 0) return
+    const ordered = allLessons.map((l) => l.id)
+    const settingsFor = (id: string) => {
+      const les = allLessons.find((l) => l.id === id)
+      const mod = allModules.find((m) => m.id === (les as any)?.module_id) || module
+      return mergeGateSettings((mod as any)?.metadata, (les as any)?.metadata)
+    }
+    const unlocked = isLessonUnlocked({
+      orderedLessonIds: ordered,
+      targetLessonId: lessonId,
+      progressByLesson,
+      settingsForLesson: settingsFor,
+    })
+    if (!unlocked) {
+      const firstOpen = ordered.find((id) =>
+        isLessonUnlocked({
+          orderedLessonIds: ordered,
+          targetLessonId: id,
+          progressByLesson,
+          settingsForLesson: settingsFor,
+        })
+      )
+      if (firstOpen && firstOpen !== lessonId) {
+        alert('This lesson is locked. Opening the next available lesson.')
+        router.replace(`/learn/${courseId}/lesson/${firstOpen}`)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, lessonId, allLessons, progressByLesson, module, allModules])
 
   // Auto-save notes every 30 seconds
   useEffect(() => {
@@ -220,11 +264,13 @@ export default function LessonViewPage() {
           const pd = progressData as any
           setLessonProgress(pd as LessonProgress)
           setIsCompleted(pd.completed || false)
+          setActivityCompleted(Boolean(pd.activity_completed))
           lessonProgressIdRef.current = pd.id
           timeSpentBaseRef.current = pd.time_spent_seconds || 0
         } else {
           lessonProgressIdRef.current = null
           timeSpentBaseRef.current = 0
+          setActivityCompleted(false)
         }
       } catch (progressError) {
         console.log('Lesson progress fetch error (continuing anyway):', progressError)
@@ -234,11 +280,20 @@ export default function LessonViewPage() {
       try {
         const { data: courseProgress } = await supabase
           .from('lesson_progress')
-          .select('lesson_id, completed')
+          .select('lesson_id, completed, activity_completed')
           .eq('user_id', user.id)
           .eq('course_id', courseId)
 
         if (courseProgress) {
+          const map = new Map<string, LessonProgressLite>()
+          for (const r of courseProgress as any[]) {
+            map.set(r.lesson_id, {
+              lesson_id: r.lesson_id,
+              completed: r.completed,
+              activity_completed: r.activity_completed,
+            })
+          }
+          setProgressByLesson(map)
           setCompletedLessonIds(
             new Set(
               (courseProgress as any[])
@@ -479,6 +534,16 @@ export default function LessonViewPage() {
         else next.delete(lessonId)
         return next
       })
+      setProgressByLesson((prev) => {
+        const next = new Map(prev)
+        const cur = next.get(lessonId)
+        next.set(lessonId, {
+          lesson_id: lessonId,
+          completed,
+          activity_completed: cur?.activity_completed || false,
+        })
+        return next
+      })
 
       // Refresh enrollment (the DB trigger recomputes % and completion)
       const { data: updatedEnrollment } = await supabase
@@ -504,6 +569,56 @@ export default function LessonViewPage() {
   }
 
   const toggleLessonComplete = () => setLessonCompletedState(!isCompleted)
+
+  const markActivitiesComplete = async () => {
+    if (!currentUser || !lesson) return
+    try {
+      setMarkingActivities(true)
+      const payload: any = {
+        course_id: courseId,
+        activity_completed: true,
+        activity_completed_at: new Date().toISOString(),
+        last_accessed_at: new Date().toISOString(),
+      }
+      const db = supabase as any
+      if (lessonProgressIdRef.current) {
+        const { error } = await db
+          .from('lesson_progress')
+          .update(payload)
+          .eq('id', lessonProgressIdRef.current)
+        if (error) throw error
+      } else {
+        const { data: inserted, error } = await db
+          .from('lesson_progress')
+          .insert({
+            user_id: currentUser.id,
+            lesson_id: lessonId,
+            completed: isCompleted,
+            time_spent_seconds: timeSpentBaseRef.current,
+            ...payload,
+          })
+          .select()
+          .single()
+        if (error) throw error
+        if (inserted) lessonProgressIdRef.current = (inserted as any).id
+      }
+      setActivityCompleted(true)
+      setProgressByLesson((prev) => {
+        const next = new Map(prev)
+        next.set(lessonId, {
+          lesson_id: lessonId,
+          completed: isCompleted,
+          activity_completed: true,
+        })
+        return next
+      })
+    } catch (e) {
+      console.error('markActivitiesComplete failed:', e)
+      alert('Failed to mark activities complete. Please try again.')
+    } finally {
+      setMarkingActivities(false)
+    }
+  }
 
   // Auto-complete when the watch threshold is reached
   const handleThresholdReached = () => {
@@ -537,6 +652,23 @@ export default function LessonViewPage() {
   }
 
   const goToNextLesson = () => {
+    const settings = mergeGateSettings(
+      (module as any)?.metadata,
+      (lesson as any)?.metadata
+    )
+    const allowed = canGoToNextLesson({
+      settings,
+      lessonCompleted: isCompleted,
+      activityCompleted,
+    })
+    if (!allowed) {
+      if (settings.gateNextUntilActivitiesDone && !activityCompleted) {
+        alert('Finish resources and flashcards for this lesson before continuing.')
+      } else {
+        alert('Complete this lesson before continuing to the next one.')
+      }
+      return
+    }
     if (currentLessonIndex < allLessons.length - 1) {
       const nextLesson = allLessons[currentLessonIndex + 1]
       router.push(`/learn/${courseId}/lesson/${nextLesson.id}`)
@@ -552,6 +684,51 @@ export default function LessonViewPage() {
 
   const goBackToModules = () => {
     router.push(`/learn/${courseId}`)
+  }
+
+  const settingsForLesson = (id: string) => {
+    const les = allLessons.find((l) => l.id === id)
+    const mod = allModules.find((m) => m.id === (les as any)?.module_id) || module
+    return mergeGateSettings((mod as any)?.metadata, (les as any)?.metadata)
+  }
+
+  const currentGateSettings = mergeGateSettings(
+    (module as any)?.metadata,
+    (lesson as any)?.metadata
+  )
+
+  const resourcesLocked = !canViewResourcesAndFlashcards({
+    settings: currentGateSettings,
+    lessonCompleted: isCompleted,
+  })
+
+  const canProceedToNext = canGoToNextLesson({
+    settings: currentGateSettings,
+    lessonCompleted: isCompleted,
+    activityCompleted,
+  })
+
+  const orderedLessonIds = allLessons.map((l) => l.id)
+  const lockedLessonIds = new Set(
+    orderedLessonIds.filter(
+      (id) =>
+        !isLessonUnlocked({
+          orderedLessonIds,
+          targetLessonId: id,
+          progressByLesson,
+          settingsForLesson,
+        })
+    )
+  )
+
+  const tryOpenLesson = (targetId: string) => {
+    if (lockedLessonIds.has(targetId)) {
+      alert(
+        'This lesson is locked. Complete the previous lesson (and activities if required) first.'
+      )
+      return
+    }
+    router.push(`/learn/${courseId}/lesson/${targetId}`)
   }
 
   if (loading) {
@@ -666,7 +843,9 @@ export default function LessonViewPage() {
                       variant="outline"
                       size="sm"
                       onClick={goToNextLesson}
-                      disabled={currentLessonIndex >= allLessons.length - 1}
+                      disabled={
+                        currentLessonIndex >= allLessons.length - 1 || !canProceedToNext
+                      }
                       className="gap-1"
                     >
                       Next
@@ -690,11 +869,19 @@ export default function LessonViewPage() {
                 videoRef={videoRef}
                 userId={currentUser?.id}
                 completedLessons={completedLessonIds}
+                lockedLessonIds={lockedLessonIds}
+                resourcesLocked={resourcesLocked}
+                activityCompleted={activityCompleted}
+                markingActivities={markingActivities}
+                onMarkActivitiesComplete={
+                  currentGateSettings.gateNextUntilActivitiesDone
+                    ? () => void markActivitiesComplete()
+                    : undefined
+                }
                 onLessonClick={(clickedLessonId) => {
-                  router.push(`/learn/${courseId}/lesson/${clickedLessonId}`)
+                  tryOpenLesson(clickedLessonId)
                 }}
                 onLessonComplete={(targetLessonId, completed) => {
-                  // Only the currently open lesson can be toggled here
                   if (targetLessonId === lessonId) {
                     setLessonCompletedState(completed)
                   }
@@ -783,7 +970,9 @@ export default function LessonViewPage() {
                 <Button
                   className="w-full bg-bhutan-yellow hover:bg-bhutan-orange"
                   onClick={goToNextLesson}
-                  disabled={currentLessonIndex === allLessons.length - 1}
+                  disabled={
+                    currentLessonIndex === allLessons.length - 1 || !canProceedToNext
+                  }
                 >
                   Next
                   <ChevronRight className="w-4 h-4 ml-2" />
@@ -802,16 +991,23 @@ export default function LessonViewPage() {
                     {allLessons.map((l, index) => {
                       const isLessonDone = completedLessonIds.has(l.id)
                       const isCurrentLesson = l.id === lesson.id
+                      const isLocked = lockedLessonIds.has(l.id)
 
                       return (
                         <div
                           key={l.id}
-                          className={`p-3 rounded-lg cursor-pointer transition-colors ${
+                          className={`p-3 rounded-lg transition-colors ${
+                            isLocked
+                              ? 'opacity-60 cursor-not-allowed'
+                              : 'cursor-pointer'
+                          } ${
                             isCurrentLesson
                               ? 'bg-bhutan-yellow/20 border border-bhutan-yellow/50'
-                              : 'hover:bg-secondary/50'
+                              : isLocked
+                                ? 'bg-secondary/20'
+                                : 'hover:bg-secondary/50'
                           }`}
-                          onClick={() => router.push(`/learn/${courseId}/lesson/${l.id}`)}
+                          onClick={() => tryOpenLesson(l.id)}
                         >
                           <div className="flex items-start gap-3">
                             <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 mt-0.5">

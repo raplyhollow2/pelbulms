@@ -55,6 +55,10 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * POST — create or replace a flashcard deck (course-wide or per-lesson).
+ * Body: { courseId, lessonId?, title?, cards: [{ front, back }] }
+ */
 export async function POST(request: NextRequest) {
   const rbac = await checkRBAC(request, ['instructor', 'admin', 'resource_person', 'superadmin'])
   if (!rbac.hasAccess) {
@@ -64,7 +68,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const courseId = body.courseId as string
-    const title = (body.title as string) || 'Course flashcards'
+    const title =
+      (body.title as string) ||
+      (body.lessonId ? 'Lesson flashcards' : 'Course flashcards')
     const lessonId = (body.lessonId as string) || null
     const cards = (body.cards as { front: string; back: string }[]) || []
 
@@ -72,38 +78,69 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'courseId required' }, { status: 400 })
     }
 
-    const service = await createServiceClient()
-
-    const { data: deck, error: deckError } = await (service as any)
-      .from('flashcard_decks')
-      .insert({
-        course_id: courseId,
-        lesson_id: lessonId,
-        instructor_id: rbac.userId,
-        title,
-        is_published: true,
-      })
-      .select('*')
-      .single()
-
-    if (deckError) throw deckError
-
-    if (cards.length > 0) {
-      const rows = cards
-        .filter((c) => c.front?.trim() && c.back?.trim())
-        .map((c, i) => ({
-          deck_id: deck.id,
-          front: c.front.trim(),
-          back: c.back.trim(),
-          order_index: i,
-        }))
-      if (rows.length) {
-        const { error: cardsError } = await (service as any).from('flashcards').insert(rows)
-        if (cardsError) throw cardsError
-      }
+    const valid = cards.filter((c) => c.front?.trim() && c.back?.trim())
+    if (valid.length === 0) {
+      return NextResponse.json(
+        { error: 'Add at least one card with front and back' },
+        { status: 400 }
+      )
     }
 
-    return NextResponse.json({ deck })
+    const service = await createServiceClient()
+
+    // Upsert: one deck per lesson (or one course-wide deck when lessonId is null)
+    let deckQuery = (service as any)
+      .from('flashcard_decks')
+      .select('id')
+      .eq('course_id', courseId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    deckQuery = lessonId
+      ? deckQuery.eq('lesson_id', lessonId)
+      : deckQuery.is('lesson_id', null)
+
+    const { data: existingRows } = await deckQuery
+    let deckId = existingRows?.[0]?.id as string | undefined
+
+    if (deckId) {
+      const { error: updateError } = await (service as any)
+        .from('flashcard_decks')
+        .update({
+          title,
+          is_published: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', deckId)
+      if (updateError) throw updateError
+
+      await (service as any).from('flashcards').delete().eq('deck_id', deckId)
+    } else {
+      const { data: deck, error: deckError } = await (service as any)
+        .from('flashcard_decks')
+        .insert({
+          course_id: courseId,
+          lesson_id: lessonId,
+          instructor_id: rbac.userId,
+          title,
+          is_published: true,
+        })
+        .select('id')
+        .single()
+      if (deckError) throw deckError
+      deckId = deck.id
+    }
+
+    const rows = valid.map((c, i) => ({
+      deck_id: deckId,
+      front: c.front.trim(),
+      back: c.back.trim(),
+      order_index: i,
+    }))
+    const { error: cardsError } = await (service as any).from('flashcards').insert(rows)
+    if (cardsError) throw cardsError
+
+    return NextResponse.json({ deck: { id: deckId, title, lesson_id: lessonId }, cards: rows })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Failed to save flashcards' }, { status: 500 })
   }

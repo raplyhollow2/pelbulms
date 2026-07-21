@@ -1,14 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { ArrowLeft, Loader2, Save } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, UploadCloud, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { uploadImageDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
+import { resolveMediaUrl } from '@/lib/media'
 
 type CertSettings = {
   brandName: string
@@ -40,6 +42,8 @@ export default function CertificateDesignPage() {
   const [enabled, setEnabled] = useState(true)
   const [settings, setSettings] = useState<CertSettings>(DEFAULTS)
   const [message, setMessage] = useState('')
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     load()
@@ -111,6 +115,38 @@ export default function CertificateDesignPage() {
       setMessage(e?.message || 'Failed to save')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const uploadLogo = async (file: File) => {
+    setUploadingLogo(true)
+    setMessage('')
+    try {
+      try {
+        const { url } = await uploadImageDirectToCloudinary(file, {
+          folder: `course-media/images/${courseId}/certificate`,
+        })
+        setSettings((prev) => ({ ...prev, logoUrl: url }))
+        setMessage('Logo uploaded. Save design to keep it.')
+        return
+      } catch (directErr: any) {
+        if (file.size > 8 * 1024 * 1024) throw directErr
+      }
+
+      const body = new FormData()
+      body.append('file', file)
+      body.append('courseId', courseId)
+      body.append('kind', 'image')
+      const res = await fetch('/api/courses/media', { method: 'POST', body })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+      setSettings((prev) => ({ ...prev, logoUrl: data.url }))
+      setMessage('Logo uploaded. Save design to keep it.')
+    } catch (e: any) {
+      setMessage(e?.message || 'Failed to upload logo')
+    } finally {
+      setUploadingLogo(false)
+      if (logoInputRef.current) logoInputRef.current.value = ''
     }
   }
 
@@ -193,12 +229,59 @@ export default function CertificateDesignPage() {
               />
             </div>
             <div>
-              <Label>Logo URL (optional)</Label>
+              <Label>Logo (optional)</Label>
+              <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+                Upload an image or paste a URL
+              </p>
+              {settings.logoUrl ? (
+                <div className="mb-2 flex items-center gap-3 rounded-lg border p-2">
+                  <img
+                    src={resolveMediaUrl(settings.logoUrl) || settings.logoUrl}
+                    alt="Certificate logo"
+                    className="h-12 w-12 object-contain rounded bg-muted"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSettings({ ...settings, logoUrl: '' })}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Remove
+                  </Button>
+                </div>
+              ) : null}
+              <input
+                ref={logoInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) void uploadLogo(file)
+                }}
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={uploadingLogo}
+                  onClick={() => logoInputRef.current?.click()}
+                >
+                  {uploadingLogo ? (
+                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <UploadCloud className="w-4 h-4 mr-1.5" />
+                  )}
+                  {uploadingLogo ? 'Uploading…' : 'Upload logo'}
+                </Button>
+              </div>
               <Input
-                className="mt-1"
+                className="mt-2"
                 value={settings.logoUrl}
                 onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
-                placeholder="https://…"
+                placeholder="Or paste logo URL…"
               />
             </div>
             <Button
@@ -224,6 +307,13 @@ export default function CertificateDesignPage() {
               style={{ borderColor: settings.accentColor }}
             >
               <div>
+                {settings.logoUrl ? (
+                  <img
+                    src={resolveMediaUrl(settings.logoUrl) || settings.logoUrl}
+                    alt=""
+                    className="h-10 w-auto mx-auto mb-2 object-contain"
+                  />
+                ) : null}
                 <p
                   className="text-xs font-bold tracking-[0.2em]"
                   style={{ color: settings.accentColor }}
