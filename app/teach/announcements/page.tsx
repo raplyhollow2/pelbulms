@@ -96,20 +96,38 @@ export default function TeacherAnnouncementsPage() {
       const { data: { user } } = await supabase.auth.getUser()
 
       const supabaseInsert = supabase as any
-      const { error } = await supabaseInsert
-        .from('announcements')
-        .insert({
-          author_id: user?.id,
-          course_id: formData.course_id || null,
-          title: formData.title,
-          content: formData.content,
-          priority: formData.priority,
-          is_published: (formData as any).is_published,
-          publish_at: new Date().toISOString(),
-          expires_at: (formData as any).expires_at || null,
-        })
+      const insertPayload: any = {
+        author_id: user?.id,
+        created_by: user?.id,
+        course_id: formData.course_id || null,
+        title: formData.title,
+        content: formData.content,
+        priority: formData.priority,
+        is_published: (formData as any).is_published,
+        publish_at: new Date().toISOString(),
+        expires_at: (formData as any).expires_at || null,
+      }
+
+      const { error } = await supabaseInsert.from('announcements').insert(insertPayload)
 
       if (error) throw error
+
+      // Notify enrolled students when publishing to a course
+      if ((formData as any).is_published && formData.course_id) {
+        try {
+          await fetch('/api/announcements/notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              courseId: formData.course_id,
+              title: formData.title,
+              message: formData.content.slice(0, 200),
+            }),
+          })
+        } catch (notifyErr) {
+          console.warn('Announcement notify failed:', notifyErr)
+        }
+      }
 
       alert('Announcement created successfully!')
       setShowCreateForm(false)

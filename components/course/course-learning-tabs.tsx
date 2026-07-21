@@ -3,12 +3,14 @@
 import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CourseSyllabus } from './course-syllabus'
-import { CourseOverview } from './course-overview'
+import { CourseOverview, type InstructorInfo } from './course-overview'
 import { SimpleNotes } from './simple-notes'
 import { AnnouncementsList } from './announcements-list'
 import { ReviewsDashboard } from './reviews-dashboard'
 import { LearningTools } from './learning-tools'
-import { FileText, BookOpen, StickyNote, Bell, Star, Clock } from 'lucide-react'
+import { LessonResources } from './lesson-resources'
+import { LessonForum } from './lesson-forum'
+import { FileText, BookOpen, StickyNote, Bell, Star, Clock, Paperclip, MessagesSquare } from 'lucide-react'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
@@ -20,6 +22,9 @@ interface CourseLearningTabsProps {
   modules: Module[]
   lessons: Lesson[]
   currentLessonId: string
+  currentLesson?: Lesson | null
+  currentModule?: Module | null
+  instructor?: InstructorInfo | null
   videoRef: React.RefObject<HTMLVideoElement>
   userId?: string
   completedLessons: Set<string>
@@ -32,6 +37,9 @@ export function CourseLearningTabs({
   modules,
   lessons,
   currentLessonId,
+  currentLesson,
+  currentModule,
+  instructor,
   videoRef,
   userId,
   completedLessons,
@@ -43,8 +51,10 @@ export function CourseLearningTabs({
   const tabs = [
     { id: 'syllabus', label: 'Course Content', icon: FileText },
     { id: 'overview', label: 'Overview', icon: BookOpen },
+    { id: 'resources', label: 'Resources', icon: Paperclip },
     { id: 'notes', label: 'Notes', icon: StickyNote },
     { id: 'announcements', label: 'Announcements', icon: Bell },
+    { id: 'discussion', label: 'Discussion', icon: MessagesSquare },
     { id: 'reviews', label: 'Reviews', icon: Star },
     { id: 'tools', label: 'Learning Tools', icon: Clock },
   ]
@@ -52,7 +62,7 @@ export function CourseLearningTabs({
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <div className="overflow-x-auto -mx-1 px-1 scrollbar-hide">
-        <TabsList className="inline-flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-3 lg:grid-cols-6 bg-secondary/30 h-auto p-1 gap-1">
+        <TabsList className="inline-flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-4 lg:grid-cols-8 bg-secondary/30 h-auto p-1 gap-1">
           {tabs.map((tab) => {
             const Icon = tab.icon
             return (
@@ -81,7 +91,15 @@ export function CourseLearningTabs({
       </TabsContent>
 
       <TabsContent value="overview" className="mt-6">
-        <CourseOverview course={course} />
+        <CourseOverview
+          course={course}
+          instructor={instructor}
+          moduleDescription={currentModule?.description}
+        />
+      </TabsContent>
+
+      <TabsContent value="resources" className="mt-6">
+        <LessonResources resources={(currentLesson as any)?.resources} />
       </TabsContent>
 
       <TabsContent value="notes" className="mt-6">
@@ -94,6 +112,15 @@ export function CourseLearningTabs({
       <TabsContent value="announcements" className="mt-6">
         <AnnouncementsList
           courseId={course.id}
+          userId={userId}
+        />
+      </TabsContent>
+
+      <TabsContent value="discussion" className="mt-6">
+        <LessonForum
+          courseId={course.id}
+          moduleId={currentModule?.id}
+          lessonId={currentLessonId}
           userId={userId}
         />
       </TabsContent>

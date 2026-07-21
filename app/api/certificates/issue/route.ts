@@ -48,6 +48,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Not enrolled in this course' }, { status: 403 })
     }
 
+    const enrollStatus = (enrollment as any).status
+    if (enrollStatus && enrollStatus !== 'active' && enrollStatus !== 'completed') {
+      return NextResponse.json({ error: 'Enrollment is not active' }, { status: 403 })
+    }
+
     if (((enrollment as any).progress_percentage ?? 0) < 100) {
       return NextResponse.json(
         { error: 'Course is not fully completed yet' },
@@ -76,12 +81,19 @@ export async function POST(request: NextRequest) {
 
     const { data: course } = await service
       .from('courses')
-      .select('title, instructor_id')
+      .select('title, instructor_id, certificate_enabled, certificate_settings')
       .eq('id', courseId)
       .single()
 
     if (!course) {
       return NextResponse.json({ error: 'Course not found' }, { status: 404 })
+    }
+
+    if ((course as any).certificate_enabled === false) {
+      return NextResponse.json(
+        { error: 'Certificates are disabled for this course' },
+        { status: 400 }
+      )
     }
 
     let instructorName: string | undefined
@@ -105,6 +117,8 @@ export async function POST(request: NextRequest) {
       day: 'numeric',
     })
 
+    const design = ((course as any).certificate_settings || {}) as Record<string, string>
+
     // Generate the PDF
     const pdfBuffer = await generateCertificatePdf({
       recipientName: (profile as any)?.full_name || user.email || 'Student',
@@ -113,6 +127,13 @@ export async function POST(request: NextRequest) {
       verificationCode,
       verifyUrl: `${appUrl}/verify/${verificationCode}`,
       instructorName,
+      design: {
+        brandName: design.brandName,
+        titleLine: design.titleLine,
+        accentColor: design.accentColor,
+        signatureName: design.signatureName || instructorName,
+        signatureTitle: design.signatureTitle,
+      },
     })
 
     // Upload to Storage

@@ -42,6 +42,11 @@ export function ReviewsDashboard({ courseId, userId }: ReviewsDashboardProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedRating, setSelectedRating] = useState<string>('all')
   const [sortBy, setSortBy] = useState<string>('recent')
+  const [myRating, setMyRating] = useState(5)
+  const [myComment, setMyComment] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+  const [submitOk, setSubmitOk] = useState(false)
 
   useEffect(() => {
     loadReviews()
@@ -98,6 +103,33 @@ export function ReviewsDashboard({ courseId, userId }: ReviewsDashboardProps) {
     })
 
     setFilteredReviews(filtered)
+  }
+
+  const handleSubmitReview = async () => {
+    if (!userId) return
+    setSubmitting(true)
+    setSubmitError('')
+    setSubmitOk(false)
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          courseId,
+          rating: myRating,
+          comment: myComment.trim(),
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to submit review')
+      setSubmitOk(true)
+      setMyComment('')
+      await loadReviews()
+    } catch (e: any) {
+      setSubmitError(e?.message || 'Failed to submit review')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleHelpful = async (reviewId: string, helpful: boolean) => {
@@ -255,6 +287,48 @@ export function ReviewsDashboard({ courseId, userId }: ReviewsDashboardProps) {
 
           {/* Right Column - Reviews List */}
           <div className="lg:col-span-2 space-y-4">
+            {userId && (
+              <div className="rounded-lg border p-4 space-y-3 bg-background/60">
+                <h3 className="font-semibold text-sm">Rate this course</h3>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setMyRating(star)}
+                      className="p-0.5"
+                      aria-label={`${star} stars`}
+                    >
+                      <Star
+                        className={`w-6 h-6 ${
+                          star <= myRating
+                            ? 'fill-yellow-400 text-yellow-400'
+                            : 'text-gray-300'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+                <Input
+                  placeholder="Share your experience (optional)"
+                  value={myComment}
+                  onChange={(e) => setMyComment(e.target.value)}
+                />
+                <Button
+                  size="sm"
+                  onClick={handleSubmitReview}
+                  disabled={submitting}
+                  className="bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+                >
+                  {submitting ? 'Saving…' : 'Submit review'}
+                </Button>
+                {submitError && <p className="text-xs text-destructive">{submitError}</p>}
+                {submitOk && (
+                  <p className="text-xs text-green-600">Thanks — your rating was saved.</p>
+                )}
+              </div>
+            )}
+
             {/* Search and Filter */}
             <div className="flex gap-3">
               <div className="flex-1 relative">

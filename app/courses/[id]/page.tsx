@@ -26,6 +26,8 @@ export default function CourseDetailPage() {
   const [modules, setModules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [isEnrolled, setIsEnrolled] = useState(false)
+  const [enrollmentPending, setEnrollmentPending] = useState(false)
+  const [enrolling, setEnrolling] = useState(false)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [showVideoPreview, setShowVideoPreview] = useState(false)
 
@@ -76,16 +78,24 @@ export default function CourseDetailPage() {
 
       setModules(modulesData || [])
 
-      // Check if user is enrolled (limit(1) avoids PostgREST 406 from .single/.maybeSingle on 0 rows)
+      // Check enrollment (active = can learn; pending = awaiting creator)
       if (user) {
         const { data: enrollmentRows } = await supabase
           .from('enrollments')
-          .select('id')
+          .select('id, status')
           .eq('user_id', user.id)
           .eq('course_id', courseId)
           .limit(1)
 
-        setIsEnrolled((enrollmentRows?.length ?? 0) > 0)
+        const row = enrollmentRows?.[0] as any
+        if (row) {
+          const status = row.status || 'active'
+          setIsEnrolled(status === 'active' || status === 'completed')
+          setEnrollmentPending(status === 'pending')
+        } else {
+          setIsEnrolled(false)
+          setEnrollmentPending(false)
+        }
       }
     } catch (error) {
       console.error('Error fetching course details:', error)
@@ -99,8 +109,10 @@ export default function CourseDetailPage() {
       router.push('/auth/login')
       return
     }
+    if (enrollmentPending || isEnrolled) return
 
     try {
+      setEnrolling(true)
       const res = await fetch('/api/enrollments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -115,7 +127,18 @@ export default function CourseDetailPage() {
       }
       if (!res.ok) throw new Error(data.error || `Failed to enroll (HTTP ${res.status})`)
 
+      if (data.status === 'pending' || data.pending) {
+        setEnrollmentPending(true)
+        setIsEnrolled(false)
+        alert(
+          data.message ||
+            'Enrollment request sent. The course creator will verify your request.'
+        )
+        return
+      }
+
       setIsEnrolled(true)
+      setEnrollmentPending(false)
       if (data.alreadyEnrolled) {
         router.push(`/learn/${courseId}`)
         return
@@ -129,6 +152,8 @@ export default function CourseDetailPage() {
       if (error?.name === 'AbortError') return
       console.error('Enrollment error:', error?.message || error)
       alert(error?.message ? `Failed to enroll: ${error.message}` : 'Failed to enroll. Please try again.')
+    } finally {
+      setEnrolling(false)
     }
   }
 
@@ -182,19 +207,24 @@ export default function CourseDetailPage() {
               <p className="text-lg text-muted-foreground">{course.description}</p>
 
               {/* Video Preview Button */}
-              <div className="mt-4 flex items-center gap-3">
-                <Button
-                  variant="outline"
-                  className="bg-bhutan-yellow/10 hover:bg-bhutan-yellow/20 border-bhutan-yellow/50"
-                  onClick={() => setShowVideoPreview(true)}
-                >
-                  <Play className="w-4 h-4 mr-2" />
-                  Watch Free Preview
-                </Button>
-                <span className="text-sm text-muted-foreground">
-                  {course.duration_minutes ? `${Math.floor(course.duration_minutes / 60)} minutes of content` : 'Self-paced content'}
-                </span>
-              </div>
+              {((course as any).metadata?.preview_video_url ||
+                (course as any).preview_video_url) && (
+                <div className="mt-4 flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    className="bg-bhutan-yellow/10 hover:bg-bhutan-yellow/20 border-bhutan-yellow/50"
+                    onClick={() => setShowVideoPreview(true)}
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    Watch Preview
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    {course.duration_minutes
+                      ? `${course.duration_minutes} min of content`
+                      : 'Self-paced content'}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -224,21 +254,46 @@ export default function CourseDetailPage() {
               <CardTitle className="text-lg">Your Instructor</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-4">
-                {instructor.avatar_url && (
-                  <img
-                    src={instructor.avatar_url}
-                    alt={instructor.full_name || 'Instructor'}
-                    className="w-16 h-16 rounded-full object-cover"
-                  />
+              <a
+                href={`/instructors/${instructor.id}`}
+                className="flex items-start gap-4 group"
+              >
+                {(instructor.avatar_url || instructor.full_name) && (
+                  <div className="w-16 h-16 rounded-full overflow-hidden bg-bhutan-yellow/30 flex items-center justify-center shrink-0">
+                    {instructor.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={instructor.avatar_url}
+                        alt={instructor.full_name || 'Instructor'}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="font-bold text-lg">
+                        {(instructor.full_name || 'IN')
+                          .split(/\s+/)
+                          .map((n) => n[0])
+                          .join('')
+                          .slice(0, 2)
+                          .toUpperCase()}
+                      </span>
+                    )}
+                  </div>
                 )}
-                <div>
-                  <h3 className="font-semibold text-lg">{instructor.full_name}</h3>
-                  {instructor.bio && (
-                    <p className="text-sm text-muted-foreground mt-1">{instructor.bio}</p>
+                <div className="min-w-0">
+                  <h3 className="font-semibold text-lg group-hover:text-bhutan-orange transition-colors">
+                    {instructor.full_name}
+                  </h3>
+                  {course.category && (
+                    <Badge variant="outline" className="mt-1 text-xs">
+                      {course.category}
+                    </Badge>
                   )}
+                  {instructor.bio && (
+                    <p className="text-sm text-muted-foreground mt-2 line-clamp-3">{instructor.bio}</p>
+                  )}
+                  <p className="text-xs text-bhutan-yellow mt-2">View full profile →</p>
                 </div>
-              </div>
+              </a>
             </CardContent>
           </Card>
         )}
@@ -316,14 +371,26 @@ export default function CourseDetailPage() {
               <BookOpen className="w-5 h-5 mr-2" />
               Continue Learning
             </Button>
+          ) : enrollmentPending ? (
+            <Button size="lg" className="bg-amber-500 text-black" disabled>
+              <Clock className="w-5 h-5 mr-2" />
+              Pending creator approval
+            </Button>
           ) : (
             <Button
               size="lg"
               className="bg-bhutan-yellow hover:bg-bhutan-orange"
               onClick={handleEnroll}
+              disabled={enrolling}
             >
-              <BookOpen className="w-5 h-5 mr-2" />
-              Enroll Now
+              {enrolling ? (
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              ) : (
+                <BookOpen className="w-5 h-5 mr-2" />
+              )}
+              {(course as any).enrollment_mode === 'approval'
+                ? 'Request enrollment'
+                : 'Enroll Now'}
             </Button>
           )}
         </div>
@@ -334,6 +401,7 @@ export default function CourseDetailPage() {
         <CourseActionDeck
           course={course}
           isEnrolled={isEnrolled}
+          enrollmentPending={enrollmentPending}
           onEnroll={handleEnroll}
           onLearn={() => router.push(`/learn/${courseId}`)}
         />
@@ -344,10 +412,14 @@ export default function CourseDetailPage() {
         <VideoPreviewModal
           courseId={course.id}
           courseTitle={course.title}
-          previewVideoUrl={(course as any).preview_video_url}
-          previewDuration={course.duration_minutes ? Math.min(course.duration_minutes, 120) : 120}
+          previewVideoUrl={
+            (course as any).metadata?.preview_video_url ||
+            (course as any).preview_video_url ||
+            null
+          }
           isOpen={showVideoPreview}
           onOpenChange={setShowVideoPreview}
+          onEnroll={handleEnroll}
         />
       )}
     </div>

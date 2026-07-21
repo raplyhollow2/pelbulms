@@ -5,35 +5,35 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Check, Clock, Calendar, Globe, Award, BookOpen, ChevronDown, ChevronUp } from 'lucide-react'
+import { resolveMediaUrl } from '@/lib/media'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
 
-interface CourseOverviewProps {
-  course: Course
+export type InstructorInfo = {
+  id?: string
+  full_name?: string | null
+  avatar_url?: string | null
+  bio?: string | null
 }
 
-export function CourseOverview({ course }: CourseOverviewProps) {
+interface CourseOverviewProps {
+  course: Course
+  instructor?: InstructorInfo | null
+  moduleDescription?: string | null
+}
+
+export function CourseOverview({ course, instructor, moduleDescription }: CourseOverviewProps) {
   const [expanded, setExpanded] = useState(false)
 
-  const whatYouLearn = [
-    "Server Components vs Client Components architecture",
-    "Advanced Layout Patterns with App Router",
-    "Server Actions and mutations",
-    "Performance optimization techniques",
-    "Authentication with Supabase",
-    "Database design and management",
-    "API routes and serverless functions",
-    "Deployment strategies for Next.js applications"
-  ]
-
-  const requirements = [
-    "Basic knowledge of JavaScript and React",
-    "Familiarity with HTML and CSS",
-    "Understanding of web development concepts",
-    "Node.js installed on your machine",
-    "Basic Git knowledge"
-  ]
+  const whatYouLearn = Array.isArray((course as any).learning_objectives)
+    ? ((course as any).learning_objectives as string[]).filter(Boolean)
+    : []
+  const requirements = Array.isArray((course as any).requirements)
+    ? ((course as any).requirements as string[]).filter(Boolean)
+    : Array.isArray((course as any).prerequisites)
+      ? ((course as any).prerequisites as string[]).filter(Boolean)
+      : []
 
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60)
@@ -45,52 +45,67 @@ export function CourseOverview({ course }: CourseOverviewProps) {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
     })
   }
 
+  const instructorName = instructor?.full_name?.trim() || 'Instructor'
+  const initials = instructorName
+    .split(/\s+/)
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+  const avatarUrl = resolveMediaUrl(instructor?.avatar_url)
+
   return (
     <div className="space-y-6">
-      {/* Bento Grid Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* What You'll Learn Card */}
         <Card className="glass lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-bhutan-yellow" />
-              What You'll Learn
+              What You&apos;ll Learn
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {whatYouLearn.map((item, index) => (
-                <div key={index} className="flex items-start gap-2">
-                  <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-sm">{item}</span>
-                </div>
-              ))}
-            </div>
+            {whatYouLearn.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {whatYouLearn.map((item, index) => (
+                  <div key={index} className="flex items-start gap-2">
+                    <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                    <span className="text-sm">{item}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Learning objectives have not been added for this course yet.
+              </p>
+            )}
           </CardContent>
         </Card>
 
-        {/* Requirements Card */}
         <Card className="glass">
           <CardHeader>
             <CardTitle className="text-lg">Requirements</CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-2">
-              {requirements.map((req, index) => (
-                <li key={index} className="flex items-start gap-2 text-sm">
-                  <span className="text-bhutan-yellow font-bold">•</span>
-                  <span>{req}</span>
-                </li>
-              ))}
-            </ul>
+            {requirements.length > 0 ? (
+              <ul className="space-y-2">
+                {requirements.map((req, index) => (
+                  <li key={index} className="flex items-start gap-2 text-sm">
+                    <span className="text-bhutan-yellow font-bold">•</span>
+                    <span>{req}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">No specific requirements listed.</p>
+            )}
           </CardContent>
         </Card>
 
-        {/* Course Description Card */}
         <Card className="glass lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -99,61 +114,49 @@ export function CourseOverview({ course }: CourseOverviewProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {moduleDescription && (
+              <div className="mb-4 rounded-lg border bg-muted/30 p-3">
+                <p className="text-xs font-medium text-muted-foreground mb-1">Module overview</p>
+                <p className="text-sm">{moduleDescription}</p>
+              </div>
+            )}
             <div
               className={`text-sm text-muted-foreground transition-all duration-300 ${
                 expanded ? 'max-h-full' : 'max-h-32 overflow-hidden'
               }`}
             >
-              <p>{course.description}</p>
-              <p className="mt-4">
-                This comprehensive course takes you from beginner to advanced in Next.js development.
-                You'll build real-world projects and learn best practices for modern web development.
-                The course covers everything from basic routing to advanced optimization techniques,
-                ensuring you have the skills to build production-ready applications.
+              <p className="whitespace-pre-wrap">
+                {course.description || 'No description provided for this course.'}
               </p>
-              {expanded && (
-                <>
-                  <p className="mt-4">
-                    Throughout the course, you'll work on hands-on projects that reinforce your learning
-                    and help you build a portfolio of work to showcase to potential employers. Each module
-                    is designed to build upon the previous ones, creating a comprehensive understanding of
-                    Next.js and modern web development.
-                  </p>
-                  <p className="mt-4">
-                    By the end of this course, you'll have the confidence and skills to tackle any
-                    Next.js project and build scalable, performant web applications.
-                  </p>
-                </>
-              )}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setExpanded(!expanded)}
-              className="mt-4 text-bhutan-yellow hover:text-bhutan-orange"
-            >
-              {expanded ? (
-                <>
-                  <ChevronUp className="w-4 h-4 mr-2" />
-                  Show Less
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="w-4 h-4 mr-2" />
-                  Read More
-                </>
-              )}
-            </Button>
+            {(course.description?.length || 0) > 280 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setExpanded(!expanded)}
+                className="mt-4 text-bhutan-yellow hover:text-bhutan-orange"
+              >
+                {expanded ? (
+                  <>
+                    <ChevronUp className="w-4 h-4 mr-2" />
+                    Show Less
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-4 h-4 mr-2" />
+                    Read More
+                  </>
+                )}
+              </Button>
+            )}
           </CardContent>
         </Card>
 
-        {/* Quick Stats Card */}
         <Card className="glass">
           <CardHeader>
             <CardTitle className="text-lg">Course Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Level */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm">
                 <Award className="w-4 h-4 text-muted-foreground" />
@@ -164,7 +167,6 @@ export function CourseOverview({ course }: CourseOverviewProps) {
               </Badge>
             </div>
 
-            {/* Duration */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm">
                 <Clock className="w-4 h-4 text-muted-foreground" />
@@ -175,7 +177,6 @@ export function CourseOverview({ course }: CourseOverviewProps) {
               </span>
             </div>
 
-            {/* Last Updated */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm">
                 <Calendar className="w-4 h-4 text-muted-foreground" />
@@ -186,16 +187,14 @@ export function CourseOverview({ course }: CourseOverviewProps) {
               </span>
             </div>
 
-            {/* Language */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm">
                 <Globe className="w-4 h-4 text-muted-foreground" />
                 <span className="text-muted-foreground">Language</span>
               </div>
-              <Badge variant="outline">English</Badge>
+              <Badge variant="outline">{(course as any).language || 'English'}</Badge>
             </div>
 
-            {/* Category */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm">
                 <BookOpen className="w-4 h-4 text-muted-foreground" />
@@ -209,23 +208,31 @@ export function CourseOverview({ course }: CourseOverviewProps) {
         </Card>
       </div>
 
-      {/* Instructor Section */}
       <Card className="glass">
         <CardHeader>
           <CardTitle>Instructor</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-start gap-4">
-            <div className="w-16 h-16 rounded-full bg-bhutan-yellow flex items-center justify-center text-black font-bold text-xl">
-              RP
-            </div>
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={avatarUrl}
+                alt={instructorName}
+                className="w-16 h-16 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-bhutan-yellow flex items-center justify-center text-black font-bold text-xl">
+                {initials || 'IN'}
+              </div>
+            )}
             <div className="flex-1">
-              <h3 className="font-semibold text-lg">Rajiv Pradhan</h3>
-              <p className="text-sm text-muted-foreground mb-2">Senior Next.js Developer & Instructor</p>
-              <p className="text-sm">
-                Passionate about teaching modern web development and helping students build
-                production-ready applications with Next.js and React.
-              </p>
+              <h3 className="font-semibold text-lg">{instructorName}</h3>
+              {instructor?.bio ? (
+                <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{instructor.bio}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground mt-1">Course instructor</p>
+              )}
             </div>
           </div>
         </CardContent>

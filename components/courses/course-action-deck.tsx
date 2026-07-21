@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BookOpen, Clock, Users, Star, Play, CheckCircle, X } from 'lucide-react'
+import { BookOpen, Clock, Users, Star, Play, CheckCircle, X, Hourglass } from 'lucide-react'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
@@ -12,18 +12,32 @@ type Course = Database['public']['Tables']['courses']['Row']
 interface CourseActionDeckProps {
   course: Course
   isEnrolled?: boolean
+  enrollmentPending?: boolean
   onEnroll: () => void
   onLearn?: () => void
 }
 
-export function CourseActionDeck({ course, isEnrolled = false, onEnroll, onLearn }: CourseActionDeckProps) {
+export function CourseActionDeck({
+  course,
+  isEnrolled = false,
+  enrollmentPending = false,
+  onEnroll,
+  onLearn,
+}: CourseActionDeckProps) {
   const [isVisible, setIsVisible] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
-  const [showPreview, setShowPreview] = useState(false)
+
+  const requiresApproval = (course as any).enrollment_mode === 'approval'
+  const ctaLabel = isEnrolled
+    ? 'Learn'
+    : enrollmentPending
+      ? 'Pending approval'
+      : requiresApproval
+        ? 'Request enrollment'
+        : 'Enroll'
 
   useEffect(() => {
     const handleScroll = () => {
-      // Show deck when user scrolls past hero section
       const heroSection = document.querySelector('[data-hero-section]')
       if (heroSection) {
         const rect = heroSection.getBoundingClientRect()
@@ -32,7 +46,7 @@ export function CourseActionDeck({ course, isEnrolled = false, onEnroll, onLearn
     }
 
     window.addEventListener('scroll', handleScroll)
-    handleScroll() // Check initial state
+    handleScroll()
 
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
@@ -49,8 +63,8 @@ export function CourseActionDeck({ course, isEnrolled = false, onEnroll, onLearn
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-sm truncate">{course.title}</h3>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-lg font-bold text-bhutan-yellow">
-                    ${course.price === 0 ? 'Free' : course.price}
+                  <span className="text-xs text-muted-foreground">
+                    Included with verified account
                   </span>
                   {course.is_featured && (
                     <Badge className="bg-bhutan-yellow text-black text-xs">Featured</Badge>
@@ -59,13 +73,22 @@ export function CourseActionDeck({ course, isEnrolled = false, onEnroll, onLearn
               </div>
               <Button
                 size="lg"
-                className={`bg-bhutan-yellow hover:bg-bhutan-orange text-black whitespace-nowrap ${
-                  isEnrolled ? 'bg-green-600 hover:bg-green-700' : ''
+                className={`whitespace-nowrap ${
+                  isEnrolled
+                    ? 'bg-green-600 hover:bg-green-700 text-black'
+                    : enrollmentPending
+                      ? 'bg-amber-500 hover:bg-amber-600 text-black'
+                      : 'bg-bhutan-yellow hover:bg-bhutan-orange text-black'
                 }`}
+                disabled={enrollmentPending}
                 onClick={isEnrolled ? onLearn : onEnroll}
               >
-                <BookOpen className="w-4 h-4 mr-2" />
-                {isEnrolled ? 'Learn' : 'Enroll'}
+                {enrollmentPending ? (
+                  <Hourglass className="w-4 h-4 mr-2" />
+                ) : (
+                  <BookOpen className="w-4 h-4 mr-2" />
+                )}
+                {ctaLabel}
               </Button>
             </div>
           </CardContent>
@@ -80,7 +103,6 @@ export function CourseActionDeck({ course, isEnrolled = false, onEnroll, onLearn
           <CardContent className="p-0">
             {!isMinimized ? (
               <>
-                {/* Header */}
                 <div className="p-4 border-b border-border/50">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold">Course Preview</h3>
@@ -103,7 +125,6 @@ export function CourseActionDeck({ course, isEnrolled = false, onEnroll, onLearn
                   </div>
                 </div>
 
-                {/* Stats */}
                 <div className="p-4 border-b border-border/50 space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
@@ -130,7 +151,6 @@ export function CourseActionDeck({ course, isEnrolled = false, onEnroll, onLearn
                   </div>
                 </div>
 
-                {/* Learning Objectives Preview */}
                 {course.learning_objectives && course.learning_objectives.length > 0 && (
                   <div className="p-4 border-b border-border/50">
                     <h5 className="text-xs font-semibold mb-2">What you'll learn:</h5>
@@ -145,11 +165,10 @@ export function CourseActionDeck({ course, isEnrolled = false, onEnroll, onLearn
                   </div>
                 )}
 
-                {/* Price and CTA */}
                 <div className="p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-bhutan-yellow">
-                      ${course.price === 0 ? 'Free' : course.price}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-muted-foreground">
+                      Included with verified account
                     </span>
                     {course.is_featured && (
                       <Badge className="bg-bhutan-yellow text-black">Featured</Badge>
@@ -157,12 +176,15 @@ export function CourseActionDeck({ course, isEnrolled = false, onEnroll, onLearn
                   </div>
 
                   <Button
-                    className={`w-full ${
+                    className={`w-full text-black ${
                       isEnrolled
                         ? 'bg-green-600 hover:bg-green-700'
-                        : 'bg-bhutan-yellow hover:bg-bhutan-orange'
-                    } text-black`}
+                        : enrollmentPending
+                          ? 'bg-amber-500 hover:bg-amber-600'
+                          : 'bg-bhutan-yellow hover:bg-bhutan-orange'
+                    }`}
                     size="lg"
+                    disabled={enrollmentPending}
                     onClick={isEnrolled ? onLearn : onEnroll}
                   >
                     {isEnrolled ? (
@@ -170,21 +192,29 @@ export function CourseActionDeck({ course, isEnrolled = false, onEnroll, onLearn
                         <BookOpen className="w-5 h-5 mr-2" />
                         Continue Learning
                       </>
+                    ) : enrollmentPending ? (
+                      <>
+                        <Hourglass className="w-5 h-5 mr-2" />
+                        Pending approval
+                      </>
                     ) : (
                       <>
                         <Play className="w-5 h-5 mr-2" />
-                        Enroll Now
+                        {requiresApproval ? 'Request enrollment' : 'Enroll Now'}
                       </>
                     )}
                   </Button>
 
                   <p className="text-xs text-center text-muted-foreground">
-                    30-day money-back guarantee
+                    {enrollmentPending
+                      ? 'Waiting for the course creator to approve your request'
+                      : requiresApproval && !isEnrolled
+                        ? 'This course requires creator approval after you request enrollment'
+                        : 'No course fee — enrollment requires a verified account'}
                   </p>
                 </div>
               </>
             ) : (
-              /* Minimized State */
               <div className="p-4">
                 <Button
                   variant="ghost"

@@ -65,7 +65,7 @@ export default function ProgressPage() {
 
       setUser(session.user)
 
-      // Fetch enrollments with course data
+      // Fetch enrollments with course data (active learning only)
       const { data: enrollmentsData } = await supabase
         .from('enrollments')
         .select(`
@@ -73,6 +73,7 @@ export default function ProgressPage() {
           courses (*)
         `)
         .eq('user_id', session.user.id)
+        .in('status', ['active', 'completed'])
         .order('last_accessed_at', { ascending: false })
 
       if (enrollmentsData) {

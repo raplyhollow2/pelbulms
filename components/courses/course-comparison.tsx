@@ -187,13 +187,13 @@ export function CourseComparison({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {/* Price */}
+            {/* Access */}
             <TableRow>
-              <TableCell className="font-medium py-3">Price</TableCell>
+              <TableCell className="font-medium py-3">Access</TableCell>
               {comparisonCourses.map((course) => (
                 <TableCell key={course.id} className="text-center py-3">
-                  <div className="text-lg font-bold text-bhutan-yellow">
-                    ${course.price === 0 ? 'Free' : course.price}
+                  <div className="text-sm font-medium text-muted-foreground">
+                    Verified account
                   </div>
                 </TableCell>
               ))}
@@ -457,8 +457,8 @@ export function CourseComparison({
                             {course.level}
                           </Badge>
                         </div>
-                        <div className="text-sm font-semibold text-bhutan-yellow">
-                          ${course.price === 0 ? 'Free' : course.price}
+                        <div className="text-xs text-muted-foreground">
+                          Included with verified account
                         </div>
                       </div>
                     </div>
@@ -479,26 +479,23 @@ export function CourseComparison({
               <div className="flex items-start gap-3">
                 <TrendingUp className="w-6 h-6 text-bhutan-yellow flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <h4 className="font-semibold mb-2 text-base">Best Value Recommendation</h4>
+                  <h4 className="font-semibold mb-2 text-base">Recommended course</h4>
                   <p className="text-sm text-muted-foreground">
-                    Based on rating, price, and content depth, we recommend{' '}
+                    Based on rating and content depth, we recommend{' '}
                     <span className="font-semibold text-bhutan-yellow">
                       {
                         comparisonCourses.reduce((best, current) => {
                           const currentScore =
-                            (current.rating || 0) * 10 -
-                            (current.price || 0) / 10 +
+                            (current.rating || 0) * 10 +
                             (current.modules_count || 0) * 2
                           const bestScore =
-                            (best.rating || 0) * 10 -
-                            (best.price || 0) / 10 +
+                            (best.rating || 0) * 10 +
                             (best.modules_count || 0) * 2
                           return currentScore > bestScore ? current : best
                         }).title
                       }
                     </span>
-                    . It offers the best combination of quality, content, and
-                    value for money.
+                    . All courses are included with a verified account — no course fee.
                   </p>
                 </div>
               </div>

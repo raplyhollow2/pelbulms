@@ -13,6 +13,14 @@ import { Switch } from '@/components/ui/switch'
 import { ArrowLeft, Loader2, Save, Edit, Clock, FileText, BookOpen, CheckCircle2, Link, UploadCloud, Lock, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { resolveMediaUrl, parseMediaRef } from '@/lib/media'
+import { uploadVideoDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
+import {
+  DRIVE_SHARE_HINT,
+  getGoogleDriveEmbedUrl,
+  getYoutubeId,
+  isGoogleDriveUrl,
+  MAX_VIDEO_UPLOAD_LABEL,
+} from '@/lib/video-url'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
@@ -34,6 +42,7 @@ export default function LessonEditPage() {
 
   const videoInputRef = useRef<HTMLInputElement>(null)
   const [uploadingVideo, setUploadingVideo] = useState(false)
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0)
   const [videoUploadError, setVideoUploadError] = useState('')
 
   const supabase = createClient()
@@ -66,14 +75,17 @@ export default function LessonEditPage() {
         return
       }
 
-      // Check if user is the instructor or admin
+      // Check if user is the instructor or admin/superadmin
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single()
 
-      if ((courseData as any).instructor_id !== user.id && (profile as any)?.role !== 'admin') {
+      const role = (profile as any)?.role
+      const isOwner = (courseData as any).instructor_id === user.id
+      const isStaff = role === 'admin' || role === 'superadmin'
+      if (!isOwner && !isStaff) {
         alert('Access denied. You can only edit your own courses.')
         router.push('/teach/dashboard')
         return
@@ -152,34 +164,44 @@ export default function LessonEditPage() {
     }
   }
 
-  const getYoutubeId = (url: string) => {
-    if (!url) return ''
-    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/)
-    return match ? match[1] : ''
-  }
+  const getYoutubeIdLocal = (url: string) => getYoutubeId(url) || ''
 
-  // Upload a private lesson video to Cloudinary (served via /api/media).
+  // Direct browser → Cloudinary upload (supports up to 1GB; compresses on Cloudinary).
   const uploadLessonVideo = async (file: File) => {
     setVideoUploadError('')
     setUploadingVideo(true)
+    setVideoUploadProgress(0)
     try {
-      const body = new FormData()
-      body.append('file', file)
-      body.append('courseId', courseId)
-      body.append('kind', 'video')
+      const { url } = await uploadVideoDirectToCloudinary(file, {
+        folder: `course-media/videos/${courseId}`,
+        onProgress: setVideoUploadProgress,
+      })
 
-      const res = await fetch('/api/courses/media', { method: 'POST', body })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Upload failed')
-
-      // data.url is a private reference like "cloudinary:video:<public_id>".
-      setLesson((prev) => (prev ? { ...prev, video_url: data.url } : prev))
-      await updateLesson({ video_url: data.url })
+      setLesson((prev) => (prev ? { ...prev, video_url: url } : prev))
+      await updateLesson({ video_url: url })
     } catch (err: any) {
       console.error('Lesson video upload error:', err)
-      setVideoUploadError(err?.message || 'Failed to upload video')
+      // Fallback only for small files when Cloudinary is not configured
+      if (file.size > 20 * 1024 * 1024) {
+        setVideoUploadError(err?.message || 'Failed to upload video')
+        return
+      }
+      try {
+        const body = new FormData()
+        body.append('file', file)
+        body.append('courseId', courseId)
+        body.append('kind', 'video')
+        const res = await fetch('/api/courses/media', { method: 'POST', body })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || err?.message || 'Upload failed')
+        setLesson((prev) => (prev ? { ...prev, video_url: data.url } : prev))
+        await updateLesson({ video_url: data.url })
+      } catch (fallbackErr: any) {
+        setVideoUploadError(fallbackErr?.message || err?.message || 'Failed to upload video')
+      }
     } finally {
       setUploadingVideo(false)
+      setVideoUploadProgress(0)
       if (videoInputRef.current) videoInputRef.current.value = ''
     }
   }
@@ -358,7 +380,8 @@ export default function LessonEditPage() {
           <CardHeader className="pb-4">
             <CardTitle className="text-lg">Lesson video</CardTitle>
             <CardDescription className="text-sm">
-              Paste a YouTube link or upload a private video — one field for either.
+              Paste a YouTube or Google Drive link, or upload a private video (up to{' '}
+              {MAX_VIDEO_UPLOAD_LABEL}). Uploads go directly to Cloudinary and are compressed.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -375,7 +398,7 @@ export default function LessonEditPage() {
 
             <div className="space-y-2">
               <Label htmlFor="video-url" className="text-sm">
-                Video (YouTube link or upload)
+                Video (YouTube, Google Drive, or upload)
               </Label>
               <div className="flex gap-2">
                 <Input
@@ -387,7 +410,7 @@ export default function LessonEditPage() {
                       updateLesson({ video_url: lesson.video_url })
                     }
                   }}
-                  placeholder="https://youtube.com/watch?v=… or upload →"
+                  placeholder="YouTube / Drive link, or upload →"
                   className="flex-1"
                   disabled={!!parseMediaRef(lesson.video_url) || uploadingVideo}
                 />
@@ -407,11 +430,28 @@ export default function LessonEditPage() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Private uploads are streamed through your site (recommended for confidential content).
-                YouTube links remain discoverable in the browser.
+                Private uploads (up to {MAX_VIDEO_UPLOAD_LABEL}) stream through your site. Drive links
+                play inside the LMS — {DRIVE_SHARE_HINT}
               </p>
+              {uploadingVideo && videoUploadProgress > 0 && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Uploading to Cloudinary…</span>
+                    <span>{videoUploadProgress}%</span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-secondary">
+                    <div
+                      className="h-1.5 rounded-full bg-bhutan-yellow transition-all"
+                      style={{ width: `${videoUploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
               {videoUploadError && (
                 <p className="text-sm text-destructive">{videoUploadError}</p>
+              )}
+              {isGoogleDriveUrl(lesson.video_url || '') && (
+                <p className="text-xs text-amber-700 dark:text-amber-400">{DRIVE_SHARE_HINT}</p>
               )}
             </div>
 
@@ -448,11 +488,11 @@ export default function LessonEditPage() {
               </div>
             )}
 
-            {lesson.video_url && getYoutubeId(lesson.video_url) && (
+            {lesson.video_url && getYoutubeIdLocal(lesson.video_url) && (
               <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
                 <div className="aspect-video overflow-hidden rounded-lg bg-black">
                   <iframe
-                    src={`https://www.youtube.com/embed/${getYoutubeId(lesson.video_url)}?enablejsapi=1&rel=0&modestbranding=1`}
+                    src={`https://www.youtube.com/embed/${getYoutubeIdLocal(lesson.video_url)}?enablejsapi=1&rel=0&modestbranding=1`}
                     className="h-full w-full"
                     allowFullScreen
                     title={lesson.title || 'Lesson video'}
@@ -469,6 +509,27 @@ export default function LessonEditPage() {
               </div>
             )}
 
+            {lesson.video_url && getGoogleDriveEmbedUrl(lesson.video_url) && !getYoutubeIdLocal(lesson.video_url) && (
+              <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+                <div className="aspect-video overflow-hidden rounded-lg bg-black">
+                  <iframe
+                    src={getGoogleDriveEmbedUrl(lesson.video_url)!}
+                    className="h-full w-full border-0"
+                    allow="autoplay; encrypted-media; fullscreen"
+                    allowFullScreen
+                    title={lesson.title || 'Drive video'}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Link className="h-3 w-3" /> Google Drive (in-LMS preview)
+                  </span>
+                  <Button type="button" variant="ghost" size="sm" onClick={removeLessonVideo}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="duration" className="text-sm flex items-center gap-1">
@@ -535,27 +596,80 @@ export default function LessonEditPage() {
             </div>
 
             <div>
-              <Label htmlFor="resources" className="text-sm flex items-center gap-1">
+              <Label className="text-sm flex items-center gap-1">
                 <BookOpen className="w-3 h-3" />
-                Resources (JSON)
+                Resources (PDF, PPT, reading materials)
               </Label>
-              <Textarea
-                id="resources"
-                value={JSON.stringify((lesson.resources as any) || [], null, 2)}
-                onChange={(e) => {
-                  try {
-                    const resources = JSON.parse(e.target.value)
-                    setLesson({ ...lesson, resources })
-                  } catch (err) {
-                    // Invalid JSON, don't update state
-                    console.error('Invalid JSON:', err)
-                  }
-                }}
-                onBlur={() => updateLesson({ resources: lesson.resources })}
-                placeholder='[{"title": "Slide Deck", "url": "https://..."}]'
-                rows={4}
-                className="mt-1 resize-none font-mono text-xs"
-              />
+              <div className="mt-2 space-y-2">
+                {(() => {
+                  const list = Array.isArray(lesson.resources)
+                    ? (lesson.resources as any[])
+                    : []
+                  return list.map((item: any, index: number) => (
+                    <div
+                      key={`${item.url || item.title}-${index}`}
+                      className="flex items-center justify-between gap-2 rounded-md border p-2 text-sm"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{item.title || 'Resource'}</p>
+                        <p className="text-xs text-muted-foreground truncate">{item.type || item.url}</p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const next = list.filter((_: any, i: number) => i !== index)
+                          setLesson({ ...lesson, resources: next as any })
+                          updateLesson({ resources: next as any })
+                        }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  ))
+                })()}
+                <input
+                  type="file"
+                  accept=".pdf,.ppt,.pptx,.doc,.docx,.txt,.png,.jpg,.jpeg,.webp,.xls,.xlsx,application/pdf"
+                  className="hidden"
+                  id="lesson-resource-upload"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file || !lesson) return
+                    try {
+                      const body = new FormData()
+                      body.append('file', file)
+                      body.append('courseId', courseId)
+                      body.append('lessonId', lessonId)
+                      body.append('title', file.name)
+                      const res = await fetch('/api/courses/resources', { method: 'POST', body })
+                      const data = await res.json()
+                      if (!res.ok) throw new Error(data.error || 'Upload failed')
+                      const current = Array.isArray(lesson.resources)
+                        ? [...(lesson.resources as any[])]
+                        : []
+                      const next = [...current, data.resource]
+                      setLesson({ ...lesson, resources: next as any })
+                      await updateLesson({ resources: next as any })
+                    } catch (err: any) {
+                      alert(err?.message || 'Failed to upload resource')
+                    } finally {
+                      e.target.value = ''
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => document.getElementById('lesson-resource-upload')?.click()}
+                >
+                  <UploadCloud className="w-4 h-4" />
+                  Upload PDF / PPT / document
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

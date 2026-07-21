@@ -33,6 +33,12 @@ export default function LessonViewPage() {
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null)
   const [allLessons, setAllLessons] = useState<Lesson[]>([])
   const [allModules, setAllModules] = useState<Module[]>([])
+  const [instructor, setInstructor] = useState<{
+    id?: string
+    full_name?: string | null
+    avatar_url?: string | null
+    bio?: string | null
+  } | null>(null)
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0)
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
@@ -92,7 +98,7 @@ export default function LessonViewPage() {
         return
       }
 
-      // Check enrollment status
+      // Check enrollment — only active/completed can access lessons
       const { data: enrollmentData } = await supabase
         .from('enrollments')
         .select('*')
@@ -100,9 +106,18 @@ export default function LessonViewPage() {
         .eq('course_id', courseId)
         .maybeSingle()
 
-      if (enrollmentData) {
-        setEnrollment(enrollmentData)
+      const status = (enrollmentData as any)?.status
+      if (!enrollmentData || (status !== 'active' && status !== 'completed')) {
+        if (status === 'pending') {
+          alert('Your enrollment is waiting for the course creator to approve.')
+        } else {
+          alert('You need to enroll in this course first.')
+        }
+        router.push(`/courses/${courseId}`)
+        return
       }
+
+      setEnrollment(enrollmentData)
 
       // Fetch lesson details
       const { data: lessonData, error: lessonError } = await supabase
@@ -141,7 +156,7 @@ export default function LessonViewPage() {
         setModule(moduleData)
       }
 
-      // Fetch course details
+      // Fetch course details + instructor
       const { data: courseData } = await supabase
         .from('courses')
         .select('*')
@@ -150,20 +165,46 @@ export default function LessonViewPage() {
 
       if (courseData) {
         setCourse(courseData)
+        const instructorId = (courseData as any).instructor_id
+        if (instructorId) {
+          const { data: instructorProfile } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url, bio')
+            .eq('id', instructorId)
+            .maybeSingle()
+          if (instructorProfile) setInstructor(instructorProfile as any)
+        }
       }
 
-      // Fetch all lessons in this module for navigation
-      const { data: moduleLessons } = await supabase
-        .from('lessons')
-        .select('*')
-        .eq('module_id', (lessonData as Lesson).module_id)
-        .eq('is_published', true)
-        .order('order_index', { ascending: true })
+      // Course-wide ordered lessons (modules by order, then lessons by order)
+      const moduleList = (modulesData || []) as Module[]
+      if (moduleList.length > 0) {
+        const moduleIds = moduleList.map((m) => m.id)
+        const { data: courseLessons } = await supabase
+          .from('lessons')
+          .select('*')
+          .in('module_id', moduleIds)
+          .eq('is_published', true)
+          .order('order_index', { ascending: true })
 
-      if (moduleLessons) {
-        setAllLessons(moduleLessons as Lesson[])
-        const index = (moduleLessons as Lesson[]).findIndex(l => l.id === lessonId)
+        const byModule = new Map<string, Lesson[]>()
+        for (const l of (courseLessons || []) as Lesson[]) {
+          const list = byModule.get(l.module_id) || []
+          list.push(l)
+          byModule.set(l.module_id, list)
+        }
+        const ordered: Lesson[] = []
+        for (const m of moduleList) {
+          const lessonsInModule = byModule.get(m.id) || []
+          lessonsInModule.sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+          ordered.push(...lessonsInModule)
+        }
+        setAllLessons(ordered)
+        const index = ordered.findIndex((l) => l.id === lessonId)
         setCurrentLessonIndex(index >= 0 ? index : 0)
+      } else {
+        setAllLessons([])
+        setCurrentLessonIndex(0)
       }
 
       // Fetch lesson progress for THIS lesson
@@ -590,7 +631,9 @@ export default function LessonViewPage() {
                 <CardContent className="p-3 sm:p-4">
                   <TrackedVideoPlayer
                     key={lessonId}
-                    videoUrl={resolveMediaUrl(lesson.video_url) || ''}
+                    videoUrl={
+                      resolveMediaUrl(lesson.video_url) || lesson.video_url || ''
+                    }
                     title={lesson.title}
                     initialPositionSeconds={(lessonProgress as any)?.last_position_seconds || 0}
                     thresholdPercent={90}
@@ -602,6 +645,34 @@ export default function LessonViewPage() {
                       This lesson auto-completes once you have watched about 90% of the video.
                     </p>
                   )}
+                  <div className="mt-4 flex items-center justify-between gap-2 border-t pt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToPreviousLesson}
+                      disabled={currentLessonIndex <= 0}
+                      className="gap-1"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </Button>
+                    <span className="text-xs text-muted-foreground text-center truncate px-2">
+                      {currentLessonIndex + 1} / {allLessons.length}
+                      {allLessons[currentLessonIndex]?.title
+                        ? ` · ${allLessons[currentLessonIndex].title}`
+                        : ''}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={goToNextLesson}
+                      disabled={currentLessonIndex >= allLessons.length - 1}
+                      className="gap-1"
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -613,6 +684,9 @@ export default function LessonViewPage() {
                 modules={allModules}
                 lessons={allLessons}
                 currentLessonId={lessonId}
+                currentLesson={lesson}
+                currentModule={module}
+                instructor={instructor}
                 videoRef={videoRef}
                 userId={currentUser?.id}
                 completedLessons={completedLessonIds}

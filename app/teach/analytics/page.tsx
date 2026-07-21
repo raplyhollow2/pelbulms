@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, TrendingUp, Users, Clock, Award, BookOpen, Loader2, BarChart3 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
+import { canAccessTeaching } from '@/lib/roles'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -62,8 +63,8 @@ export default function TeacherAnalyticsPage() {
         .eq('id', user.id)
         .single()
 
-      if (!profileData || ((profileData as any).role !== 'instructor' && (profileData as any).role !== 'admin')) {
-        alert('Access denied. Analytics is for instructors only.')
+      if (!profileData || !canAccessTeaching((profileData as any).role)) {
+        alert('Access denied. Analytics is for instructors and admins.')
         router.push('/dashboard')
         return
       }

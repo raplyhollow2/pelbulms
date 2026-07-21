@@ -5,8 +5,10 @@ import { cloudinary, isCloudinaryConfigured } from '@/lib/cloudinary'
 import { makeMediaRef } from '@/lib/media'
 
 const BUCKET = 'course-media'
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024 // 8MB
-const MAX_VIDEO_BYTES = 100 * 1024 * 1024 // 100MB
+/** Proxy fallback only — prefer direct Cloudinary upload for images/videos. */
+const MAX_IMAGE_BYTES = 25 * 1024 * 1024 // 25MB
+/** Proxy fallback only — large videos must use direct Cloudinary upload. */
+const MAX_VIDEO_BYTES = 20 * 1024 * 1024 // 20MB (Next/Vercel body-safe fallback)
 const ALLOWED_IMAGE = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']
 const ALLOWED_VIDEO = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime']
 
@@ -66,7 +68,9 @@ export async function POST(request: NextRequest) {
     if (file.size > maxBytes) {
       return NextResponse.json(
         {
-          error: `File too large. Maximum size is ${Math.round(maxBytes / (1024 * 1024))}MB.`,
+          error: isVideo
+            ? `File too large for server upload (${Math.round(maxBytes / (1024 * 1024))}MB max). Use direct Cloudinary upload (up to 1GB).`
+            : `File too large for server upload. Maximum size is ${Math.round(maxBytes / (1024 * 1024))}MB. Try a smaller image or ensure Cloudinary is configured for direct upload.`,
         },
         { status: 400 }
       )

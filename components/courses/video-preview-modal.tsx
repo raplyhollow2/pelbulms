@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -8,250 +8,188 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog'
-import { Play, X, Volume2, VolumeX, Maximize2, Minimize2 } from 'lucide-react'
-import { Progress } from '@/components/ui/progress'
+import { Play, Pause, X, Volume2, VolumeX } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { resolveMediaUrl, parseMediaRef } from '@/lib/media'
+import {
+  getGoogleDriveEmbedUrl,
+  getYoutubeId,
+  isDirectVideoFile,
+} from '@/lib/video-url'
 
 interface VideoPreviewModalProps {
   courseId: string
   courseTitle: string
-  previewVideoUrl?: string
-  previewDuration?: number
+  previewVideoUrl?: string | null
   isOpen?: boolean
   onOpenChange?: (open: boolean) => void
+  onEnroll?: () => void
 }
 
 export function VideoPreviewModal({
-  courseId,
   courseTitle,
   previewVideoUrl,
-  previewDuration = 120, // Default 2 minutes
   isOpen: controlledOpen,
   onOpenChange,
+  onEnroll,
 }: VideoPreviewModalProps) {
-  const [isOpen, setIsOpen] = useState(controlledOpen || false)
+  const [isOpen, setIsOpen] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(false)
-  const [isFullscreen, setIsFullscreen] = useState(false)
-  const [currentTime, setCurrentTime] = useState(0)
-  const [duration] = useState(previewDuration)
+  const videoRef = useRef<HTMLVideoElement>(null)
 
-  // Handle controlled/uncontrolled state
   const open = controlledOpen !== undefined ? controlledOpen : isOpen
   const handleOpenChange = (newOpen: boolean) => {
-    if (controlledOpen === undefined) {
-      setIsOpen(newOpen)
-    }
+    if (controlledOpen === undefined) setIsOpen(newOpen)
     onOpenChange?.(newOpen)
+    if (!newOpen) {
+      setIsPlaying(false)
+      videoRef.current?.pause()
+    }
   }
+
+  const raw = (previewVideoUrl || '').trim()
+  const resolved = resolveMediaUrl(raw) || raw
+  const youtubeId = getYoutubeId(raw)
+  const driveEmbed = getGoogleDriveEmbedUrl(raw)
+  const isCloudinaryOrFile =
+    Boolean(parseMediaRef(raw)?.type === 'video') ||
+    isDirectVideoFile(resolved) ||
+    (resolved.startsWith('http') && /\.(mp4|webm|ogg|mov)(\?|$)/i.test(resolved))
 
   useEffect(() => {
-    let interval: NodeJS.Timeout
+    if (!open) return
+    setIsPlaying(false)
+  }, [open, raw])
 
-    if (isPlaying && currentTime < duration) {
-      interval = setInterval(() => {
-        setCurrentTime((prev) => {
-          if (prev >= duration) {
-            setIsPlaying(false)
-            return duration
-          }
-          return prev + 1
-        })
-      }, 1000)
-    }
-
-    return () => clearInterval(interval)
-  }, [isPlaying, currentTime, duration])
-
-  const handlePlayPause = () => {
-    setIsPlaying(!isPlaying)
-  }
-
-  const handleSeek = (value: number[]) => {
-    setCurrentTime(value[0])
-  }
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
-
-  const toggleFullscreen = () => {
-    if (!isFullscreen) {
-      document.documentElement.requestFullscreen()
-      setIsFullscreen(true)
-    } else {
-      document.exitFullscreen()
-      setIsFullscreen(false)
+  const handlePlayPause = async () => {
+    const el = videoRef.current
+    if (!el) return
+    try {
+      if (el.paused) {
+        await el.play()
+        setIsPlaying(true)
+      } else {
+        el.pause()
+        setIsPlaying(false)
+      }
+    } catch {
+      setIsPlaying(false)
     }
   }
 
-  // Listen for fullscreen changes
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement)
-    }
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange)
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
-  }, [])
+  const hasVideo = Boolean(raw)
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-4xl w-full p-0 gap-0 bg-background/95 backdrop-blur-sm">
+      <DialogContent className="max-w-4xl w-full p-0 gap-0 bg-background/95 backdrop-blur-sm overflow-hidden">
         <div className="relative">
-          {/* Video Player Container */}
           <div className="relative aspect-video bg-black group">
-            {/* Video Content */}
-            {previewVideoUrl ? (
-              <video
-                className="w-full h-full"
-                src={previewVideoUrl}
-                poster={`/api/og/courses/${courseId}`}
-                muted={isMuted}
-                controls={false}
-              />
-            ) : (
+            {!hasVideo ? (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20">
-                <div className="text-center">
+                <div className="text-center px-6">
                   <Play className="w-16 h-16 text-bhutan-yellow mx-auto mb-4 opacity-50" />
-                  <p className="text-bhutan-yellow/70 font-medium">Course Preview</p>
+                  <p className="text-bhutan-yellow/80 font-medium">No preview video yet</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    The instructor has not uploaded a course preview.
+                  </p>
                 </div>
+              </div>
+            ) : youtubeId ? (
+              <iframe
+                src={`https://www.youtube.com/embed/${youtubeId}?rel=0&modestbranding=1`}
+                className="w-full h-full border-0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                title={`${courseTitle} preview`}
+              />
+            ) : driveEmbed ? (
+              <iframe
+                src={driveEmbed}
+                className="w-full h-full border-0"
+                allow="autoplay; encrypted-media; fullscreen"
+                allowFullScreen
+                title={`${courseTitle} preview`}
+              />
+            ) : isCloudinaryOrFile || resolved ? (
+              <>
+                <video
+                  ref={videoRef}
+                  className="w-full h-full"
+                  src={resolved}
+                  muted={isMuted}
+                  controls
+                  playsInline
+                  onPlay={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                  onEnded={() => setIsPlaying(false)}
+                />
+                <div className="absolute bottom-3 left-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 bg-black/50 text-white hover:bg-black/70"
+                    onClick={handlePlayPause}
+                  >
+                    {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 bg-black/50 text-white hover:bg-black/70"
+                    onClick={() => {
+                      setIsMuted((m) => !m)
+                      if (videoRef.current) videoRef.current.muted = !isMuted
+                    }}
+                  >
+                    {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <p className="text-sm text-muted-foreground">Unable to play this preview URL.</p>
               </div>
             )}
 
-            {/* Play/Pause Overlay */}
-            <div
-              className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-              onClick={handlePlayPause}
-            >
-              <Button
-                size="icon"
-                variant="ghost"
-                className="w-16 h-16 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm"
-              >
-                {isPlaying ? (
-                  <X className="w-8 h-8 text-white" />
-                ) : (
-                  <Play className="w-8 h-8 text-white ml-1" />
-                )}
-              </Button>
-            </div>
-
-            {/* Preview Badge */}
-            <Badge className="absolute top-4 left-4 bg-bhutan-yellow text-black">
-              Free Preview
+            <Badge className="absolute top-4 left-4 bg-bhutan-yellow text-black z-10">
+              Preview
             </Badge>
 
-            {/* Close Button */}
             <Button
               size="icon"
               variant="ghost"
-              className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white"
+              className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white z-10"
               onClick={() => handleOpenChange(false)}
             >
               <X className="w-5 h-5" />
             </Button>
           </div>
-
-          {/* Controls */}
-          <div className="bg-background border-t border-border/50 p-4 space-y-3">
-            {/* Progress Bar */}
-            <div className="space-y-1">
-              <Progress
-                value={(currentTime / duration) * 100}
-                className="h-1 cursor-pointer"
-                onClick={(e) => {
-                  const rect = e.currentTarget.getBoundingClientRect()
-                  const x = e.clientX - rect.left
-                  const percentage = x / rect.width
-                  handleSeek([percentage * duration])
-                }}
-              />
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{formatTime(currentTime)}</span>
-                <span>{formatTime(duration)}</span>
-              </div>
-            </div>
-
-            {/* Control Buttons */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  onClick={handlePlayPause}
-                >
-                  {isPlaying ? (
-                    <X className="w-4 h-4" />
-                  ) : (
-                    <Play className="w-4 h-4 ml-0.5" />
-                  )}
-                </Button>
-
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-8 w-8"
-                  onClick={() => setIsMuted(!isMuted)}
-                >
-                  {isMuted ? (
-                    <VolumeX className="w-4 h-4" />
-                  ) : (
-                    <Volume2 className="w-4 h-4" />
-                  )}
-                </Button>
-
-                <div className="flex items-center gap-2 ml-2">
-                  <span className="text-xs text-muted-foreground">Preview</span>
-                  <Badge variant="outline" className="text-xs">
-                    {Math.floor(duration / 60)}:{(duration % 60).toString().padStart(2, '0')}
-                  </Badge>
-                </div>
-              </div>
-
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8"
-                onClick={toggleFullscreen}
-              >
-                {isFullscreen ? (
-                  <Minimize2 className="w-4 h-4" />
-                ) : (
-                  <Maximize2 className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
-          </div>
         </div>
 
-        {/* Info Section */}
         <div className="p-4 border-t border-border/50">
           <DialogHeader>
             <DialogTitle>{courseTitle}</DialogTitle>
             <DialogDescription>
-              Watch a free preview to see if this course is right for you
+              {hasVideo
+                ? 'Watch a free preview to see if this course is right for you'
+                : 'Enroll to access the full course content'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="flex items-center gap-3 mt-4">
             <Button
               className="flex-1 bg-bhutan-yellow hover:bg-bhutan-orange text-black"
-              onClick={() => handleOpenChange(false)}
+              onClick={() => {
+                handleOpenChange(false)
+                onEnroll?.()
+              }}
             >
-              Enroll Now to Watch Full Course
+              Enroll to Watch Full Course
             </Button>
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => handleOpenChange(false)}
-            >
-              Browse Course Content
+            <Button variant="outline" className="flex-1" onClick={() => handleOpenChange(false)}>
+              Close
             </Button>
           </div>
         </div>

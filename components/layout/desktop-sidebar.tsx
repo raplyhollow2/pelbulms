@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   Home, BookOpen, GraduationCap, Settings, User,
   ChevronLeft, ChevronRight, LogOut, Search, TrendingUp, Users,
-  Bell,
+  Bell, HardDrive,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -66,6 +66,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
   const teacherNavigation: NavItem[] = [
     { name: 'Teacher Dashboard', href: '/teach/dashboard', icon: GraduationCap },
     { name: 'New Course', href: '/teach/courses/new', icon: BookOpen },
+    { name: 'Media Library', href: '/teach/media', icon: HardDrive },
     { name: 'Analytics', href: '/teach/analytics', icon: TrendingUp },
     { name: 'Announcements', href: '/teach/announcements', icon: Bell },
     ...(showApprovals && !canAdmin

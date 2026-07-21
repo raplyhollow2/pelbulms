@@ -1,45 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams
-    const courseId = searchParams.get('courseId')
-
+    const courseId = request.nextUrl.searchParams.get('courseId')
     if (!courseId) {
       return NextResponse.json({ error: 'Course ID required' }, { status: 400 })
     }
 
-    // Mock announcements data for now since the table might not exist
-    const mockAnnouncements = [
-      {
-        id: '1',
-        title: 'Welcome to the Course!',
-        content: 'We are excited to have you join us. Get ready for an amazing learning journey!',
-        instructor_name: 'Rajiv Pradhan',
-        created_at: new Date().toISOString(),
-        is_pinned: true,
-        likes_count: 42,
-        replies_count: 8
-      },
-      {
-        id: '2',
-        title: 'Course Materials Updated',
-        content: 'I\'ve just updated the **Section 3** materials with the latest `Next.js 16` features. Make sure to check them out!',
-        instructor_name: 'Rajiv Pradhan',
-        created_at: new Date(Date.now() - 86400000).toISOString(),
-        is_pinned: false,
-        likes_count: 28,
-        replies_count: 5
-      }
-    ]
+    const supabase = await createSupabaseServerClient()
 
-    return NextResponse.json({ announcements: mockAnnouncements })
+    // Prefer published course announcements; also include global if column exists
+    let query = supabase
+      .from('announcements')
+      .select('*')
+      .eq('course_id', courseId)
+      .order('created_at', { ascending: false })
+
+    const { data: rows, error } = await query
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+
+    const list = ((rows || []) as any[]).filter((a) => {
+      if (a.is_published === false) return false
+      if (a.publish_at && new Date(a.publish_at) > new Date()) return false
+      if (a.expires_at && new Date(a.expires_at) < new Date()) return false
+      return true
+    })
+
+    const authorIds = [
+      ...new Set(list.map((a) => a.author_id || a.created_by).filter(Boolean)),
+    ]
+    let names: Record<string, string> = {}
+    if (authorIds.length > 0) {
+      const service = await createServiceClient()
+      const { data: profiles } = await service
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', authorIds)
+      for (const p of (profiles || []) as any[]) {
+        names[p.id] = p.full_name || 'Instructor'
+      }
+    }
+
+    const announcements = list.map((a) => {
+      const authorId = a.author_id || a.created_by
+      return {
+        id: a.id,
+        title: a.title,
+        content: a.content,
+        instructor_name: names[authorId] || 'Instructor',
+        created_at: a.created_at,
+        is_pinned: Boolean(a.is_pinned),
+        likes_count: a.likes_count || 0,
+        replies_count: a.replies_count || 0,
+        priority: a.priority,
+      }
+    })
+
+    // Pinned first
+    announcements.sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned))
+
+    return NextResponse.json({ announcements })
   } catch (error) {
     console.error('Error fetching announcements:', error)
     return NextResponse.json({ error: 'Failed to fetch announcements' }, { status: 500 })

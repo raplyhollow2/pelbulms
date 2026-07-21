@@ -42,6 +42,7 @@ export default function AnnouncementsPage() {
         .from('enrollments')
         .select('course_id')
         .eq('user_id', user.id)
+        .in('status', ['active', 'completed'])
 
       const courseIds = (enrollments as any)?.map((e: any) => e.course_id) || []
 

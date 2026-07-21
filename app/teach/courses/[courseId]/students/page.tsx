@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, Users, Search, TrendingUp, Clock, Loader2, Award } from 'lucide-react'
+import { ArrowLeft, Users, Search, TrendingUp, Clock, Loader2, Award, Check, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 
@@ -30,6 +30,7 @@ export default function CourseStudentsPage() {
   const [course, setCourse] = useState<Course | null>(null)
   const [students, setStudents] = useState<StudentWithProgress[]>([])
   const [searchTerm, setSearchTerm] = useState('')
+  const [decidingId, setDecidingId] = useState<string | null>(null)
 
   const supabase = createClient()
 
@@ -61,8 +62,15 @@ export default function CourseStudentsPage() {
         return
       }
 
-      // Check if user is the instructor
-      if ((courseData as any).instructor_id !== user.id) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+      const role = (profile as any)?.role
+      const isOwner = (courseData as any).instructor_id === user.id
+      const isStaff = role === 'admin' || role === 'superadmin'
+      if (!isOwner && !isStaff) {
         alert('Access denied. You can only view students for your own courses.')
         router.push('/teach/dashboard')
         return
@@ -143,14 +151,44 @@ export default function CourseStudentsPage() {
     return Math.round((student.completed_lessons / student.total_lessons) * 100)
   }
 
+  const pendingStudents = students.filter(
+    (s: any) => (s.enrollment as any).status === 'pending'
+  )
+  const activeStudents = students.filter((s: any) => {
+    const status = (s.enrollment as any).status
+    return status === 'active' || status === 'completed'
+  })
+
   const getAverageProgress = () => {
-    if (students.length === 0) return 0
-    const total = students.reduce((sum, student) => sum + getProgressPercentage(student), 0)
-    return Math.round(total / students.length)
+    const pool = activeStudents.length > 0 ? activeStudents : students
+    if (pool.length === 0) return 0
+    const total = pool.reduce((sum, student) => sum + getProgressPercentage(student), 0)
+    return Math.round(total / pool.length)
   }
 
   const getCompletedCount = () => {
     return students.filter((student: any) => (student.enrollment as any).status === 'completed').length
+  }
+
+  const handleEnrollmentDecision = async (
+    enrollmentId: string,
+    action: 'approve' | 'reject'
+  ) => {
+    try {
+      setDecidingId(enrollmentId)
+      const res = await fetch('/api/teach/enrollments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enrollmentId, action }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Failed to update enrollment')
+      await fetchStudentsData()
+    } catch (e: any) {
+      alert(e?.message || 'Failed to update enrollment')
+    } finally {
+      setDecidingId(null)
+    }
   }
 
   if (loading) {
@@ -191,8 +229,18 @@ export default function CourseStudentsPage() {
               <CardTitle className="text-sm font-medium">Total Students</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-bhutan-yellow">{students.length}</div>
-              <p className="text-xs text-muted-foreground mt-1">Enrolled students</p>
+              <div className="text-3xl font-bold text-bhutan-yellow">{activeStudents.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">Active enrollments</p>
+            </CardContent>
+          </Card>
+
+          <Card className="glass hover:shadow-xl transition-all duration-300">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-amber-600">{pendingStudents.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">Awaiting your approval</p>
             </CardContent>
           </Card>
 
@@ -212,22 +260,68 @@ export default function CourseStudentsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold text-bhutan-orange">{getAverageProgress()}%</div>
-              <p className="text-xs text-muted-foreground mt-1">Course completion</p>
-            </CardContent>
-          </Card>
-
-          <Card className="glass hover:shadow-xl transition-all duration-300">
-            <CardHeader>
-              <CardTitle className="text-sm font-medium">Active Now</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-bhutan-red">
-                {students.filter((s: any) => (s.enrollment as any).status === 'active').length}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">Currently learning</p>
+              <p className="text-xs text-muted-foreground mt-1">Among active students</p>
             </CardContent>
           </Card>
         </div>
+
+        {pendingStudents.length > 0 && (
+          <Card className="glass-strong border-amber-500/30">
+            <CardHeader>
+              <CardTitle>Pending enrollment requests</CardTitle>
+              <CardDescription>
+                These students requested access. Approve to grant learning access, or reject.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {pendingStudents.map((student) => (
+                <div
+                  key={student.id}
+                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{student.full_name || 'Anonymous'}</p>
+                    {(student as any).email && (
+                      <p className="text-sm text-muted-foreground truncate">
+                        {(student as any).email}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                      disabled={decidingId === student.enrollment.id}
+                      onClick={() =>
+                        handleEnrollmentDecision(student.enrollment.id, 'approve')
+                      }
+                    >
+                      {decidingId === student.enrollment.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4 mr-1" />
+                          Approve
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={decidingId === student.enrollment.id}
+                      onClick={() =>
+                        handleEnrollmentDecision(student.enrollment.id, 'reject')
+                      }
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Reject
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Students List */}
         <Card className="glass-strong">
@@ -285,11 +379,23 @@ export default function CourseStudentsPage() {
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                               <Badge variant="outline" className="text-xs">
                                 <Clock className="w-3 h-3 mr-1" />
-                                Enrolled {enrolledDate}
+                                {(student.enrollment as any).status === 'pending'
+                                  ? 'Requested'
+                                  : `Enrolled ${enrolledDate}`}
                               </Badge>
                               <Badge
-                                variant={(student.enrollment as any).status === 'completed' ? 'default' : 'secondary'}
-                                className="text-xs capitalize"
+                                variant={
+                                  (student.enrollment as any).status === 'completed'
+                                    ? 'default'
+                                    : (student.enrollment as any).status === 'pending'
+                                      ? 'outline'
+                                      : 'secondary'
+                                }
+                                className={`text-xs capitalize ${
+                                  (student.enrollment as any).status === 'pending'
+                                    ? 'border-amber-500 text-amber-700'
+                                    : ''
+                                }`}
                               >
                                 {(student.enrollment as any).status || 'active'}
                               </Badge>
@@ -302,6 +408,32 @@ export default function CourseStudentsPage() {
                             </div>
                           </div>
                         </div>
+                        {(student.enrollment as any).status === 'pending' ? (
+                          <div className="flex gap-2 shrink-0">
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              disabled={decidingId === student.enrollment.id}
+                              onClick={() =>
+                                handleEnrollmentDecision(student.enrollment.id, 'approve')
+                              }
+                            >
+                              <Check className="w-4 h-4 mr-1" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={decidingId === student.enrollment.id}
+                              onClick={() =>
+                                handleEnrollmentDecision(student.enrollment.id, 'reject')
+                              }
+                            >
+                              <X className="w-4 h-4 mr-1" />
+                              Reject
+                            </Button>
+                          </div>
+                        ) : (
                         <div className="text-left sm:text-right shrink-0">
                           <div className="text-2xl font-bold text-bhutan-yellow">
                             {progressPercentage}%
@@ -310,9 +442,11 @@ export default function CourseStudentsPage() {
                             {student.completed_lessons}/{student.total_lessons} lessons
                           </p>
                         </div>
+                        )}
                       </div>
 
                       {/* Progress Bar */}
+                      {(student.enrollment as any).status !== 'pending' && (
                       <div className="space-y-2">
                         <div className="w-full bg-secondary rounded-full h-2">
                           <div
@@ -347,6 +481,7 @@ export default function CourseStudentsPage() {
                           </Button>
                         </div>
                       </div>
+                      )}
                     </div>
                   )
                 })}

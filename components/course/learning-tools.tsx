@@ -22,17 +22,47 @@ export function LearningTools({ courseId, lessonId, userId }: LearningToolsProps
   const pomodoroRef = useRef<NodeJS.Timeout | null>(null)
 
   // Study Streak
-  const [studyStreak, setStudyStreak] = useState(14)
+  const [studyStreak, setStudyStreak] = useState(0)
 
   // Flashcard State
-  const [flashcards, setFlashcards] = useState([
-    { id: 1, front: 'What are Server Components?', back: 'Components that render on the server, reducing JavaScript sent to the client', reviewed: false },
-    { id: 2, front: 'What is the App Router?', back: 'The new routing system in Next.js 13+ that uses file-based routing with layouts', reviewed: false },
-    { id: 3, front: 'What are Server Actions?', back: 'Functions that run on the server and can be called from client components', reviewed: false },
-  ])
+  const [flashcards, setFlashcards] = useState<
+    { id: string; front: string; back: string; reviewed: boolean }[]
+  >([])
   const [currentCardIndex, setCurrentCardIndex] = useState(0)
   const [isFlipped, setIsFlipped] = useState(false)
   const [reviewedCount, setReviewedCount] = useState(0)
+  const [flashcardsLoading, setFlashcardsLoading] = useState(true)
+
+  useEffect(() => {
+    const loadFlashcards = async () => {
+      setFlashcardsLoading(true)
+      try {
+        const res = await fetch(
+          `/api/flashcards?courseId=${courseId}${lessonId ? `&lessonId=${lessonId}` : ''}`
+        )
+        if (res.ok) {
+          const data = await res.json()
+          const cards = (data.cards || []).map((c: any) => ({
+            id: c.id,
+            front: c.front,
+            back: c.back,
+            reviewed: false,
+          }))
+          setFlashcards(cards)
+          setCurrentCardIndex(0)
+          setIsFlipped(false)
+          setReviewedCount(0)
+        } else {
+          setFlashcards([])
+        }
+      } catch {
+        setFlashcards([])
+      } finally {
+        setFlashcardsLoading(false)
+      }
+    }
+    loadFlashcards()
+  }, [courseId, lessonId])
 
   // Pomodoro Logic
   useEffect(() => {
@@ -106,6 +136,7 @@ export function LearningTools({ courseId, lessonId, userId }: LearningToolsProps
   }
 
   const handleNextCard = () => {
+    if (flashcards.length === 0) return
     setIsFlipped(false)
     setCurrentCardIndex((prev) => (prev + 1) % flashcards.length)
   }
@@ -272,6 +303,14 @@ export function LearningTools({ courseId, lessonId, userId }: LearningToolsProps
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {flashcardsLoading ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Loading flashcards…</p>
+          ) : flashcards.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              No flashcards yet. Your instructor can add them from the course editor.
+            </p>
+          ) : (
+            <>
           <div className="flex items-center justify-between">
             <div className="text-sm text-muted-foreground">
               Card {currentCardIndex + 1} of {flashcards.length}
@@ -337,6 +376,8 @@ export function LearningTools({ courseId, lessonId, userId }: LearningToolsProps
           <p className="text-xs text-muted-foreground text-center">
             Click the card to flip • Review cards to test your knowledge
           </p>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

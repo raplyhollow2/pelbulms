@@ -14,6 +14,13 @@ export type UserRole =
  */
 export const SUPERADMIN_ROLE: UserRole = 'superadmin'
 
+export {
+  ADMIN_ROLES,
+  TEACHER_ROLES,
+  canAccessAdmin,
+  canAccessTeaching,
+} from '@/lib/roles'
+
 export interface RBACCheck {
   hasAccess: boolean
   userRole?: UserRole
@@ -137,15 +144,7 @@ export const isAdmin = async (request: NextRequest): Promise<RBACCheck> =>
 export const isSuperAdmin = async (request: NextRequest): Promise<RBACCheck> =>
   checkRBAC(request, ['superadmin'])
 
-/** Client/server-safe role helpers for gating UI and logic. */
-export const ADMIN_ROLES: UserRole[] = ['admin', 'superadmin']
-export const TEACHER_ROLES: UserRole[] = ['instructor', 'admin', 'resource_person', 'superadmin']
-
-export const canAccessAdmin = (role?: string | null): boolean =>
-  role === 'admin' || role === 'superadmin'
-
-export const canAccessTeaching = (role?: string | null): boolean =>
-  role === 'instructor' || role === 'admin' || role === 'resource_person' || role === 'superadmin'
+/** Client/server-safe role helpers live in lib/roles.ts (re-exported above). */
 
 export const isTeacherOrAdmin = async (request: NextRequest): Promise<RBACCheck> =>
   checkRBAC(request, ['instructor', 'admin', 'resource_person', 'superadmin'])

@@ -53,23 +53,26 @@ async function resolveStudentName(service: any, studentId: string): Promise<stri
 
 export async function notifyTeacherOfEnrollment(
   service: any,
-  input: { courseId: string; studentId: string }
+  input: { courseId: string; studentId: string; pending?: boolean }
 ): Promise<boolean> {
   const { instructorId, courseTitle } = await resolveCourseInstructor(service, input.courseId)
   if (!instructorId || instructorId === input.studentId) return false
 
   const studentName = await resolveStudentName(service, input.studentId)
+  const pending = Boolean(input.pending)
 
   return insertNotification(service, {
     user_id: instructorId,
-    type: 'student_enrolled',
-    title: 'New student enrolled',
-    message: `${studentName} enrolled in “${courseTitle}”.`,
+    type: pending ? 'enrollment_request' : 'student_enrolled',
+    title: pending ? 'Enrollment request' : 'New student enrolled',
+    message: pending
+      ? `${studentName} requested to join “${courseTitle}”. Approve or reject on the students page.`
+      : `${studentName} enrolled in “${courseTitle}”.`,
     action_url: `/teach/courses/${input.courseId}/students`,
     metadata: {
       course_id: input.courseId,
       student_id: input.studentId,
-      event: 'enrolled',
+      event: pending ? 'enrollment_request' : 'enrolled',
     },
   })
 }

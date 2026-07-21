@@ -75,7 +75,7 @@ export default function ModuleLessonsPage() {
         .eq('id', user.id)
         .single()
 
-      if ((courseData as any).instructor_id !== user.id && (profile as any)?.role !== 'admin') {
+      if ((courseData as any).instructor_id !== user.id && (profile as any)?.role !== 'admin' && (profile as any)?.role !== 'superadmin') {
         alert('Access denied. You can only edit your own courses.')
         router.push('/teach/dashboard')
         return

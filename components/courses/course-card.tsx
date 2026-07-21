@@ -22,9 +22,15 @@ interface CourseCardProps {
   course: Course & { modules?: Module[] }
   progress?: number
   isEnrolled?: boolean
+  enrollmentPending?: boolean
 }
 
-export function CourseCard({ course, progress = 0, isEnrolled = false }: CourseCardProps) {
+export function CourseCard({
+  course,
+  progress = 0,
+  isEnrolled = false,
+  enrollmentPending = false,
+}: CourseCardProps) {
   const [imageError, setImageError] = useState(false)
   const thumbSrc = resolveMediaUrl(course.thumbnail_url)
 
@@ -140,10 +146,18 @@ export function CourseCard({ course, progress = 0, isEnrolled = false }: CourseC
             className={`h-9 w-full rounded-full text-sm font-medium ${
               isEnrolled
                 ? 'bg-green-600 hover:bg-green-700 text-white'
-                : 'bg-bhutan-yellow text-black hover:bg-bhutan-orange'
+                : enrollmentPending
+                  ? 'bg-amber-500 hover:bg-amber-600 text-black'
+                  : 'bg-bhutan-yellow text-black hover:bg-bhutan-orange'
             }`}
           >
-            {isEnrolled ? 'Continue learning' : 'Enroll now'}
+            {isEnrolled
+              ? 'Continue learning'
+              : enrollmentPending
+                ? 'Pending approval'
+                : (course as any).enrollment_mode === 'approval'
+                  ? 'Request enrollment'
+                  : 'Enroll now'}
           </Button>
         </CardContent>
       </Card>

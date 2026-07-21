@@ -2,6 +2,13 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Play } from 'lucide-react'
+import {
+  DRIVE_SHARE_HINT,
+  getGoogleDriveEmbedUrl,
+  getGoogleDriveFileId,
+  getYoutubeId,
+  isDirectVideoFile,
+} from '@/lib/video-url'
 
 export interface VideoProgressData {
   /** Furthest watched position as a percentage of duration (0-100) */
@@ -29,27 +36,6 @@ interface TrackedVideoPlayerProps {
 }
 
 const YT_API_SRC = 'https://www.youtube.com/iframe_api'
-
-function getYoutubeId(url: string): string | null {
-  if (!url) return null
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=)([^&]+)/,
-    /(?:youtu\.be\/)([^?&]+)/,
-    /(?:youtube\.com\/embed\/)([^?&]+)/,
-  ]
-  for (const p of patterns) {
-    const m = url.match(p)
-    if (m?.[1]) return m[1]
-  }
-  return null
-}
-
-function isDirectVideoFile(url: string): boolean {
-  if (/\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(url)) return true
-  // Our private media proxy streams raw video bytes at /api/media/...?type=video
-  if (url.includes('/api/media/') && /[?&]type=video/.test(url)) return true
-  return false
-}
 
 /** Loads the YouTube IFrame API exactly once and resolves when ready. */
 let ytApiPromise: Promise<any> | null = null
@@ -84,7 +70,9 @@ export function TrackedVideoPlayer({
   className,
 }: TrackedVideoPlayerProps) {
   const youtubeId = getYoutubeId(videoUrl)
-  const directFile = !youtubeId && isDirectVideoFile(videoUrl)
+  const driveFileId = !youtubeId ? getGoogleDriveFileId(videoUrl) : null
+  const driveEmbedUrl = driveFileId ? getGoogleDriveEmbedUrl(driveFileId) : null
+  const directFile = !youtubeId && !driveFileId && isDirectVideoFile(videoUrl)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const videoElRef = useRef<HTMLVideoElement>(null)
@@ -254,7 +242,7 @@ export function TrackedVideoPlayer({
 
   return (
     <div className={className}>
-      <div className="aspect-video w-full bg-black overflow-hidden">
+      <div className="aspect-video w-full bg-black overflow-hidden relative">
         {youtubeId ? (
           <div ref={containerRef} className="w-full h-full" />
         ) : directFile ? (
@@ -270,6 +258,20 @@ export function TrackedVideoPlayer({
             onPause={handlePause}
             title={title}
           />
+        ) : driveEmbedUrl ? (
+          <>
+            <iframe
+              src={driveEmbedUrl}
+              className="w-full h-full border-0"
+              allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+              allowFullScreen
+              title={title || 'Google Drive video'}
+            />
+            <p className="absolute bottom-0 left-0 right-0 bg-black/70 text-[11px] text-white/80 px-2 py-1 pointer-events-none">
+              If playback asks for access, the teacher must share the file as Anyone with the link
+              (Viewer).
+            </p>
+          </>
         ) : (
           // Unknown provider (e.g. Vimeo) - embed without tracking
           <iframe
@@ -296,6 +298,9 @@ export function TrackedVideoPlayer({
             />
           </div>
         </div>
+      )}
+      {driveEmbedUrl && (
+        <p className="mt-2 text-xs text-muted-foreground">{DRIVE_SHARE_HINT}</p>
       )}
     </div>
   )

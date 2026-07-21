@@ -25,7 +25,6 @@ import {
   Search,
   SlidersHorizontal,
   X,
-  DollarSign,
   Clock,
   Star,
   Users,
@@ -38,13 +37,12 @@ interface SearchFilters {
   searchTerm: string
   categories: string[]
   levels: string[]
-  priceRange: [number, number]
   rating: number
   duration: number
   language: string
   hasSubtitle: boolean
   hasCertificate: boolean
-  sortBy: 'popular' | 'newest' | 'rating' | 'price-low' | 'price-high'
+  sortBy: 'popular' | 'newest' | 'rating'
 }
 
 interface AdvancedSearchModalProps {
@@ -60,7 +58,6 @@ const defaultFilters: SearchFilters = {
   searchTerm: '',
   categories: [],
   levels: [],
-  priceRange: [0, 500],
   rating: 0,
   duration: 0,
   language: 'en',
@@ -121,8 +118,6 @@ export function AdvancedSearchModal({
     filters.searchTerm ||
     filters.categories.length > 0 ||
     filters.levels.length > 0 ||
-    filters.priceRange[0] > 0 ||
-    filters.priceRange[1] < 500 ||
     filters.rating > 0 ||
     filters.duration > 0 ||
     filters.hasSubtitle ||
@@ -132,7 +127,6 @@ export function AdvancedSearchModal({
     (filters.searchTerm ? 1 : 0) +
     filters.categories.length +
     filters.levels.length +
-    (filters.priceRange[0] > 0 || filters.priceRange[1] < 500 ? 1 : 0) +
     (filters.rating > 0 ? 1 : 0) +
     (filters.duration > 0 ? 1 : 0) +
     (filters.hasSubtitle ? 1 : 0) +
@@ -249,29 +243,6 @@ export function AdvancedSearchModal({
                   )}
                 </Badge>
               ))}
-            </div>
-          </div>
-
-          {/* Price Range */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium flex items-center gap-2">
-              <DollarSign className="w-4 h-4" />
-              Price Range
-            </label>
-            <div className="px-2">
-              <Slider
-                value={filters.priceRange}
-                onValueChange={(value) =>
-                  updateFilter('priceRange', value as [number, number])
-                }
-                max={500}
-                step={10}
-                className="my-4"
-              />
-            </div>
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>${filters.priceRange[0]}</span>
-              <span>${filters.priceRange[1]}</span>
             </div>
           </div>
 
@@ -395,8 +366,6 @@ export function AdvancedSearchModal({
                 <SelectItem value="popular">Most Popular</SelectItem>
                 <SelectItem value="newest">Newest</SelectItem>
                 <SelectItem value="rating">Highest Rated</SelectItem>
-                <SelectItem value="price-low">Price: Low to High</SelectItem>
-                <SelectItem value="price-high">Price: High to Low</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -439,11 +408,6 @@ export function AdvancedSearchModal({
                     {level}
                   </Badge>
                 ))}
-                {(filters.priceRange[0] > 0 || filters.priceRange[1] < 500) && (
-                  <Badge variant="secondary">
-                    ${filters.priceRange[0]} - ${filters.priceRange[1]}
-                  </Badge>
-                )}
                 {filters.rating > 0 && (
                   <Badge variant="secondary">{filters.rating}+ Stars</Badge>
                 )}

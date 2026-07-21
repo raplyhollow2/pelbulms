@@ -17,7 +17,15 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
-import { resolveMediaUrl } from '@/lib/media'
+import { resolveMediaUrl, parseMediaRef } from '@/lib/media'
+import { uploadVideoDirectToCloudinary, uploadImageDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
+import {
+  DRIVE_SHARE_HINT,
+  getGoogleDriveEmbedUrl,
+  getYoutubeId,
+  isGoogleDriveUrl,
+  MAX_VIDEO_UPLOAD_LABEL,
+} from '@/lib/video-url'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Module = Database['public']['Tables']['modules']['Row']
@@ -49,6 +57,7 @@ export default function EditCoursePage() {
     tags: [] as string[],
     is_published: false,
     is_featured: false,
+    enrollment_mode: 'auto' as 'auto' | 'approval',
     thumbnail_url: '',
     preview_video_url: '',
   })
@@ -58,6 +67,7 @@ export default function EditCoursePage() {
   const videoInputRef = useRef<HTMLInputElement>(null)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadingVideo, setUploadingVideo] = useState(false)
+  const [videoUploadProgress, setVideoUploadProgress] = useState(0)
   const [mediaError, setMediaError] = useState('')
   const [newObjective, setNewObjective] = useState('')
 
@@ -92,8 +102,16 @@ export default function EditCoursePage() {
         return
       }
 
-      // Check if user is the instructor
-      if ((courseData as any).instructor_id !== user.id) {
+      // Check if user is the instructor or admin/superadmin
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+      const role = (profile as any)?.role
+      const isOwner = (courseData as any).instructor_id === user.id
+      const isStaff = role === 'admin' || role === 'superadmin'
+      if (!isOwner && !isStaff) {
         alert('Access denied. You can only edit your own courses.')
         router.push('/teach/dashboard')
         return
@@ -116,6 +134,8 @@ export default function EditCoursePage() {
         tags: course.tags || [],
         is_published: (course as any).is_published,
         is_featured: course.is_featured,
+        enrollment_mode:
+          (course as any).enrollment_mode === 'approval' ? 'approval' : 'auto',
         thumbnail_url: course.thumbnail_url || '',
         preview_video_url: (course.metadata as any)?.preview_video_url || '',
       } as any)
@@ -182,7 +202,7 @@ export default function EditCoursePage() {
           category: courseData.category,
           level: courseData.level,
           language: courseData.language,
-          price: courseData.price,
+          price: 0, // Courses have no fee — access via verified account only
           duration_minutes: courseData.duration_minutes || null,
           prerequisites: courseData.prerequisites.length > 0 ? courseData.prerequisites : null,
           learning_objectives: courseData.learning_objectives.length > 0 ? courseData.learning_objectives : null,
@@ -190,6 +210,8 @@ export default function EditCoursePage() {
           tags: courseData.tags.length > 0 ? courseData.tags : null,
           is_published: (courseData as any).is_published,
           is_featured: courseData.is_featured,
+          enrollment_mode:
+            (courseData as any).enrollment_mode === 'approval' ? 'approval' : 'auto',
           thumbnail_url: courseData.thumbnail_url || null,
           metadata: mergedMetadata,
           updated_at: new Date().toISOString()
@@ -308,6 +330,50 @@ export default function EditCoursePage() {
     const setUploading = kind === 'image' ? setUploadingImage : setUploadingVideo
     setUploading(true)
     try {
+      if (kind === 'video') {
+        setVideoUploadProgress(0)
+        try {
+          const { url } = await uploadVideoDirectToCloudinary(file, {
+            folder: `course-media/videos/${courseId}`,
+            onProgress: setVideoUploadProgress,
+          })
+          setCourseData((prev) => ({ ...prev, preview_video_url: url }))
+          // Persist preview immediately (same as cover image)
+          const mergedMetadata = {
+            ...((course?.metadata as Record<string, unknown>) || {}),
+            preview_video_url: url,
+          }
+          const { error: persistError } = await (supabase as any)
+            .from('courses')
+            .update({ metadata: mergedMetadata, updated_at: new Date().toISOString() })
+            .eq('id', courseId)
+          if (persistError) throw new Error(persistError.message || 'Upload ok but failed to save preview')
+          return
+        } catch (directErr: any) {
+          // Only fall back for small files — Next/Vercel cannot proxy large bodies
+          if (file.size > 20 * 1024 * 1024) throw directErr
+          console.warn('Direct Cloudinary upload failed, trying API:', directErr?.message)
+        }
+      }
+
+      if (kind === 'image') {
+        try {
+          const { url } = await uploadImageDirectToCloudinary(file, {
+            folder: `course-media/images/${courseId}`,
+          })
+          setCourseData((prev) => ({ ...prev, thumbnail_url: url }))
+          const { error: persistError } = await (supabase as any)
+            .from('courses')
+            .update({ thumbnail_url: url, updated_at: new Date().toISOString() })
+            .eq('id', courseId)
+          if (persistError) throw new Error(persistError.message || 'Upload ok but failed to save cover')
+          return
+        } catch (directErr: any) {
+          if (file.size > 8 * 1024 * 1024) throw directErr
+          console.warn('Direct image upload failed, trying API:', directErr?.message)
+        }
+      }
+
       const body = new FormData()
       body.append('file', file)
       body.append('courseId', courseId)
@@ -333,22 +399,40 @@ export default function EditCoursePage() {
           .eq('id', courseId)
         if (persistError) throw new Error(persistError.message || 'Upload ok but failed to save cover')
       }
+
+      if (kind === 'video' && data.url) {
+        const mergedMetadata = {
+          ...((course?.metadata as Record<string, unknown>) || {}),
+          preview_video_url: data.url,
+        }
+        const { error: persistError } = await (supabase as any)
+          .from('courses')
+          .update({ metadata: mergedMetadata, updated_at: new Date().toISOString() })
+          .eq('id', courseId)
+        if (persistError) throw new Error(persistError.message || 'Upload ok but failed to save preview')
+      }
     } catch (err: any) {
       console.error('Media upload error:', err)
       setMediaError(err?.message || 'Failed to upload media')
     } finally {
       setUploading(false)
+      setVideoUploadProgress(0)
       if (kind === 'image' && imageInputRef.current) imageInputRef.current.value = ''
       if (kind === 'video' && videoInputRef.current) videoInputRef.current.value = ''
     }
   }
 
-  // Convert common video URLs (YouTube/Vimeo) into embeddable form; return null
-  // for direct video files so we can render them with a <video> element.
+  // Convert YouTube / Drive / Vimeo / direct files into embeddable form.
   const getEmbedUrl = (url: string): { type: 'iframe' | 'file'; src: string } | null => {
     if (!url) return null
-    const yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/)
-    if (yt) return { type: 'iframe', src: `https://www.youtube.com/embed/${yt[1]}` }
+    if (parseMediaRef(url)?.type === 'video') {
+      const resolved = resolveMediaUrl(url)
+      return resolved ? { type: 'file', src: resolved } : null
+    }
+    const yt = getYoutubeId(url)
+    if (yt) return { type: 'iframe', src: `https://www.youtube.com/embed/${yt}` }
+    const drive = getGoogleDriveEmbedUrl(url)
+    if (drive) return { type: 'iframe', src: drive }
     const vimeo = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)
     if (vimeo) return { type: 'iframe', src: `https://player.vimeo.com/video/${vimeo[1]}` }
     if (/\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url)) return { type: 'file', src: url }
@@ -731,17 +815,31 @@ export default function EditCoursePage() {
                       ) : (
                         <UploadCloud className="w-4 h-4" />
                       )}
-                      {uploadingVideo ? 'Uploading...' : 'Upload video (up to 100MB)'}
+                      {uploadingVideo
+                        ? videoUploadProgress > 0
+                          ? `Uploading… ${videoUploadProgress}%`
+                          : 'Uploading...'
+                        : `Upload video (up to ${MAX_VIDEO_UPLOAD_LABEL})`}
                     </Button>
                   )}
                   <div className="flex items-center gap-2">
                     <LinkIcon className="w-4 h-4 shrink-0 text-muted-foreground" />
                     <Input
-                      value={courseData.preview_video_url}
-                      onChange={(e) => setCourseData({ ...courseData, preview_video_url: e.target.value } as any)}
-                      placeholder="…or paste a YouTube / Vimeo / video URL"
+                      value={
+                        parseMediaRef(courseData.preview_video_url)
+                          ? ''
+                          : courseData.preview_video_url
+                      }
+                      onChange={(e) =>
+                        setCourseData({ ...courseData, preview_video_url: e.target.value } as any)
+                      }
+                      placeholder="…or paste YouTube / Google Drive / Vimeo URL"
+                      disabled={!!parseMediaRef(courseData.preview_video_url)}
                     />
                   </div>
+                  {isGoogleDriveUrl(courseData.preview_video_url) && (
+                    <p className="text-xs text-amber-700 dark:text-amber-400">{DRIVE_SHARE_HINT}</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -872,6 +970,118 @@ export default function EditCoursePage() {
                     checked={courseData.is_featured}
                     onCheckedChange={(checked) => setCourseData({ ...courseData, is_featured: checked } as any)}
                   />
+                </div>
+                <div className="rounded-lg border p-4 space-y-3">
+                  <div>
+                    <Label className="font-medium">Enrollment</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Every published course is enrollable. Choose whether students join immediately or after you verify them.
+                    </p>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      className={`rounded-lg border p-3 text-left transition-colors ${
+                        (courseData as any).enrollment_mode !== 'approval'
+                          ? 'border-bhutan-yellow bg-bhutan-yellow/10'
+                          : 'hover:border-muted-foreground/40'
+                      }`}
+                      onClick={() =>
+                        setCourseData({ ...courseData, enrollment_mode: 'auto' } as any)
+                      }
+                    >
+                      <p className="text-sm font-medium">Auto enroll</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Verified students get access as soon as they enroll
+                      </p>
+                    </button>
+                    <button
+                      type="button"
+                      className={`rounded-lg border p-3 text-left transition-colors ${
+                        (courseData as any).enrollment_mode === 'approval'
+                          ? 'border-bhutan-yellow bg-bhutan-yellow/10'
+                          : 'hover:border-muted-foreground/40'
+                      }`}
+                      onClick={() =>
+                        setCourseData({ ...courseData, enrollment_mode: 'approval' } as any)
+                      }
+                    >
+                      <p className="text-sm font-medium">Creator approval</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        You approve each request on the Students page before access
+                      </p>
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+                  <div className="min-w-0">
+                    <Label className="font-medium">Course discussion</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Enable a forum so enrolled students can post and comment
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const { data: { user } } = await supabase.auth.getUser()
+                        const { data: existing } = await (supabase as any)
+                          .from('forums')
+                          .select('id, is_enabled')
+                          .eq('course_id', courseId)
+                          .is('module_id', null)
+                          .is('lesson_id', null)
+                          .maybeSingle()
+                        if (existing) {
+                          await (supabase as any)
+                            .from('forums')
+                            .update({ is_enabled: !existing.is_enabled })
+                            .eq('id', existing.id)
+                          alert(existing.is_enabled ? 'Discussion disabled' : 'Discussion enabled')
+                        } else {
+                          await (supabase as any).from('forums').insert({
+                            course_id: courseId,
+                            title: `${courseData.title || 'Course'} Discussion`,
+                            description: 'Course discussion for enrolled students',
+                            is_enabled: true,
+                            created_by: user?.id,
+                          })
+                          alert('Discussion enabled for this course')
+                        }
+                      } catch (e: any) {
+                        alert(e?.message || 'Failed to update discussion')
+                      }
+                    }}
+                  >
+                    Enable / toggle
+                  </Button>
+                </div>
+                <div className="rounded-lg border p-4 space-y-3">
+                  <div>
+                    <Label className="font-medium">Flashcards</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Add a deck students can review in Learning Tools
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push(`/teach/courses/${courseId}/flashcards`)}
+                  >
+                    Manage flashcards
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="ml-2"
+                    onClick={() => router.push(`/teach/courses/${courseId}/certificate`)}
+                  >
+                    Certificate design
+                  </Button>
                 </div>
               </CardContent>
             </Card>

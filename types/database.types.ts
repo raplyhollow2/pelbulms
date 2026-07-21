@@ -67,6 +67,7 @@ export interface Database {
           tags: string[] | null
           is_published: boolean
           is_featured: boolean
+          enrollment_mode: string
           published_at: string | null
           last_updated_at: string
           enrollment_count: number
@@ -95,6 +96,7 @@ export interface Database {
           tags?: string[] | null
           is_published?: boolean
           is_featured?: boolean
+          enrollment_mode?: string
           published_at?: string | null
           last_updated_at?: string
           enrollment_count?: number
@@ -123,6 +125,7 @@ export interface Database {
           tags?: string[] | null
           is_published?: boolean
           is_featured?: boolean
+          enrollment_mode?: string
           published_at?: string | null
           last_updated_at?: string
           enrollment_count?: number

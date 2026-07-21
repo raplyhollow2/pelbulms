@@ -19,6 +19,8 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { resolveMediaUrl } from '@/lib/media'
+import Link from 'next/link'
 
 interface Instructor {
   id: string
@@ -109,7 +111,7 @@ export function InstructorShowcase({
                 {/* Image & Basic Info */}
                 <div className="bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20 p-8 flex flex-col items-center justify-center text-center">
                   <Avatar className="w-32 h-32 mb-4 border-4 border-bhutan-yellow">
-                    <AvatarImage src={featuredInstructor.avatar_url} />
+                    <AvatarImage src={resolveMediaUrl(featuredInstructor.avatar_url) || undefined} />
                     <AvatarFallback className="bg-bhutan-yellow text-black text-2xl font-bold">
                       {getInitials(featuredInstructor.full_name)}
                     </AvatarFallback>
@@ -142,7 +144,9 @@ export function InstructorShowcase({
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-1 text-bhutan-yellow mb-1">
                         <Star className="w-5 h-5 fill-current" />
-                        <span className="text-2xl font-bold">{featuredInstructor.rating || 'N/A'}</span>
+                        <span className="text-2xl font-bold">
+                          {featuredInstructor.rating != null ? featuredInstructor.rating : 'N/A'}
+                        </span>
                       </div>
                       <p className="text-xs text-muted-foreground">Rating</p>
                     </div>
@@ -286,43 +290,59 @@ export function InstructorShowcase({
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         {displayedInstructors.map((instructor) => (
-          <Card key={instructor.id} className="glass hover-lift overflow-hidden p-0">
-            <CardContent className="flex h-full flex-col p-0">
-              <div className="relative aspect-[2/3] w-full overflow-hidden bg-gradient-to-br from-bhutan-yellow/25 to-bhutan-orange/20">
-                {instructor.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={instructor.avatar_url}
-                    alt={instructor.full_name}
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <Avatar className="h-20 w-20 border-2 border-bhutan-yellow/40 sm:h-24 sm:w-24">
-                      <AvatarFallback className="bg-bhutan-yellow/30 text-lg font-semibold text-bhutan-orange sm:text-xl">
-                        {getInitials(instructor.full_name)}
-                      </AvatarFallback>
-                    </Avatar>
-                  </div>
-                )}
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-3 pt-10">
-                  <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-white">
-                    {instructor.full_name}
-                  </h3>
-                  <p className="mt-0.5 line-clamp-1 text-[11px] text-white/80">
-                    {instructor.expertise?.[0] || 'Instructor'}
-                  </p>
-                  <div className="mt-1.5 flex items-center gap-1 text-[11px] text-white/70">
-                    <BookOpen className="h-3 w-3" />
-                    <span>
-                      {instructor.courses_count || 0}{' '}
-                      {instructor.courses_count === 1 ? 'course' : 'courses'}
-                    </span>
+          <Link key={instructor.id} href={`/instructors/${instructor.id}`} className="block">
+            <Card className="glass hover-lift overflow-hidden p-0 h-full">
+              <CardContent className="flex h-full flex-col p-0">
+                <div className="relative aspect-[2/3] w-full overflow-hidden bg-gradient-to-br from-bhutan-yellow/25 to-bhutan-orange/20">
+                  {instructor.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={resolveMediaUrl(instructor.avatar_url) || instructor.avatar_url}
+                      alt={instructor.full_name}
+                      className="absolute inset-0 h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Avatar className="h-20 w-20 border-2 border-bhutan-yellow/40 sm:h-24 sm:w-24">
+                        <AvatarFallback className="bg-bhutan-yellow/30 text-lg font-semibold text-bhutan-orange sm:text-xl">
+                          {getInitials(instructor.full_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                  )}
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-3 pt-10">
+                    <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-white">
+                      {instructor.full_name}
+                    </h3>
+                    <p className="mt-0.5 line-clamp-1 text-[11px] text-white/80">
+                      {instructor.expertise?.filter((e) => e !== 'Instructor')[0] ||
+                        (instructor.courses_count
+                          ? `${instructor.courses_count} course${instructor.courses_count === 1 ? '' : 's'}`
+                          : 'Instructor')}
+                    </p>
+                    <div className="mt-1.5 flex items-center gap-2 text-[11px] text-white/70">
+                      <span className="inline-flex items-center gap-0.5">
+                        <BookOpen className="h-3 w-3" />
+                        {instructor.courses_count || 0}
+                      </span>
+                      {instructor.rating != null && (
+                        <span className="inline-flex items-center gap-0.5">
+                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                          {instructor.rating}
+                        </span>
+                      )}
+                      {(instructor.students_count || 0) > 0 && (
+                        <span className="inline-flex items-center gap-0.5">
+                          <Users className="h-3 w-3" />
+                          {instructor.students_count?.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
         ))}
       </div>
     </div>

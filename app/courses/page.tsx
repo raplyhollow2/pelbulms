@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/sheet'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
+import { buildInstructorShowcaseData } from '@/lib/instructor-stats'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -44,6 +45,7 @@ export default function CoursesPage() {
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<Profile | null>(null)
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<Set<string>>(new Set())
+  const [pendingCourseIds, setPendingCourseIds] = useState<Set<string>>(new Set())
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [selectedLevel, setSelectedLevel] = useState('All')
@@ -95,42 +97,90 @@ export default function CoursesPage() {
       if (user) {
         const { data: enrollmentsData } = await supabase
           .from('enrollments')
-          .select('course_id')
+          .select('course_id, status')
           .eq('user_id', user.id)
 
         if (enrollmentsData) {
-          const enrolledIds = new Set(enrollmentsData.map((e: any) => e.course_id))
+          const enrolledIds = new Set<string>()
+          const pendingIds = new Set<string>()
+          for (const e of enrollmentsData as any[]) {
+            if (e.status === 'pending') pendingIds.add(e.course_id)
+            else if (e.status === 'rejected') continue
+            else enrolledIds.add(e.course_id)
+          }
           setEnrolledCourseIds(enrolledIds)
+          setPendingCourseIds(pendingIds)
         }
 
-        // Fetch instructors with their stats
+        // Fetch instructors with live stats (categories, ratings, certificates)
         const { data: instructorsData } = await supabase
           .from('profiles')
           .select('*')
-          .in('role', ['instructor', 'admin'])
-          .limit(10)
+          .in('role', ['instructor', 'admin', 'superadmin', 'resource_person'])
+          .limit(20)
 
         if (instructorsData) {
-          // Enhance instructor data with course counts
           const instructorsWithStats = await Promise.all(
             instructorsData.map(async (instructor: any) => {
-              const { count: coursesCount } = await supabase
+              const { data: instructorCourses } = await supabase
                 .from('courses')
-                .select('*', { count: 'exact', head: true })
+                .select(
+                  'id, title, category, tags, average_rating, rating_count, enrollment_count, is_published'
+                )
                 .eq('instructor_id', instructor.id)
                 .eq('is_published', true)
 
-              return {
-                ...instructor,
-                courses_count: coursesCount || 0,
-                students_count: Math.floor(Math.random() * 10000), // Mock data for now
-                rating: (4 + Math.random()).toFixed(1), // Mock data for now
-                expertise: ['Web Development', 'React', 'TypeScript'], // Mock data for now
+              const courseList = (instructorCourses || []) as any[]
+              const courseIds = courseList.map((c) => c.id)
+
+              let studentsCount = 0
+              let certificatesIssuedToStudents = 0
+              if (courseIds.length > 0) {
+                const { count: enrollCount } = await supabase
+                  .from('enrollments')
+                  .select('*', { count: 'exact', head: true })
+                  .in('course_id', courseIds)
+                studentsCount = enrollCount || 0
+
+                const { count: certCount } = await supabase
+                  .from('certificates')
+                  .select('*', { count: 'exact', head: true })
+                  .in('course_id', courseIds)
+                certificatesIssuedToStudents = certCount || 0
               }
+
+              const { data: earnedCerts } = await supabase
+                .from('certificates')
+                .select('issued_at, courses(title)')
+                .eq('user_id', instructor.id)
+                .order('issued_at', { ascending: false })
+                .limit(10)
+
+              const earnedCertificates = ((earnedCerts || []) as any[]).map((c) => ({
+                courseTitle: c.courses?.title || null,
+                issuedAt: c.issued_at || null,
+              }))
+
+              return buildInstructorShowcaseData({
+                id: instructor.id,
+                full_name: instructor.full_name,
+                avatar_url: instructor.avatar_url,
+                bio: instructor.bio,
+                metadata: instructor.metadata || {},
+                courses: courseList,
+                studentsCount,
+                earnedCertificates,
+                certificatesIssuedToStudents,
+              })
             })
           )
 
-          setInstructors(instructorsWithStats)
+          // Prefer instructors who actually teach
+          setInstructors(
+            instructorsWithStats
+              .filter((i) => i.courses_count > 0)
+              .sort((a, b) => b.students_count - a.students_count || b.courses_count - a.courses_count)
+          )
         }
       }
     } catch (error) {
@@ -168,15 +218,16 @@ export default function CoursesPage() {
 
   const handleEnroll = async (courseId: string) => {
     if (!currentUser) {
-      // Redirect to login if not authenticated
       window.location.href = '/auth/login'
       return
     }
 
-    // Check if already enrolled
     if (enrolledCourseIds.has(courseId)) {
-      // Go to learning page if already enrolled
       window.location.href = `/learn/${courseId}`
+      return
+    }
+    if (pendingCourseIds.has(courseId)) {
+      alert('Your enrollment request is waiting for the course creator to approve.')
       return
     }
 
@@ -190,6 +241,15 @@ export default function CoursesPage() {
 
       if (!res.ok) {
         throw new Error(data.error || 'Failed to enroll')
+      }
+
+      if (data.status === 'pending' || data.pending) {
+        setPendingCourseIds((prev) => new Set(prev).add(courseId))
+        alert(
+          data.message ||
+            'Enrollment request sent. The course creator will verify your request.'
+        )
+        return
       }
 
       setEnrolledCourseIds((prev) => new Set(prev).add(courseId))
@@ -400,6 +460,7 @@ export default function CoursesPage() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
           {filteredCourses.map((course) => {
             const isEnrolled = enrolledCourseIds.has(course.id)
+            const enrollmentPending = pendingCourseIds.has(course.id)
             const progress = (course as any).progress || 0
 
             return (
@@ -407,6 +468,7 @@ export default function CoursesPage() {
                 key={course.id}
                 course={course}
                 isEnrolled={isEnrolled}
+                enrollmentPending={enrollmentPending}
                 progress={progress}
               />
             )

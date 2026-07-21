@@ -638,15 +638,6 @@ export function CourseCreationHub() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Price ($)</label>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    value={manualCourse.price || ''}
-                    onChange={(e) => setManualCourse(prev => ({ ...prev, price: parseFloat(e.target.value) }))}
-                  />
-                </div>
               </div>
 
               <div className="flex items-center justify-between">

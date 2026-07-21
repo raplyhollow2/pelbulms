@@ -72,27 +72,30 @@ export default function LearningPage() {
       setCourse(courseData)
       setInstructor((courseData as any).profiles)
 
-      // Check enrollment status
+      // Check enrollment — only active/completed can access learning
       const { data: enrollmentData, error: enrollmentError } = await supabase
         .from('enrollments')
         .select('*')
         .eq('user_id', user.id)
         .eq('course_id', courseId)
-        .maybeSingle()  // Use maybeSingle instead of single to avoid errors if not found
-
-      console.log('Enrollment check:', { enrollmentData, enrollmentError, courseId, userId: user.id })
+        .maybeSingle()
 
       if (enrollmentError) {
         console.log('Enrollment check error:', enrollmentError)
-        // For debugging: continue anyway to see if we can load modules
       }
 
-      // For now, let's continue even if enrollment fails to debug the module issue
-      if (enrollmentData) {
-        setEnrollment(enrollmentData)
-      } else {
-        console.log('No enrollment found, but continuing for debugging')
+      const status = (enrollmentData as any)?.status
+      if (!enrollmentData || (status !== 'active' && status !== 'completed')) {
+        if (status === 'pending') {
+          alert('Your enrollment is waiting for the course creator to approve.')
+        } else {
+          alert('You need to enroll in this course first.')
+        }
+        router.push(`/courses/${courseId}`)
+        return
       }
+
+      setEnrollment(enrollmentData)
 
       // Fetch modules for this course
       const { data: modulesData, error: modulesError } = await supabase

@@ -8,6 +8,14 @@ import {
   renderToBuffer,
 } from '@react-pdf/renderer'
 
+export interface CertificateDesignSettings {
+  brandName?: string
+  titleLine?: string
+  accentColor?: string
+  signatureName?: string
+  signatureTitle?: string
+}
+
 export interface CertificateData {
   recipientName: string
   courseTitle: string
@@ -15,123 +23,129 @@ export interface CertificateData {
   verificationCode: string
   verifyUrl: string
   instructorName?: string
+  design?: CertificateDesignSettings
 }
 
-const styles = StyleSheet.create({
-  page: {
-    padding: 28,
-    fontFamily: 'Helvetica',
-    backgroundColor: '#ffffff',
-  },
-  border: {
-    flex: 1,
-    borderWidth: 2,
-    borderColor: '#E9B308',
-    borderStyle: 'solid',
-    padding: 24,
-  },
-  innerBorder: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderStyle: 'solid',
-    paddingVertical: 36,
-    paddingHorizontal: 40,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  brand: {
-    fontSize: 14,
-    letterSpacing: 3,
-    color: '#E9B308',
-    fontFamily: 'Helvetica-Bold',
-  },
-  title: {
-    fontSize: 34,
-    fontFamily: 'Helvetica-Bold',
-    color: '#111827',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 12,
-    color: '#6b7280',
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  presentedTo: {
-    fontSize: 11,
-    color: '#6b7280',
-    letterSpacing: 2,
-    marginTop: 18,
-  },
-  name: {
-    fontSize: 30,
-    fontFamily: 'Helvetica-Bold',
-    color: '#111827',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  nameRule: {
-    marginTop: 8,
-    width: 320,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  bodyText: {
-    fontSize: 12,
-    color: '#374151',
-    marginTop: 18,
-    textAlign: 'center',
-  },
-  courseTitle: {
-    fontSize: 18,
-    fontFamily: 'Helvetica-Bold',
-    color: '#111827',
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  footerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginTop: 28,
-  },
-  footerBlock: {
-    alignItems: 'center',
-    maxWidth: 200,
-  },
-  footerLabel: {
-    fontSize: 9,
-    color: '#9ca3af',
-    marginTop: 4,
-  },
-  footerValue: {
-    fontSize: 11,
-    color: '#111827',
-    fontFamily: 'Helvetica-Bold',
-  },
-  verifyText: {
-    fontSize: 8,
-    color: '#9ca3af',
-    marginTop: 18,
-    textAlign: 'center',
-  },
-})
+function buildStyles(accent: string) {
+  return StyleSheet.create({
+    page: {
+      padding: 28,
+      fontFamily: 'Helvetica',
+      backgroundColor: '#ffffff',
+    },
+    border: {
+      flex: 1,
+      borderWidth: 2,
+      borderColor: accent,
+      borderStyle: 'solid',
+      padding: 24,
+    },
+    innerBorder: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: '#d1d5db',
+      borderStyle: 'solid',
+      paddingVertical: 36,
+      paddingHorizontal: 40,
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    brand: {
+      fontSize: 14,
+      letterSpacing: 3,
+      color: accent,
+      fontFamily: 'Helvetica-Bold',
+    },
+    title: {
+      fontSize: 34,
+      fontFamily: 'Helvetica-Bold',
+      color: '#111827',
+      marginTop: 8,
+      textAlign: 'center',
+    },
+    subtitle: {
+      fontSize: 12,
+      color: '#6b7280',
+      marginTop: 6,
+      textAlign: 'center',
+    },
+    name: {
+      fontSize: 30,
+      fontFamily: 'Helvetica-Bold',
+      color: '#111827',
+      marginTop: 8,
+      textAlign: 'center',
+    },
+    nameRule: {
+      marginTop: 8,
+      width: 320,
+      borderBottomWidth: 1,
+      borderBottomColor: '#e5e7eb',
+    },
+    bodyText: {
+      fontSize: 12,
+      color: '#374151',
+      marginTop: 18,
+      textAlign: 'center',
+    },
+    courseTitle: {
+      fontSize: 18,
+      fontFamily: 'Helvetica-Bold',
+      color: '#111827',
+      marginTop: 8,
+      textAlign: 'center',
+    },
+    footerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      width: '100%',
+      marginTop: 28,
+    },
+    footerBlock: {
+      alignItems: 'center',
+      maxWidth: 200,
+    },
+    footerLabel: {
+      fontSize: 9,
+      color: '#9ca3af',
+      marginTop: 4,
+    },
+    footerValue: {
+      fontSize: 11,
+      color: '#111827',
+      fontFamily: 'Helvetica-Bold',
+    },
+    verifyText: {
+      fontSize: 8,
+      color: '#9ca3af',
+      marginTop: 18,
+      textAlign: 'center',
+    },
+  })
+}
 
 function CertificateDocument(data: CertificateData) {
+  const design = data.design || {}
+  const accent = design.accentColor || '#E9B308'
+  const styles = buildStyles(accent)
+  const brand = design.brandName || 'PELBU LMS'
+  const titleLine = design.titleLine || 'Certificate of Completion'
+  const signatureName =
+    design.signatureName || data.instructorName || 'Pelbu LMS'
+  const signatureTitle = design.signatureTitle || 'Instructor'
+
   return (
     <Document
       title={`Certificate - ${data.courseTitle}`}
-      author="Pelbu LMS"
+      author={brand}
       subject={`Certificate of Completion for ${data.recipientName}`}
     >
       <Page size="A4" orientation="landscape" style={styles.page}>
         <View style={styles.border}>
           <View style={styles.innerBorder}>
             <View style={{ alignItems: 'center' }}>
-              <Text style={styles.brand}>PELBU LMS</Text>
-              <Text style={styles.title}>Certificate of Completion</Text>
+              <Text style={styles.brand}>{brand}</Text>
+              <Text style={styles.title}>{titleLine}</Text>
               <Text style={styles.subtitle}>This is proudly presented to</Text>
             </View>
 
@@ -149,8 +163,8 @@ function CertificateDocument(data: CertificateData) {
                   <Text style={styles.footerLabel}>Date Issued</Text>
                 </View>
                 <View style={styles.footerBlock}>
-                  <Text style={styles.footerValue}>{data.instructorName || 'Pelbu LMS'}</Text>
-                  <Text style={styles.footerLabel}>Instructor</Text>
+                  <Text style={styles.footerValue}>{signatureName}</Text>
+                  <Text style={styles.footerLabel}>{signatureTitle}</Text>
                 </View>
                 <View style={styles.footerBlock}>
                   <Text style={styles.footerValue}>{data.verificationCode}</Text>

@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRBAC } from '@/lib/rbac'
 import { isCloudinaryConfigured, signUploadParams, cloudName, apiKey } from '@/lib/cloudinary'
+import { VIDEO_EAGER_TRANSFORM } from '@/lib/video-url'
 
 /**
  * POST /api/cloudinary/sign
- * Returns a signature the browser uses to upload an "authenticated" (private)
- * asset directly to Cloudinary. Body: { folder?: string, resourceType?: 'image' | 'video' }
+ * Returns a signature the browser uses to upload directly to Cloudinary.
+ * Body: {
+ *   folder?,
+ *   resourceType?: 'image' | 'video',
+ *   accessType?: 'upload' | 'authenticated',  // images/covers → upload (public); videos → authenticated
+ *   eager?,
+ *   eagerAsync?
+ * }
  */
 export async function POST(request: NextRequest) {
-  const rbac = await checkRBAC(request, ['student', 'instructor', 'admin', 'resource_person', 'superadmin'])
+  const rbac = await checkRBAC(request, ['instructor', 'admin', 'resource_person', 'superadmin'])
   if (!rbac.hasAccess) {
     return NextResponse.json(
       { error: rbac.error || 'Access denied' },
@@ -23,7 +30,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  let body: any = {}
+  let body: Record<string, unknown> = {}
   try {
     body = await request.json()
   } catch {
@@ -32,13 +39,28 @@ export async function POST(request: NextRequest) {
 
   const folder = (body.folder as string) || `uploads/${rbac.userId}`
   const resourceType = (body.resourceType as string) === 'video' ? 'video' : 'image'
+  // Videos stay private; images/covers are public so catalog cards can use secure_url.
+  const accessType =
+    (body.accessType as string) === 'authenticated' || resourceType === 'video'
+      ? 'authenticated'
+      : 'upload'
   const timestamp = Math.round(Date.now() / 1000)
 
-  // These params must exactly match what the browser sends to Cloudinary.
+  // Params must exactly match what the browser sends to Cloudinary.
   const paramsToSign: Record<string, string | number> = {
     timestamp,
     folder,
-    type: 'authenticated',
+    type: accessType,
+  }
+
+  let eager: string | undefined
+  let eagerAsync: boolean | undefined
+
+  if (resourceType === 'video') {
+    eager = (body.eager as string) || VIDEO_EAGER_TRANSFORM
+    eagerAsync = body.eagerAsync !== false
+    paramsToSign.eager = eager
+    paramsToSign.eager_async = eagerAsync ? 'true' : 'false'
   }
 
   const signature = signUploadParams(paramsToSign)
@@ -50,6 +72,7 @@ export async function POST(request: NextRequest) {
     cloudName,
     folder,
     resourceType,
-    type: 'authenticated',
+    type: accessType,
+    ...(eager ? { eager, eager_async: eagerAsync ? 'true' : 'false' } : {}),
   })
 }
