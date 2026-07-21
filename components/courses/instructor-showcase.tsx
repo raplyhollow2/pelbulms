@@ -83,7 +83,7 @@ export function InstructorShowcase({
     if (!url) return null
 
     const icons = {
-      linkedin: <Link className="w-4 h-4" />,
+      linkedin: <LinkIcon className="w-4 h-4" />,
       github: <GitBranch className="w-4 h-4" />,
       website: <Globe className="w-4 h-4" />,
     }
