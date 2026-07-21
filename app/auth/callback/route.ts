@@ -30,7 +30,7 @@ async function destinationFor(userId: string, origin: string): Promise<string> {
       .maybeSingle()
 
     const regStatus = (registration as any)?.registration_status as string | undefined
-    if (regStatus && ['submitted', 'under_review', 'approved'].includes(regStatus)) {
+    if (regStatus && ['submitted', 'under_review', 'additional_info_requested'].includes(regStatus)) {
       return `${origin}/auth/pending-approval`
     }
 

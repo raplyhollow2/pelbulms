@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { DesktopSidebar } from './desktop-sidebar'
 import { MobileNavigation } from './mobile-navigation'
+import { NotificationBell } from './notification-bell'
 
 interface ResponsiveLayoutProps {
   children: React.ReactNode
@@ -42,12 +43,17 @@ export function ResponsiveLayout({ children, user }: ResponsiveLayoutProps) {
       </div>
 
       <main
-        className={`min-h-screen w-full transition-[padding] duration-300 ${
+        className={`flex min-h-screen w-full flex-col transition-[padding] duration-300 ${
           sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-64'
         }`}
       >
+        {/* Top app bar — notifications live here so page headers stay clear */}
+        <header className="sticky top-0 z-40 flex shrink-0 items-center justify-end border-b border-border/40 bg-background/85 px-4 py-2 backdrop-blur-xl sm:px-6 lg:px-8">
+          <NotificationBell compact />
+        </header>
+
         {/* Mobile bottom nav clearance; key on route for smooth enter animation */}
-        <div key={pathname} className="page-shell page-enter pb-[calc(8rem+env(safe-area-inset-bottom))] lg:pb-0">
+        <div key={pathname} className="page-shell page-enter flex-1 pb-[calc(8rem+env(safe-area-inset-bottom))] lg:pb-0">
           {children}
         </div>
       </main>

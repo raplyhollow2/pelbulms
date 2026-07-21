@@ -178,7 +178,9 @@ export default function RegisterPage() {
           router.push('/dashboard')
         } else if (
           data.registration &&
-          ['submitted', 'under_review', 'approved'].includes(data.registration.registration_status)
+          ['submitted', 'under_review', 'additional_info_requested'].includes(
+            data.registration.registration_status
+          )
         ) {
           router.push('/auth/pending-approval')
         }

@@ -17,6 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
+import { resolveMediaUrl } from '@/lib/media'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Module = Database['public']['Tables']['modules']['Row']
@@ -208,20 +209,28 @@ export default function EditCoursePage() {
     }
   }
 
-  const addModule = () => {
-    const newModule = {
-      id: crypto.randomUUID(),
-      course_id: courseId,
-      title: '',
-      description: '',
-      order_index: modules.length,
-      is_published: true,
-      metadata: {},
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      lessons_count: 0
+  const addModule = async () => {
+    try {
+      const supabaseInsert = supabase as any
+      const { data, error } = await supabaseInsert
+        .from('modules')
+        .insert({
+          course_id: courseId,
+          title: '',
+          description: '',
+          order_index: modules.length,
+          is_published: true,
+        })
+        .select('*')
+        .single()
+
+      if (error) throw error
+
+      setModules([...modules, { ...(data as any), lessons_count: 0 }])
+    } catch (error) {
+      console.error('Error adding module:', error)
+      alert('Failed to add module. Please try again.')
     }
-    setModules([...modules, newModule] as any)
   }
 
   const updateModule = async (id: string, updates: Partial<typeof modules[0]>) => {
@@ -603,7 +612,7 @@ export default function EditCoursePage() {
                   {courseData.thumbnail_url ? (
                     <div className="relative overflow-hidden rounded-lg border">
                       <img
-                        src={courseData.thumbnail_url}
+                        src={resolveMediaUrl(courseData.thumbnail_url) || courseData.thumbnail_url}
                         alt="Course cover"
                         className="aspect-video w-full object-cover"
                       />

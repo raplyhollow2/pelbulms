@@ -5,6 +5,7 @@ import {
   getApprovalScope,
   resolveEffectiveRole,
 } from '@/lib/approvals-access'
+import { processRegistrationReview } from '@/lib/approve-registration'
 
 /**
  * Secure API for student registration approvals.
@@ -89,7 +90,7 @@ export async function POST(request: Request) {
   try {
     const loaded = await loadCaller()
     if ('error' in loaded && loaded.error instanceof NextResponse) return loaded.error
-    const { scope, supabase } = loaded as any
+    const { user, scope, service } = loaded as any
 
     const body = await request.json()
     const { action, registrationId, reviewNotes, rejectionReason, registrationIds, assignedRole } =
@@ -125,27 +126,22 @@ export async function POST(request: Request) {
           )
         }
 
-        // RPC uses auth.uid() — must run on the user-scoped client
-        const { data: approvalResult, error: approvalError } = await supabase.rpc(
-          'approve_student_registration',
-          {
-            target_registration_id: registrationId,
-            review_action: action,
-            review_notes_text: reviewNotes || null,
-            rejection_reason_text: rejectionReason || null,
-            assigned_role_text: assignedRole || null,
-          }
-        )
+        result = await processRegistrationReview(service, {
+          registrationId,
+          action,
+          reviewerId: user.id,
+          reviewNotes: reviewNotes || null,
+          rejectionReason: rejectionReason || null,
+          assignedRole: assignedRole || null,
+          scope,
+        })
 
-        if (approvalError) {
-          console.error('Approval function error:', approvalError)
+        if (!result.success) {
           return NextResponse.json(
-            { error: 'Approval failed', message: approvalError.message },
-            { status: 500 }
+            { error: 'Approval failed', message: result.error },
+            { status: 400 }
           )
         }
-
-        result = approvalResult
         break
       }
 
@@ -165,17 +161,19 @@ export async function POST(request: Request) {
         const results = []
 
         for (const id of registrationIds) {
-          const { data, error } = await supabase.rpc('approve_student_registration', {
-            target_registration_id: id,
-            review_action: reviewAction,
-            review_notes_text: reviewNotes || null,
-            rejection_reason_text: rejectionReason || null,
-            assigned_role_text: assignedRole || null,
+          const itemResult = await processRegistrationReview(service, {
+            registrationId: id,
+            action: reviewAction,
+            reviewerId: user.id,
+            reviewNotes: reviewNotes || null,
+            rejectionReason: rejectionReason || null,
+            assignedRole: assignedRole || null,
+            scope,
           })
-          if (error) {
-            results.push({ id, error: error.message })
+          if (!itemResult.success) {
+            results.push({ id, error: itemResult.error })
           } else {
-            results.push({ id, result: data })
+            results.push({ id, result: itemResult })
           }
         }
 

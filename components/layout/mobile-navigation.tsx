@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { createClient } from '@/lib/supabase/client'
 import { cn, haptic, warning as hapticWarning } from '@/lib/utils'
-import { NotificationBell } from '@/components/layout/notification-bell'
 
 interface MobileNavigationProps {
   user?: any
@@ -230,7 +229,6 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
                 </p>
                 <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
               </div>
-              <NotificationBell compact />
             </div>
 
             <button

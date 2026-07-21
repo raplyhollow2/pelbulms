@@ -16,6 +16,29 @@ export default function PendingApprovalPage() {
     router.push('/auth/login')
   }
 
+  const handleCheckAgain = async () => {
+    try {
+      const res = await fetch('/api/register')
+      if (!res.ok) {
+        router.refresh()
+        return
+      }
+      const data = await res.json()
+      if (data.account_status === 'active') {
+        await supabase.auth.refreshSession()
+        router.push('/dashboard')
+        return
+      }
+      if (data.account_status === 'rejected') {
+        router.push('/auth/access-denied')
+        return
+      }
+      router.refresh()
+    } catch {
+      router.refresh()
+    }
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
       <Card className="w-full max-w-md">
@@ -33,7 +56,7 @@ export default function PendingApprovalPage() {
           <Button
             variant="outline"
             className="w-full gap-2"
-            onClick={() => router.refresh()}
+            onClick={handleCheckAgain}
           >
             <BookOpen className="h-4 w-4" />
             Check again

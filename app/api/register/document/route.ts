@@ -35,6 +35,17 @@ export async function GET(request: NextRequest) {
       .eq('id', user.id)
       .maybeSingle()
     allowed = canAccessTeaching((profile as any)?.role)
+
+    // Assigned registration reviewers (non-teacher helpers) also need KYC previews
+    if (!allowed) {
+      const { data: reviewerRows } = await service
+        .from('registration_reviewers')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .limit(1)
+      allowed = !!(reviewerRows && reviewerRows.length > 0)
+    }
   }
 
   if (!allowed) {

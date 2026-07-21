@@ -20,7 +20,6 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { resolveMediaUrl } from '@/lib/media'
 import { cn, haptic, warning as hapticWarning, tap as hapticTap } from '@/lib/utils'
-import { NotificationBell } from '@/components/layout/notification-bell'
 
 interface DesktopSidebarProps {
   user?: any
@@ -280,7 +279,6 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
                 </div>
               )}
             </Link>
-            <NotificationBell compact={collapsed} />
           </div>
         </div>
 
