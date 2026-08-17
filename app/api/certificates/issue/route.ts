@@ -117,9 +117,8 @@ export async function POST(request: NextRequest) {
       day: 'numeric',
     })
 
-    const design = ((course as any).certificate_settings || {}) as Record<string, string>
+    const design = ((course as any).certificate_settings || {}) as Record<string, any>
 
-    // Generate the PDF
     const pdfBuffer = await generateCertificatePdf({
       recipientName: (profile as any)?.full_name || user.email || 'Student',
       courseTitle: (course as any).title,
@@ -133,6 +132,8 @@ export async function POST(request: NextRequest) {
         accentColor: design.accentColor,
         signatureName: design.signatureName || instructorName,
         signatureTitle: design.signatureTitle,
+        logoUrl: design.logoUrl,
+        layout: design.layout,
       },
     })
 

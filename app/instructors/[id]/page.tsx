@@ -98,6 +98,9 @@ export default function InstructorProfilePage() {
           full_name: (profile as any).full_name,
           avatar_url: (profile as any).avatar_url,
           bio: (profile as any).bio,
+          headline: (profile as any).headline,
+          location: (profile as any).location,
+          website: (profile as any).website,
           metadata: (profile as any).metadata || {},
           courses: courseList,
           studentsCount,
@@ -159,9 +162,9 @@ export default function InstructorProfilePage() {
             <div className="flex-1 min-w-0 space-y-3">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold">{instructor.full_name}</h1>
-                {instructor.expertise[0] && instructor.expertise[0] !== 'Instructor' && (
+                {(instructor.headline || (instructor.expertise[0] && instructor.expertise[0] !== 'Instructor')) && (
                   <p className="text-muted-foreground mt-1">
-                    {instructor.expertise.slice(0, 3).join(' · ')}
+                    {instructor.headline || instructor.expertise.slice(0, 3).join(' · ')}
                   </p>
                 )}
               </div>

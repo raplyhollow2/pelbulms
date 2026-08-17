@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { resolveMediaUrl } from '@/lib/media'
+import { resumeLearnPath } from '@/lib/resume-path'
 
 export interface DashboardCourseCardProps {
   id: string
@@ -23,6 +23,7 @@ export interface DashboardCourseCardProps {
   level?: string | null
   thumbnailUrl?: string | null
   progress?: number
+  lastLessonId?: string | null
 }
 
 export function DashboardCourseCard({
@@ -33,6 +34,7 @@ export function DashboardCourseCard({
   level,
   thumbnailUrl,
   progress = 0,
+  lastLessonId,
 }: DashboardCourseCardProps) {
   const pct = Math.max(0, Math.min(100, Math.round(progress)))
   const completed = pct >= 100
@@ -87,9 +89,9 @@ export function DashboardCourseCard({
 
       <CardFooter>
         <Button
-          className="w-full gap-1.5 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+          className="min-h-11 w-full gap-1.5 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
           size="sm"
-          render={<Link href={`/learn/${id}`} />}
+          render={<Link href={resumeLearnPath(id, lastLessonId)} />}
         >
           <PlayCircle className="h-4 w-4" />
           {completed ? 'Review' : started ? 'Continue' : 'Start'}

@@ -15,6 +15,7 @@ import { createClient } from '@/lib/supabase/client'
 import { resolveMediaUrl, parseMediaRef } from '@/lib/media'
 import { uploadVideoDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
 import { LessonActivitiesPanel } from '@/components/teach/lesson-activities-panel'
+import { ScenarioEditor } from '@/components/teach/scenario-editor'
 import { withGateSettings, readGateSettings } from '@/lib/progression-gates'
 import {
   DRIVE_SHARE_HINT,
@@ -690,6 +691,7 @@ export default function LessonEditPage() {
                 await updateLesson({ resources: next as any })
               }}
             />
+            <ScenarioEditor lessonId={lessonId} />
           </CardContent>
         </Card>
 

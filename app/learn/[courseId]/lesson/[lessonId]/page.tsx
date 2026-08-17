@@ -9,6 +9,8 @@ import { BookOpen, Clock, ArrowLeft, Loader2, CheckCircle, ChevronLeft, ChevronR
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 import { QuizPlayer } from '@/components/quiz/quiz-player'
+import { GeminiTutor } from '@/components/ai/gemini-tutor'
+import { ScenarioPlayer } from '@/components/learning/scenario-player'
 import { CourseLearningTabs } from '@/components/course/course-learning-tabs'
 import { TrackedVideoPlayer, type VideoProgressData } from '@/components/learning/tracked-video-player'
 import { resolveMediaUrl } from '@/lib/media'
@@ -162,6 +164,19 @@ export default function LessonViewPage() {
       }
 
       setEnrollment(enrollmentData)
+
+      try {
+        await (supabase as any)
+          .from('enrollments')
+          .update({
+            last_lesson_id: lessonId,
+            last_accessed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', (enrollmentData as any).id)
+      } catch {
+        /* non-fatal */
+      }
 
       // Fetch lesson details
       const { data: lessonData, error: lessonError } = await supabase
@@ -342,12 +357,8 @@ export default function LessonViewPage() {
       }
 
       if (quizData) {
-        console.log('Setting quiz data:', quizData)
         setQuiz(quizData as any)
-
-        // Fetch quiz questions for this quiz
         try {
-          console.log('Fetching quiz questions for quiz:', (quizData as any).id)
           const { data: questionsData } = await supabase
             .from('quiz_questions')
             .select('*')
@@ -355,54 +366,14 @@ export default function LessonViewPage() {
             .order('order_index', { ascending: true })
 
           if (questionsData && questionsData.length > 0) {
-            console.log('Quiz questions fetched:', questionsData.length)
             setQuizQuestions(questionsData)
-          } else {
-            console.log('No quiz questions found')
           }
         } catch (questionsError) {
           console.log('Error fetching quiz questions (continuing anyway):', questionsError)
         }
       } else {
-        console.log('No quiz data found for lesson:', lessonId)
-        // Temporary: Force quiz to show for testing
-        console.log('Setting test quiz for debugging')
-        const testQuiz = {
-          id: '950e8400-e29b-41d4-a716-446655440001',
-          lesson_id: lessonId,
-          title: 'HTML & CSS Fundamentals Quiz',
-          description: 'Test your knowledge of HTML5 and CSS3 fundamentals.',
-          time_limit_minutes: 30,
-          passing_score: 70,
-          max_attempts: 3,
-          is_published: true,
-          metadata: {},
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }
-        console.log('Test quiz object:', testQuiz)
-        setQuiz(testQuiz)
-
-        // Fetch quiz questions for the test quiz
-        try {
-          console.log('Fetching quiz questions for test quiz:', testQuiz.id)
-          const { data: testQuestionsData } = await supabase
-            .from('quiz_questions')
-            .select('*')
-            .eq('quiz_id', testQuiz.id)
-            .order('order_index', { ascending: true })
-
-          if (testQuestionsData && testQuestionsData.length > 0) {
-            console.log('Test quiz questions fetched:', testQuestionsData.length)
-            setQuizQuestions(testQuestionsData)
-          } else {
-            console.log('No test quiz questions found')
-          }
-        } catch (testQuestionsError) {
-          console.log('Error fetching test quiz questions:', testQuestionsError)
-        }
-
-        console.log('Quiz state should be set now')
+        setQuiz(null)
+        setQuizQuestions([])
       }
 
     } catch (error) {
@@ -487,6 +458,16 @@ export default function LessonViewPage() {
           .select()
           .single()
         if (inserted) lessonProgressIdRef.current = (inserted as any).id
+      }
+      if (enrollment?.id) {
+        await (supabase as any)
+          .from('enrollments')
+          .update({
+            last_lesson_id: lessonId,
+            last_accessed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', (enrollment as any).id)
       }
     } catch (error) {
       // Non-fatal: progress will be retried on the next tick
@@ -886,8 +867,61 @@ export default function LessonViewPage() {
                     setLessonCompletedState(completed)
                   }
                 }}
+                moduleResources={(module as any)?.resources}
+                onTakeQuiz={async (quizId) => {
+                  setShowQuiz(true)
+                  if (quiz && (quiz as any).id === quizId) return
+                  const { data: quizRow } = await supabase
+                    .from('quizzes')
+                    .select('*')
+                    .eq('id', quizId)
+                    .maybeSingle()
+                  if (quizRow) {
+                    setQuiz(quizRow as any)
+                    const { data: questionsData } = await supabase
+                      .from('quiz_questions')
+                      .select('*')
+                      .eq('quiz_id', quizId)
+                      .order('order_index', { ascending: true })
+                    setQuizQuestions(questionsData || [])
+                  }
+                }}
               />
             )}
+
+            {showQuiz && quiz && (
+              <QuizPlayer
+                quizId={(quiz as any).id}
+                lessonId={lessonId}
+                courseId={courseId}
+                quizData={quiz as any}
+                questionsData={quizQuestions}
+                onClose={() => setShowQuiz(false)}
+                onComplete={() => setShowQuiz(false)}
+              />
+            )}
+
+            {!showQuiz && quiz && quizQuestions.length > 0 && (
+              <Card className="glass">
+                <CardHeader>
+                  <CardTitle className="text-lg">{(quiz as any).title || 'Lesson quiz'}</CardTitle>
+                  <CardDescription>
+                    {(quiz as any).description || 'Check your understanding of this lesson.'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button
+                    className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+                    onClick={() => setShowQuiz(true)}
+                  >
+                    Start quiz
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            <ScenarioPlayer lessonId={lessonId} />
+            <GeminiTutor courseId={courseId} lessonId={lessonId} />
 
             {/* Progress Tracking */}
             {enrollment && (

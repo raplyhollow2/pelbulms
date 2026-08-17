@@ -4,9 +4,15 @@ import {
   Page,
   View,
   Text,
+  Image,
   StyleSheet,
   renderToBuffer,
 } from '@react-pdf/renderer'
+import {
+  defaultCertificateLayout,
+  layoutFromLegacySettings,
+  type CertificateLayout,
+} from '@/lib/certificate-layout'
 
 export interface CertificateDesignSettings {
   brandName?: string
@@ -14,6 +20,8 @@ export interface CertificateDesignSettings {
   accentColor?: string
   signatureName?: string
   signatureTitle?: string
+  logoUrl?: string
+  layout?: CertificateLayout
 }
 
 export interface CertificateData {
@@ -26,156 +34,134 @@ export interface CertificateData {
   design?: CertificateDesignSettings
 }
 
-function buildStyles(accent: string) {
-  return StyleSheet.create({
-    page: {
-      padding: 28,
-      fontFamily: 'Helvetica',
-      backgroundColor: '#ffffff',
-    },
-    border: {
-      flex: 1,
-      borderWidth: 2,
-      borderColor: accent,
-      borderStyle: 'solid',
-      padding: 24,
-    },
-    innerBorder: {
-      flex: 1,
-      borderWidth: 1,
-      borderColor: '#d1d5db',
-      borderStyle: 'solid',
-      paddingVertical: 36,
-      paddingHorizontal: 40,
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    brand: {
-      fontSize: 14,
-      letterSpacing: 3,
-      color: accent,
-      fontFamily: 'Helvetica-Bold',
-    },
-    title: {
-      fontSize: 34,
-      fontFamily: 'Helvetica-Bold',
-      color: '#111827',
-      marginTop: 8,
-      textAlign: 'center',
-    },
-    subtitle: {
-      fontSize: 12,
-      color: '#6b7280',
-      marginTop: 6,
-      textAlign: 'center',
-    },
-    name: {
-      fontSize: 30,
-      fontFamily: 'Helvetica-Bold',
-      color: '#111827',
-      marginTop: 8,
-      textAlign: 'center',
-    },
-    nameRule: {
-      marginTop: 8,
-      width: 320,
-      borderBottomWidth: 1,
-      borderBottomColor: '#e5e7eb',
-    },
-    bodyText: {
-      fontSize: 12,
-      color: '#374151',
-      marginTop: 18,
-      textAlign: 'center',
-    },
-    courseTitle: {
-      fontSize: 18,
-      fontFamily: 'Helvetica-Bold',
-      color: '#111827',
-      marginTop: 8,
-      textAlign: 'center',
-    },
-    footerRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      width: '100%',
-      marginTop: 28,
-    },
-    footerBlock: {
-      alignItems: 'center',
-      maxWidth: 200,
-    },
-    footerLabel: {
-      fontSize: 9,
-      color: '#9ca3af',
-      marginTop: 4,
-    },
-    footerValue: {
-      fontSize: 11,
-      color: '#111827',
-      fontFamily: 'Helvetica-Bold',
-    },
-    verifyText: {
-      fontSize: 8,
-      color: '#9ca3af',
-      marginTop: 18,
-      textAlign: 'center',
-    },
-  })
+const PAGE = { w: 842, h: 595 }
+const CANVAS = { w: 1123, h: 794 }
+
+function sx(n: number) {
+  return (n / CANVAS.w) * PAGE.w
+}
+function sy(n: number) {
+  return (n / CANVAS.h) * PAGE.h
+}
+
+function resolve(text: string | undefined, data: CertificateData) {
+  return (text || '')
+    .replace('{{recipient}}', data.recipientName)
+    .replace('{{course}}', data.courseTitle)
+    .replace('{{date}}', data.issuedDate)
+    .replace('{{code}}', data.verificationCode)
 }
 
 function CertificateDocument(data: CertificateData) {
-  const design = data.design || {}
-  const accent = design.accentColor || '#E9B308'
-  const styles = buildStyles(accent)
-  const brand = design.brandName || 'PELBU LMS'
-  const titleLine = design.titleLine || 'Certificate of Completion'
-  const signatureName =
-    design.signatureName || data.instructorName || 'Pelbu LMS'
-  const signatureTitle = design.signatureTitle || 'Instructor'
+  const layout = data.design?.layout
+    ? defaultCertificateLayout(data.design.layout)
+    : layoutFromLegacySettings(data.design as any)
+  const accent = layout.accentColor || '#E9B308'
+  const borderW =
+    layout.borderStyle === 'none' ? 0 : layout.borderStyle === 'ornate' ? 8 : layout.borderStyle === 'double' ? 4 : 3
+
+  const styles = StyleSheet.create({
+    page: {
+      backgroundColor: layout.backgroundColor || '#ffffff',
+      padding: 18,
+    },
+    frame: {
+      flex: 1,
+      borderWidth: borderW,
+      borderColor: accent,
+      borderStyle: layout.borderStyle === 'double' ? 'dashed' : 'solid',
+      position: 'relative',
+    },
+  })
 
   return (
-    <Document
-      title={`Certificate - ${data.courseTitle}`}
-      author={brand}
-      subject={`Certificate of Completion for ${data.recipientName}`}
-    >
+    <Document title={`Certificate - ${data.courseTitle}`} author={layout.brandName}>
       <Page size="A4" orientation="landscape" style={styles.page}>
-        <View style={styles.border}>
-          <View style={styles.innerBorder}>
-            <View style={{ alignItems: 'center' }}>
-              <Text style={styles.brand}>{brand}</Text>
-              <Text style={styles.title}>{titleLine}</Text>
-              <Text style={styles.subtitle}>This is proudly presented to</Text>
-            </View>
-
-            <View style={{ alignItems: 'center' }}>
-              <Text style={styles.name}>{data.recipientName}</Text>
-              <View style={styles.nameRule} />
-              <Text style={styles.bodyText}>for successfully completing the course</Text>
-              <Text style={styles.courseTitle}>{data.courseTitle}</Text>
-            </View>
-
-            <View style={{ width: '100%' }}>
-              <View style={styles.footerRow}>
-                <View style={styles.footerBlock}>
-                  <Text style={styles.footerValue}>{data.issuedDate}</Text>
-                  <Text style={styles.footerLabel}>Date Issued</Text>
+        <View style={styles.frame}>
+          {layout.logos.map((logo) =>
+            logo.src ? (
+              <Image
+                key={logo.id}
+                src={logo.src}
+                style={{
+                  position: 'absolute',
+                  left: sx(logo.x),
+                  top: sy(logo.y),
+                  width: sx(logo.w),
+                  height: sy(logo.h),
+                  objectFit: 'contain',
+                }}
+              />
+            ) : null
+          )}
+          {layout.layers.map((layer) => {
+            if (layer.type === 'signature' && layout.signatureUrl) {
+              return (
+                <View
+                  key={layer.id}
+                  style={{
+                    position: 'absolute',
+                    left: sx(layer.x),
+                    top: sy(layer.y),
+                    width: sx(layer.w),
+                    height: sy(layer.h),
+                    alignItems: 'center',
+                  }}
+                >
+                  <Image
+                    src={layout.signatureUrl}
+                    style={{ height: sy(50), objectFit: 'contain' }}
+                  />
+                  <Text style={{ fontSize: 9, marginTop: 4, textAlign: 'center' }}>
+                    {layout.signatureName || data.instructorName}
+                  </Text>
+                  <Text style={{ fontSize: 8, color: '#6b7280' }}>{layout.signatureTitle}</Text>
                 </View>
-                <View style={styles.footerBlock}>
-                  <Text style={styles.footerValue}>{signatureName}</Text>
-                  <Text style={styles.footerLabel}>{signatureTitle}</Text>
-                </View>
-                <View style={styles.footerBlock}>
-                  <Text style={styles.footerValue}>{data.verificationCode}</Text>
-                  <Text style={styles.footerLabel}>Verification Code</Text>
-                </View>
-              </View>
-              <Text style={styles.verifyText}>
-                Verify this certificate at {data.verifyUrl}
+              )
+            }
+            return (
+              <Text
+                key={layer.id}
+                style={{
+                  position: 'absolute',
+                  left: sx(layer.x),
+                  top: sy(layer.y),
+                  width: sx(layer.w),
+                  fontSize: Math.max(8, (layer.fontSize || 14) * 0.72),
+                  color: layer.color || '#111827',
+                  textAlign: layer.align || 'center',
+                  fontFamily:
+                    layer.type === 'title' || layer.type === 'recipient'
+                      ? 'Helvetica-Bold'
+                      : 'Helvetica',
+                }}
+              >
+                {resolve(layer.text, data) ||
+                  (layer.type === 'recipient'
+                    ? data.recipientName
+                    : layer.type === 'course'
+                      ? data.courseTitle
+                      : layer.type === 'date'
+                        ? data.issuedDate
+                        : layer.type === 'verify'
+                          ? data.verificationCode
+                          : '')}
               </Text>
-            </View>
-          </View>
+            )
+          })}
+          <Text
+            style={{
+              position: 'absolute',
+              bottom: 10,
+              left: 20,
+              right: 20,
+              fontSize: 7,
+              color: '#9ca3af',
+              textAlign: 'center',
+            }}
+          >
+            Verify at {data.verifyUrl}
+          </Text>
         </View>
       </Page>
     </Document>

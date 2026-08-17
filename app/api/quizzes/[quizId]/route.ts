@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRBAC } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
-import { courseInstructorByQuiz, canManageCourse } from '@/lib/authoring'
+import { authorizeQuizManage } from '@/lib/authoring'
 
 const TEACHER_ROLES = ['instructor', 'admin', 'resource_person', 'superadmin'] as const
 
@@ -10,12 +10,20 @@ async function authorize(request: NextRequest, quizId: string) {
   const rbac = await checkRBAC(request, [...TEACHER_ROLES])
   if (!rbac.hasAccess) return { ok: false as const, status: rbac.error?.includes('Unauthorized') ? 401 : 403, error: rbac.error || 'Access denied' }
   const service = await createServiceClient()
-  const instructorId = await courseInstructorByQuiz(service, quizId)
-  if (!instructorId) return { ok: false as const, status: 404, error: 'Quiz not found' }
-  if (!canManageCourse(rbac.userRole, instructorId, rbac.userId!)) {
-    return { ok: false as const, status: 403, error: 'You do not own this course' }
-  }
+  const managed = await authorizeQuizManage(service, quizId, rbac.userId!, rbac.userRole)
+  if (!managed.ok) return { ok: false as const, status: managed.status, error: managed.error }
   return { ok: true as const, service }
+}
+
+/** GET /api/quizzes/[quizId] -> quiz row. */
+export async function GET(request: NextRequest, { params }: { params: Promise<{ quizId: string }> }) {
+  const { quizId } = await params
+  const auth = await authorize(request, quizId)
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+  const { data, error } = await auth.service.from('quizzes').select('*').eq('id', quizId).maybeSingle()
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+  if (!data) return NextResponse.json({ error: 'Quiz not found' }, { status: 404 })
+  return NextResponse.json({ quiz: data })
 }
 
 /** PATCH /api/quizzes/[quizId] -> update quiz fields. */

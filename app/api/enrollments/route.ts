@@ -53,6 +53,7 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}))
     const courseId = body?.courseId as string | undefined
+    const inviteCode = typeof body?.inviteCode === 'string' ? body.inviteCode.trim().toUpperCase() : ''
     if (!courseId) {
       return NextResponse.json({ error: 'courseId is required' }, { status: 400 })
     }
@@ -73,6 +74,64 @@ export async function POST(request: Request) {
 
     const mode = ((course as any).enrollment_mode as string) || 'auto'
     const requiresApproval = mode === 'approval'
+    const requiresInvite = mode === 'invite_code'
+    const requiresPaid = mode === 'paid'
+
+    const stripeSessionId =
+      typeof body?.sessionId === 'string' ? body.sessionId.trim() : ''
+
+    if (requiresPaid) {
+      if (!process.env.STRIPE_SECRET_KEY || !stripeSessionId) {
+        return NextResponse.json(
+          {
+            error: 'This course requires payment before enrollment.',
+            enrollmentMode: 'paid',
+          },
+          { status: 402 }
+        )
+      }
+      const stripeRes = await fetch(
+        `https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(stripeSessionId)}`,
+        { headers: { Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}` } }
+      )
+      const session = await stripeRes.json().catch(() => ({}))
+      const paid =
+        session?.payment_status === 'paid' &&
+        session?.metadata?.courseId === courseId &&
+        session?.metadata?.userId === user.id
+      if (!paid) {
+        return NextResponse.json(
+          { error: 'Payment is incomplete or does not match this course.', enrollmentMode: 'paid' },
+          { status: 402 }
+        )
+      }
+    }
+
+    let matchedInvite: { id: string } | null = null
+    if (requiresInvite) {
+      if (!inviteCode) {
+        return NextResponse.json(
+          { error: 'This course requires a unique enrollment code from your teacher.' },
+          { status: 400 }
+        )
+      }
+      const { data: invite } = await service
+        .from('enrollment_invites')
+        .select('id, used_at, expires_at, student_email, student_phone')
+        .eq('course_id', courseId)
+        .eq('code', inviteCode)
+        .maybeSingle()
+      if (!invite) {
+        return NextResponse.json({ error: 'Invalid enrollment code.' }, { status: 400 })
+      }
+      if ((invite as any).used_at) {
+        return NextResponse.json({ error: 'This enrollment code has already been used.' }, { status: 400 })
+      }
+      if ((invite as any).expires_at && new Date((invite as any).expires_at).getTime() < Date.now()) {
+        return NextResponse.json({ error: 'This enrollment code has expired.' }, { status: 400 })
+      }
+      matchedInvite = { id: (invite as any).id }
+    }
 
     const { data: existing } = await service
       .from('enrollments')
@@ -147,6 +206,15 @@ export async function POST(request: Request) {
         if (reactivateError) {
           return NextResponse.json({ error: reactivateError.message }, { status: 400 })
         }
+        if (matchedInvite) {
+          await service
+            .from('enrollment_invites')
+            .update({
+              used_at: new Date().toISOString(),
+              used_by: user.id,
+            })
+            .eq('id', matchedInvite.id)
+        }
         return NextResponse.json({
           success: true,
           status: 'active',
@@ -172,6 +240,16 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, alreadyEnrolled: true })
       }
       return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+
+    if (matchedInvite) {
+      await service
+        .from('enrollment_invites')
+        .update({
+          used_at: new Date().toISOString(),
+          used_by: user.id,
+        })
+        .eq('id', matchedInvite.id)
     }
 
     try {

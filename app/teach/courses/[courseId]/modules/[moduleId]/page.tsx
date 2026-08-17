@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { createClient } from '@/lib/supabase/client'
 import { haptic } from '@/lib/utils'
 import { LessonActivitiesPanel } from '@/components/teach/lesson-activities-panel'
+import { ModuleResourcesTab } from '@/components/teach/module-resources-tab'
 import { withGateSettings, readGateSettings } from '@/lib/progression-gates'
 import type { Database } from '@/types/database.types'
 
@@ -359,6 +360,7 @@ export default function ModuleLessonsPage() {
             description: module.description,
             is_published: (module as any).is_published,
             metadata: (module as any).metadata || {},
+            resources: (module as any).resources ?? [],
             updated_at: new Date().toISOString()
           })
           .eq('id', moduleId)
@@ -456,7 +458,7 @@ export default function ModuleLessonsPage() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="w-full justify-start gap-1 overflow-x-auto scrollbar-hide [&>*]:flex-none [&>*]:px-3.5">
-            <TabsTrigger value="lessons" className="gap-1.5">
+            <TabsTrigger value="lessons" className="min-h-11 gap-1.5">
               <BookOpen className="w-4 h-4" /> Lessons
               {lessons.length > 0 && (
                 <span className="ml-1 rounded-full bg-muted-foreground/15 px-1.5 text-[10px] font-semibold">
@@ -464,7 +466,10 @@ export default function ModuleLessonsPage() {
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="settings" className="gap-1.5">
+            <TabsTrigger value="resources" className="min-h-11 gap-1.5">
+              <Paperclip className="w-4 h-4" /> Resources
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="min-h-11 gap-1.5">
               <SettingsIcon className="w-4 h-4" /> Module Settings
             </TabsTrigger>
           </TabsList>
@@ -589,6 +594,13 @@ export default function ModuleLessonsPage() {
                         resources={(lesson as any).resources}
                         onChange={async (next) => {
                           updateLesson(lesson.id, { resources: next as any })
+                          await (supabase as any)
+                            .from('lessons')
+                            .update({
+                              resources: next,
+                              updated_at: new Date().toISOString(),
+                            })
+                            .eq('id', lesson.id)
                         }}
                       />
                     </div>
@@ -644,6 +656,31 @@ export default function ModuleLessonsPage() {
                 </div>
               ))
             )}
+          </TabsContent>
+
+          <TabsContent value="resources" className="mt-4">
+            <ModuleResourcesTab
+              courseId={courseId}
+              moduleId={moduleId}
+              moduleResources={(module as any)?.resources}
+              lessons={lessons as any}
+              onModuleResourcesChange={async (next) => {
+                if (!module) return
+                setModule({ ...module, resources: next } as any)
+                setHasChanges(true)
+                await (supabase as any)
+                  .from('modules')
+                  .update({ resources: next, updated_at: new Date().toISOString() })
+                  .eq('id', moduleId)
+              }}
+              onLessonResourcesChange={async (lessonId, next) => {
+                updateLesson(lessonId, { resources: next as any })
+                await (supabase as any)
+                  .from('lessons')
+                  .update({ resources: next, updated_at: new Date().toISOString() })
+                  .eq('id', lessonId)
+              }}
+            />
           </TabsContent>
 
           {/* SETTINGS TAB */}

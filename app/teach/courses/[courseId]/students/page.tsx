@@ -8,6 +8,9 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { ArrowLeft, Users, Search, TrendingUp, Clock, Loader2, Award, Check, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { EnrollmentInvitePanel } from '@/components/teach/enrollment-invite-panel'
+import { CourseStaffPanel } from '@/components/teach/course-staff-panel'
+import { StudentInterventionPanel } from '@/components/teach/student-intervention-panel'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
@@ -68,9 +71,16 @@ export default function CourseStudentsPage() {
         .eq('id', user.id)
         .maybeSingle()
       const role = (profile as any)?.role
+      const { data: staffRow } = await (supabase as any)
+        .from('course_instructors')
+        .select('id')
+        .eq('course_id', courseId)
+        .eq('user_id', user.id)
+        .maybeSingle()
       const isOwner = (courseData as any).instructor_id === user.id
       const isStaff = role === 'admin' || role === 'superadmin'
-      if (!isOwner && !isStaff) {
+      const isCoTeacher = Boolean(staffRow)
+      if (!isOwner && !isStaff && !isCoTeacher) {
         alert('Access denied. You can only view students for your own courses.')
         router.push('/teach/dashboard')
         return
@@ -265,6 +275,9 @@ export default function CourseStudentsPage() {
           </Card>
         </div>
 
+        <EnrollmentInvitePanel courseId={courseId} />
+        <CourseStaffPanel courseId={courseId} />
+        <StudentInterventionPanel courseId={courseId} students={students} />
         {pendingStudents.length > 0 && (
           <Card className="glass-strong border-amber-500/30">
             <CardHeader>

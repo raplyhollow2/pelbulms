@@ -7,6 +7,9 @@ export type InstructorStatsInput = {
   full_name?: string | null
   avatar_url?: string | null
   bio?: string | null
+  headline?: string | null
+  location?: string | null
+  website?: string | null
   metadata?: Record<string, unknown> | null
   courses: Array<{
     id: string
@@ -31,6 +34,7 @@ export type InstructorShowcaseData = {
   full_name: string
   avatar_url?: string
   bio?: string
+  headline?: string
   expertise: string[]
   rating: number | null
   students_count: number
@@ -157,13 +161,14 @@ export function buildInstructorShowcaseData(input: InstructorStatsInput): Instru
     full_name: input.full_name || 'Instructor',
     avatar_url: input.avatar_url || undefined,
     bio: input.bio || undefined,
+    headline: input.headline || (typeof meta.headline === 'string' ? meta.headline : undefined),
     expertise: deriveExpertise(input),
     rating: deriveRating(published),
     students_count: students,
     courses_count: published.length,
     achievements: deriveAchievements(input),
-    location: typeof meta.location === 'string' ? meta.location : undefined,
-    website: typeof meta.website === 'string' ? meta.website : undefined,
+    location: input.location || (typeof meta.location === 'string' ? meta.location : undefined),
+    website: input.website || (typeof meta.website === 'string' ? meta.website : undefined),
     years_experience:
       typeof meta.years_experience === 'number' ? meta.years_experience : undefined,
     social_links: meta.social_links && typeof meta.social_links === 'object'

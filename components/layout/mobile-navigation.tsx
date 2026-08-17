@@ -145,7 +145,7 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
                 href={item.href}
                 onClick={() => haptic()}
                 aria-current={active ? 'page' : undefined}
-                className="press relative flex flex-1 flex-col items-center justify-center gap-1 min-w-0 rounded-xl py-2"
+                className="press relative flex min-h-11 flex-1 flex-col items-center justify-center gap-1 min-w-0 rounded-xl py-2"
               >
                 {active && (
                   <span

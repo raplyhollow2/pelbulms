@@ -23,7 +23,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 import { DashboardCourseCard } from '@/components/dashboard/course-card'
 import { resolveMediaUrl } from '@/lib/media'
-import { cn } from '@/lib/utils'
+import { resumeLearnPath } from '@/lib/resume-path'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
@@ -32,6 +32,8 @@ const PAGE_SIZE = 8
 type EnrollmentRow = {
   id: string
   progress_percentage?: number | null
+  last_accessed_at?: string | null
+  last_lesson_id?: string | null
   courses: {
     id: string
     title: string
@@ -96,6 +98,8 @@ export default function DashboardPage() {
           `
           id,
           progress_percentage,
+          last_accessed_at,
+          last_lesson_id,
           courses (
             id,
             title,
@@ -162,11 +166,14 @@ export default function DashboardPage() {
   const pageItems = filtered.slice((pageSafe - 1) * PAGE_SIZE, pageSafe * PAGE_SIZE)
 
   const continueCourse = useMemo(() => {
-    const inProgress = enrollments
-      .filter((e) => e.courses && (e.progress_percentage || 0) > 0 && (e.progress_percentage || 0) < 100)
-      .sort((a, b) => (b.progress_percentage || 0) - (a.progress_percentage || 0))
-    if (inProgress[0]) return inProgress[0]
-    return enrollments.find((e) => e.courses && (e.progress_percentage || 0) < 100) || null
+    const sortable = enrollments
+      .filter((e) => e.courses && (e.progress_percentage || 0) < 100)
+      .sort((a, b) => {
+        const ta = a.last_accessed_at ? new Date(a.last_accessed_at).getTime() : 0
+        const tb = b.last_accessed_at ? new Date(b.last_accessed_at).getTime() : 0
+        return tb - ta
+      })
+    return sortable[0] || null
   }, [enrollments])
 
   if (loading) {
@@ -286,8 +293,15 @@ export default function DashboardPage() {
                 </div>
                 <Button
                   size="sm"
-                  className="h-8 w-full shrink-0 gap-1.5 bg-bhutan-yellow text-black hover:bg-bhutan-orange sm:w-auto"
-                  render={<Link href={`/learn/${continueCourse.courses.id}`} />}
+                  className="h-11 w-full shrink-0 gap-1.5 bg-bhutan-yellow text-black hover:bg-bhutan-orange sm:w-auto"
+                  render={
+                    <Link
+                      href={resumeLearnPath(
+                        continueCourse.courses.id,
+                        continueCourse.last_lesson_id
+                      )}
+                    />
+                  }
                 >
                   <PlayCircle className="h-3.5 w-3.5" />
                   Resume
@@ -350,6 +364,7 @@ export default function DashboardPage() {
                         level={course.level}
                         thumbnailUrl={course.thumbnail_url}
                         progress={enrollment.progress_percentage || 0}
+                        lastLessonId={enrollment.last_lesson_id}
                       />
                     )
                   })}

@@ -3,8 +3,15 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, Pencil } from 'lucide-react'
 import { AddLessonActivityModal } from '@/components/teach/add-lesson-activity-modal'
+import { QuizCreator } from '@/components/quiz/quiz-creator'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   getActivityDef,
   parseLessonActivities,
@@ -25,6 +32,7 @@ export function LessonActivitiesPanel({
   onChange,
 }: Props) {
   const [open, setOpen] = useState(false)
+  const [editingQuiz, setEditingQuiz] = useState<LessonActivity | null>(null)
   const items = parseLessonActivities(resources)
 
   return (
@@ -33,24 +41,23 @@ export function LessonActivitiesPanel({
         <div>
           <p className="text-sm font-medium">Activities & resources</p>
           <p className="text-xs text-muted-foreground">
-            Add Moodle-style items (assignment, file, forum, quiz, …)
+            Files, links, and quizzes students see on the Resources tab
           </p>
         </div>
         <Button
           type="button"
           size="sm"
-          className="gap-1.5 bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+          className="min-h-11 gap-1.5 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
           onClick={() => setOpen(true)}
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="h-4 w-4" />
           Add activity
         </Button>
       </div>
 
       {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground rounded-md border border-dashed p-4 text-center">
-          No activities yet. Click <strong>Add activity</strong> to choose assignment, file,
-          forum, and more.
+        <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+          No activities yet. Click <strong>Add activity</strong> to attach a file or quiz.
         </p>
       ) : (
         <ul className="space-y-2">
@@ -70,42 +77,50 @@ export function LessonActivitiesPanel({
                   ) : null}
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium truncate">{item.title}</p>
+                      <p className="truncate font-medium">{item.title}</p>
                       <Badge variant="secondary" className="text-[10px] capitalize">
                         {def?.label || item.activity}
                       </Badge>
+                      {item.quizId && (
+                        <Badge variant="outline" className="text-[10px]">
+                          Connected
+                        </Badge>
+                      )}
                     </div>
                     {item.description && (
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                      <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
                         {item.description}
                       </p>
                     )}
                     {(item.fileName || item.url || item.fileUrl) && (
-                      <p className="text-[11px] text-muted-foreground mt-1 truncate">
+                      <p className="mt-1 truncate text-[11px] text-muted-foreground">
                         {item.fileName || item.url || item.fileUrl}
-                      </p>
-                    )}
-                    {item.dueDate && (
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Due: {new Date(item.dueDate).toLocaleString()}
-                      </p>
-                    )}
-                    {item.choices && item.choices.length > 0 && (
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Options: {item.choices.join(', ')}
                       </p>
                     )}
                   </div>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="shrink-0 text-red-600 hover:text-red-700"
-                  onClick={() => onChange(items.filter((a) => a.id !== item.id))}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="flex shrink-0 items-center gap-1">
+                  {item.activity === 'quiz' && item.quizId && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-11 min-w-11"
+                      onClick={() => setEditingQuiz(item)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-11 min-w-11 text-red-600 hover:text-red-700"
+                    onClick={() => onChange(items.filter((a) => a.id !== item.id))}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </li>
             )
           })}
@@ -121,6 +136,32 @@ export function LessonActivitiesPanel({
           await onChange([...items, activity])
         }}
       />
+
+      <Dialog open={Boolean(editingQuiz)} onOpenChange={(v) => !v && setEditingQuiz(null)}>
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit quiz</DialogTitle>
+          </DialogHeader>
+          {editingQuiz?.quizId && (
+            <QuizCreator
+              lessonId={lessonId}
+              quizId={editingQuiz.quizId}
+              compact
+              onCancel={() => setEditingQuiz(null)}
+              onSave={(quiz) => {
+                void onChange(
+                  items.map((a) =>
+                    a.id === editingQuiz.id
+                      ? { ...a, title: quiz.title, quizId: quiz.id, passGrade: quiz.passing_score }
+                      : a
+                  )
+                )
+                setEditingQuiz(null)
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

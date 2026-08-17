@@ -25,6 +25,7 @@ import {
   type LessonActivityType,
   type ActivityDefinition,
 } from '@/lib/lesson-activities'
+import { QuizCreator } from '@/components/quiz/quiz-creator'
 
 type Props = {
   open: boolean
@@ -240,13 +241,27 @@ export function AddLessonActivityModal({
               </div>
             </div>
           </div>
+        ) : selected === 'quiz' ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="-ml-2 min-h-11"
+            onClick={() => {
+              setSelected(null)
+              setError('')
+            }}
+          >
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            Back to types
+          </Button>
         ) : (
           <div className="space-y-4">
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="-ml-2"
+              className="-ml-2 min-h-11"
               onClick={() => {
                 setSelected(null)
                 setError('')
@@ -423,18 +438,41 @@ export function AddLessonActivityModal({
           </div>
         )}
 
+        {selected === 'quiz' && (
+          <QuizCreator
+            lessonId={lessonId}
+            compact
+            onCancel={() => {
+              setSelected(null)
+              setError('')
+            }}
+            onSave={async (quiz) => {
+              const activity: LessonActivity = {
+                id: newActivityId(),
+                activity: 'quiz',
+                title: quiz.title,
+                passGrade: quiz.passing_score,
+                quizId: quiz.id,
+                createdAt: new Date().toISOString(),
+              }
+              await onAdd(activity)
+              onOpenChange(false)
+            }}
+          />
+        )}
+
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" className="min-h-11" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          {selected && (
+          {selected && selected !== 'quiz' && (
             <Button
               type="button"
-              className="bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+              className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
               disabled={saving || uploading}
               onClick={() => void handleSave()}
             >
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Add to lesson
             </Button>
           )}

@@ -147,6 +147,7 @@ export interface Database {
           progress_percentage: number
           status: string
           last_accessed_at: string
+          last_lesson_id: string | null
           updated_at: string
         }
         Insert: {
@@ -158,6 +159,7 @@ export interface Database {
           progress_percentage?: number
           status?: string
           last_accessed_at?: string
+          last_lesson_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -169,6 +171,7 @@ export interface Database {
           progress_percentage?: number
           status?: string
           last_accessed_at?: string
+          last_lesson_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -315,6 +318,7 @@ export interface Database {
           title: string
           description: string | null
           order_index: number
+          resources?: unknown
           created_at: string
           updated_at: string
         }
@@ -382,6 +386,10 @@ export interface Database {
           email: string | null
           role: 'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
           bio: string | null
+          headline: string | null
+          location: string | null
+          website: string | null
+          social_links?: unknown
           institution_id: string | null
           created_at: string
           updated_at: string

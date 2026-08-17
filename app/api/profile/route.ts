@@ -53,7 +53,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { full_name, avatar_url, bio } = body
+    const { full_name, avatar_url, bio, headline, location, website, social_links } = body
 
     const { data: profile, error } = await supabase
       .from('profiles')
@@ -61,8 +61,12 @@ export async function PUT(request: NextRequest) {
         full_name,
         avatar_url,
         bio,
+        headline,
+        location,
+        website,
+        social_links: social_links || undefined,
         updated_at: new Date().toISOString()
-      })
+      } as any)
       .eq('id', user.id)
       .select()
       .single()

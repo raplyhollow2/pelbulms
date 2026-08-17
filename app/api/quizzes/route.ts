@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRBAC } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
-import { courseInstructorByLesson, canManageCourse } from '@/lib/authoring'
+import { authorizeLessonManage } from '@/lib/authoring'
 
 const TEACHER_ROLES = ['instructor', 'admin', 'resource_person', 'superadmin'] as const
 
@@ -19,10 +19,8 @@ export async function GET(request: NextRequest) {
   if (!lessonId) return NextResponse.json({ error: 'lessonId is required' }, { status: 400 })
 
   const service = await createServiceClient()
-  const instructorId = await courseInstructorByLesson(service, lessonId)
-  if (!canManageCourse(rbac.userRole, instructorId, rbac.userId!)) {
-    return NextResponse.json({ error: 'You do not own this course' }, { status: 403 })
-  }
+  const auth = await authorizeLessonManage(service, lessonId, rbac.userId!, rbac.userRole)
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const { data, error } = await service
     .from('quizzes')
@@ -57,11 +55,8 @@ export async function POST(request: NextRequest) {
   }
 
   const service = await createServiceClient()
-  const instructorId = await courseInstructorByLesson(service, lessonId)
-  if (!instructorId) return NextResponse.json({ error: 'Lesson not found' }, { status: 404 })
-  if (!canManageCourse(rbac.userRole, instructorId, rbac.userId!)) {
-    return NextResponse.json({ error: 'You do not own this course' }, { status: 403 })
-  }
+  const auth = await authorizeLessonManage(service, lessonId, rbac.userId!, rbac.userRole)
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
 
   const { data, error } = await service
     .from('quizzes')

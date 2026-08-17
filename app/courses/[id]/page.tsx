@@ -11,6 +11,7 @@ import { CourseActionDeck } from '@/components/courses/course-action-deck'
 import { CurriculumTimeline } from '@/components/courses/curriculum-timeline'
 import { CourseDetailSkeleton } from '@/components/courses/course-detail-skeleton'
 import { VideoPreviewModal } from '@/components/courses/video-preview-modal'
+import { resumeLearnPath } from '@/lib/resume-path'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
@@ -30,6 +31,8 @@ export default function CourseDetailPage() {
   const [enrolling, setEnrolling] = useState(false)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [showVideoPreview, setShowVideoPreview] = useState(false)
+  const [lastLessonId, setLastLessonId] = useState<string | null>(null)
+  const [inviteCode, setInviteCode] = useState('')
 
   const supabase = createClient()
 
@@ -80,9 +83,24 @@ export default function CourseDetailPage() {
 
       // Check enrollment (active = can learn; pending = awaiting creator)
       if (user) {
+        const paidSession =
+          typeof window !== 'undefined'
+            ? new URLSearchParams(window.location.search).get('session_id')
+            : null
+        if (paidSession) {
+          const paidRes = await fetch('/api/enrollments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ courseId, sessionId: paidSession }),
+          })
+          if (paidRes.ok) {
+            setIsEnrolled(true)
+            setEnrollmentPending(false)
+          }
+        }
         const { data: enrollmentRows } = await supabase
           .from('enrollments')
-          .select('id, status')
+          .select('id, status, last_lesson_id')
           .eq('user_id', user.id)
           .eq('course_id', courseId)
           .limit(1)
@@ -92,6 +110,7 @@ export default function CourseDetailPage() {
           const status = row.status || 'active'
           setIsEnrolled(status === 'active' || status === 'completed')
           setEnrollmentPending(status === 'pending')
+          setLastLessonId(row.last_lesson_id || null)
         } else {
           setIsEnrolled(false)
           setEnrollmentPending(false)
@@ -113,10 +132,18 @@ export default function CourseDetailPage() {
 
     try {
       setEnrolling(true)
+      const stripeSessionId =
+        typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('session_id') || undefined
+          : undefined
       const res = await fetch('/api/enrollments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courseId }),
+        body: JSON.stringify({
+          courseId,
+          inviteCode: inviteCode.trim() || undefined,
+          sessionId: stripeSessionId,
+        }),
       })
       const raw = await res.text()
       let data: any = {}
@@ -124,6 +151,19 @@ export default function CourseDetailPage() {
         data = raw ? JSON.parse(raw) : {}
       } catch {
         data = { error: raw?.slice(0, 200) || `HTTP ${res.status}` }
+      }
+      if (res.status === 402 || data.enrollmentMode === 'paid') {
+        const checkout = await fetch('/api/enrollments/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ courseId }),
+        })
+        const checkoutData = await checkout.json().catch(() => ({}))
+        if (checkoutData.url) {
+          window.location.href = checkoutData.url
+          return
+        }
+        throw new Error(checkoutData.error || data.error || 'Payment is required')
       }
       if (!res.ok) throw new Error(data.error || `Failed to enroll (HTTP ${res.status})`)
 
@@ -140,13 +180,13 @@ export default function CourseDetailPage() {
       setIsEnrolled(true)
       setEnrollmentPending(false)
       if (data.alreadyEnrolled) {
-        router.push(`/learn/${courseId}`)
+        router.push(resumeLearnPath(courseId, lastLessonId))
         return
       }
 
       alert('Successfully enrolled! Redirecting to your course...')
       setTimeout(() => {
-        router.push(`/learn/${courseId}`)
+        router.push(resumeLearnPath(courseId, lastLessonId))
       }, 800)
     } catch (error: any) {
       if (error?.name === 'AbortError') return
@@ -180,8 +220,9 @@ export default function CourseDetailPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <div className="container mx-auto px-4 py-8 pb-28 lg:pb-8">
+      <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0 space-y-8">
         {/* Back Button */}
         <Button
           variant="ghost"
@@ -333,7 +374,7 @@ export default function CourseDetailPage() {
                 overallProgress={0}
                 onLessonClick={(lessonId) => {
                   if (isEnrolled) {
-                    router.push(`/learn/${courseId}?lesson=${lessonId}`)
+                    router.push(`/learn/${courseId}/lesson/${lessonId}`)
                   }
                 }}
               />
@@ -359,52 +400,39 @@ export default function CourseDetailPage() {
             </CardContent>
           </Card>
         )}
-
-        {/* Action Button */}
-        <div className="flex justify-center">
-          {isEnrolled ? (
-            <Button
-              size="lg"
-              className="bg-green-600 hover:bg-green-700 text-white"
-              onClick={() => router.push(`/learn/${courseId}`)}
-            >
-              <BookOpen className="w-5 h-5 mr-2" />
-              Continue Learning
-            </Button>
-          ) : enrollmentPending ? (
-            <Button size="lg" className="bg-amber-500 text-black" disabled>
-              <Clock className="w-5 h-5 mr-2" />
-              Pending creator approval
-            </Button>
-          ) : (
-            <Button
-              size="lg"
-              className="bg-bhutan-yellow hover:bg-bhutan-orange"
-              onClick={handleEnroll}
-              disabled={enrolling}
-            >
-              {enrolling ? (
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              ) : (
-                <BookOpen className="w-5 h-5 mr-2" />
-              )}
-              {(course as any).enrollment_mode === 'approval'
-                ? 'Request enrollment'
-                : 'Enroll Now'}
-            </Button>
-          )}
         </div>
+
+        {course && (
+          <aside className="hidden min-w-0 lg:block">
+            <CourseActionDeck
+              course={course}
+              isEnrolled={isEnrolled}
+              enrollmentPending={enrollmentPending}
+              onEnroll={handleEnroll}
+              onLearn={() => router.push(resumeLearnPath(courseId, lastLessonId))}
+              inviteMode={(course as any).enrollment_mode === 'invite_code'}
+              inviteCode={inviteCode}
+              onInviteCodeChange={setInviteCode}
+              variant="sidebar"
+            />
+          </aside>
+        )}
       </div>
 
-      {/* Floating Action Deck */}
       {course && (
-        <CourseActionDeck
-          course={course}
-          isEnrolled={isEnrolled}
-          enrollmentPending={enrollmentPending}
-          onEnroll={handleEnroll}
-          onLearn={() => router.push(`/learn/${courseId}`)}
-        />
+        <div className="lg:hidden">
+          <CourseActionDeck
+            course={course}
+            isEnrolled={isEnrolled}
+            enrollmentPending={enrollmentPending}
+            onEnroll={handleEnroll}
+            onLearn={() => router.push(resumeLearnPath(courseId, lastLessonId))}
+            inviteMode={(course as any).enrollment_mode === 'invite_code'}
+            inviteCode={inviteCode}
+            onInviteCodeChange={setInviteCode}
+            variant="mobile"
+          />
+        </div>
       )}
 
       {/* Video Preview Modal */}

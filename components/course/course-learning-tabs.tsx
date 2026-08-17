@@ -51,6 +51,8 @@ interface CourseLearningTabsProps {
   markingActivities?: boolean
   /** Which lesson ids are locked in the syllabus */
   lockedLessonIds?: Set<string>
+  moduleResources?: unknown
+  onTakeQuiz?: (quizId: string) => void
 }
 
 export function CourseLearningTabs({
@@ -71,6 +73,8 @@ export function CourseLearningTabs({
   onMarkActivitiesComplete,
   markingActivities = false,
   lockedLessonIds,
+  moduleResources,
+  onTakeQuiz,
 }: CourseLearningTabsProps) {
   const [activeTab, setActiveTab] = useState('syllabus')
 
@@ -110,7 +114,7 @@ export function CourseLearningTabs({
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
-                className="flex items-center gap-1.5 sm:gap-2 px-3 data-[state=active]:bg-bhutan-yellow data-[state=active]:text-black shrink-0"
+                className="flex min-h-11 items-center gap-1.5 sm:gap-2 px-3 data-[state=active]:bg-bhutan-yellow data-[state=active]:text-black shrink-0"
               >
                 {locked ? (
                   <Lock className="w-4 h-4 shrink-0" />
@@ -149,7 +153,11 @@ export function CourseLearningTabs({
           <LockedPanel title="Resources" />
         ) : (
           <>
-            <LessonResources resources={(currentLesson as any)?.resources} />
+            <LessonResources
+              resources={(currentLesson as any)?.resources}
+              extraResources={moduleResources}
+              onTakeQuiz={onTakeQuiz}
+            />
             {onMarkActivitiesComplete && !activityCompleted && (
               <Card className="glass border-bhutan-yellow/40">
                 <CardContent className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

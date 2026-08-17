@@ -26,6 +26,7 @@ import {
   isGoogleDriveUrl,
   MAX_VIDEO_UPLOAD_LABEL,
 } from '@/lib/video-url'
+import { GeminiCoursePanel } from '@/components/teach/gemini-course-panel'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Module = Database['public']['Tables']['modules']['Row']
@@ -57,7 +58,7 @@ export default function EditCoursePage() {
     tags: [] as string[],
     is_published: false,
     is_featured: false,
-    enrollment_mode: 'auto' as 'auto' | 'approval',
+    enrollment_mode: 'auto' as 'auto' | 'approval' | 'invite_code' | 'paid',
     thumbnail_url: '',
     preview_video_url: '',
   })
@@ -137,7 +138,9 @@ export default function EditCoursePage() {
         is_published: (course as any).is_published,
         is_featured: course.is_featured,
         enrollment_mode:
-          (course as any).enrollment_mode === 'approval' ? 'approval' : 'auto',
+          ['approval', 'invite_code', 'paid'].includes((course as any).enrollment_mode)
+            ? (course as any).enrollment_mode
+            : 'auto',
         thumbnail_url: course.thumbnail_url || '',
         preview_video_url: (course.metadata as any)?.preview_video_url || '',
       } as any)
@@ -262,7 +265,9 @@ export default function EditCoursePage() {
           is_published: (courseData as any).is_published,
           is_featured: courseData.is_featured,
           enrollment_mode:
-            (courseData as any).enrollment_mode === 'approval' ? 'approval' : 'auto',
+            ['approval', 'invite_code', 'paid'].includes((courseData as any).enrollment_mode)
+              ? (courseData as any).enrollment_mode
+              : 'auto',
           thumbnail_url: courseData.thumbnail_url || null,
           metadata: mergedMetadata,
           updated_at: new Date().toISOString()
@@ -1033,7 +1038,8 @@ export default function EditCoursePage() {
                     <button
                       type="button"
                       className={`rounded-lg border p-3 text-left transition-colors ${
-                        (courseData as any).enrollment_mode !== 'approval'
+                        (courseData as any).enrollment_mode === 'auto' ||
+                        !(courseData as any).enrollment_mode
                           ? 'border-bhutan-yellow bg-bhutan-yellow/10'
                           : 'hover:border-muted-foreground/40'
                       }`}
@@ -1060,6 +1066,38 @@ export default function EditCoursePage() {
                       <p className="text-sm font-medium">Creator approval</p>
                       <p className="text-xs text-muted-foreground mt-1">
                         You approve each request on the Students page before access
+                      </p>
+                    </button>
+                    <button
+                      type="button"
+                      className={`rounded-lg border p-3 text-left transition-colors ${
+                        (courseData as any).enrollment_mode === 'invite_code'
+                          ? 'border-bhutan-yellow bg-bhutan-yellow/10'
+                          : 'hover:border-muted-foreground/40'
+                      }`}
+                      onClick={() =>
+                        setCourseData({ ...courseData, enrollment_mode: 'invite_code' } as any)
+                      }
+                    >
+                      <p className="text-sm font-medium">Unique student code</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Generate a code per student and send it by email or SMS
+                      </p>
+                    </button>
+                    <button
+                      type="button"
+                      className={`rounded-lg border p-3 text-left transition-colors ${
+                        (courseData as any).enrollment_mode === 'paid'
+                          ? 'border-bhutan-yellow bg-bhutan-yellow/10'
+                          : 'hover:border-muted-foreground/40'
+                      }`}
+                      onClick={() =>
+                        setCourseData({ ...courseData, enrollment_mode: 'paid' } as any)
+                      }
+                    >
+                      <p className="text-sm font-medium">Paid (Stripe)</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Optional paid access when Stripe keys are configured
                       </p>
                     </button>
                   </div>
@@ -1105,6 +1143,7 @@ export default function EditCoursePage() {
                     Certificate design
                   </Button>
                 </div>
+                <GeminiCoursePanel courseId={courseId} />
               </CardContent>
             </Card>
           </TabsContent>

@@ -41,7 +41,10 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({
     full_name: '',
     bio: '',
-    avatar_url: ''
+    avatar_url: '',
+    headline: '',
+    location: '',
+    website: '',
   })
 
   const [stats, setStats] = useState({
@@ -78,7 +81,10 @@ export default function ProfilePage() {
           setFormData({
             full_name: safeProfile.full_name || '',
             bio: safeProfile.bio || '',
-            avatar_url: safeProfile.avatar_url || ''
+            avatar_url: safeProfile.avatar_url || '',
+            headline: safeProfile.headline || '',
+            location: safeProfile.location || '',
+            website: safeProfile.website || '',
           })
         }
 
@@ -165,8 +171,11 @@ export default function ProfilePage() {
           full_name: formData.full_name,
           bio: formData.bio,
           avatar_url: formData.avatar_url,
+          headline: formData.headline,
+          location: formData.location,
+          website: formData.website,
           updated_at: new Date().toISOString()
-        })
+        } as any)
         .eq('id', user.id)
 
       if (error) throw error
@@ -301,6 +310,35 @@ export default function ProfilePage() {
               </div>
 
               <div className="space-y-2">
+                <label className="text-sm font-medium">Headline</label>
+                <Input
+                  className="min-h-11"
+                  placeholder="e.g. Lecturer in AI-enhanced pedagogy"
+                  value={formData.headline}
+                  onChange={(e) => setFormData({ ...formData, headline: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Location</label>
+                  <Input
+                    className="min-h-11"
+                    placeholder="Thimphu, Bhutan"
+                    value={formData.location}
+                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Website</label>
+                  <Input
+                    className="min-h-11"
+                    placeholder="https://"
+                    value={formData.website}
+                    onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
                 <label className="text-sm font-medium">Bio</label>
                 <Textarea
                   placeholder="Tell us about yourself..."
@@ -350,6 +388,17 @@ export default function ProfilePage() {
                   <CheckCircle className="w-4 h-4" />
                   <span className="text-sm">Profile updated successfully!</span>
                 </div>
+              )}
+              {user?.id && (
+                <Button
+                  variant="outline"
+                  className="min-h-11"
+                  onClick={() => {
+                    window.location.href = `/u/${user.id}`
+                  }}
+                >
+                  View public profile
+                </Button>
               )}
             </div>
           </CardContent>

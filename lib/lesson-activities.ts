@@ -62,6 +62,8 @@ export type LessonActivity = {
   choices?: string[]
   /** Free-form body (page, label, book chapters) */
   content?: string
+  /** Linked row in `quizzes` when activity === 'quiz' */
+  quizId?: string
   createdAt?: string
 }
 
@@ -98,10 +100,10 @@ export const LESSON_ACTIVITY_TYPES: ActivityDefinition[] = [
   {
     type: 'quiz',
     label: 'Quiz',
-    description: 'Knowledge check with a pass mark',
+    description: 'Multiple-choice and other questions, stored and graded',
     category: 'activities',
     icon: HelpCircle,
-    fields: ['title', 'description', 'passGrade', 'url'],
+    fields: ['title', 'description', 'passGrade'],
   },
   {
     type: 'choice',
@@ -279,6 +281,7 @@ export function parseLessonActivities(raw: unknown): LessonActivity[] {
         allowSubmissions: item.allowSubmissions,
         choices: item.choices,
         content: item.content,
+        quizId: item.quizId,
         createdAt: item.createdAt,
       } satisfies LessonActivity
     }
