@@ -24,6 +24,7 @@ import type { Database } from '@/types/database.types'
 import { DashboardCourseCard } from '@/components/dashboard/course-card'
 import { resolveMediaUrl } from '@/lib/media'
 import { resumeLearnPath } from '@/lib/resume-path'
+import { cn } from '@/lib/utils'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
