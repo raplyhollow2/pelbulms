@@ -232,7 +232,7 @@ export async function validateVendorKey(provider: AiProvider, secret: string) {
   if (provider === 'gemini') {
     const { GoogleGenerativeAI } = await import('@google/generative-ai')
     const genAI = new GoogleGenerativeAI(secret)
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.6-flash' })
     const result = await model.generateContent('Reply with the single word OK.')
     if (!result.response.text()) throw new Error('Empty Gemini response. Check the key was copied fully.')
     return

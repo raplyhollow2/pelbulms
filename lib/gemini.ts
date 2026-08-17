@@ -1,7 +1,10 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { resolveAiKey } from '@/lib/ai-keys'
 
-export async function getGemini(model = 'gemini-2.0-flash', userId?: string | null) {
+export const GEMINI_TEXT_MODEL = 'gemini-3.6-flash'
+export const GEMINI_IMAGE_MODEL = 'gemini-3.1-flash-image'
+
+export async function getGemini(model = GEMINI_TEXT_MODEL, userId?: string | null) {
   const key = await resolveAiKey('gemini', userId)
   if (!key) {
     throw new Error(
@@ -16,7 +19,7 @@ export async function geminiJson<T>(
   prompt: string,
   opts?: { model?: string; userId?: string | null }
 ): Promise<T> {
-  const gem = await getGemini(opts?.model || 'gemini-2.0-flash', opts?.userId)
+  const gem = await getGemini(opts?.model || GEMINI_TEXT_MODEL, opts?.userId)
   const result = await gem.generateContent(
     `${prompt}\n\nRespond with valid JSON only. No markdown fences.`
   )
@@ -28,7 +31,7 @@ export async function geminiText(
   prompt: string,
   opts?: { model?: string; userId?: string | null }
 ): Promise<string> {
-  const gem = await getGemini(opts?.model || 'gemini-2.0-flash', opts?.userId)
+  const gem = await getGemini(opts?.model || GEMINI_TEXT_MODEL, opts?.userId)
   const result = await gem.generateContent(prompt)
   return result.response.text()
 }
@@ -39,7 +42,7 @@ export async function geminiExtractFromFile(opts: {
   base64: string
   hint?: string
 }): Promise<string> {
-  const gem = await getGemini('gemini-2.0-flash', opts.userId)
+  const gem = await getGemini(GEMINI_TEXT_MODEL, opts.userId)
   const result = await gem.generateContent([
     {
       text:
@@ -64,7 +67,7 @@ export async function geminiImagePng(opts: {
   if (!key) throw new Error('Gemini API key is not configured')
   const genAI = new GoogleGenerativeAI(key)
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash-preview-image-generation',
+    model: GEMINI_IMAGE_MODEL,
     generationConfig: {
       // @ts-expect-error image modality supported by Gemini image models
       responseModalities: ['IMAGE', 'TEXT'],
