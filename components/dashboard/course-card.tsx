@@ -13,6 +13,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
+import { resolveMediaUrl } from '@/lib/media'
 import { resumeLearnPath } from '@/lib/resume-path'
 
 export interface DashboardCourseCardProps {
