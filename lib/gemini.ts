@@ -1,16 +1,22 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { resolveAiKey } from '@/lib/ai-keys'
 
-export function getGemini(model = 'gemini-2.0-flash') {
-  const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY
+export async function getGemini(model = 'gemini-2.0-flash', userId?: string | null) {
+  const key = await resolveAiKey('gemini', userId)
   if (!key) {
-    throw new Error('GEMINI_API_KEY is not configured')
+    throw new Error(
+      'Gemini API key is not configured. Add one in Settings → AI or ask an admin to save a platform key.'
+    )
   }
   const genAI = new GoogleGenerativeAI(key)
   return genAI.getGenerativeModel({ model })
 }
 
-export async function geminiJson<T>(prompt: string, model = 'gemini-2.0-flash'): Promise<T> {
-  const gem = getGemini(model)
+export async function geminiJson<T>(
+  prompt: string,
+  opts?: { model?: string; userId?: string | null }
+): Promise<T> {
+  const gem = await getGemini(opts?.model || 'gemini-2.0-flash', opts?.userId)
   const result = await gem.generateContent(
     `${prompt}\n\nRespond with valid JSON only. No markdown fences.`
   )
@@ -18,8 +24,59 @@ export async function geminiJson<T>(prompt: string, model = 'gemini-2.0-flash'):
   return JSON.parse(text) as T
 }
 
-export async function geminiText(prompt: string, model = 'gemini-2.0-flash'): Promise<string> {
-  const gem = getGemini(model)
+export async function geminiText(
+  prompt: string,
+  opts?: { model?: string; userId?: string | null }
+): Promise<string> {
+  const gem = await getGemini(opts?.model || 'gemini-2.0-flash', opts?.userId)
   const result = await gem.generateContent(prompt)
   return result.response.text()
+}
+
+export async function geminiExtractFromFile(opts: {
+  userId?: string | null
+  mimeType: string
+  base64: string
+  hint?: string
+}): Promise<string> {
+  const gem = await getGemini('gemini-2.0-flash', opts.userId)
+  const result = await gem.generateContent([
+    {
+      text:
+        opts.hint ||
+        'Extract the full educational text from this source. Preserve headings. Return plain text only.',
+    },
+    {
+      inlineData: {
+        mimeType: opts.mimeType,
+        data: opts.base64,
+      },
+    },
+  ])
+  return result.response.text()
+}
+
+export async function geminiImagePng(opts: {
+  userId?: string | null
+  prompt: string
+}): Promise<Buffer | null> {
+  const key = await resolveAiKey('gemini', opts.userId)
+  if (!key) throw new Error('Gemini API key is not configured')
+  const genAI = new GoogleGenerativeAI(key)
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.0-flash-preview-image-generation',
+    generationConfig: {
+      // @ts-expect-error image modality supported by Gemini image models
+      responseModalities: ['IMAGE', 'TEXT'],
+    },
+  })
+  const result = await model.generateContent(
+    `Create a clear educational illustration for an online course. ${opts.prompt}`
+  )
+  const parts = result.response.candidates?.[0]?.content?.parts || []
+  for (const part of parts as any[]) {
+    const data = part.inlineData?.data || part.inline_data?.data
+    if (data) return Buffer.from(data, 'base64')
+  }
+  return null
 }

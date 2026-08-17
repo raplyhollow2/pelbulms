@@ -16,17 +16,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
+import { GeminiKeySettings } from '@/components/ai/gemini-key-settings'
 import {
   Bell,
-  Mail,
   Palette,
   Lock,
   Video,
-  Globe,
   Loader2,
   Save,
   CheckCircle,
-  Sparkles,
   Moon,
   Sun,
   Monitor,
@@ -506,6 +504,8 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        <GeminiKeySettings />
 
         {/* Save Button */}
         <div className="flex items-center gap-3">

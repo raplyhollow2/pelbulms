@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
 
     const { data: course } = await service
       .from('courses')
-      .select('title, instructor_id, certificate_enabled, certificate_settings')
+      .select('title, instructor_id, certificate_enabled, certificate_settings, metadata')
       .eq('id', courseId)
       .single()
 
@@ -118,6 +118,7 @@ export async function POST(request: NextRequest) {
     })
 
     const design = ((course as any).certificate_settings || {}) as Record<string, any>
+    const theme = ((course as any).metadata as any)?.theme || {}
 
     const pdfBuffer = await generateCertificatePdf({
       recipientName: (profile as any)?.full_name || user.email || 'Student',
@@ -129,10 +130,10 @@ export async function POST(request: NextRequest) {
       design: {
         brandName: design.brandName,
         titleLine: design.titleLine,
-        accentColor: design.accentColor,
+        accentColor: design.accentColor || theme.primary,
         signatureName: design.signatureName || instructorName,
         signatureTitle: design.signatureTitle,
-        logoUrl: design.logoUrl,
+        logoUrl: design.logoUrl || theme.logoUrl,
         layout: design.layout,
       },
     })

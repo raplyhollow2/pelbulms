@@ -54,7 +54,8 @@ JSON:
     { "question": string, "options": [string, string, string, string], "correctIndex": 0, "explanation": string }
   ]
 }
-Create 4 questions. One correct option per question.`
+Create 4 questions. One correct option per question.`,
+      { userId: rbac.userId }
     )
     return NextResponse.json({ quiz: generated })
   } catch (e: any) {

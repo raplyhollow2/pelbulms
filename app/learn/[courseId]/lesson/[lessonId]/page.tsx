@@ -12,7 +12,9 @@ import { QuizPlayer } from '@/components/quiz/quiz-player'
 import { GeminiTutor } from '@/components/ai/gemini-tutor'
 import { ScenarioPlayer } from '@/components/learning/scenario-player'
 import { CourseLearningTabs } from '@/components/course/course-learning-tabs'
+import { LessonBlocks } from '@/components/course/lesson-blocks'
 import { TrackedVideoPlayer, type VideoProgressData } from '@/components/learning/tracked-video-player'
+import { parseLessonBlocks, readCourseAiMetadata } from '@/lib/lesson-blocks'
 import { resolveMediaUrl } from '@/lib/media'
 import {
   mergeGateSettings,
@@ -741,8 +743,21 @@ export default function LessonViewPage() {
     )
   }
 
+  const courseAi = readCourseAiMetadata((course as any)?.metadata)
+
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div
+      className="container mx-auto px-4 py-8"
+      style={
+        {
+          backgroundColor: courseAi.theme?.background,
+          color: courseAi.theme?.body,
+          ['--course-primary' as string]: courseAi.theme?.primary,
+          ['--course-heading' as string]: courseAi.theme?.heading,
+          ['--course-link' as string]: courseAi.theme?.link,
+        } as React.CSSProperties
+      }
+    >
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-6">
@@ -758,7 +773,12 @@ export default function LessonViewPage() {
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <Badge variant="outline" className="mb-2">{module.title}</Badge>
-              <h1 className="text-3xl font-bold mb-2">{lesson.title}</h1>
+              <h1
+                className="text-3xl font-bold mb-2"
+                style={{ color: courseAi.theme?.heading }}
+              >
+                {lesson.title}
+              </h1>
               {lesson.description && (
                 <p className="text-muted-foreground">{lesson.description}</p>
               )}
@@ -836,6 +856,34 @@ export default function LessonViewPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {parseLessonBlocks(lesson.content).length > 0 && (
+              <Card className="glass">
+                <CardContent className="p-4 sm:p-6">
+                  <LessonBlocks
+                    content={lesson.content}
+                    lessonId={lessonId}
+                    onTakeQuiz={async (quizId) => {
+                      setShowQuiz(true)
+                      const { data: quizRow } = await supabase
+                        .from('quizzes')
+                        .select('*')
+                        .eq('id', quizId)
+                        .maybeSingle()
+                      if (quizRow) {
+                        setQuiz(quizRow as any)
+                        const { data: questionsData } = await supabase
+                          .from('quiz_questions')
+                          .select('*')
+                          .eq('quiz_id', quizId)
+                          .order('order_index', { ascending: true })
+                        setQuizQuestions(questionsData || [])
+                      }
+                    }}
+                  />
+                </CardContent>
+              </Card>
+            )}
 
             {/* New Learning Tabs */}
             {course && (
@@ -920,8 +968,18 @@ export default function LessonViewPage() {
               </Card>
             )}
 
-            <ScenarioPlayer lessonId={lessonId} />
-            <GeminiTutor courseId={courseId} lessonId={lessonId} />
+            {parseLessonBlocks(lesson.content).every((b) => b.type !== 'scenario') && (
+              <ScenarioPlayer lessonId={lessonId} />
+            )}
+            {courseAi.tutor?.enabled !== false && (
+              <GeminiTutor
+                courseId={courseId}
+                lessonId={lessonId}
+                floating
+                name={courseAi.tutor?.name || 'Course tutor'}
+                photoUrl={courseAi.tutor?.photoUrl}
+              />
+            )}
 
             {/* Progress Tracking */}
             {enrollment && (

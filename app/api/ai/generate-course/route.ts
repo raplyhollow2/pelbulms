@@ -1,33 +1,19 @@
-// @ts-nocheck - expansion tables not fully in generated Database types
+// @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRBAC } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
 import { userCanManageCourse } from '@/lib/course-access'
 import { geminiJson } from '@/lib/gemini'
+import {
+  outlineTotals,
+  sizeInstructions,
+  type CourseOutline,
+  type CourseSize,
+  type FilledLesson,
+} from '@/lib/ai-course-builder'
+import { createDraftCourse, persistFilledLesson } from '@/lib/ai-course-persist'
 
 const TEACHER_ROLES = ['instructor', 'admin', 'resource_person', 'superadmin'] as const
-
-type Generated = {
-  title: string
-  description: string
-  modules: Array<{
-    title: string
-    description?: string
-    lessons: Array<{
-      title: string
-      description?: string
-      content?: string
-      quiz?: {
-        title: string
-        questions: Array<{
-          question: string
-          options: string[]
-          correctIndex: number
-        }>
-      }
-    }>
-  }>
-}
 
 export async function POST(request: NextRequest) {
   const rbac = await checkRBAC(request, [...TEACHER_ROLES])
@@ -36,29 +22,31 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}))
-  const courseId = body.courseId as string | undefined
+  const mode = (body.mode || 'outline') as 'outline' | 'draft' | 'fill-module'
   const prompt = String(body.prompt || '').trim()
   const documentText = String(body.documentText || '').trim()
-  if (!courseId || (!prompt && !documentText)) {
-    return NextResponse.json({ error: 'courseId and prompt or documentText are required' }, { status: 400 })
-  }
+  const language = String(body.language || 'English')
+  const size = (body.size || 'standard') as CourseSize
+  const userId = rbac.userId!
 
-  const service = await createServiceClient()
-  if (!(await userCanManageCourse(service, courseId, rbac.userId!, rbac.userRole))) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  if (mode === 'outline') {
+    if (!prompt && !documentText) {
+      return NextResponse.json({ error: 'Describe the course or attach source text' }, { status: 400 })
+    }
+    try {
+      const outline = await geminiJson<CourseOutline>(
+        `You are a senior instructional designer for Pelbu LMS (Bhutan).
+Language for ALL titles and descriptions: ${language}.
+${sizeInstructions(size)}
+Topic / brief: ${prompt || 'From the attached source'}
+Source text (optional): ${documentText.slice(0, 18000)}
 
-  let generated: Generated
-  try {
-    generated = await geminiJson<Generated>(
-      `You are an instructional designer for Pelbu LMS (Bhutan). Create a practical course outline.
-Topic / brief: ${prompt || 'From the attached document'}
-Document (optional): ${documentText.slice(0, 20000)}
-
-JSON shape:
+Return JSON:
 {
   "title": string,
   "description": string,
+  "durationMinutes": number,
+  "language": string,
   "modules": [
     {
       "title": string,
@@ -67,132 +55,144 @@ JSON shape:
         {
           "title": string,
           "description": string,
-          "content": string,
-          "quiz": {
-            "title": string,
-            "questions": [
-              { "question": string, "options": [string, string, string, string], "correctIndex": 0 }
-            ]
-          }
+          "blocks": ["text","quiz"],
+          "hasQuiz": true,
+          "hasAssignment": false,
+          "hasScenario": false,
+          "hasFlashcards": false
         }
       ]
     }
   ]
 }
-Create 3-6 modules, 2-4 lessons each, one short MCQ quiz per lesson (3-5 questions).`
-    )
-  } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || 'Gemini generation failed. Set GEMINI_API_KEY.' },
-      { status: 500 }
-    )
-  }
-
-  const { data: existingModules } = await service
-    .from('modules')
-    .select('order_index')
-    .eq('course_id', courseId)
-    .order('order_index', { ascending: false })
-    .limit(1)
-  let moduleOrder = ((existingModules?.[0] as any)?.order_index ?? -1) + 1
-
-  const created: { modules: number; lessons: number; quizzes: number } = {
-    modules: 0,
-    lessons: 0,
-    quizzes: 0,
-  }
-
-  for (const mod of generated.modules || []) {
-    const { data: moduleRow, error: modErr } = await service
-      .from('modules')
-      .insert({
-        course_id: courseId,
-        title: mod.title,
-        description: mod.description || null,
-        order_index: moduleOrder++,
-        is_published: false,
+blocks may include text, accordion, flipcards, quiz, assignment, scenario, flashcards, youtube.`,
+        { userId }
+      )
+      return NextResponse.json({
+        success: true,
+        outline,
+        totals: outlineTotals(outline),
       })
-      .select()
-      .single()
-    if (modErr || !moduleRow) continue
-    created.modules++
-
-    let lessonOrder = 0
-    for (const les of mod.lessons || []) {
-      const { data: lessonRow, error: lesErr } = await service
-        .from('lessons')
-        .insert({
-          module_id: (moduleRow as any).id,
-          title: les.title,
-          description: les.description || les.content || null,
-          order_index: lessonOrder++,
-          is_published: false,
-          duration_minutes: 0,
-          resources: [],
-        })
-        .select()
-        .single()
-      if (lesErr || !lessonRow) continue
-      created.lessons++
-
-      if (les.quiz?.questions?.length) {
-        const { data: quizRow } = await service
-          .from('quizzes')
-          .insert({
-            lesson_id: (lessonRow as any).id,
-            title: les.quiz.title || `${les.title} quiz`,
-            passing_score: 70,
-            max_attempts: 3,
-            is_published: true,
-          })
-          .select()
-          .single()
-        if (quizRow) {
-          created.quizzes++
-          await service.from('quiz_questions').insert(
-            les.quiz.questions.map((q, i) => ({
-              quiz_id: (quizRow as any).id,
-              question_text: q.question,
-              question_type: 'multiple_choice',
-              options: JSON.stringify(
-                (q.options || []).map((text, idx) => ({
-                  text,
-                  is_correct: idx === q.correctIndex,
-                }))
-              ),
-              correct_answer: q.options?.[q.correctIndex] || '',
-              order_index: i,
-              points: 1,
-            }))
-          )
-          const resources = [
-            {
-              id: crypto.randomUUID(),
-              activity: 'quiz',
-              title: les.quiz.title || 'Quiz',
-              quizId: (quizRow as any).id,
-              createdAt: new Date().toISOString(),
-            },
-          ]
-          await service
-            .from('lessons')
-            .update({ resources })
-            .eq('id', (lessonRow as any).id)
-        }
-      }
+    } catch (e: any) {
+      return NextResponse.json(
+        { error: e?.message || 'Gemini could not design the outline' },
+        { status: 500 }
+      )
     }
   }
 
-  if (generated.title) {
-    await service
-      .from('courses')
-      .update({
-        title: generated.title,
-        description: generated.description || undefined,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', courseId)
+  const service = await createServiceClient()
+
+  if (mode === 'draft') {
+    const outline = body.outline as CourseOutline
+    if (!outline?.title || !outline.modules?.length) {
+      return NextResponse.json({ error: 'outline is required' }, { status: 400 })
+    }
+    try {
+      const created = await createDraftCourse(service, { userId, outline, language })
+      return NextResponse.json({ success: true, ...created, outline })
+    } catch (e: any) {
+      return NextResponse.json({ error: e?.message || 'Could not create draft course' }, { status: 500 })
+    }
   }
 
-  return NextResponse.json({ success: true, generated, created })
+  if (mode === 'fill-module') {
+    const courseId = body.courseId as string
+    const moduleId = body.moduleId as string
+    if (!courseId || !moduleId) {
+      return NextResponse.json({ error: 'courseId and moduleId are required' }, { status: 400 })
+    }
+    if (!(await userCanManageCourse(service, courseId, userId, rbac.userRole))) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    const { data: course } = await service
+      .from('courses')
+      .select('id, title, description, instructor_id')
+      .eq('id', courseId)
+      .single()
+    const { data: moduleRow } = await service
+      .from('modules')
+      .select('id, title, description')
+      .eq('id', moduleId)
+      .single()
+    const { data: lessons } = await service
+      .from('lessons')
+      .select('id, title, description, order_index, content')
+      .eq('module_id', moduleId)
+      .order('order_index')
+
+    const needsFill = (lessons || []).filter((l: any) => {
+      const c = l.content
+      return !c || (Array.isArray(c) && c.length === 0) || c === '[]'
+    })
+    if (!needsFill.length) {
+      return NextResponse.json({ success: true, filled: 0, skipped: true, moduleId })
+    }
+
+    try {
+      const packed = await geminiJson<{ lessons: FilledLesson[] }>(
+        `Write complete lesson pages for this module of “${(course as any)?.title}”.
+Course description: ${(course as any)?.description || ''}
+Module: ${(moduleRow as any)?.title} — ${(moduleRow as any)?.description || ''}
+Language: ${language}.
+        Lessons to fill: ${JSON.stringify((needsFill || []).map((l: any) => ({ title: l.title, description: l.description })))}
+Source: ${(prompt || documentText).slice(0, 8000)}
+
+Return JSON:
+{
+  "lessons": [
+    {
+      "title": string,
+      "description": string,
+      "durationMinutes": 12,
+      "textHtml": "<p>Rich HTML with headings and lists</p>",
+      "accordion": [{ "title": string, "html": string }],
+      "flipcards": [{ "front": string, "back": string }],
+      "quiz": {
+        "title": string,
+        "questions": [{ "question": string, "options": [string, string, string, string], "correctIndex": 0, "explanation": string }]
+      },
+      "assignment": { "title": string, "instructions": string, "maxPoints": 100 },
+      "scenario": {
+        "title": string,
+        "nodes": [
+          { "id": "start", "text": string, "choices": [{ "label": string, "nextId": "end-good", "feedback": "Good choice" }, { "label": string, "nextId": "end-poor", "feedback": "A poor choice" }] },
+          { "id": "end-good", "text": string, "end": true },
+          { "id": "end-poor", "text": string, "end": true }
+        ]
+      },
+      "flashcards": [{ "front": string, "back": string }]
+    }
+  ]
+}
+Match the lesson count and order. Include a quiz for most lessons. Include one scenario in the module. HTML only, no markdown fences.`,
+        { userId }
+      )
+
+      const filledLessons = packed.lessons || []
+      let filled = 0
+      for (let i = 0; i < needsFill.length; i++) {
+        const lesson = needsFill[i]
+        const data = filledLessons[i] || {
+          title: lesson.title,
+          textHtml: `<p>${lesson.description || lesson.title}</p>`,
+        }
+        await persistFilledLesson(service, {
+          lessonId: lesson.id,
+          courseId,
+          instructorId: (course as any).instructor_id || userId,
+          filled: data,
+        })
+        filled++
+      }
+      return NextResponse.json({ success: true, filled, moduleId })
+    } catch (e: any) {
+      return NextResponse.json(
+        { error: e?.message || 'Gemini could not write this module' },
+        { status: 500 }
+      )
+    }
+  }
+
+  return NextResponse.json({ error: 'Unknown mode' }, { status: 400 })
 }

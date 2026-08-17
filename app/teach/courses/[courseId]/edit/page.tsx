@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch'
 import {
   ArrowLeft, Plus, Trash2, Loader2, Save, BookOpen,
   Image as ImageIcon, Video, UploadCloud, X, Link as LinkIcon,
-  Info, Settings as SettingsIcon, ListChecks, CheckCircle2, GripVertical,
+  Info, Settings as SettingsIcon, ListChecks, CheckCircle2, GripVertical, Sparkles,
 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { createClient } from '@/lib/supabase/client'
@@ -562,6 +562,15 @@ export default function EditCoursePage() {
                 )}
               </div>
             </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0 min-h-11"
+              onClick={() => router.push(`/teach/courses/${courseId}/studio`)}
+            >
+              <Sparkles className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Studio</span>
+            </Button>
             <Button
               onClick={handleSave}
               disabled={saving}

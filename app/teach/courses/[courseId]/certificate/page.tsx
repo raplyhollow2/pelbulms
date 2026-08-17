@@ -218,7 +218,31 @@ export default function CertificateDesignPage() {
         <ArrowLeft className="w-4 h-4 mr-2" /> Back to course
       </Button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
+        <Card className="min-w-0">
+          <CardHeader>
+            <CardTitle>Live canvas</CardTitle>
+            <CardDescription>
+              Full certificate preview. Drag logos, title, and signature. Multiple organization logos are supported.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="min-w-0 overflow-hidden">
+            <CertificateCanvas
+              layout={{
+                ...layout,
+                brandName: settings.brandName,
+                titleLine: settings.titleLine,
+                accentColor: settings.accentColor,
+                signatureName: settings.signatureName,
+                signatureTitle: settings.signatureTitle,
+              }}
+              onChange={setLayout}
+              sampleName="Student Name"
+              sampleCourse={courseTitle}
+            />
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Certificate design</CardTitle>
@@ -407,28 +431,6 @@ export default function CertificateDesignPage() {
               Save design
             </Button>
             {message && <p className="text-sm text-muted-foreground">{message}</p>}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Live canvas</CardTitle>
-            <CardDescription>Drag logos, title, and signature. Multiple organization logos are supported.</CardDescription>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <CertificateCanvas
-              layout={{
-                ...layout,
-                brandName: settings.brandName,
-                titleLine: settings.titleLine,
-                accentColor: settings.accentColor,
-                signatureName: settings.signatureName,
-                signatureTitle: settings.signatureTitle,
-              }}
-              onChange={setLayout}
-              sampleName="Student Name"
-              sampleCourse={courseTitle}
-            />
           </CardContent>
         </Card>
       </div>

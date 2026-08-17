@@ -275,7 +275,7 @@ export default function TeacherDashboard() {
             <span className="ml-1 sm:ml-0">Analytics</span>
           </Button>
           <Button
-            onClick={() => router.push('/teach/courses/new')}
+            onClick={() => router.push('/teach/create')}
             className="flex-1 sm:flex-initial bg-bhutan-yellow hover:bg-bhutan-orange"
             size="sm"
           >
@@ -416,7 +416,7 @@ export default function TeacherDashboard() {
                 Try clearing filters or create a new course.
               </p>
               <Button
-                onClick={() => router.push('/teach/courses/new')}
+                onClick={() => router.push('/teach/create')}
                 className="bg-bhutan-yellow hover:bg-bhutan-orange"
               >
                 <Plus className="w-4 h-4 mr-2" />

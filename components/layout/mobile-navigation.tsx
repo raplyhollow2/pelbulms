@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   Home, BookOpen, GraduationCap, User,
   Menu, X, LogOut, Settings, Search,
-  Bell, TrendingUp, Users, Plus, HardDrive
+  Bell, TrendingUp, Users, Plus, HardDrive, Sparkles
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -49,7 +49,7 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
 
   const teacherNavigation = [
     { name: 'Teacher Hub', href: '/teach/dashboard', icon: GraduationCap },
-    { name: 'New Course', href: '/teach/courses/new', icon: Plus },
+    { name: 'New Course', href: '/teach/create', icon: Plus },
     { name: 'Media Library', href: '/teach/media', icon: HardDrive },
     { name: 'Analytics', href: '/teach/analytics', icon: TrendingUp },
     { name: 'Announcements', href: '/teach/announcements', icon: Bell },
@@ -60,6 +60,7 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
 
   const adminNavigation = [
     { name: 'Users', href: '/admin/users', icon: Users },
+    ...(isSuper ? [{ name: 'AI', href: '/admin/ai', icon: Sparkles }] : []),
   ]
 
   useEffect(() => {
