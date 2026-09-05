@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch'
 import {
   ArrowLeft, Plus, Trash2, Loader2, Save, BookOpen,
   Image as ImageIcon, Video, UploadCloud, X, Link as LinkIcon,
-  Info, Settings as SettingsIcon, ListChecks, CheckCircle2, GripVertical, Sparkles,
+  Info, Settings as SettingsIcon, ListChecks, CheckCircle2, GripVertical, Sparkles, Users,
 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { createClient } from '@/lib/supabase/client'
@@ -27,6 +27,7 @@ import {
   MAX_VIDEO_UPLOAD_LABEL,
 } from '@/lib/video-url'
 import { GeminiCoursePanel } from '@/components/teach/gemini-course-panel'
+import { CourseStaffPanel } from '@/components/teach/course-staff-panel'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Module = Database['public']['Tables']['modules']['Row']
@@ -58,7 +59,7 @@ export default function EditCoursePage() {
     tags: [] as string[],
     is_published: false,
     is_featured: false,
-    enrollment_mode: 'auto' as 'auto' | 'approval' | 'invite_code' | 'paid',
+    enrollment_mode: 'approval' as 'auto' | 'approval' | 'invite_code' | 'paid',
     thumbnail_url: '',
     preview_video_url: '',
   })
@@ -138,9 +139,9 @@ export default function EditCoursePage() {
         is_published: (course as any).is_published,
         is_featured: course.is_featured,
         enrollment_mode:
-          ['approval', 'invite_code', 'paid'].includes((course as any).enrollment_mode)
+          ['auto', 'approval', 'invite_code', 'paid'].includes((course as any).enrollment_mode)
             ? (course as any).enrollment_mode
-            : 'auto',
+            : 'approval',
         thumbnail_url: course.thumbnail_url || '',
         preview_video_url: (course.metadata as any)?.preview_video_url || '',
       } as any)
@@ -265,9 +266,9 @@ export default function EditCoursePage() {
           is_published: (courseData as any).is_published,
           is_featured: courseData.is_featured,
           enrollment_mode:
-            ['approval', 'invite_code', 'paid'].includes((courseData as any).enrollment_mode)
+            ['auto', 'approval', 'invite_code', 'paid'].includes((courseData as any).enrollment_mode)
               ? (courseData as any).enrollment_mode
-              : 'auto',
+              : 'approval',
           thumbnail_url: courseData.thumbnail_url || null,
           metadata: mergedMetadata,
           updated_at: new Date().toISOString()
@@ -604,6 +605,9 @@ export default function EditCoursePage() {
             </TabsTrigger>
             <TabsTrigger value="settings" className="gap-1.5">
               <SettingsIcon className="w-4 h-4" /> Settings
+            </TabsTrigger>
+            <TabsTrigger value="facilitators" className="gap-1.5">
+              <Users className="w-4 h-4" /> Facilitators
             </TabsTrigger>
           </TabsList>
 
@@ -1040,31 +1044,15 @@ export default function EditCoursePage() {
                   <div>
                     <Label className="font-medium">Enrollment</Label>
                     <p className="text-xs text-muted-foreground">
-                      Every published course is enrollable. Choose whether students join immediately or after you verify them.
+                      By default, students request access and the course creator approves each request.
                     </p>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2">
                     <button
                       type="button"
                       className={`rounded-lg border p-3 text-left transition-colors ${
-                        (courseData as any).enrollment_mode === 'auto' ||
+                        (courseData as any).enrollment_mode === 'approval' ||
                         !(courseData as any).enrollment_mode
-                          ? 'border-bhutan-yellow bg-bhutan-yellow/10'
-                          : 'hover:border-muted-foreground/40'
-                      }`}
-                      onClick={() =>
-                        setCourseData({ ...courseData, enrollment_mode: 'auto' } as any)
-                      }
-                    >
-                      <p className="text-sm font-medium">Auto enroll</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Verified students get access as soon as they enroll
-                      </p>
-                    </button>
-                    <button
-                      type="button"
-                      className={`rounded-lg border p-3 text-left transition-colors ${
-                        (courseData as any).enrollment_mode === 'approval'
                           ? 'border-bhutan-yellow bg-bhutan-yellow/10'
                           : 'hover:border-muted-foreground/40'
                       }`}
@@ -1074,7 +1062,23 @@ export default function EditCoursePage() {
                     >
                       <p className="text-sm font-medium">Creator approval</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        You approve each request on the Students page before access
+                        Default — you approve each request on the Students page before access
+                      </p>
+                    </button>
+                    <button
+                      type="button"
+                      className={`rounded-lg border p-3 text-left transition-colors ${
+                        (courseData as any).enrollment_mode === 'auto'
+                          ? 'border-bhutan-yellow bg-bhutan-yellow/10'
+                          : 'hover:border-muted-foreground/40'
+                      }`}
+                      onClick={() =>
+                        setCourseData({ ...courseData, enrollment_mode: 'auto' } as any)
+                      }
+                    >
+                      <p className="text-sm font-medium">Auto enroll</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Students get access as soon as they enroll
                       </p>
                     </button>
                     <button
@@ -1106,7 +1110,7 @@ export default function EditCoursePage() {
                     >
                       <p className="text-sm font-medium">Paid (Stripe)</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Optional paid access when Stripe keys are configured
+                        Optional — only when Stripe keys are configured
                       </p>
                     </button>
                   </div>
@@ -1155,6 +1159,10 @@ export default function EditCoursePage() {
                 <GeminiCoursePanel courseId={courseId} />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="facilitators" className="mt-4 space-y-4">
+            <CourseStaffPanel courseId={courseId} />
           </TabsContent>
         </Tabs>
       </div>

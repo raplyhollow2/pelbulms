@@ -3,19 +3,27 @@
  * Settings live in lesson.metadata and module.metadata.
  */
 
+export type LessonCompletionMode = 'auto' | 'manual'
+
 export type ProgressionGateSettings = {
   /** Resources & flashcards stay hidden until the lesson is marked complete */
   gateResourcesUntilComplete: boolean
-  /** Next lesson/module stays locked until resources/flashcards are marked done */
+  /** Next lesson/module stays locked until mandatory activities are done (+ lesson completed) */
   gateNextUntilActivitiesDone: boolean
   /** Module-only: force sequential lesson order across the module */
   sequentialUnlock: boolean
+  /**
+   * auto = mark lesson complete when video threshold + all mandatory activities done
+   * manual = learner must click Complete (still requires mandatory done when gated)
+   */
+  completionMode: LessonCompletionMode
 }
 
 export const DEFAULT_GATE_SETTINGS: ProgressionGateSettings = {
   gateResourcesUntilComplete: false,
   gateNextUntilActivitiesDone: false,
   sequentialUnlock: false,
+  completionMode: 'manual',
 }
 
 function asRecord(raw: unknown): Record<string, unknown> {
@@ -36,6 +44,9 @@ export function readGateSettings(raw: unknown): Partial<ProgressionGateSettings>
   }
   if (typeof m.sequentialUnlock === 'boolean') {
     out.sequentialUnlock = m.sequentialUnlock
+  }
+  if (m.completionMode === 'auto' || m.completionMode === 'manual') {
+    out.completionMode = m.completionMode
   }
   return out
 }
@@ -59,6 +70,8 @@ export function mergeGateSettings(
       les.sequentialUnlock ??
       mod.sequentialUnlock ??
       DEFAULT_GATE_SETTINGS.sequentialUnlock,
+    completionMode:
+      les.completionMode ?? mod.completionMode ?? DEFAULT_GATE_SETTINGS.completionMode,
   }
 }
 
@@ -97,12 +110,9 @@ export function isLessonUnlocked(args: {
   for (let i = 0; i < idx; i++) {
     const prevId = orderedLessonIds[i]
     const settings = settingsForLesson(prevId)
-    // Only enforce chain when sequential unlock is on for the previous (or target's module)
-    // Use previous lesson's sequential flag OR the target's — typically module-wide.
     const chain =
       settings.sequentialUnlock || settingsForLesson(targetLessonId).sequentialUnlock
     if (!chain && !settings.gateNextUntilActivitiesDone) {
-      // No gating from this previous lesson
       continue
     }
 
@@ -141,4 +151,13 @@ export function canGoToNextLesson(args: {
     return false
   }
   return true
+}
+
+/** True when there are no mandatory activities, or all of them are completed. */
+export function areMandatoryActivitiesDone(args: {
+  mandatoryCount: number
+  completedMandatoryCount: number
+}): boolean {
+  if (args.mandatoryCount <= 0) return true
+  return args.completedMandatoryCount >= args.mandatoryCount
 }

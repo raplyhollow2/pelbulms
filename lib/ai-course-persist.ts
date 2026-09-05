@@ -26,6 +26,7 @@ export async function createDraftCourse(
       duration_minutes: opts.outline.durationMinutes || null,
       is_published: false,
       is_featured: false,
+      enrollment_mode: 'approval',
       metadata: { generatedBy: 'gemini' },
     })
     .select('id')

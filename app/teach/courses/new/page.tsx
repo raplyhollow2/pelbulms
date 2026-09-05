@@ -103,6 +103,7 @@ export default function NewCoursePage() {
           language: courseData.language,
           is_published: false,
           is_featured: courseData.is_featured,
+          enrollment_mode: 'approval',
         })
         .select('id')
         .single()

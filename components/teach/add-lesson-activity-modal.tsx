@@ -19,6 +19,7 @@ import { Loader2, ArrowLeft, UploadCloud } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   LESSON_ACTIVITY_TYPES,
+  defaultActivityRequired,
   getActivityDef,
   newActivityId,
   type LessonActivity,
@@ -72,6 +73,7 @@ export function AddLessonActivityModal({
 }: Props) {
   const [selected, setSelected] = useState<LessonActivityType | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm())
+  const [required, setRequired] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
@@ -86,6 +88,7 @@ export function AddLessonActivityModal({
     if (!open) {
       setSelected(null)
       setForm(emptyForm())
+      setRequired(true)
       setError('')
       setSaving(false)
       setUploading(false)
@@ -167,6 +170,7 @@ export function AddLessonActivityModal({
               .map((s) => s.trim())
               .filter(Boolean)
           : undefined,
+        required,
         createdAt: new Date().toISOString(),
       }
       await onAdd(activity)
@@ -186,6 +190,7 @@ export function AddLessonActivityModal({
         onClick={() => {
           setSelected(item.type)
           setForm(emptyForm())
+          setRequired(defaultActivityRequired(item.type))
           setError('')
         }}
         className={cn(
@@ -434,31 +439,65 @@ export function AddLessonActivityModal({
               </div>
             )}
 
+            <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+              <div className="min-w-0">
+                <Label htmlFor="act-required" className="text-sm">
+                  Mandatory
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Learners must finish this before unlocking the next lesson (when gating is on)
+                </p>
+              </div>
+              <Switch
+                id="act-required"
+                checked={required}
+                onCheckedChange={setRequired}
+              />
+            </div>
+
             {error && <p className="text-sm text-red-600">{error}</p>}
           </div>
         )}
 
         {selected === 'quiz' && (
-          <QuizCreator
-            lessonId={lessonId}
-            compact
-            onCancel={() => {
-              setSelected(null)
-              setError('')
-            }}
-            onSave={async (quiz) => {
-              const activity: LessonActivity = {
-                id: newActivityId(),
-                activity: 'quiz',
-                title: quiz.title,
-                passGrade: quiz.passing_score,
-                quizId: quiz.id,
-                createdAt: new Date().toISOString(),
-              }
-              await onAdd(activity)
-              onOpenChange(false)
-            }}
-          />
+          <div className="space-y-4">
+            <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+              <div className="min-w-0">
+                <Label htmlFor="quiz-required" className="text-sm">
+                  Mandatory
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Completes when the learner passes the quiz
+                </p>
+              </div>
+              <Switch
+                id="quiz-required"
+                checked={required}
+                onCheckedChange={setRequired}
+              />
+            </div>
+            <QuizCreator
+              lessonId={lessonId}
+              compact
+              onCancel={() => {
+                setSelected(null)
+                setError('')
+              }}
+              onSave={async (quiz) => {
+                const activity: LessonActivity = {
+                  id: newActivityId(),
+                  activity: 'quiz',
+                  title: quiz.title,
+                  passGrade: quiz.passing_score,
+                  quizId: quiz.id,
+                  required,
+                  createdAt: new Date().toISOString(),
+                }
+                await onAdd(activity)
+                onOpenChange(false)
+              }}
+            />
+          </div>
         )}
 
         <DialogFooter className="gap-2 sm:gap-0">

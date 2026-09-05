@@ -4,13 +4,15 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { BookOpen, Clock, ArrowLeft, Loader2, CheckCircle, ChevronLeft, ChevronRight, Award } from 'lucide-react'
+import { ArrowLeft, Loader2, CheckCircle, Award } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 import { QuizPlayer } from '@/components/quiz/quiz-player'
 import { GeminiTutor } from '@/components/ai/gemini-tutor'
 import { ScenarioPlayer } from '@/components/learning/scenario-player'
+import { CurriculumRail } from '@/components/learning/curriculum-rail'
+import { LessonFocusHeader } from '@/components/learning/lesson-focus-header'
+import { LessonNextBar } from '@/components/learning/lesson-next-bar'
 import { CourseLearningTabs } from '@/components/course/course-learning-tabs'
 import { LessonBlocks } from '@/components/course/lesson-blocks'
 import { TrackedVideoPlayer, type VideoProgressData } from '@/components/learning/tracked-video-player'
@@ -58,7 +60,13 @@ export default function LessonViewPage() {
   const [lessonProgress, setLessonProgress] = useState<LessonProgress | null>(null)
   const [isCompleted, setIsCompleted] = useState(false)
   const [activityCompleted, setActivityCompleted] = useState(false)
-  const [markingActivities, setMarkingActivities] = useState(false)
+  const [mandatoryTotal, setMandatoryTotal] = useState(0)
+  const [mandatoryCompleted, setMandatoryCompleted] = useState(0)
+  const [activityProgressById, setActivityProgressById] = useState<
+    Record<string, { id: string; completed?: boolean; source?: string | null }>
+  >({})
+  const [markingActivityId, setMarkingActivityId] = useState<string | null>(null)
+  const [videoWatchSatisfied, setVideoWatchSatisfied] = useState(false)
   const [savingProgress, setSavingProgress] = useState(false)
   const [completedLessonIds, setCompletedLessonIds] = useState<Set<string>>(new Set())
   const [progressByLesson, setProgressByLesson] = useState<Map<string, LessonProgressLite>>(
@@ -194,6 +202,9 @@ export default function LessonViewPage() {
       }
 
       setLesson(lessonData as Lesson)
+      if (!(lessonData as Lesson).video_url) {
+        setVideoWatchSatisfied(true)
+      }
 
       // Fetch all modules for this course
       const { data: modulesData } = await supabase
@@ -284,10 +295,14 @@ export default function LessonViewPage() {
           setActivityCompleted(Boolean(pd.activity_completed))
           lessonProgressIdRef.current = pd.id
           timeSpentBaseRef.current = pd.time_spent_seconds || 0
+          setVideoWatchSatisfied(
+            !(lessonData as Lesson).video_url || (pd.progress_percentage || 0) >= 90
+          )
         } else {
           lessonProgressIdRef.current = null
           timeSpentBaseRef.current = 0
           setActivityCompleted(false)
+          setVideoWatchSatisfied(!(lessonData as Lesson).video_url)
         }
       } catch (progressError) {
         console.log('Lesson progress fetch error (continuing anyway):', progressError)
@@ -378,10 +393,75 @@ export default function LessonViewPage() {
         setQuizQuestions([])
       }
 
+      // Per-activity mandatory progress (syncs quiz passes + activity_completed)
+      try {
+        const res = await fetch(`/api/lessons/${lessonId}/activity-progress`)
+        if (res.ok) {
+          const data = await res.json()
+          applyActivityProgressPayload(data)
+        }
+      } catch (e) {
+        console.log('Activity progress fetch error (continuing):', e)
+      }
+
     } catch (error) {
       console.error('Error fetching lesson data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const applyActivityProgressPayload = (data: any) => {
+    const map: Record<string, { id: string; completed?: boolean; source?: string | null }> = {}
+    for (const a of data.activities || []) {
+      map[a.id] = {
+        id: a.id,
+        completed: Boolean(a.completed),
+        source: a.source || null,
+      }
+    }
+    setActivityProgressById(map)
+    setMandatoryTotal(Number(data.mandatoryTotal) || 0)
+    setMandatoryCompleted(Number(data.mandatoryCompleted) || 0)
+    const done = Boolean(data.activityCompleted)
+    setActivityCompleted(done)
+    setProgressByLesson((prev) => {
+      const next = new Map(prev)
+      const cur = next.get(lessonId)
+      next.set(lessonId, {
+        lesson_id: lessonId,
+        completed: Boolean(cur?.completed),
+        activity_completed: done,
+      })
+      return next
+    })
+  }
+
+  const refreshActivityProgress = async (opts?: { action?: 'sync'; activityId?: string }) => {
+    try {
+      if (opts?.activityId || opts?.action === 'sync') {
+        const res = await fetch(`/api/lessons/${lessonId}/activity-progress`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(
+            opts.activityId
+              ? { activityId: opts.activityId, action: 'ack' }
+              : { action: 'sync' }
+          ),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Failed to update activity progress')
+        applyActivityProgressPayload(data)
+        return data
+      }
+      const res = await fetch(`/api/lessons/${lessonId}/activity-progress`)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to load activity progress')
+      applyActivityProgressPayload(data)
+      return data
+    } catch (e) {
+      console.error('refreshActivityProgress failed:', e)
+      throw e
     }
   }
 
@@ -551,61 +631,133 @@ export default function LessonViewPage() {
     }
   }
 
-  const toggleLessonComplete = () => setLessonCompletedState(!isCompleted)
+  // Auto completion mode: video threshold (or no video) + mandatory activities
+  useEffect(() => {
+    if (loading || !lesson || isCompleted || savingProgress) return
+    const settings = mergeGateSettings(
+      (module as any)?.metadata,
+      (lesson as any)?.metadata
+    )
+    if (settings.completionMode !== 'auto') return
+    if (!activityCompleted) return
+    if (lesson.video_url && !videoWatchSatisfied) return
+    void setLessonCompletedState(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, lesson, module, isCompleted, savingProgress, activityCompleted, videoWatchSatisfied])
 
-  const markActivitiesComplete = async () => {
+  const toggleLessonComplete = () => {
+    if (!isCompleted) {
+      const settings = mergeGateSettings(
+        (module as any)?.metadata,
+        (lesson as any)?.metadata
+      )
+      if (settings.gateNextUntilActivitiesDone && !activityCompleted) {
+        alert('Finish mandatory activities for this lesson before marking it complete.')
+        return
+      }
+    }
+    void setLessonCompletedState(!isCompleted)
+  }
+
+  const markActivityDone = async (activityId: string) => {
     if (!currentUser || !lesson) return
     try {
-      setMarkingActivities(true)
+      setMarkingActivityId(activityId)
+      await refreshActivityProgress({ activityId })
+    } catch (e: any) {
+      console.error('markActivityDone failed:', e)
+      alert(e?.message || 'Failed to mark activity done. Please try again.')
+    } finally {
+      setMarkingActivityId(null)
+    }
+  }
+
+  const syncAfterQuiz = async (outcome?: {
+    passed: boolean
+    attemptsExhausted: boolean
+  }) => {
+    try {
+      if (outcome?.passed) {
+        await refreshActivityProgress({ action: 'sync' })
+      }
+    } catch (e) {
+      console.log('Quiz activity sync failed (continuing):', e)
+    }
+  }
+
+  const redoLessonAfterFailedQuiz = async () => {
+    setShowQuiz(false)
+    if (!currentUser || !lesson) return
+    try {
+      setSavingProgress(true)
       const payload: any = {
         course_id: courseId,
-        activity_completed: true,
-        activity_completed_at: new Date().toISOString(),
+        completed: false,
+        completed_at: null,
+        activity_completed: false,
+        activity_completed_at: null,
+        progress_percentage: 0,
+        last_position_seconds: 0,
         last_accessed_at: new Date().toISOString(),
       }
       const db = supabase as any
       if (lessonProgressIdRef.current) {
-        const { error } = await db
-          .from('lesson_progress')
-          .update(payload)
-          .eq('id', lessonProgressIdRef.current)
-        if (error) throw error
+        await db.from('lesson_progress').update(payload).eq('id', lessonProgressIdRef.current)
       } else {
-        const { data: inserted, error } = await db
+        const { data: inserted } = await db
           .from('lesson_progress')
           .insert({
             user_id: currentUser.id,
             lesson_id: lessonId,
-            completed: isCompleted,
-            time_spent_seconds: timeSpentBaseRef.current,
+            time_spent_seconds: 0,
             ...payload,
           })
           .select()
           .single()
-        if (error) throw error
-        if (inserted) lessonProgressIdRef.current = (inserted as any).id
+        if (inserted) lessonProgressIdRef.current = inserted.id
       }
-      setActivityCompleted(true)
+
+      // Clear per-activity acknowledgements so mandatory work must be redone
+      await db
+        .from('lesson_activity_progress')
+        .delete()
+        .eq('user_id', currentUser.id)
+        .eq('lesson_id', lessonId)
+
+      setIsCompleted(false)
+      setActivityCompleted(false)
+      setMandatoryCompleted(0)
+      setActivityProgressById({})
+      setVideoWatchSatisfied(!lesson.video_url)
+      setCompletedLessonIds((prev) => {
+        const next = new Set(prev)
+        next.delete(lessonId)
+        return next
+      })
       setProgressByLesson((prev) => {
         const next = new Map(prev)
         next.set(lessonId, {
           lesson_id: lessonId,
-          completed: isCompleted,
-          activity_completed: true,
+          completed: false,
+          activity_completed: false,
         })
         return next
       })
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      alert(
+        'You have used all quiz attempts. This lesson was reset — review the content, then try the quiz again if your teacher allows more attempts.'
+      )
     } catch (e) {
-      console.error('markActivitiesComplete failed:', e)
-      alert('Failed to mark activities complete. Please try again.')
+      console.error('redoLessonAfterFailedQuiz failed:', e)
+      alert('Could not reset the lesson. Please refresh and try again.')
     } finally {
-      setMarkingActivities(false)
+      setSavingProgress(false)
     }
   }
 
-  // Auto-complete when the watch threshold is reached
+  // Auto mode watches videoWatchSatisfied + activityCompleted via useEffect
   const handleThresholdReached = () => {
-    if (!isCompleted) setLessonCompletedState(true)
+    setVideoWatchSatisfied(true)
   }
 
   // Issue (or fetch existing) certificate; returns the PDF URL if available
@@ -646,7 +798,7 @@ export default function LessonViewPage() {
     })
     if (!allowed) {
       if (settings.gateNextUntilActivitiesDone && !activityCompleted) {
-        alert('Finish resources and flashcards for this lesson before continuing.')
+        alert('Finish mandatory activities for this lesson before continuing.')
       } else {
         alert('Complete this lesson before continuing to the next one.')
       }
@@ -744,10 +896,87 @@ export default function LessonViewPage() {
   }
 
   const courseAi = readCourseAiMetadata((course as any)?.metadata)
+  const completedCount = allLessons.filter((l) => completedLessonIds.has(l.id)).length
+  const progressPercent =
+    enrollment?.progress_percentage ??
+    (allLessons.length > 0 ? Math.round((completedCount / allLessons.length) * 100) : 0)
+
+  const openQuiz = async (quizId: string) => {
+    setShowQuiz(true)
+    if (quiz && (quiz as any).id === quizId && quizQuestions.length > 0) return
+    const { data: quizRow } = await supabase
+      .from('quizzes')
+      .select('*')
+      .eq('id', quizId)
+      .maybeSingle()
+    if (quizRow) {
+      setQuiz(quizRow as any)
+      const { data: questionsData } = await supabase
+        .from('quiz_questions')
+        .select('*')
+        .eq('quiz_id', quizId)
+        .order('order_index', { ascending: true })
+      setQuizQuestions(questionsData || [])
+    }
+  }
+
+  const activitiesExtra = (
+    <>
+      {!showQuiz && quiz && quizQuestions.length > 0 && (
+        <Card className="glass">
+          <CardHeader>
+            <CardTitle className="text-lg">{(quiz as any).title || 'Lesson quiz'}</CardTitle>
+            <CardDescription>
+              {(quiz as any).description || 'Check your understanding of this lesson.'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button
+              className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+              onClick={() => setShowQuiz(true)}
+            >
+              Start quiz
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+      {parseLessonBlocks(lesson.content).every((b) => b.type !== 'scenario') && (
+        <ScenarioPlayer lessonId={lessonId} />
+      )}
+      {(enrollment?.progress_percentage || 0) >= 100 && (
+        <Card className="glass border-green-600/30">
+          <CardContent className="space-y-3 py-6 text-center">
+            <CheckCircle className="mx-auto h-8 w-8 text-green-600" />
+            <p className="text-sm font-semibold">Course complete!</p>
+            <p className="text-xs text-muted-foreground">
+              You have earned your certificate of completion.
+            </p>
+            <Button
+              onClick={handleGetCertificate}
+              disabled={issuingCert}
+              className="w-full bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+            >
+              {issuingCert ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Preparing...
+                </>
+              ) : (
+                <>
+                  <Award className="mr-2 h-4 w-4" />
+                  {certificateUrl ? 'View Certificate' : 'Get Certificate'}
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+    </>
+  )
 
   return (
     <div
-      className="container mx-auto px-4 py-8"
+      className="min-h-screen"
       style={
         {
           backgroundColor: courseAi.theme?.background,
@@ -758,104 +987,77 @@ export default function LessonViewPage() {
         } as React.CSSProperties
       }
     >
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <Button
-            variant="ghost"
-            onClick={goBackToModules}
-            className="mb-4"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Course
-          </Button>
+      <div className="mx-auto max-w-7xl px-4 py-4 sm:py-6">
+        <LessonFocusHeader
+          courseTitle={course?.title}
+          moduleTitle={module.title}
+          lessonTitle={lesson.title}
+          lessonDescription={lesson.description}
+          completedCount={completedCount}
+          totalLessons={allLessons.length}
+          progressPercent={progressPercent}
+          isCompleted={isCompleted}
+          savingProgress={savingProgress}
+          completeDisabled={
+            !isCompleted &&
+            currentGateSettings.gateNextUntilActivitiesDone &&
+            !activityCompleted
+          }
+          completeHint={
+            !isCompleted &&
+            currentGateSettings.gateNextUntilActivitiesDone &&
+            !activityCompleted
+              ? mandatoryTotal > 0
+                ? `Complete mandatory activities (${mandatoryCompleted}/${mandatoryTotal}) before marking this lesson complete.`
+                : 'Finish mandatory activities before marking this lesson complete.'
+              : currentGateSettings.completionMode === 'auto'
+                ? 'Auto-completes when video watch threshold and mandatory activities are done.'
+                : null
+          }
+          onBack={goBackToModules}
+          onToggleComplete={toggleLessonComplete}
+          headingColor={courseAi.theme?.heading}
+        />
 
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <Badge variant="outline" className="mb-2">{module.title}</Badge>
-              <h1
-                className="text-3xl font-bold mb-2"
-                style={{ color: courseAi.theme?.heading }}
-              >
-                {lesson.title}
-              </h1>
-              {lesson.description && (
-                <p className="text-muted-foreground">{lesson.description}</p>
-              )}
-            </div>
-            <Button
-              onClick={toggleLessonComplete}
-              disabled={savingProgress}
-              className={`${isCompleted ? 'bg-green-600 hover:bg-green-700' : 'bg-bhutan-yellow hover:bg-bhutan-orange'}`}
-            >
-              {savingProgress ? (
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              ) : isCompleted ? (
-                <CheckCircle className="w-5 h-5 mr-2" />
-              ) : (
-                <CheckCircle className="w-5 h-5 mr-2" />
-              )}
-              {isCompleted ? 'Completed' : 'Mark Complete'}
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Main Content Area */}
-          <div className="lg:col-span-3 space-y-6">
-            {/* Video Player Section */}
-            <div className="mb-6">
-              <Card className="glass overflow-hidden">
-                <CardContent className="p-3 sm:p-4">
+        {/* Udemy-style stage: dominant player + slim curriculum */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-5">
+          <div className="space-y-4 lg:col-span-8 xl:col-span-9">
+            <Card className="overflow-hidden border-border/60 shadow-sm">
+              <CardContent className="p-0 sm:p-0">
+                <div className="bg-black">
                   <TrackedVideoPlayer
                     key={lessonId}
-                    videoUrl={
-                      resolveMediaUrl(lesson.video_url) || lesson.video_url || ''
-                    }
+                    videoUrl={resolveMediaUrl(lesson.video_url) || lesson.video_url || ''}
                     title={lesson.title}
                     initialPositionSeconds={(lessonProgress as any)?.last_position_seconds || 0}
                     thresholdPercent={90}
                     onProgress={persistWatchProgress}
                     onThresholdReached={handleThresholdReached}
                   />
+                </div>
+                <div className="space-y-1 px-3 pb-1 pt-2 sm:px-4">
                   {lesson.video_url && !isCompleted && (
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      This lesson auto-completes once you have watched about 90% of the video.
+                    <p className="text-xs text-muted-foreground">
+                      {currentGateSettings.completionMode === 'auto'
+                        ? 'Auto-completes after ~90% watched and mandatory activities are done. Resume picks up where you left off.'
+                        : 'Watch progress saves automatically. Mark the lesson complete when you are ready.'}
                     </p>
                   )}
-                  <div className="mt-4 flex items-center justify-between gap-2 border-t pt-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={goToPreviousLesson}
-                      disabled={currentLessonIndex <= 0}
-                      className="gap-1"
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                      Previous
-                    </Button>
-                    <span className="text-xs text-muted-foreground text-center truncate px-2">
-                      {currentLessonIndex + 1} / {allLessons.length}
-                      {allLessons[currentLessonIndex]?.title
-                        ? ` · ${allLessons[currentLessonIndex].title}`
-                        : ''}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={goToNextLesson}
-                      disabled={
-                        currentLessonIndex >= allLessons.length - 1 || !canProceedToNext
-                      }
-                      className="gap-1"
-                    >
-                      Next
-                      <ChevronRight className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                  <LessonNextBar
+                    currentIndex={currentLessonIndex}
+                    total={allLessons.length}
+                    currentTitle={allLessons[currentLessonIndex]?.title}
+                    canGoPrev={currentLessonIndex > 0}
+                    canGoNext={
+                      currentLessonIndex < allLessons.length - 1 && canProceedToNext
+                    }
+                    onPrev={goToPreviousLesson}
+                    onNext={goToNextLesson}
+                    sticky
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
             {parseLessonBlocks(lesson.content).length > 0 && (
               <Card className="glass">
@@ -863,78 +1065,47 @@ export default function LessonViewPage() {
                   <LessonBlocks
                     content={lesson.content}
                     lessonId={lessonId}
-                    onTakeQuiz={async (quizId) => {
-                      setShowQuiz(true)
-                      const { data: quizRow } = await supabase
-                        .from('quizzes')
-                        .select('*')
-                        .eq('id', quizId)
-                        .maybeSingle()
-                      if (quizRow) {
-                        setQuiz(quizRow as any)
-                        const { data: questionsData } = await supabase
-                          .from('quiz_questions')
-                          .select('*')
-                          .eq('quiz_id', quizId)
-                          .order('order_index', { ascending: true })
-                        setQuizQuestions(questionsData || [])
-                      }
-                    }}
+                    onTakeQuiz={(quizId) => void openQuiz(quizId)}
                   />
                 </CardContent>
               </Card>
             )}
 
-            {/* New Learning Tabs */}
+            {/* Secondary surface — Activities default; scenarios/quiz live here */}
             {course && (
-              <CourseLearningTabs
-                course={course}
-                modules={allModules}
-                lessons={allLessons}
-                currentLessonId={lessonId}
-                currentLesson={lesson}
-                currentModule={module}
-                instructor={instructor}
-                videoRef={videoRef}
-                userId={currentUser?.id}
-                completedLessons={completedLessonIds}
-                lockedLessonIds={lockedLessonIds}
-                resourcesLocked={resourcesLocked}
-                activityCompleted={activityCompleted}
-                markingActivities={markingActivities}
-                onMarkActivitiesComplete={
-                  currentGateSettings.gateNextUntilActivitiesDone
-                    ? () => void markActivitiesComplete()
-                    : undefined
-                }
-                onLessonClick={(clickedLessonId) => {
-                  tryOpenLesson(clickedLessonId)
-                }}
-                onLessonComplete={(targetLessonId, completed) => {
-                  if (targetLessonId === lessonId) {
-                    setLessonCompletedState(completed)
-                  }
-                }}
-                moduleResources={(module as any)?.resources}
-                onTakeQuiz={async (quizId) => {
-                  setShowQuiz(true)
-                  if (quiz && (quiz as any).id === quizId) return
-                  const { data: quizRow } = await supabase
-                    .from('quizzes')
-                    .select('*')
-                    .eq('id', quizId)
-                    .maybeSingle()
-                  if (quizRow) {
-                    setQuiz(quizRow as any)
-                    const { data: questionsData } = await supabase
-                      .from('quiz_questions')
-                      .select('*')
-                      .eq('quiz_id', quizId)
-                      .order('order_index', { ascending: true })
-                    setQuizQuestions(questionsData || [])
-                  }
-                }}
-              />
+              <div className="rounded-xl border bg-background/50 p-3 sm:p-4">
+                <p className="mb-3 text-sm font-medium">More for this lesson</p>
+                <CourseLearningTabs
+                  course={course}
+                  modules={allModules}
+                  lessons={allLessons}
+                  currentLessonId={lessonId}
+                  currentLesson={lesson}
+                  currentModule={module}
+                  instructor={instructor}
+                  videoRef={videoRef}
+                  userId={currentUser?.id}
+                  completedLessons={completedLessonIds}
+                  lockedLessonIds={lockedLessonIds}
+                  resourcesLocked={resourcesLocked}
+                  activityCompleted={activityCompleted}
+                  mandatoryTotal={mandatoryTotal}
+                  mandatoryCompleted={mandatoryCompleted}
+                  activityProgressById={activityProgressById}
+                  markingActivityId={markingActivityId}
+                  onMarkActivityDone={(id) => void markActivityDone(id)}
+                  defaultTab="resources"
+                  activitiesExtra={activitiesExtra}
+                  onLessonClick={(clickedLessonId) => tryOpenLesson(clickedLessonId)}
+                  onLessonComplete={(targetLessonId, completed) => {
+                    if (targetLessonId === lessonId) {
+                      setLessonCompletedState(completed)
+                    }
+                  }}
+                  moduleResources={(module as any)?.resources}
+                  onTakeQuiz={(quizId) => void openQuiz(quizId)}
+                />
+              </div>
             )}
 
             {showQuiz && quiz && (
@@ -945,32 +1116,11 @@ export default function LessonViewPage() {
                 quizData={quiz as any}
                 questionsData={quizQuestions}
                 onClose={() => setShowQuiz(false)}
-                onComplete={() => setShowQuiz(false)}
+                onComplete={(outcome) => void syncAfterQuiz(outcome)}
+                onRedoLesson={() => void redoLessonAfterFailedQuiz()}
               />
             )}
 
-            {!showQuiz && quiz && quizQuestions.length > 0 && (
-              <Card className="glass">
-                <CardHeader>
-                  <CardTitle className="text-lg">{(quiz as any).title || 'Lesson quiz'}</CardTitle>
-                  <CardDescription>
-                    {(quiz as any).description || 'Check your understanding of this lesson.'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button
-                    className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
-                    onClick={() => setShowQuiz(true)}
-                  >
-                    Start quiz
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
-            {parseLessonBlocks(lesson.content).every((b) => b.type !== 'scenario') && (
-              <ScenarioPlayer lessonId={lessonId} />
-            )}
             {courseAi.tutor?.enabled !== false && (
               <GeminiTutor
                 courseId={courseId}
@@ -980,177 +1130,18 @@ export default function LessonViewPage() {
                 photoUrl={courseAi.tutor?.photoUrl}
               />
             )}
-
-            {/* Progress Tracking */}
-            {enrollment && (
-              <Card className="glass">
-                <CardHeader>
-                  <CardTitle>Your Progress</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>Course Progress</span>
-                      <span className="font-bold text-bhutan-yellow">
-                        {enrollment.progress_percentage || 0}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-secondary rounded-full h-2">
-                      <div
-                        className="bg-bhutan-yellow h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${enrollment.progress_percentage || 0}%` }}
-                      />
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {allLessons.filter((l) => completedLessonIds.has(l.id)).length} of {allLessons.length} lessons completed
-                    </div>
-
-                    {(enrollment.progress_percentage || 0) >= 100 && (
-                      <div className="mt-2 rounded-lg border border-green-600/30 bg-green-600/5 p-4 text-center">
-                        <CheckCircle className="mx-auto mb-2 h-8 w-8 text-green-600" />
-                        <p className="text-sm font-semibold">Course complete!</p>
-                        <p className="mb-3 text-xs text-muted-foreground">
-                          You have earned your certificate of completion.
-                        </p>
-                        <Button
-                          onClick={handleGetCertificate}
-                          disabled={issuingCert}
-                          className="w-full bg-bhutan-yellow hover:bg-bhutan-orange text-black"
-                        >
-                          {issuingCert ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Preparing...
-                            </>
-                          ) : (
-                            <>
-                              <Award className="mr-2 h-4 w-4" />
-                              {certificateUrl ? 'View Certificate' : 'Get Certificate'}
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
-          {/* Sidebar - Lesson Navigation */}
-          <div className="space-y-6">
-            {/* Navigation Controls */}
-            <Card className="glass">
-              <CardHeader>
-                <CardTitle className="text-lg">Lesson Navigation</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={goToPreviousLesson}
-                  disabled={currentLessonIndex === 0}
-                >
-                  <ChevronLeft className="w-4 h-4 mr-2" />
-                  Previous
-                </Button>
-
-                <div className="text-center text-sm text-muted-foreground">
-                  {currentLessonIndex + 1} of {allLessons.length}
-                </div>
-
-                <Button
-                  className="w-full bg-bhutan-yellow hover:bg-bhutan-orange"
-                  onClick={goToNextLesson}
-                  disabled={
-                    currentLessonIndex === allLessons.length - 1 || !canProceedToNext
-                  }
-                >
-                  Next
-                  <ChevronRight className="w-4 h-4 ml-2" />
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Module Lessons List */}
-            {allLessons.length > 0 && (
-              <Card className="glass">
-                <CardHeader>
-                  <CardTitle className="text-lg">In This Module</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {allLessons.map((l, index) => {
-                      const isLessonDone = completedLessonIds.has(l.id)
-                      const isCurrentLesson = l.id === lesson.id
-                      const isLocked = lockedLessonIds.has(l.id)
-
-                      return (
-                        <div
-                          key={l.id}
-                          className={`p-3 rounded-lg transition-colors ${
-                            isLocked
-                              ? 'opacity-60 cursor-not-allowed'
-                              : 'cursor-pointer'
-                          } ${
-                            isCurrentLesson
-                              ? 'bg-bhutan-yellow/20 border border-bhutan-yellow/50'
-                              : isLocked
-                                ? 'bg-secondary/20'
-                                : 'hover:bg-secondary/50'
-                          }`}
-                          onClick={() => tryOpenLesson(l.id)}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="w-6 h-6 rounded-full bg-secondary flex items-center justify-center flex-shrink-0 mt-0.5">
-                              {isLessonDone ? (
-                                <CheckCircle className="w-4 h-4 text-green-600" />
-                              ) : (
-                                <span className="text-xs font-medium">{index + 1}</span>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h4 className="font-medium text-sm truncate">{l.title}</h4>
-                              {l.duration_minutes && (
-                                <p className="text-xs text-muted-foreground">
-                                  <Clock className="w-3 h-3 inline mr-1" />
-                                  {Math.floor(l.duration_minutes / 60)}m
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Course Stats */}
-            {course && (
-              <Card className="glass">
-                <CardHeader>
-                  <CardTitle className="text-lg">Course Stats</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Duration</span>
-                    <span className="font-medium">
-                      {course.duration_minutes
-                        ? `${Math.floor(course.duration_minutes / 60)}h ${course.duration_minutes % 60}m`
-                        : 'Self-paced'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Level</span>
-                    <Badge variant="secondary" className="text-xs capitalize">
-                      {course.level}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+          <div className="lg:col-span-4 xl:col-span-3">
+            <div className="lg:sticky lg:top-4">
+              <CurriculumRail
+                lessons={allLessons}
+                currentLessonId={lesson.id}
+                completedLessonIds={completedLessonIds}
+                lockedLessonIds={lockedLessonIds}
+                onSelect={tryOpenLesson}
+              />
+            </div>
           </div>
         </div>
       </div>

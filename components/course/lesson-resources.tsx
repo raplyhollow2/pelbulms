@@ -3,13 +3,20 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Download, ExternalLink, HelpCircle } from 'lucide-react'
+import { CheckCircle, Download, ExternalLink, HelpCircle, Loader2 } from 'lucide-react'
 import { resolveMediaUrl } from '@/lib/media'
 import {
   getActivityDef,
+  isActivityRequired,
   parseLessonActivities,
   type LessonActivity,
 } from '@/lib/lesson-activities'
+
+export type ActivityProgressItem = {
+  id: string
+  completed?: boolean
+  source?: string | null
+}
 
 function activityHref(item: LessonActivity): string | null {
   const raw = item.fileUrl || item.url
@@ -21,15 +28,31 @@ export function LessonResources({
   resources,
   extraResources,
   onTakeQuiz,
+  progressById,
+  mandatoryTotal = 0,
+  mandatoryCompleted = 0,
+  onMarkDone,
+  markingActivityId,
 }: {
   resources?: unknown
   extraResources?: unknown
   onTakeQuiz?: (quizId: string) => void
+  progressById?: Record<string, ActivityProgressItem>
+  mandatoryTotal?: number
+  mandatoryCompleted?: number
+  onMarkDone?: (activityId: string) => void | Promise<void>
+  markingActivityId?: string | null
 }) {
-  const items = [
-    ...parseLessonActivities(extraResources),
-    ...parseLessonActivities(resources),
-  ]
+  // Lesson activities are progress-tracked; module extras are display-only.
+  const lessonItems = parseLessonActivities(resources).map((item) => ({
+    ...item,
+    trackable: true as const,
+  }))
+  const moduleItems = parseLessonActivities(extraResources).map((item) => ({
+    ...item,
+    trackable: false as const,
+  }))
+  const items = [...moduleItems, ...lessonItems]
 
   if (items.length === 0) {
     return (
@@ -48,8 +71,13 @@ export function LessonResources({
 
   return (
     <Card className="glass">
-      <CardHeader>
+      <CardHeader className="space-y-1">
         <CardTitle className="text-lg">Activities & resources</CardTitle>
+        {mandatoryTotal > 0 && (
+          <p className="text-xs text-muted-foreground">
+            {mandatoryCompleted} of {mandatoryTotal} mandatory complete
+          </p>
+        )}
       </CardHeader>
       <CardContent className="space-y-2">
         {items.map((item) => {
@@ -57,9 +85,13 @@ export function LessonResources({
           const Icon = def?.icon
           const href = activityHref(item)
           const isQuiz = item.activity === 'quiz' && item.quizId
+          const required = item.trackable && isActivityRequired(item)
+          const done = Boolean(progressById?.[item.id]?.completed)
+          const marking = markingActivityId === item.id
+
           return (
             <div
-              key={item.id}
+              key={`${item.trackable ? 'lesson' : 'module'}-${item.id}`}
               className="flex items-start justify-between gap-3 rounded-lg border p-3"
             >
               <div className="flex min-w-0 items-start gap-2">
@@ -72,6 +104,31 @@ export function LessonResources({
                     <Badge variant="secondary" className="text-[10px]">
                       {def?.label || item.activity}
                     </Badge>
+                    {!item.trackable ? (
+                      <Badge variant="outline" className="text-[10px]">
+                        Module
+                      </Badge>
+                    ) : required ? (
+                      <Badge className="text-[10px]">Required</Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px]">
+                        Optional
+                      </Badge>
+                    )}
+                    {item.trackable && done && (
+                      <Badge
+                        variant="outline"
+                        className="gap-1 border-green-600/40 text-[10px] text-green-700"
+                      >
+                        <CheckCircle className="h-3 w-3" />
+                        {isQuiz ? 'Passed' : 'Done'}
+                      </Badge>
+                    )}
+                    {item.trackable && isQuiz && !done && (
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                        Not passed
+                      </Badge>
+                    )}
                   </div>
                   {item.description && (
                     <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
@@ -92,28 +149,51 @@ export function LessonResources({
                   )}
                 </div>
               </div>
-              {isQuiz ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="min-h-11 shrink-0 gap-1 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
-                  onClick={() => onTakeQuiz?.(item.quizId!)}
-                >
-                  <HelpCircle className="h-3.5 w-3.5" />
-                  Take quiz
-                </Button>
-              ) : href ? (
-                <a
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-md border border-border px-3 text-sm hover:bg-muted"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  Open
-                  <ExternalLink className="h-3 opacity-60" />
-                </a>
-              ) : null}
+              <div className="flex shrink-0 flex-col items-stretch gap-1.5 sm:flex-row sm:items-center">
+                {isQuiz ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="min-h-11 shrink-0 gap-1 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+                    onClick={() => onTakeQuiz?.(item.quizId!)}
+                  >
+                    <HelpCircle className="h-3.5 w-3.5" />
+                    {done ? 'Retake quiz' : 'Take quiz'}
+                  </Button>
+                ) : (
+                  <>
+                    {href ? (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex min-h-11 shrink-0 items-center justify-center gap-1 rounded-md border border-border px-3 text-sm hover:bg-muted"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        Open
+                        <ExternalLink className="h-3 opacity-60" />
+                      </a>
+                    ) : null}
+                    {item.trackable && onMarkDone && required && !done ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="min-h-11 shrink-0"
+                        disabled={marking}
+                        onClick={() => void onMarkDone(item.id)}
+                      >
+                        {marking ? (
+                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
+                        )}
+                        Mark as done
+                      </Button>
+                    ) : null}
+                  </>
+                )}
+              </div>
             </div>
           )
         })}

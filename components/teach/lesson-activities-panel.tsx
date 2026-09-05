@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { Plus, Trash2, Pencil } from 'lucide-react'
 import { AddLessonActivityModal } from '@/components/teach/add-lesson-activity-modal'
 import { QuizCreator } from '@/components/quiz/quiz-creator'
@@ -14,6 +16,7 @@ import {
 } from '@/components/ui/dialog'
 import {
   getActivityDef,
+  isActivityRequired,
   parseLessonActivities,
   type LessonActivity,
 } from '@/lib/lesson-activities'
@@ -81,6 +84,12 @@ export function LessonActivitiesPanel({
                       <Badge variant="secondary" className="text-[10px] capitalize">
                         {def?.label || item.activity}
                       </Badge>
+                      <Badge
+                        variant={isActivityRequired(item) ? 'default' : 'outline'}
+                        className="text-[10px]"
+                      >
+                        {isActivityRequired(item) ? 'Mandatory' : 'Optional'}
+                      </Badge>
                       {item.quizId && (
                         <Badge variant="outline" className="text-[10px]">
                           Connected
@@ -97,6 +106,22 @@ export function LessonActivitiesPanel({
                         {item.fileName || item.url || item.fileUrl}
                       </p>
                     )}
+                    <div className="mt-2 flex items-center gap-2">
+                      <Switch
+                        id={`req-${item.id}`}
+                        checked={isActivityRequired(item)}
+                        onCheckedChange={(checked) =>
+                          void onChange(
+                            items.map((a) =>
+                              a.id === item.id ? { ...a, required: checked } : a
+                            )
+                          )
+                        }
+                      />
+                      <Label htmlFor={`req-${item.id}`} className="text-xs text-muted-foreground">
+                        Mandatory for progression
+                      </Label>
+                    </div>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">

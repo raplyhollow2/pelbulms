@@ -1,14 +1,18 @@
 // @ts-nocheck
 import { NextResponse } from 'next/server'
-import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { getDbClient } from '@/lib/db'
 import { notifyTeacherOfEnrollment } from '@/lib/notify-teachers'
 
 /**
  * POST /api/enrollments
  * Body: { courseId }
- * Enrolls the authenticated verified user.
+ * Enrolls the authenticated user.
+ * - enrollment_mode=approval (default) → status pending until creator verifies
  * - enrollment_mode=auto → status active immediately
- * - enrollment_mode=approval → status pending until creator verifies
+ *
+ * Uses service_role when available; falls back to the user session so local
+ * dev works without SUPABASE_SERVICE_ROLE_KEY (RLS allows self-enroll).
  */
 export async function POST(request: Request) {
   try {
@@ -21,13 +25,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Paid LMS membership: require verified (active) account — no course fee
+    const service = await getDbClient()
+
     let accountStatus =
       (user.app_metadata as any)?.account_status ||
       (user.user_metadata as any)?.account_status ||
       null
-
-    const service = await createServiceClient()
 
     if (!accountStatus) {
       const { data: profile } = await service
@@ -38,13 +41,11 @@ export async function POST(request: Request) {
       accountStatus = (profile as any)?.account_status || null
     }
 
-    if (accountStatus && accountStatus !== 'active') {
+    // Only hard-block rejected/suspended accounts; KYC pending no longer blocks enroll.
+    if (accountStatus === 'rejected' || accountStatus === 'suspended') {
       return NextResponse.json(
         {
-          error:
-            accountStatus === 'pending' || accountStatus === 'submitted'
-              ? 'Your account is awaiting verification. You can enroll after approval.'
-              : 'Your account is not verified. Contact support or complete registration review.',
+          error: 'Your account cannot enroll in courses. Contact support if you believe this is an error.',
           accountStatus,
         },
         { status: 403 }
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'This course is not published yet' }, { status: 400 })
     }
 
-    const mode = ((course as any).enrollment_mode as string) || 'auto'
+    const mode = ((course as any).enrollment_mode as string) || 'approval'
     const requiresApproval = mode === 'approval'
     const requiresInvite = mode === 'invite_code'
     const requiresPaid = mode === 'paid'

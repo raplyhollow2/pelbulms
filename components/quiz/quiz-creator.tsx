@@ -17,6 +17,7 @@ type DraftQuestion = {
   options: Array<{ text: string; is_correct: boolean }>
   correct_answer: string
   explanation: string
+  incorrect_explanation: string
   order_index: number
   points: number
 }
@@ -47,6 +48,7 @@ function emptyQuestion(index: number): DraftQuestion {
     ],
     correct_answer: '',
     explanation: '',
+    incorrect_explanation: '',
     order_index: index,
     points: 1,
   }
@@ -122,6 +124,7 @@ export function QuizCreator({ lessonId, quizId, compact, onSave, onCancel }: Qui
             : emptyQuestion(i).options,
           correct_answer: q.correct_answer || '',
           explanation: q.explanation || '',
+          incorrect_explanation: q.incorrect_explanation || '',
           order_index: q.order_index ?? i,
           points: q.points || 1,
         }))
@@ -163,6 +166,7 @@ export function QuizCreator({ lessonId, quizId, compact, onSave, onCancel }: Qui
           })),
           correct_answer: q.options?.[q.correctIndex] || '',
           explanation: q.explanation || '',
+          incorrect_explanation: q.incorrectExplanation || q.incorrect_explanation || '',
           order_index: i,
           points: 1,
         }))
@@ -225,6 +229,7 @@ export function QuizCreator({ lessonId, quizId, compact, onSave, onCancel }: Qui
         options: q.question_type === 'multiple_choice' ? q.options : undefined,
         correctAnswer: correct,
         explanation: q.explanation,
+        incorrectExplanation: q.incorrect_explanation,
         points: q.points,
         orderIndex: i,
       }
@@ -283,9 +288,10 @@ export function QuizCreator({ lessonId, quizId, compact, onSave, onCancel }: Qui
             isPublished: quiz.is_published,
           }),
         })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Failed to create quiz')
-        id = data.quiz.id
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(data.error || `Failed to create quiz (${res.status})`)
+        id = data.quiz?.id
+        if (!id) throw new Error(data.error || 'Quiz was created but no id was returned')
         setExistingId(id)
       } else {
         const res = await fetch(`/api/quizzes/${id}`, {
@@ -300,8 +306,8 @@ export function QuizCreator({ lessonId, quizId, compact, onSave, onCancel }: Qui
             isPublished: quiz.is_published,
           }),
         })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Failed to update quiz')
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(data.error || `Failed to update quiz (${res.status})`)
       }
 
       await persistQuestions(id!)
@@ -606,15 +612,27 @@ function QuestionEditor({
         </div>
       )}
 
-      <div>
-        <Label>Explanation (optional)</Label>
-        <Textarea
-          value={question.explanation || ''}
-          onChange={(e) => onUpdate({ explanation: e.target.value })}
-          placeholder="Shown after answering…"
-          rows={2}
-          className="mt-1 resize-none"
-        />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <Label>Correct answer feedback (optional)</Label>
+          <Textarea
+            value={question.explanation || ''}
+            onChange={(e) => onUpdate({ explanation: e.target.value })}
+            placeholder="Shown when the learner answers correctly…"
+            rows={2}
+            className="mt-1 resize-none"
+          />
+        </div>
+        <div>
+          <Label>Wrong answer dialogue (optional)</Label>
+          <Textarea
+            value={question.incorrect_explanation || ''}
+            onChange={(e) => onUpdate({ incorrect_explanation: e.target.value })}
+            placeholder="Shown in a dialogue when they pick a wrong answer…"
+            rows={2}
+            className="mt-1 resize-none"
+          />
+        </div>
       </div>
     </div>
   )

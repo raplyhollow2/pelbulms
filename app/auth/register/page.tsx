@@ -174,15 +174,18 @@ export default function RegisterPage() {
           full_name: data.user?.full_name || '',
           institution_id: data.institutions?.[0]?.id || '',
         }))
-        if (data.account_status === 'active') {
-          router.push('/dashboard')
-        } else if (
+        if (data.account_status === 'rejected' || data.account_status === 'suspended') {
+          router.push('/auth/access-denied')
+          return
+        }
+        if (
           data.registration &&
-          ['submitted', 'under_review', 'additional_info_requested'].includes(
+          ['submitted', 'under_review', 'additional_info_requested', 'approved'].includes(
             data.registration.registration_status
           )
         ) {
           router.push('/auth/pending-approval')
+          return
         }
       } catch {
         setError('Could not load registration form. Please refresh.')
@@ -293,10 +296,20 @@ export default function RegisterPage() {
               Pelbu LMS
             </span>
           </div>
-          <h1 className="text-2xl font-bold">Complete your registration</h1>
+          <h1 className="text-2xl font-bold">Complete your profile</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Step {step + 1} of {STEPS.length} — tap Next when you are ready. Nothing advances automatically.
+            Optional — you already have LMS access. Completing this helps with certificates and institutional records.
           </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Step {step + 1} of {STEPS.length} — tap Next when you are ready.
+          </p>
+          <Button
+            variant="link"
+            className="mt-1 h-auto p-0 text-sm"
+            onClick={() => router.push('/dashboard')}
+          >
+            Skip for now and go to the LMS
+          </Button>
         </div>
 
         {/* Progress */}

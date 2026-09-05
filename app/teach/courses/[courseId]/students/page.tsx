@@ -227,8 +227,11 @@ export default function CourseStudentsPage() {
             Back
           </Button>
           <div className="min-w-0">
-            <h1 className="text-2xl sm:text-3xl font-bold">Student Management</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Students & enrollment requests</h1>
             <p className="text-sm sm:text-base text-muted-foreground truncate">{course?.title}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Only the course creator (or a platform admin) can approve enrollment requests.
+            </p>
           </div>
         </div>
 
@@ -281,9 +284,9 @@ export default function CourseStudentsPage() {
         {pendingStudents.length > 0 && (
           <Card className="glass-strong border-amber-500/30">
             <CardHeader>
-              <CardTitle>Pending enrollment requests</CardTitle>
+              <CardTitle>Enrollment requests</CardTitle>
               <CardDescription>
-                These students requested access. Approve to grant learning access, or reject.
+                These learners requested access. As course creator, approve to grant learning access, or reject.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">

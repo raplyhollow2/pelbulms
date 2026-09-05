@@ -47,11 +47,30 @@ export const createSupabaseServerClient = async () => {
  * WARNING: Use sparingly and never expose to client-side code
  */
 export const createServiceClient = async () => {
+  const client = await tryCreateServiceClient()
+  if (!client) {
+    throw new Error('Missing or invalid SUPABASE_SERVICE_ROLE_KEY')
+  }
+  return client
+}
+
+/**
+ * Like createServiceClient, but returns null when the service role key is
+ * missing/placeholder instead of throwing. Prefer this in paths that can
+ * fall back to the user-session client (local/dev without Sensitive secrets).
+ */
+export const tryCreateServiceClient = async () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-  if (!supabaseUrl || !supabaseServiceKey) {
-    throw new Error('Missing Supabase service role credentials')
+  if (
+    !supabaseUrl ||
+    !supabaseServiceKey ||
+    supabaseServiceKey.includes('[SENSITIVE]') ||
+    supabaseServiceKey === 'your-service-role-key' ||
+    !supabaseServiceKey.includes('.')
+  ) {
+    return null
   }
 
   // IMPORTANT: do NOT pass the request cookies here. The SSR client would

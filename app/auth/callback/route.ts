@@ -4,8 +4,8 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 
 /**
- * Decide where a freshly-authenticated user should land based on their
- * account status and whether they've completed the KYC registration form.
+ * Post-login destination: LMS access is immediate for active accounts.
+ * Only rejected/suspended users are blocked. KYC registration is optional.
  */
 async function destinationFor(userId: string, origin: string): Promise<string> {
   try {
@@ -19,25 +19,12 @@ async function destinationFor(userId: string, origin: string): Promise<string> {
 
     const status = (profile as any)?.account_status as string | undefined
 
-    if (status === 'active') return `${origin}/dashboard`
-    if (status === 'rejected') return `${origin}/auth/access-denied`
-
-    // Pending / unknown: has the user already submitted a registration?
-    const { data: registration } = await service
-      .from('student_registrations')
-      .select('registration_status')
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    const regStatus = (registration as any)?.registration_status as string | undefined
-    if (regStatus && ['submitted', 'under_review', 'additional_info_requested'].includes(regStatus)) {
-      return `${origin}/auth/pending-approval`
+    if (status === 'rejected' || status === 'suspended') {
+      return `${origin}/auth/access-denied`
     }
 
-    return `${origin}/auth/register`
+    return `${origin}/dashboard`
   } catch {
-    // If the status lookup fails, fall back to the gated dashboard; middleware
-    // will re-route as needed.
     return `${origin}/dashboard`
   }
 }

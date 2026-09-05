@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRBAC } from '@/lib/rbac'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient, tryCreateServiceClient } from '@/lib/supabase/server'
 
 const BUCKET = 'lesson-resources'
 const MAX_BYTES = 50 * 1024 * 1024 // 50MB per file
@@ -18,10 +18,12 @@ const ALLOWED = [
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ]
 
-async function ensureBucket(supabase: Awaited<ReturnType<typeof createServiceClient>>) {
-  const { data: buckets } = await supabase.storage.listBuckets()
+async function ensureBucket(
+  admin: NonNullable<Awaited<ReturnType<typeof tryCreateServiceClient>>>
+) {
+  const { data: buckets } = await admin.storage.listBuckets()
   if (!buckets?.some((b) => b.name === BUCKET)) {
-    const { error } = await supabase.storage.createBucket(BUCKET, {
+    const { error } = await admin.storage.createBucket(BUCKET, {
       public: true,
       fileSizeLimit: MAX_BYTES,
     })
@@ -32,6 +34,8 @@ async function ensureBucket(supabase: Awaited<ReturnType<typeof createServiceCli
 /**
  * POST /api/courses/resources
  * Upload a PDF/PPT/doc reading material for a lesson.
+ * Uses the teacher session (+ storage RLS). Service role is optional and only
+ * used to create the bucket when missing.
  */
 export async function POST(request: NextRequest) {
   const rbac = await checkRBAC(request, ['instructor', 'admin', 'resource_person', 'superadmin'])
@@ -62,9 +66,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'File too large. Maximum size is 50MB.' }, { status: 400 })
     }
 
-    const supabase = await createServiceClient()
-    await ensureBucket(supabase)
+    const admin = await tryCreateServiceClient()
+    if (admin) {
+      await ensureBucket(admin)
+    }
 
+    const supabase = await createSupabaseServerClient()
     const ext = file.name.split('.').pop()?.toLowerCase() || 'bin'
     const path = `${courseId}/${lessonId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
     const bytes = new Uint8Array(await file.arrayBuffer())

@@ -23,7 +23,9 @@ export default function CourseDetailPage() {
   const courseId = params.id as string
 
   const [course, setCourse] = useState<Course | null>(null)
-  const [instructor, setInstructor] = useState<Profile | null>(null)
+  const [facilitators, setFacilitators] = useState<
+    Array<Pick<Profile, 'id' | 'full_name' | 'avatar_url' | 'bio'> & { staffRole?: string }>
+  >([])
   const [modules, setModules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [isEnrolled, setIsEnrolled] = useState(false)
@@ -70,7 +72,52 @@ export default function CourseDetailPage() {
       }
 
       setCourse(courseData as any)
-      setInstructor((courseData as any).profiles)
+
+      // Owner + co-facilitators from course_instructors
+      try {
+        const { data: staffRows } = await (supabase as any)
+          .from('course_instructors')
+          .select('user_id, role')
+          .eq('course_id', courseId)
+
+        const ownerId = (courseData as any).instructor_id as string | null
+        const staffList = (staffRows || []) as Array<{ user_id: string; role: string }>
+        const ids = new Set<string>()
+        if (ownerId) ids.add(ownerId)
+        for (const row of staffList) ids.add(row.user_id)
+
+        if (ids.size > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url, bio')
+            .in('id', Array.from(ids))
+
+          const roleByUser = new Map(staffList.map((r) => [r.user_id, r.role]))
+          const ordered = (profiles || [])
+            .map((p: any) => ({
+              ...p,
+              staffRole:
+                p.id === ownerId
+                  ? 'owner'
+                  : roleByUser.get(p.id) || 'co_teacher',
+            }))
+            .sort((a: any, b: any) => {
+              if (a.staffRole === 'owner') return -1
+              if (b.staffRole === 'owner') return 1
+              return (a.full_name || '').localeCompare(b.full_name || '')
+            })
+          setFacilitators(ordered)
+        } else {
+          setFacilitators(
+            (courseData as any).profiles ? [(courseData as any).profiles] : []
+          )
+        }
+      } catch (staffErr) {
+        console.log('Facilitators fetch error:', staffErr)
+        setFacilitators(
+          (courseData as any).profiles ? [(courseData as any).profiles] : []
+        )
+      }
 
       // Fetch modules for this course
       const { data: modulesData } = await supabase
@@ -288,53 +335,72 @@ export default function CourseDetailPage() {
           </div>
         </div>
 
-        {/* Instructor */}
-        {instructor && (
+        {/* Instructors / facilitators */}
+        {facilitators.length > 0 && (
           <Card className="glass">
             <CardHeader>
-              <CardTitle className="text-lg">Your Instructor</CardTitle>
+              <CardTitle className="text-lg">
+                {facilitators.length > 1 ? 'Instructors' : 'Your Instructor'}
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <a
-                href={`/instructors/${instructor.id}`}
-                className="flex items-start gap-4 group"
-              >
-                {(instructor.avatar_url || instructor.full_name) && (
-                  <div className="w-16 h-16 rounded-full overflow-hidden bg-bhutan-yellow/30 flex items-center justify-center shrink-0">
-                    {instructor.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={instructor.avatar_url}
-                        alt={instructor.full_name || 'Instructor'}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="font-bold text-lg">
-                        {(instructor.full_name || 'IN')
-                          .split(/\s+/)
-                          .map((n) => n[0])
-                          .join('')
-                          .slice(0, 2)
-                          .toUpperCase()}
-                      </span>
+            <CardContent className="space-y-4">
+              {facilitators.map((person) => (
+                <a
+                  key={person.id}
+                  href={`/instructors/${person.id}`}
+                  className="flex items-start gap-4 group"
+                >
+                  {(person.avatar_url || person.full_name) && (
+                    <div className="w-16 h-16 rounded-full overflow-hidden bg-bhutan-yellow/30 flex items-center justify-center shrink-0">
+                      {person.avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={person.avatar_url}
+                          alt={person.full_name || 'Instructor'}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="font-bold text-lg">
+                          {(person.full_name || 'IN')
+                            .split(/\s+/)
+                            .map((n) => n[0])
+                            .join('')
+                            .slice(0, 2)
+                            .toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-semibold text-lg group-hover:text-bhutan-orange transition-colors">
+                        {person.full_name}
+                      </h3>
+                      {person.staffRole && person.staffRole !== 'owner' && (
+                        <Badge variant="outline" className="text-[10px] capitalize">
+                          {String(person.staffRole).replace(/_/g, ' ')}
+                        </Badge>
+                      )}
+                      {person.staffRole === 'owner' && facilitators.length > 1 && (
+                        <Badge variant="secondary" className="text-[10px]">
+                          Lead
+                        </Badge>
+                      )}
+                    </div>
+                    {course.category && person.staffRole === 'owner' && (
+                      <Badge variant="outline" className="mt-1 text-xs">
+                        {course.category}
+                      </Badge>
                     )}
+                    {person.bio && (
+                      <p className="text-sm text-muted-foreground mt-2 line-clamp-3">
+                        {person.bio}
+                      </p>
+                    )}
+                    <p className="text-xs text-bhutan-yellow mt-2">View full profile →</p>
                   </div>
-                )}
-                <div className="min-w-0">
-                  <h3 className="font-semibold text-lg group-hover:text-bhutan-orange transition-colors">
-                    {instructor.full_name}
-                  </h3>
-                  {course.category && (
-                    <Badge variant="outline" className="mt-1 text-xs">
-                      {course.category}
-                    </Badge>
-                  )}
-                  {instructor.bio && (
-                    <p className="text-sm text-muted-foreground mt-2 line-clamp-3">{instructor.bio}</p>
-                  )}
-                  <p className="text-xs text-bhutan-yellow mt-2">View full profile →</p>
-                </div>
-              </a>
+                </a>
+              ))}
             </CardContent>
           </Card>
         )}

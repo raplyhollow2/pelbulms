@@ -197,9 +197,31 @@ export default function ModuleLessonsPage() {
     }
   }
 
+  const notifyLearnersOfActivity = async (lessonId?: string, summary?: string) => {
+    try {
+      await fetch(`/api/courses/${courseId}/notify-learners`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Course activities updated',
+          message:
+            summary ||
+            'Your instructor updated activities or resources in this course. Open the lesson to review.',
+          lessonId: lessonId || undefined,
+          type: 'activity_update',
+        }),
+      })
+    } catch (e) {
+      console.error('Failed to notify learners of activity update:', e)
+    }
+  }
+
   const updateLesson = async (id: string, updates: Partial<Lesson>) => {
-    // Optimistic update
-    setLessons(lessons.map((lesson: any) => lesson.id === id ? { ...lesson, ...updates } : lesson))
+    // Optimistic update (functional setState avoids stale closures when
+    // saving activities right after other lesson edits).
+    setLessons((prev) =>
+      prev.map((lesson: any) => (lesson.id === id ? { ...lesson, ...updates } : lesson))
+    )
     setHasChanges(true)
 
     // Persist to database
@@ -219,7 +241,8 @@ export default function ModuleLessonsPage() {
     } catch (error) {
       console.error('Error updating lesson:', error)
       // Revert on error
-      fetchModuleData()
+      await fetchModuleData()
+      throw error
     }
   }
 
@@ -593,14 +616,17 @@ export default function ModuleLessonsPage() {
                         lessonId={lesson.id}
                         resources={(lesson as any).resources}
                         onChange={async (next) => {
-                          updateLesson(lesson.id, { resources: next as any })
-                          await (supabase as any)
-                            .from('lessons')
-                            .update({
-                              resources: next,
-                              updated_at: new Date().toISOString(),
-                            })
-                            .eq('id', lesson.id)
+                          try {
+                            await updateLesson(lesson.id, { resources: next as any })
+                            void notifyLearnersOfActivity(
+                              lesson.id,
+                              `Activities were updated in “${lesson.title || 'a lesson'}”.`
+                            )
+                          } catch (e: any) {
+                            console.error('Failed to save lesson activities:', e)
+                            alert(e?.message || 'Failed to save activity. Please try again.')
+                            throw e
+                          }
                         }}
                       />
                     </div>
@@ -672,13 +698,19 @@ export default function ModuleLessonsPage() {
                   .from('modules')
                   .update({ resources: next, updated_at: new Date().toISOString() })
                   .eq('id', moduleId)
+                void notifyLearnersOfActivity(
+                  undefined,
+                  `Module resources were updated in “${module.title || 'a module'}”.`
+                )
               }}
               onLessonResourcesChange={async (lessonId, next) => {
-                updateLesson(lessonId, { resources: next as any })
-                await (supabase as any)
-                  .from('lessons')
-                  .update({ resources: next, updated_at: new Date().toISOString() })
-                  .eq('id', lessonId)
+                await updateLesson(lessonId, { resources: next as any })
+                const lessonTitle =
+                  lessons.find((l) => l.id === lessonId)?.title || 'a lesson'
+                void notifyLearnersOfActivity(
+                  lessonId,
+                  `Activities were updated in “${lessonTitle}”.`
+                )
               }}
             />
           </TabsContent>
@@ -789,10 +821,10 @@ export default function ModuleLessonsPage() {
                         <div className="flex items-center justify-between gap-3">
                           <div className="min-w-0">
                             <Label className="text-sm">
-                              Next after activities done
+                              Block next until mandatory activities are done
                             </Label>
                             <p className="text-xs text-muted-foreground">
-                              Unlock the next lesson only after resources/flashcards are finished
+                              Unlock the next lesson only after mandatory activities are finished
                             </p>
                           </div>
                           <Switch
@@ -801,6 +833,26 @@ export default function ModuleLessonsPage() {
                               patchMeta({ gateNextUntilActivitiesDone: checked })
                             }
                           />
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <Label className="text-sm">Lesson completion default</Label>
+                            <p className="text-xs text-muted-foreground">
+                              Auto = complete when video + mandatory activities are done. Manual =
+                              learner clicks Complete. Lessons can override this.
+                            </p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            <span className="text-xs text-muted-foreground">
+                              {(gates.completionMode || 'manual') === 'auto' ? 'Auto' : 'Manual'}
+                            </span>
+                            <Switch
+                              checked={(gates.completionMode || 'manual') === 'auto'}
+                              onCheckedChange={(checked) =>
+                                patchMeta({ completionMode: checked ? 'auto' : 'manual' })
+                              }
+                            />
+                          </div>
                         </div>
                       </>
                     )

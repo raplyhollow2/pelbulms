@@ -1,6 +1,6 @@
 // @ts-nocheck - student_registrations columns not fully in generated Database types
 import { NextResponse } from 'next/server'
-import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 const PHONE_RE = /^\+975[0-9]{8}$/
 const CID_RE = /^[0-9]{11}$/
@@ -10,6 +10,8 @@ const REQUESTABLE_ROLES = ['student', 'instructor', 'resource_person']
  * GET /api/register
  * Returns the list of institutions to pick from and the caller's current
  * registration status (so the page can decide what to show).
+ *
+ * Uses the signed-in session + RLS (no service_role required for local/dev).
  */
 export async function GET() {
   const supabase = await createSupabaseServerClient()
@@ -18,8 +20,6 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-
-  const service = await createServiceClient()
 
   const shortLabel = (i: { name?: string; slug?: string; display_name?: string | null }) => {
     if (i.display_name?.trim()) return i.display_name.trim()
@@ -31,14 +31,14 @@ export async function GET() {
 
   let institutions: any[] | null = null
   {
-    const withDisplay = await service
+    const withDisplay = await supabase
       .from('institutions')
       .select('id, name, slug, display_name')
       .order('name', { ascending: true })
     if (!withDisplay.error) {
       institutions = withDisplay.data
     } else {
-      const fallback = await service
+      const fallback = await supabase
         .from('institutions')
         .select('id, name, slug')
         .order('name', { ascending: true })
@@ -53,13 +53,13 @@ export async function GET() {
     display_name: shortLabel(i),
   }))
 
-  const { data: registration } = await service
+  const { data: registration } = await supabase
     .from('student_registrations')
     .select('id, registration_status, institution_id, review_notes, rejection_reason')
     .eq('user_id', user.id)
     .maybeSingle()
 
-  const { data: profile } = await service
+  const { data: profile } = await supabase
     .from('profiles')
     .select('account_status, full_name, email')
     .eq('id', user.id)
@@ -75,10 +75,9 @@ export async function GET() {
 
 /**
  * POST /api/register
- * Submit (or resubmit) the Bhutan KYC registration form. Writes with the
- * service client so the profiles-update RLS lock from migration 023 does not
- * block a legitimate first submission. Leaves the account 'pending' until an
- * assigned reviewer approves.
+ * Submit (or resubmit) the Bhutan KYC registration form.
+ * Leaves the account 'pending' until an assigned reviewer approves.
+ * Uses the signed-in session + RLS (owner insert/update policies).
  */
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient()
@@ -149,8 +148,6 @@ export async function POST(request: Request) {
 
   const role = REQUESTABLE_ROLES.includes(requested_role) ? requested_role : 'student'
 
-  const service = await createServiceClient()
-
   const payload = {
     user_id: user.id,
     institution_id,
@@ -176,7 +173,7 @@ export async function POST(request: Request) {
     updated_at: new Date().toISOString(),
   }
 
-  const { error: upsertError } = await service
+  const { error: upsertError } = await supabase
     .from('student_registrations')
     .upsert(payload, { onConflict: 'user_id,institution_id' })
 
@@ -186,10 +183,10 @@ export async function POST(request: Request) {
 
   // Keep the account pending + attach the institution so the gate routes them
   // to the pending page (not back to the form).
-  await service
+  // account_status must remain unchanged per RLS (Users can update own profile limited).
+  await supabase
     .from('profiles')
     .update({
-      account_status: 'pending',
       institution_id,
       full_name: full_name.trim(),
       updated_at: new Date().toISOString(),
@@ -199,7 +196,7 @@ export async function POST(request: Request) {
   // Alert superadmins, admins, resource persons, and assigned reviewers
   try {
     const { notifyApproversOfRegistration } = await import('@/lib/notify-approvers')
-    await notifyApproversOfRegistration(service, {
+    await notifyApproversOfRegistration(supabase, {
       applicantName: full_name.trim(),
       applicantEmail: user.email,
       institutionId: institution_id,

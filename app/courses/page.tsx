@@ -311,7 +311,7 @@ export default function CoursesPage() {
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Course catalog</h1>
             <p className="text-sm text-muted-foreground sm:text-base">
-              Discover and enroll in verified courses across Bhutan.
+              Discover courses across Bhutan. Request enrollment — the course creator approves access.
             </p>
           </div>
           <Button

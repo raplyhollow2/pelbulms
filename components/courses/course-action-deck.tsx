@@ -33,7 +33,9 @@ export function CourseActionDeck({
   onInviteCodeChange,
   variant = 'both',
 }: CourseActionDeckProps) {
-  const requiresApproval = (course as any).enrollment_mode === 'approval'
+  const requiresApproval = (course as any).enrollment_mode !== 'auto' &&
+    (course as any).enrollment_mode !== 'invite_code' &&
+    (course as any).enrollment_mode !== 'paid'
   const duration = course.duration_minutes
     ? `${Math.floor(course.duration_minutes / 60)}h ${course.duration_minutes % 60}m`
     : 'Self-paced'
@@ -134,10 +136,12 @@ export function CourseActionDeck({
             {isEnrolled
               ? 'Pick up where you left off'
               : enrollmentPending
-                ? 'Waiting for the course creator to approve'
+                ? 'Waiting for the course creator to approve your request'
                 : inviteMode
                   ? 'Your teacher sends a unique code by email or SMS'
-                  : 'Included with a verified account'}
+                  : requiresApproval
+                    ? 'Free course — the creator reviews enrollment requests'
+                    : 'Join instantly and start learning'}
           </p>
           <Button
             className={`min-h-11 w-full text-black ${
@@ -170,7 +174,13 @@ export function CourseActionDeck({
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">{course.title}</p>
               <p className="text-xs text-muted-foreground">
-                {isEnrolled ? 'Resume from last lesson' : 'Verified account required'}
+                {isEnrolled
+                  ? 'Resume from last lesson'
+                  : enrollmentPending
+                    ? 'Awaiting creator approval'
+                    : requiresApproval
+                      ? 'Request to enroll'
+                      : 'Start learning'}
               </p>
             </div>
             <Button
@@ -185,7 +195,7 @@ export function CourseActionDeck({
               disabled={enrollmentPending}
               onClick={isEnrolled ? onLearn : onEnroll}
             >
-              {isEnrolled ? 'Resume' : enrollmentPending ? 'Pending' : 'Enroll'}
+              {isEnrolled ? 'Resume' : enrollmentPending ? 'Pending' : requiresApproval ? 'Request' : 'Enroll'}
             </Button>
           </div>
         </div>

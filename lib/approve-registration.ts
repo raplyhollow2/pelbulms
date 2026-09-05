@@ -96,11 +96,7 @@ export async function processRegistrationReview(
 
     if (regUpdateError) return { success: false, error: regUpdateError.message }
 
-    await service
-      .from('profiles')
-      .update({ account_status: 'rejected', updated_at: now })
-      .eq('id', reg.user_id)
-
+    // KYC reject is optional profile review only — do not lock LMS account access.
     await service.from('user_approvals').upsert(
       {
         user_id: reg.user_id,
@@ -109,16 +105,14 @@ export async function processRegistrationReview(
         reviewed_by: reviewerId,
         reviewed_at: now,
         rejection_reason: rejectionReason || null,
-        notes: `Rejected: ${reviewNotes || 'No notes'}`,
+        notes: `KYC rejected (account remains active): ${reviewNotes || 'No notes'}`,
       },
       { onConflict: 'user_id,institution_id' }
     )
 
-    await mergeAuthAppMetadata(service, reg.user_id, { account_status: 'rejected' })
-
     return {
       success: true,
-      message: 'Registration rejected',
+      message: 'Registration rejected (LMS access unchanged)',
       registration_id: registrationId,
     }
   }

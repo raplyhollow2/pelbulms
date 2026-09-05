@@ -155,9 +155,11 @@ export function CourseCard({
               ? 'Continue learning'
               : enrollmentPending
                 ? 'Pending approval'
-                : (course as any).enrollment_mode === 'approval'
-                  ? 'Request enrollment'
-                  : 'Enroll now'}
+                : (course as any).enrollment_mode === 'auto' ||
+                    (course as any).enrollment_mode === 'invite_code' ||
+                    (course as any).enrollment_mode === 'paid'
+                  ? 'Enroll now'
+                  : 'Request enrollment'}
           </Button>
         </CardContent>
       </Card>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { canAccessTeaching } from '@/lib/rbac'
 
 const BUCKET = 'kyc-documents'
@@ -9,6 +9,8 @@ const BUCKET = 'kyc-documents'
  * Returns a short-lived signed URL (302 redirect) for a private KYC document.
  * Access: the owner (path is namespaced by their user id) OR a reviewer
  * (teacher/resource_person/admin/superadmin).
+ *
+ * Uses the signed-in session + storage RLS (no service_role required).
  */
 export async function GET(request: NextRequest) {
   const supabase = await createSupabaseServerClient()
@@ -23,13 +25,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Missing path' }, { status: 400 })
   }
 
-  const service = await createServiceClient()
-
   const isOwner = path.startsWith(`${user.id}/`)
   let allowed = isOwner
 
   if (!allowed) {
-    const { data: profile } = await service
+    const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     // Assigned registration reviewers (non-teacher helpers) also need KYC previews
     if (!allowed) {
-      const { data: reviewerRows } = await service
+      const { data: reviewerRows } = await supabase
         .from('registration_reviewers')
         .select('id')
         .eq('user_id', user.id)
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const { data: signed, error } = await service.storage
+  const { data: signed, error } = await supabase.storage
     .from(BUCKET)
     .createSignedUrl(path, 60 * 5)
 

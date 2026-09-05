@@ -17,16 +17,33 @@ export function ScenarioPlayer({ lessonId }: { lessonId: string }) {
   const [feedback, setFeedback] = useState('')
 
   useEffect(() => {
+    let cancelled = false
     void (async () => {
-      const res = await fetch(`/api/scenarios?lessonId=${lessonId}`)
-      const data = await res.json()
-      const published = (data.scenarios || []).find((s: any) => s.is_published) || data.scenarios?.[0]
-      if (published) {
-        const nodes = Array.isArray(published.nodes) ? published.nodes : []
-        setScenario({ title: published.title, nodes })
-        setNodeId(nodes[0]?.id || null)
+      try {
+        const res = await fetch(`/api/scenarios?lessonId=${encodeURIComponent(lessonId)}`)
+        const text = await res.text()
+        if (!text) return
+        let data: any = null
+        try {
+          data = JSON.parse(text)
+        } catch {
+          return
+        }
+        if (cancelled || !data) return
+        const published =
+          (data.scenarios || []).find((s: any) => s.is_published) || data.scenarios?.[0]
+        if (published) {
+          const nodes = Array.isArray(published.nodes) ? published.nodes : []
+          setScenario({ title: published.title, nodes })
+          setNodeId(nodes[0]?.id || null)
+        }
+      } catch {
+        // Scenarios are optional on a lesson — never crash the learn page.
       }
     })()
+    return () => {
+      cancelled = true
+    }
   }, [lessonId])
 
   if (!scenario || !nodeId) return null

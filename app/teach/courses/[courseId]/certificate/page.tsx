@@ -7,11 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { ArrowLeft, Loader2, Save, UploadCloud, Trash2, Camera } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, Camera } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { uploadImageDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
-import { resolveMediaUrl } from '@/lib/media'
-import { CertificateCanvas } from '@/components/teach/certificate-canvas'
+import { CertificateEditor } from '@/components/teach/certificate-editor'
 import {
   defaultCertificateLayout,
   layoutFromLegacySettings,
@@ -49,8 +48,7 @@ export default function CertificateDesignPage() {
   const [settings, setSettings] = useState<CertSettings>(DEFAULTS)
   const [layout, setLayout] = useState<CertificateLayout>(defaultCertificateLayout())
   const [message, setMessage] = useState('')
-  const [uploadingLogo, setUploadingLogo] = useState(false)
-  const logoInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
   const signatureInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -61,7 +59,9 @@ export default function CertificateDesignPage() {
   const load = async () => {
     setLoading(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
       if (!user) {
         router.push('/auth/login')
         return
@@ -111,19 +111,71 @@ export default function CertificateDesignPage() {
     }
   }
 
+  const uploadAsset = async (file: File): Promise<string> => {
+    setUploading(true)
+    setMessage('')
+    try {
+      try {
+        const { url } = await uploadImageDirectToCloudinary(file, {
+          folder: `course-media/images/${courseId}/certificate`,
+        })
+        setSettings((prev) => ({ ...prev, logoUrl: url }))
+        setMessage('Asset added to canvas. Save design to keep it.')
+        return url
+      } catch (directErr: any) {
+        if (file.size > 8 * 1024 * 1024) throw directErr
+      }
+
+      const body = new FormData()
+      body.append('file', file)
+      body.append('courseId', courseId)
+      body.append('kind', 'image')
+      const res = await fetch('/api/courses/media', { method: 'POST', body })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+      setSettings((prev) => ({ ...prev, logoUrl: data.url }))
+      setMessage('Asset added to canvas. Save design to keep it.')
+      return data.url as string
+    } catch (e: any) {
+      setMessage(e?.message || 'Failed to upload asset')
+      return ''
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const uploadSignature = async (file: File) => {
-    setUploadingLogo(true)
+    setUploading(true)
     try {
       const transparent = await stripNearWhiteBackground(file)
       const { url } = await uploadImageDirectToCloudinary(transparent, {
         folder: `course-media/images/${courseId}/signature`,
       })
-      setLayout((prev) => ({ ...prev, signatureUrl: url }))
-      setMessage('Signature uploaded. Drag it on the canvas, then save.')
+      // Place as a free-floating image — never bind into the instructor-name layer
+      setLayout((prev) => {
+        const sig = prev.layers.find((l) => l.type === 'signature')
+        const withoutOld = prev.logos.filter((l) => !l.id.startsWith('sig-image'))
+        return {
+          ...prev,
+          signatureUrl: undefined,
+          logos: [
+            ...withoutOld,
+            {
+              id: `sig-image-${Date.now()}`,
+              src: url,
+              x: sig ? sig.x + Math.max(0, (sig.w - 180) / 2) : 470,
+              y: sig ? Math.max(40, sig.y - 70) : 520,
+              w: 180,
+              h: 64,
+            },
+          ],
+        }
+      })
+      setMessage('Signature image added separately from the instructor name. Drag to place, then save.')
     } catch (e: any) {
       setMessage(e?.message || 'Failed to upload signature')
     } finally {
-      setUploadingLogo(false)
+      setUploading(false)
     }
   }
 
@@ -137,13 +189,21 @@ export default function CertificateDesignPage() {
           certificate_enabled: enabled,
           certificate_settings: {
             ...settings,
+            brandName: settings.brandName,
+            titleLine: layout.titleLine || settings.titleLine,
+            accentColor: layout.accentColor || settings.accentColor,
+            signatureName: settings.signatureName,
+            signatureTitle: settings.signatureTitle,
+            logoUrl: settings.logoUrl || layout.logos[0]?.src || '',
             layout: {
               ...layout,
               brandName: settings.brandName,
-              titleLine: settings.titleLine,
-              accentColor: settings.accentColor,
+              titleLine: layout.titleLine || settings.titleLine,
+              accentColor: layout.accentColor,
               signatureName: settings.signatureName,
               signatureTitle: settings.signatureTitle,
+              // Never persist a bound signature image on the name layer
+              signatureUrl: undefined,
             },
           },
           updated_at: new Date().toISOString(),
@@ -158,282 +218,144 @@ export default function CertificateDesignPage() {
     }
   }
 
-  const uploadLogo = async (file: File) => {
-    setUploadingLogo(true)
-    setMessage('')
-    try {
-      try {
-        const { url } = await uploadImageDirectToCloudinary(file, {
-          folder: `course-media/images/${courseId}/certificate`,
-        })
-        setSettings((prev) => ({ ...prev, logoUrl: url }))
-        setLayout((prev) => ({
-          ...prev,
-          logos: [
-            ...prev.logos,
-            { id: `logo-${Date.now()}`, src: url, x: 80 + prev.logos.length * 140, y: 36, w: 120, h: 60 },
-          ],
-        }))
-        setMessage('Logo uploaded. Save design to keep it.')
-        return
-      } catch (directErr: any) {
-        if (file.size > 8 * 1024 * 1024) throw directErr
-      }
-
-      const body = new FormData()
-      body.append('file', file)
-      body.append('courseId', courseId)
-      body.append('kind', 'image')
-      const res = await fetch('/api/courses/media', { method: 'POST', body })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Upload failed')
-      setSettings((prev) => ({ ...prev, logoUrl: data.url }))
-      setLayout((prev) => ({
-        ...prev,
-        logos: [
-          ...prev.logos,
-          { id: `logo-${Date.now()}`, src: data.url, x: 80 + prev.logos.length * 140, y: 36, w: 120, h: 60 },
-        ],
-      }))
-      setMessage('Logo uploaded. Save design to keep it.')
-    } catch (e: any) {
-      setMessage(e?.message || 'Failed to upload logo')
-    } finally {
-      setUploadingLogo(false)
-      if (logoInputRef.current) logoInputRef.current.value = ''
-    }
-  }
-
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-12 flex justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-bhutan-yellow" />
+      <div className="container mx-auto flex justify-center px-4 py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-bhutan-yellow" />
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
-      <Button variant="ghost" onClick={() => router.push(`/teach/courses/${courseId}/edit`)}>
-        <ArrowLeft className="w-4 h-4 mr-2" /> Back to course
-      </Button>
-
-      <div className="grid grid-cols-1 gap-6">
-        <Card className="min-w-0">
-          <CardHeader>
-            <CardTitle>Live canvas</CardTitle>
-            <CardDescription>
-              Full certificate preview. Drag logos, title, and signature. Multiple organization logos are supported.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="min-w-0 overflow-hidden">
-            <CertificateCanvas
-              layout={{
-                ...layout,
-                brandName: settings.brandName,
-                titleLine: settings.titleLine,
-                accentColor: settings.accentColor,
-                signatureName: settings.signatureName,
-                signatureTitle: settings.signatureTitle,
-              }}
-              onChange={setLayout}
-              sampleName="Student Name"
-              sampleCourse={courseTitle}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Certificate design</CardTitle>
-            <CardDescription>
-              Customize the certificate issued when students complete{' '}
-              <strong>{courseTitle}</strong>.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between rounded-lg border p-3">
-              <div>
-                <Label>Offer certificate</Label>
-                <p className="text-xs text-muted-foreground">Issue PDF on course completion</p>
-              </div>
-              <Switch checked={enabled} onCheckedChange={setEnabled} />
-            </div>
-            <div>
-              <Label>Brand name</Label>
-              <Input
-                className="mt-1"
-                value={settings.brandName}
-                onChange={(e) => setSettings({ ...settings, brandName: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Certificate title</Label>
-              <Input
-                className="mt-1"
-                value={settings.titleLine}
-                onChange={(e) => setSettings({ ...settings, titleLine: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Accent color</Label>
-              <div className="flex gap-2 mt-1">
-                <Input
-                  type="color"
-                  className="w-14 h-10 p-1"
-                  value={settings.accentColor}
-                  onChange={(e) => setSettings({ ...settings, accentColor: e.target.value })}
-                />
-                <Input
-                  value={settings.accentColor}
-                  onChange={(e) => setSettings({ ...settings, accentColor: e.target.value })}
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Signature name</Label>
-              <Input
-                className="mt-1"
-                value={settings.signatureName}
-                onChange={(e) => setSettings({ ...settings, signatureName: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Signature title</Label>
-              <Input
-                className="mt-1"
-                value={settings.signatureTitle}
-                onChange={(e) => setSettings({ ...settings, signatureTitle: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label>Tagline</Label>
-              <Input
-                className="mt-1 min-h-11"
-                value={layout.tagline}
-                onChange={(e) => {
-                  const tagline = e.target.value
-                  setLayout((prev) => ({
-                    ...prev,
-                    tagline,
-                    layers: prev.layers.map((l) =>
-                      l.type === 'tagline' ? { ...l, text: tagline } : l
-                    ),
-                  }))
-                }}
-              />
-            </div>
-            <div>
-              <Label>Border</Label>
-              <select
-                className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
-                value={layout.borderStyle}
-                onChange={(e) =>
-                  setLayout((prev) => ({
-                    ...prev,
-                    borderStyle: e.target.value as CertificateLayout['borderStyle'],
-                  }))
-                }
-              >
-                <option value="none">None</option>
-                <option value="single">Single</option>
-                <option value="double">Double</option>
-                <option value="ornate">Ornate</option>
-              </select>
-            </div>
-            <div>
-              <Label>Signature (file or camera, transparent background)</Label>
-              <input
-                ref={signatureInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) void uploadSignature(file)
-                }}
-              />
-              <div className="mt-2 flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-11"
-                  onClick={() => signatureInputRef.current?.click()}
-                >
-                  <Camera className="mr-2 h-4 w-4" />
-                  Upload / camera
-                </Button>
-              </div>
-            </div>
-            <div>
-              <Label>Organization logos (add several for joint courses)</Label>
-              <p className="text-xs text-muted-foreground mt-0.5 mb-2">
-                Upload an image or paste a URL. Drag logos on the canvas.
-              </p>
-              {settings.logoUrl ? (
-                <div className="mb-2 flex items-center gap-3 rounded-lg border p-2">
-                  <img
-                    src={resolveMediaUrl(settings.logoUrl) || settings.logoUrl}
-                    alt="Certificate logo"
-                    className="h-12 w-12 object-contain rounded bg-muted"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSettings({ ...settings, logoUrl: '' })}
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Remove
-                  </Button>
-                </div>
-              ) : null}
-              <input
-                ref={logoInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) void uploadLogo(file)
-                }}
-              />
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={uploadingLogo}
-                  onClick={() => logoInputRef.current?.click()}
-                >
-                  {uploadingLogo ? (
-                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                  ) : (
-                    <UploadCloud className="w-4 h-4 mr-1.5" />
-                  )}
-                  {uploadingLogo ? 'Uploading…' : 'Upload logo'}
-                </Button>
-              </div>
-              <Input
-                className="mt-2"
-                value={settings.logoUrl}
-                onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
-                placeholder="Or paste logo URL…"
-              />
-            </div>
-            <Button
-              onClick={save}
-              disabled={saving}
-              className="bg-bhutan-yellow text-black hover:bg-bhutan-orange"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-              Save design
-            </Button>
-            {message && <p className="text-sm text-muted-foreground">{message}</p>}
-          </CardContent>
-        </Card>
+    <div className="container mx-auto max-w-7xl space-y-6 px-4 py-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Button variant="ghost" onClick={() => router.push(`/teach/courses/${courseId}/edit`)}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to course
+        </Button>
+        <Button
+          onClick={save}
+          disabled={saving}
+          className="bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+        >
+          {saving ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="mr-2 h-4 w-4" />
+          )}
+          Save design
+        </Button>
       </div>
+
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Certificate studio</h1>
+        <p className="text-sm text-muted-foreground">
+          Canva-style editor for <strong>{courseTitle}</strong> — drag, resize, and customize with
+          digital assets. Start from the Bhutan Official template to match MoLHR-style certificates.
+        </p>
+      </div>
+
+      <CertificateEditor
+        layout={{
+          ...layout,
+          brandName: settings.brandName,
+          titleLine: layout.titleLine || settings.titleLine,
+          accentColor: layout.accentColor || settings.accentColor,
+          signatureName: settings.signatureName,
+          signatureTitle: settings.signatureTitle,
+        }}
+        onChange={(next) => {
+          setLayout((prev) => {
+            const resolved = typeof next === 'function' ? next(prev) : next
+            queueMicrotask(() => {
+              setSettings((s) => ({
+                ...s,
+                titleLine: resolved.titleLine || s.titleLine,
+                accentColor: resolved.accentColor || s.accentColor,
+                logoUrl: resolved.logos[0]?.src || s.logoUrl,
+              }))
+            })
+            return resolved
+          })
+        }}
+        sampleName="Tshering Pelden"
+        sampleCourse={courseTitle || 'Small Business Management'}
+        onUploadAsset={uploadAsset}
+        uploading={uploading}
+      />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Issuance settings</CardTitle>
+          <CardDescription>Enable certificates and set signer details for issued PDFs.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
+            <div>
+              <Label>Offer certificate</Label>
+              <p className="text-xs text-muted-foreground">Issue PDF on course completion</p>
+            </div>
+            <Switch checked={enabled} onCheckedChange={setEnabled} />
+          </div>
+          <div>
+            <Label>Brand name</Label>
+            <Input
+              className="mt-1 min-h-11"
+              value={settings.brandName}
+              onChange={(e) => setSettings({ ...settings, brandName: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label>Signature name</Label>
+            <Input
+              className="mt-1 min-h-11"
+              value={settings.signatureName}
+              onChange={(e) => {
+                const signatureName = e.target.value
+                setSettings({ ...settings, signatureName })
+                setLayout((prev) => ({ ...prev, signatureName }))
+              }}
+            />
+          </div>
+          <div>
+            <Label>Signature title</Label>
+            <Input
+              className="mt-1 min-h-11"
+              value={settings.signatureTitle}
+              onChange={(e) => {
+                const signatureTitle = e.target.value
+                setSettings({ ...settings, signatureTitle })
+                setLayout((prev) => ({ ...prev, signatureTitle }))
+              }}
+            />
+          </div>
+          <div>
+            <Label>Signature image (camera / file)</Label>
+            <input
+              ref={signatureInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) void uploadSignature(file)
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-1 min-h-11 w-full"
+              onClick={() => signatureInputRef.current?.click()}
+            >
+              <Camera className="mr-2 h-4 w-4" />
+              Upload / camera
+            </Button>
+          </div>
+          {message && (
+            <p className="text-sm text-muted-foreground sm:col-span-2">{message}</p>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

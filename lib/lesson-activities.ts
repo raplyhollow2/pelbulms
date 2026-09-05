@@ -6,7 +6,6 @@ import {
   Database,
   File,
   Folder,
-  MessagesSquare,
   BookMarked,
   Type,
   FileText,
@@ -64,6 +63,8 @@ export type LessonActivity = {
   content?: string
   /** Linked row in `quizzes` when activity === 'quiz' */
   quizId?: string
+  /** When true, learner must complete before next lesson (if gated) */
+  required?: boolean
   createdAt?: string
 }
 
@@ -112,14 +113,6 @@ export const LESSON_ACTIVITY_TYPES: ActivityDefinition[] = [
     category: 'activities',
     icon: ListChecks,
     fields: ['title', 'description', 'choices'],
-  },
-  {
-    type: 'forum',
-    label: 'Forum',
-    description: 'Discussion board for this lesson',
-    category: 'activities',
-    icon: MessagesSquare,
-    fields: ['title', 'description'],
   },
   {
     type: 'chat',
@@ -282,6 +275,7 @@ export function parseLessonActivities(raw: unknown): LessonActivity[] {
         choices: item.choices,
         content: item.content,
         quizId: item.quizId,
+        required: typeof item.required === 'boolean' ? item.required : undefined,
         createdAt: item.createdAt,
       } satisfies LessonActivity
     }
@@ -297,4 +291,18 @@ export function parseLessonActivities(raw: unknown): LessonActivity[] {
       createdAt: item.createdAt,
     } satisfies LessonActivity
   })
+}
+
+/** Default required=true for assessments/readings; false for decorative labels. */
+export function defaultActivityRequired(type: LessonActivityType): boolean {
+  return type !== 'label' && type !== 'chat'
+}
+
+export function isActivityRequired(activity: LessonActivity): boolean {
+  if (typeof activity.required === 'boolean') return activity.required
+  return defaultActivityRequired(activity.activity)
+}
+
+export function getMandatoryActivities(raw: unknown): LessonActivity[] {
+  return parseLessonActivities(raw).filter(isActivityRequired)
 }

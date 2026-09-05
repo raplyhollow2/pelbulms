@@ -411,10 +411,10 @@ export default function LessonEditPage() {
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <Label htmlFor="gate-next" className="text-sm">
-                          Unlock next only after activities done
+                          Block next until mandatory activities are done
                         </Label>
                         <p className="text-xs text-muted-foreground">
-                          Next lesson stays locked until the student finishes resources/flashcards
+                          Next lesson stays locked until mandatory activities are finished
                         </p>
                       </div>
                       <Switch
@@ -428,6 +428,33 @@ export default function LessonEditPage() {
                           } as any)
                         }
                       />
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <Label htmlFor="completion-mode" className="text-sm">
+                          Lesson completion
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Auto marks the lesson complete when video watch threshold and mandatory
+                          activities are done. Manual keeps the Complete button.
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          {(gates.completionMode || 'manual') === 'auto' ? 'Auto' : 'Manual'}
+                        </span>
+                        <Switch
+                          id="completion-mode"
+                          checked={(gates.completionMode || 'manual') === 'auto'}
+                          onCheckedChange={(checked) =>
+                            updateLesson({
+                              metadata: withGateSettings((lesson as any).metadata, {
+                                completionMode: checked ? 'auto' : 'manual',
+                              }),
+                            } as any)
+                          }
+                        />
+                      </div>
                     </div>
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
@@ -662,8 +689,8 @@ export default function LessonEditPage() {
               Lesson content
             </CardTitle>
             <CardDescription className="text-sm">
-              Add activities and resources (assignment, file, forum, quiz, and more). Students see
-              them under this lesson.
+              Add activities and resources (assignment, file, quiz, and more). Students see
+              them under this lesson. Use the Discussion tab for class conversation.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CourseSyllabus } from './course-syllabus'
 import { CourseOverview, type InstructorInfo } from './course-overview'
@@ -8,10 +8,9 @@ import { SimpleNotes } from './simple-notes'
 import { AnnouncementsList } from './announcements-list'
 import { ReviewsDashboard } from './reviews-dashboard'
 import { LearningTools } from './learning-tools'
-import { LessonResources } from './lesson-resources'
+import { LessonResources, type ActivityProgressItem } from './lesson-resources'
 import { LessonForum } from './lesson-forum'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import {
   FileText,
   BookOpen,
@@ -43,16 +42,19 @@ interface CourseLearningTabsProps {
   completedLessons: Set<string>
   onLessonClick: (lessonId: string) => void
   onLessonComplete: (lessonId: string, completed: boolean) => void
-  /** When true, Resources + flashcards (tools) stay locked */
   resourcesLocked?: boolean
-  /** Student already finished gated activities */
   activityCompleted?: boolean
-  onMarkActivitiesComplete?: () => void
-  markingActivities?: boolean
-  /** Which lesson ids are locked in the syllabus */
+  mandatoryTotal?: number
+  mandatoryCompleted?: number
+  activityProgressById?: Record<string, ActivityProgressItem>
+  onMarkActivityDone?: (activityId: string) => void | Promise<void>
+  markingActivityId?: string | null
   lockedLessonIds?: Set<string>
   moduleResources?: unknown
   onTakeQuiz?: (quizId: string) => void
+  /** Scenarios / quiz CTA — kept under Activities, off the first viewport */
+  activitiesExtra?: ReactNode
+  defaultTab?: string
 }
 
 export function CourseLearningTabs({
@@ -70,31 +72,36 @@ export function CourseLearningTabs({
   onLessonComplete,
   resourcesLocked = false,
   activityCompleted = false,
-  onMarkActivitiesComplete,
-  markingActivities = false,
+  mandatoryTotal = 0,
+  mandatoryCompleted = 0,
+  activityProgressById,
+  onMarkActivityDone,
+  markingActivityId,
   lockedLessonIds,
   moduleResources,
   onTakeQuiz,
+  activitiesExtra,
+  defaultTab = 'resources',
 }: CourseLearningTabsProps) {
-  const [activeTab, setActiveTab] = useState('syllabus')
+  const [activeTab, setActiveTab] = useState(defaultTab)
 
   const tabs = [
-    { id: 'syllabus', label: 'Course Content', icon: FileText },
-    { id: 'overview', label: 'Overview', icon: BookOpen },
-    { id: 'resources', label: 'Resources', icon: Paperclip },
+    { id: 'resources', label: 'Activities', icon: Paperclip },
     { id: 'notes', label: 'Notes', icon: StickyNote },
-    { id: 'announcements', label: 'Announcements', icon: Bell },
     { id: 'discussion', label: 'Discussion', icon: MessagesSquare },
+    { id: 'tools', label: 'Tools', icon: Clock },
+    { id: 'overview', label: 'Overview', icon: BookOpen },
+    { id: 'syllabus', label: 'Full syllabus', icon: FileText },
+    { id: 'announcements', label: 'Announcements', icon: Bell },
     { id: 'reviews', label: 'Reviews', icon: Star },
-    { id: 'tools', label: 'Learning Tools', icon: Clock },
   ]
 
   const LockedPanel = ({ title }: { title: string }) => (
     <Card className="glass">
-      <CardContent className="py-10 text-center space-y-3">
-        <Lock className="w-8 h-8 mx-auto text-muted-foreground" />
+      <CardContent className="space-y-3 py-10 text-center">
+        <Lock className="mx-auto h-8 w-8 text-muted-foreground" />
         <p className="font-medium">{title} locked</p>
-        <p className="text-sm text-muted-foreground max-w-md mx-auto">
+        <p className="mx-auto max-w-md text-sm text-muted-foreground">
           Complete this lesson first. Resources and flashcards unlock after you mark the lesson
           complete.
         </p>
@@ -104,8 +111,8 @@ export function CourseLearningTabs({
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <div className="overflow-x-auto -mx-1 px-1 scrollbar-hide">
-        <TabsList className="inline-flex w-max min-w-full sm:grid sm:w-full sm:grid-cols-4 lg:grid-cols-8 bg-secondary/30 h-auto p-1 gap-1">
+      <div className="-mx-1 overflow-x-auto px-1 scrollbar-hide">
+        <TabsList className="inline-flex h-auto w-max min-w-full gap-1 bg-secondary/30 p-1 sm:grid sm:w-full sm:grid-cols-4 lg:grid-cols-8">
           {tabs.map((tab) => {
             const Icon = tab.icon
             const locked =
@@ -114,14 +121,14 @@ export function CourseLearningTabs({
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
-                className="flex min-h-11 items-center gap-1.5 sm:gap-2 px-3 data-[state=active]:bg-bhutan-yellow data-[state=active]:text-black shrink-0"
+                className="flex min-h-11 shrink-0 items-center gap-1.5 px-3 data-[state=active]:bg-bhutan-yellow data-[state=active]:text-black sm:gap-2"
               >
                 {locked ? (
-                  <Lock className="w-4 h-4 shrink-0" />
+                  <Lock className="h-4 w-4 shrink-0" />
                 ) : (
-                  <Icon className="w-4 h-4 shrink-0" />
+                  <Icon className="h-4 w-4 shrink-0" />
                 )}
-                <span className="text-xs sm:text-sm whitespace-nowrap">{tab.label}</span>
+                <span className="whitespace-nowrap text-xs sm:text-sm">{tab.label}</span>
               </TabsTrigger>
             )
           })}
@@ -150,36 +157,31 @@ export function CourseLearningTabs({
 
       <TabsContent value="resources" className="mt-6 space-y-3">
         {resourcesLocked ? (
-          <LockedPanel title="Resources" />
+          <LockedPanel title="Activities" />
         ) : (
           <>
             <LessonResources
               resources={(currentLesson as any)?.resources}
               extraResources={moduleResources}
               onTakeQuiz={onTakeQuiz}
+              progressById={activityProgressById}
+              mandatoryTotal={mandatoryTotal}
+              mandatoryCompleted={mandatoryCompleted}
+              onMarkDone={onMarkActivityDone}
+              markingActivityId={markingActivityId}
             />
-            {onMarkActivitiesComplete && !activityCompleted && (
-              <Card className="glass border-bhutan-yellow/40">
-                <CardContent className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <p className="text-sm text-muted-foreground">
-                    Finished the resources and flashcards? Mark them done to unlock the next lesson.
-                  </p>
-                  <Button
-                    size="sm"
-                    className="bg-bhutan-yellow hover:bg-bhutan-orange text-black shrink-0"
-                    disabled={markingActivities}
-                    onClick={() => onMarkActivitiesComplete()}
-                  >
-                    <CheckCircle className="w-4 h-4 mr-1.5" />
-                    Mark activities complete
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-            {activityCompleted && (
-              <p className="text-xs text-green-700 flex items-center gap-1">
-                <CheckCircle className="w-3.5 h-3.5" />
-                Activities completed — next lesson can unlock
+            {activitiesExtra}
+            {mandatoryTotal > 0 && (
+              <p
+                className={`flex items-center gap-1 text-xs ${
+                  activityCompleted ? 'text-green-700' : 'text-muted-foreground'
+                }`}
+              >
+                {activityCompleted ? (
+                  <CheckCircle className="h-3.5 w-3.5" />
+                ) : null}
+                {mandatoryCompleted} of {mandatoryTotal} mandatory activities complete
+                {activityCompleted ? ' — next lesson can unlock' : ''}
               </p>
             )}
           </>
@@ -187,17 +189,11 @@ export function CourseLearningTabs({
       </TabsContent>
 
       <TabsContent value="notes" className="mt-6">
-        <SimpleNotes
-          lessonId={currentLessonId}
-          courseId={course.id}
-        />
+        <SimpleNotes lessonId={currentLessonId} courseId={course.id} />
       </TabsContent>
 
       <TabsContent value="announcements" className="mt-6">
-        <AnnouncementsList
-          courseId={course.id}
-          userId={userId}
-        />
+        <AnnouncementsList courseId={course.id} userId={userId} />
       </TabsContent>
 
       <TabsContent value="discussion" className="mt-6">
@@ -210,41 +206,14 @@ export function CourseLearningTabs({
       </TabsContent>
 
       <TabsContent value="reviews" className="mt-6">
-        <ReviewsDashboard
-          courseId={course.id}
-          userId={userId}
-        />
+        <ReviewsDashboard courseId={course.id} userId={userId} />
       </TabsContent>
 
       <TabsContent value="tools" className="mt-6 space-y-3">
         {resourcesLocked ? (
           <LockedPanel title="Learning tools" />
         ) : (
-          <>
-            <LearningTools
-              courseId={course.id}
-              lessonId={currentLessonId}
-              userId={userId}
-            />
-            {onMarkActivitiesComplete && !activityCompleted && (
-              <Card className="glass border-bhutan-yellow/40">
-                <CardContent className="py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <p className="text-sm text-muted-foreground">
-                    Done with flashcards? Mark activities complete to unlock the next lesson.
-                  </p>
-                  <Button
-                    size="sm"
-                    className="bg-bhutan-yellow hover:bg-bhutan-orange text-black shrink-0"
-                    disabled={markingActivities}
-                    onClick={() => onMarkActivitiesComplete()}
-                  >
-                    <CheckCircle className="w-4 h-4 mr-1.5" />
-                    Mark activities complete
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </>
+          <LearningTools courseId={course.id} lessonId={currentLessonId} userId={userId} />
         )}
       </TabsContent>
     </Tabs>

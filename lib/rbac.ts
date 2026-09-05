@@ -1,4 +1,4 @@
-import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient, tryCreateServiceClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
 export type UserRole =
@@ -49,25 +49,19 @@ export async function checkRBAC(
       }
     }
 
-    // Read the role with the service client so row-level security can never
-    // hide the caller's own profile (which would otherwise 403 legit admins).
+    // Prefer service client so RLS can never hide the caller's profile.
+    // Fall back to the session client when service_role isn't configured
+    // (common in local/dev after `vercel env pull` of Sensitive secrets).
     let profile: { role?: string } | null = null
-    let serviceClientFailed = false
-    try {
-      const service = await createServiceClient()
+    const service = await tryCreateServiceClient()
+    if (service) {
       const { data } = await service
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single()
       profile = data as any
-    } catch (serviceError) {
-      // Service credentials missing/unavailable — fall back to the RLS client.
-      serviceClientFailed = true
-      console.error(
-        '[RBAC] Service client unavailable (is SUPABASE_SERVICE_ROLE_KEY set in this environment?):',
-        serviceError
-      )
+    } else {
       const { data } = await supabase
         .from('profiles')
         .select('role')
@@ -79,9 +73,7 @@ export async function checkRBAC(
     if (!profile) {
       return {
         hasAccess: false,
-        error: serviceClientFailed
-          ? 'Server misconfigured: missing SUPABASE_SERVICE_ROLE_KEY'
-          : 'User profile not found'
+        error: 'User profile not found'
       }
     }
 
