@@ -44,7 +44,7 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { channel: 'chrome' } }],
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:3000',
+    url: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
     reuseExistingServer: true,
     timeout: 120_000,
   },

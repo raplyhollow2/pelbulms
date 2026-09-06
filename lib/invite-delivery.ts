@@ -1,3 +1,5 @@
+import { sendEmail } from '@/lib/email/send'
+
 export function generateEnrollmentCode(): string {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   let out = ''
@@ -18,25 +20,15 @@ export async function deliverInvite(opts: {
   let smsSent = false
   let error: string | undefined
 
-  if (opts.email && process.env.RESEND_API_KEY) {
-    try {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: process.env.RESEND_FROM || 'Pelbu LMS <noreply@pelbu.bt>',
-          to: [opts.email],
-          subject: `Your enrollment code for ${opts.courseTitle}`,
-          text: `Your unique enrollment code for “${opts.courseTitle}” is ${opts.code}. Enter it on the course page to join.`,
-        }),
-      })
-      emailSent = res.ok
-      if (!res.ok) error = `Email failed (${res.status})`
-    } catch (e: any) {
-      error = e?.message || 'Email send failed'
+  if (opts.email) {
+    const result = await sendEmail({
+      to: opts.email,
+      subject: `Your enrollment code for ${opts.courseTitle}`,
+      text: `Your unique enrollment code for “${opts.courseTitle}” is ${opts.code}. Enter it on the course page to join.`,
+    })
+    emailSent = result.sent
+    if (!result.sent && result.error && result.error !== 'RESEND_API_KEY is not configured') {
+      error = result.error
     }
   }
 

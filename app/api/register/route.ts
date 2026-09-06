@@ -220,10 +220,9 @@ export async function POST(request: Request) {
     }
   }
 
-  // Alert superadmins, admins, resource persons, and assigned reviewers
   try {
     const { notifyApproversOfRegistration } = await import('@/lib/notify-approvers')
-    await notifyApproversOfRegistration(supabase, {
+    await notifyApproversOfRegistration({
       applicantName: full_name.trim(),
       applicantEmail: user.email,
       institutionId: institution_id,

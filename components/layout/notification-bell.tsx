@@ -167,14 +167,18 @@ export function NotificationBell({
                           'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
                           n.type === 'registration_pending'
                             ? 'bg-bhutan-orange/15 text-bhutan-orange'
-                            : n.type === 'student_enrolled'
+                            : n.type === 'enrollment_request'
+                              ? 'bg-amber-500/15 text-amber-700'
+                              : n.type === 'student_enrolled'
                               ? 'bg-blue-500/15 text-blue-600'
                               : n.type === 'student_completed'
                                 ? 'bg-green-600/15 text-green-600'
                                 : 'bg-muted text-muted-foreground'
                         )}
                       >
-                        {n.type === 'student_enrolled' ? (
+                        {n.type === 'enrollment_request' ? (
+                          <UserPlus className="h-4 w-4" />
+                        ) : n.type === 'student_enrolled' ? (
                           <UserPlus className="h-4 w-4" />
                         ) : n.type === 'student_completed' ? (
                           <GraduationCap className="h-4 w-4" />

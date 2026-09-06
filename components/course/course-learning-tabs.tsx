@@ -2,7 +2,6 @@
 
 import { useState, type ReactNode } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { CourseSyllabus } from './course-syllabus'
 import { CourseOverview, type InstructorInfo } from './course-overview'
 import { SimpleNotes } from './simple-notes'
 import { AnnouncementsList } from './announcements-list'
@@ -12,7 +11,6 @@ import { LessonResources, type ActivityProgressItem } from './lesson-resources'
 import { LessonForum } from './lesson-forum'
 import { Card, CardContent } from '@/components/ui/card'
 import {
-  FileText,
   BookOpen,
   StickyNote,
   Bell,
@@ -59,17 +57,17 @@ interface CourseLearningTabsProps {
 
 export function CourseLearningTabs({
   course,
-  modules,
-  lessons,
+  modules: _modules,
+  lessons: _lessons,
   currentLessonId,
   currentLesson,
   currentModule,
   instructor,
   videoRef,
   userId,
-  completedLessons,
-  onLessonClick,
-  onLessonComplete,
+  completedLessons: _completedLessons,
+  onLessonClick: _onLessonClick,
+  onLessonComplete: _onLessonComplete,
   resourcesLocked = false,
   activityCompleted = false,
   mandatoryTotal = 0,
@@ -77,23 +75,22 @@ export function CourseLearningTabs({
   activityProgressById,
   onMarkActivityDone,
   markingActivityId,
-  lockedLessonIds,
+  lockedLessonIds: _lockedLessonIds,
   moduleResources,
   onTakeQuiz,
   activitiesExtra,
-  defaultTab = 'resources',
+  defaultTab = 'overview',
 }: CourseLearningTabsProps) {
   const [activeTab, setActiveTab] = useState(defaultTab)
 
   const tabs = [
-    { id: 'resources', label: 'Activities', icon: Paperclip },
-    { id: 'notes', label: 'Notes', icon: StickyNote },
-    { id: 'discussion', label: 'Discussion', icon: MessagesSquare },
-    { id: 'tools', label: 'Tools', icon: Clock },
     { id: 'overview', label: 'Overview', icon: BookOpen },
-    { id: 'syllabus', label: 'Full syllabus', icon: FileText },
+    { id: 'discussion', label: 'Q&A', icon: MessagesSquare },
+    { id: 'notes', label: 'Notes', icon: StickyNote },
     { id: 'announcements', label: 'Announcements', icon: Bell },
     { id: 'reviews', label: 'Reviews', icon: Star },
+    { id: 'tools', label: 'Learning tools', icon: Clock },
+    { id: 'resources', label: 'Resources', icon: Paperclip },
   ]
 
   const LockedPanel = ({ title }: { title: string }) => (
@@ -112,7 +109,10 @@ export function CourseLearningTabs({
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <div className="-mx-1 overflow-x-auto px-1 scrollbar-hide">
-        <TabsList className="inline-flex h-auto w-max min-w-full gap-1 bg-secondary/30 p-1 sm:grid sm:w-full sm:grid-cols-4 lg:grid-cols-8">
+        <TabsList
+          variant="line"
+          className="inline-flex h-auto w-max min-w-full justify-start gap-0 rounded-none bg-transparent p-0"
+        >
           {tabs.map((tab) => {
             const Icon = tab.icon
             const locked =
@@ -121,7 +121,7 @@ export function CourseLearningTabs({
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
-                className="flex min-h-11 shrink-0 items-center gap-1.5 px-3 data-[state=active]:bg-bhutan-yellow data-[state=active]:text-black sm:gap-2"
+                className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-none px-3 text-muted-foreground data-active:bg-transparent data-active:text-foreground sm:gap-2"
               >
                 {locked ? (
                   <Lock className="h-4 w-4 shrink-0" />
@@ -134,18 +134,6 @@ export function CourseLearningTabs({
           })}
         </TabsList>
       </div>
-
-      <TabsContent value="syllabus" className="mt-6">
-        <CourseSyllabus
-          modules={modules}
-          lessons={lessons}
-          currentLessonId={currentLessonId}
-          onLessonClick={onLessonClick}
-          completedLessons={completedLessons}
-          onLessonComplete={onLessonComplete}
-          lockedLessonIds={lockedLessonIds}
-        />
-      </TabsContent>
 
       <TabsContent value="overview" className="mt-6">
         <CourseOverview

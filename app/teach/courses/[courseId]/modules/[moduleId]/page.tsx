@@ -7,19 +7,17 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
-import { Separator } from '@/components/ui/separator'
 import {
-  ArrowLeft, Plus, Trash2, Loader2, Save, BookOpen, GripVertical,
-  Link, Clock, FileText, Users, Settings as SettingsIcon, Paperclip, ExternalLink,
+  ArrowLeft, Loader2, Save, BookOpen,
+  FileText, Users, Settings as SettingsIcon, Paperclip,
 } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { createClient } from '@/lib/supabase/client'
-import { haptic } from '@/lib/utils'
-import { LessonActivitiesPanel } from '@/components/teach/lesson-activities-panel'
 import { ModuleResourcesTab } from '@/components/teach/module-resources-tab'
+import { CurriculumSequenceEditor } from '@/components/teach/curriculum-sequence-editor'
 import { withGateSettings, readGateSettings } from '@/lib/progression-gates'
+import { withLectureKind, type LectureKind } from '@/lib/lesson-kind'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
@@ -147,11 +145,16 @@ export default function ModuleLessonsPage() {
     return max + 1
   }
 
-  const insertLesson = async () => {
+  const insertLesson = async (kind: LectureKind = 'video') => {
+    const titles: Record<LectureKind, string> = {
+      video: 'New video lecture',
+      article: 'New article',
+      resource: 'New resource',
+    }
     const newLesson = {
       id: crypto.randomUUID(),
       module_id: moduleId,
-      title: '',
+      title: titles[kind],
       description: '',
       video_url: '',
       video_duration: 0,
@@ -161,7 +164,7 @@ export default function ModuleLessonsPage() {
       order_index: await getNextOrderIndex(),
       is_published: false,
       is_free: false,
-      metadata: {},
+      metadata: withLectureKind({}, kind),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
@@ -182,18 +185,18 @@ export default function ModuleLessonsPage() {
   // Direct add lesson function (called internally after auto-add navigation)
   const addLessonDirectly = async () => {
     try {
-      await insertLesson()
+      await insertLesson('video')
     } catch (error) {
       console.error('Error adding lesson:', error)
     }
   }
 
-  const addLesson = async () => {
+  const addLesson = async (kind: LectureKind = 'video') => {
     try {
-      await insertLesson()
+      await insertLesson(kind)
     } catch (error) {
       console.error('Error adding lesson:', error)
-      alert('Failed to add lesson. Please try again.')
+      alert('Failed to add lecture. Please try again.')
     }
   }
 
@@ -295,12 +298,6 @@ export default function ModuleLessonsPage() {
     }
   }
 
-  const getYoutubeId = (url: string) => {
-    if (!url) return ''
-    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/)
-    return match ? match[1] : ''
-  }
-
   const handleDragStart = (e: React.DragEvent, lessonId: string) => {
     setDraggedLesson(lessonId)
   }
@@ -366,6 +363,7 @@ export default function ModuleLessonsPage() {
               is_published: (lesson as any).is_published,
               is_free: lesson.is_free,
               resources: (lesson as any).resources ?? [],
+              metadata: (lesson as any).metadata || {},
               order_index: lesson.order_index,
               updated_at: new Date().toISOString(),
             })
@@ -499,189 +497,16 @@ export default function ModuleLessonsPage() {
 
           {/* LESSONS TAB */}
           <TabsContent value="lessons" className="mt-4 space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-muted-foreground">
-                {lessons.length} {lessons.length === 1 ? 'lesson' : 'lessons'} in this module
-              </p>
-              <Button onClick={addLesson} size="sm" className="bg-bhutan-yellow hover:bg-bhutan-orange text-black">
-                <Plus className="w-4 h-4 mr-1.5" />
-                Add Lesson
-              </Button>
-            </div>
-
-            {lessons.length === 0 ? (
-              <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed py-12 text-center">
-                <BookOpen className="mb-3 h-10 w-10 text-muted-foreground/40" />
-                <p className="text-sm font-medium">No lessons yet</p>
-                <p className="mb-4 text-xs text-muted-foreground">
-                  Add your first lesson to get started
-                </p>
-                <Button onClick={addLesson} size="sm">
-                  <Plus className="w-4 h-4 mr-1.5" /> Add Lesson
-                </Button>
-              </div>
-            ) : (
-              lessons.map((lesson, index) => (
-                <div
-                  key={lesson.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, lesson.id)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, lesson.id)}
-                  className="rounded-lg border bg-card/50 transition-colors hover:border-bhutan-yellow/50"
-                >
-                  <div className="space-y-3 p-3 sm:p-4">
-                    {/* Badges row */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <GripVertical className="hidden h-4 w-4 shrink-0 cursor-move text-muted-foreground sm:block" />
-                      <Badge variant="secondary" className="text-xs">Lesson {index + 1}</Badge>
-                      {lesson.duration_minutes > 0 && (
-                        <Badge variant="outline" className="flex items-center gap-1 text-xs">
-                          <Clock className="w-3 h-3" />
-                          {Math.round(lesson.duration_minutes / 60)}m
-                        </Badge>
-                      )}
-                      {!(lesson as any).is_published && (
-                        <Badge variant="secondary" className="text-xs">Draft</Badge>
-                      )}
-                      {lesson.is_free && (
-                        <Badge className="bg-bhutan-yellow text-black text-xs">Preview</Badge>
-                      )}
-                    </div>
-
-                    {/* Title */}
-                    <Input
-                      value={lesson.title}
-                      onChange={(e) => updateLesson(lesson.id, { title: e.target.value })}
-                      placeholder="Lesson title"
-                    />
-
-                    {/* Description */}
-                    <Textarea
-                      value={lesson.description || ''}
-                      onChange={(e) => updateLesson(lesson.id, { description: e.target.value })}
-                      placeholder="Lesson description..."
-                      rows={2}
-                      className="resize-none"
-                    />
-
-                    {/* YouTube URL & Duration */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="flex items-center gap-1 text-xs">
-                          <Link className="w-3 h-3" /> YouTube URL
-                        </Label>
-                        <Input
-                          value={lesson.video_url || ''}
-                          onChange={(e) => updateLesson(lesson.id, { video_url: e.target.value })}
-                          placeholder="https://youtube.com/watch?v=..."
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="flex items-center gap-1 text-xs">
-                          <Clock className="w-3 h-3" /> Duration (minutes)
-                        </Label>
-                        <Input
-                          type="number"
-                          value={lesson.duration_minutes ? Math.round(lesson.duration_minutes / 60) : ''}
-                          onChange={(e) =>
-                            updateLesson(lesson.id, {
-                              duration_minutes: parseInt(e.target.value) * 60 || 0,
-                            })
-                          }
-                          placeholder="30"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Video Preview */}
-                    {lesson.video_url && getYoutubeId(lesson.video_url) && (
-                      <div className="overflow-hidden rounded-lg border">
-                        <div className="aspect-video bg-black">
-                          <iframe
-                            src={`https://www.youtube.com/embed/${getYoutubeId(lesson.video_url)}?enablejsapi=1&rel=0&modestbranding=1`}
-                            className="h-full w-full"
-                            allowFullScreen
-                            title={lesson.title || 'Lesson video'}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    <Separator />
-
-                    <div className="rounded-lg border bg-background/40 p-3">
-                      <LessonActivitiesPanel
-                        courseId={courseId}
-                        lessonId={lesson.id}
-                        resources={(lesson as any).resources}
-                        onChange={async (next) => {
-                          try {
-                            await updateLesson(lesson.id, { resources: next as any })
-                            void notifyLearnersOfActivity(
-                              lesson.id,
-                              `Activities were updated in “${lesson.title || 'a lesson'}”.`
-                            )
-                          } catch (e: any) {
-                            console.error('Failed to save lesson activities:', e)
-                            alert(e?.message || 'Failed to save activity. Please try again.')
-                            throw e
-                          }
-                        }}
-                      />
-                    </div>
-
-                    <Separator />
-
-                    {/* Action toolbar */}
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-4">
-                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Switch
-                            checked={(lesson as any).is_published}
-                            onCheckedChange={(checked) => updateLesson(lesson.id, { is_published: checked })}
-                          />
-                          Published
-                        </label>
-                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <Switch
-                            checked={lesson.is_free}
-                            onCheckedChange={(checked) => updateLesson(lesson.id, { is_free: checked })}
-                          />
-                          Free preview
-                        </label>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() =>
-                            router.push(
-                              `/teach/courses/${courseId}/lessons/${lesson.id}`
-                            )
-                          }
-                        >
-                          <Paperclip className="w-4 h-4" />
-                          Full lesson editor
-                          <ExternalLink className="w-3.5 h-3.5 opacity-60" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteLesson(lesson.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4 mr-1.5" />
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
+            <CurriculumSequenceEditor
+              courseId={courseId}
+              lessons={lessons}
+              onAdd={(kind) => addLesson(kind)}
+              onUpdate={updateLesson}
+              onDelete={deleteLesson}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+            />
           </TabsContent>
 
           <TabsContent value="resources" className="mt-4">

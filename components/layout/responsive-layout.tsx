@@ -14,6 +14,7 @@ interface ResponsiveLayoutProps {
 export function ResponsiveLayout({ children, user }: ResponsiveLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const pathname = usePathname()
+  const isLearnPlayer = /^\/learn\/[^/]+\/lesson\//.test(pathname || '')
 
   useEffect(() => {
     const onToggle = (event: Event) => {
@@ -28,6 +29,14 @@ export function ResponsiveLayout({ children, user }: ResponsiveLayoutProps) {
       window.removeEventListener('pelbu:sidebar-collapse', onToggle as EventListener)
     }
   }, [])
+
+  if (isLearnPlayer) {
+    return (
+      <div key={pathname} className="min-h-dvh bg-background">
+        {children}
+      </div>
+    )
+  }
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background">

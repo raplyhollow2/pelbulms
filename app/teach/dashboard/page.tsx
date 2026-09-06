@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, BookOpen, Users, Loader2, Edit, BarChart3, Award, HardDrive } from 'lucide-react'
+import { Plus, BookOpen, Users, Loader2, Edit, BarChart3, Award, HardDrive, Check, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 import { resolveMediaUrl } from '@/lib/media'
@@ -26,6 +26,15 @@ type Profile = Database['public']['Tables']['profiles']['Row']
 
 type SortKey = 'newest' | 'oldest' | 'title' | 'students'
 
+type EnrollmentRequest = {
+  enrollmentId: string
+  courseId: string
+  courseTitle: string
+  studentName: string
+  studentEmail: string | null
+  requestedAt: string | null
+}
+
 export default function TeacherDashboard() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
@@ -34,6 +43,8 @@ export default function TeacherDashboard() {
   const [totalEnrollments, setTotalEnrollments] = useState(0)
   const [avgProgress, setAvgProgress] = useState<number | null>(null)
   const [activeQuizzes, setActiveQuizzes] = useState<number | null>(null)
+  const [pendingRequests, setPendingRequests] = useState<EnrollmentRequest[]>([])
+  const [decidingId, setDecidingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   const [search, setSearch] = useState('')
@@ -154,10 +165,47 @@ export default function TeacherDashboard() {
         setAvgProgress(0)
         setActiveQuizzes(0)
       }
+
+      const reqRes = await fetch('/api/teach/enrollment-requests')
+      const reqData = await reqRes.json().catch(() => ({}))
+      if (reqRes.ok && Array.isArray(reqData.requests)) {
+        setPendingRequests(reqData.requests)
+      } else {
+        setPendingRequests([])
+      }
     } catch (error) {
       console.error('Error fetching teacher data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const pendingByCourse = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const r of pendingRequests) {
+      map[r.courseId] = (map[r.courseId] || 0) + 1
+    }
+    return map
+  }, [pendingRequests])
+
+  const handleEnrollmentDecision = async (
+    enrollmentId: string,
+    action: 'approve' | 'reject'
+  ) => {
+    try {
+      setDecidingId(enrollmentId)
+      const res = await fetch('/api/teach/enrollments', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enrollmentId, action }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Failed to update enrollment')
+      setPendingRequests((prev) => prev.filter((r) => r.enrollmentId !== enrollmentId))
+    } catch (e: any) {
+      alert(e?.message || 'Failed to update enrollment')
+    } finally {
+      setDecidingId(null)
     }
   }
 
@@ -285,7 +333,7 @@ export default function TeacherDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
         <Card className="glass">
           <CardHeader className="pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
             <CardTitle className="text-xs lg:text-sm font-medium">
@@ -302,6 +350,20 @@ export default function TeacherDashboard() {
           </CardHeader>
           <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
             <div className="text-2xl lg:text-3xl font-bold text-bhutan-orange">{totalEnrollments}</div>
+          </CardContent>
+        </Card>
+        <Card className="glass">
+          <CardHeader className="pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
+            <CardTitle className="text-xs lg:text-sm font-medium">Pending requests</CardTitle>
+          </CardHeader>
+          <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
+            <div
+              data-testid="pending-enrollment-count"
+              className="text-2xl lg:text-3xl font-bold text-amber-600"
+            >
+              {pendingRequests.length}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Awaiting approval</p>
           </CardContent>
         </Card>
         <Card className="glass">
@@ -325,6 +387,59 @@ export default function TeacherDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {pendingRequests.length > 0 && (
+        <Card className="glass-strong border-amber-500/30">
+          <CardHeader>
+            <CardTitle className="text-xl lg:text-2xl">Enrollment requests</CardTitle>
+            <CardDescription>
+              Students waiting for access. Approve to grant the course, or reject.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {pendingRequests.map((request) => (
+              <div
+                key={request.enrollmentId}
+                className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-3"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium truncate">{request.studentName}</p>
+                  {request.studentEmail && (
+                    <p className="text-sm text-muted-foreground truncate">{request.studentEmail}</p>
+                  )}
+                  <p className="mt-1 text-xs text-muted-foreground truncate">{request.courseTitle}</p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Button
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                    disabled={decidingId === request.enrollmentId}
+                    onClick={() => handleEnrollmentDecision(request.enrollmentId, 'approve')}
+                  >
+                    {decidingId === request.enrollmentId ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4 mr-1" />
+                        Approve
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={decidingId === request.enrollmentId}
+                    onClick={() => handleEnrollmentDecision(request.enrollmentId, 'reject')}
+                  >
+                    <X className="w-4 h-4 mr-1" />
+                    Reject
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="glass-strong">
         <CardHeader className="px-4 sm:px-6 space-y-4">
@@ -468,6 +583,11 @@ export default function TeacherDashboard() {
                   >
                     <Users className="w-4 h-4 mr-1" />
                     Students
+                    {pendingByCourse[course.id] > 0 && (
+                      <Badge className="ml-1.5 bg-amber-500 text-black hover:bg-amber-500">
+                        {pendingByCourse[course.id]}
+                      </Badge>
+                    )}
                   </Button>
                   <Button
                     size="sm"

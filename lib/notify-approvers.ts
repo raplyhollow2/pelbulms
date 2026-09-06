@@ -1,6 +1,9 @@
 /**
  * Notify platform approvers when a new registration is submitted.
+ * Writes always use the service role — notifications have no authenticated INSERT.
  */
+
+import { tryCreateServiceClient } from '@/lib/supabase/server'
 
 export type RegistrationNotifyInput = {
   applicantName: string
@@ -74,9 +77,16 @@ export async function resolveApproverRecipientIds(
 }
 
 export async function notifyApproversOfRegistration(
-  service: any,
   input: RegistrationNotifyInput
 ): Promise<{ notified: number }> {
+  const service = await tryCreateServiceClient()
+  if (!service) {
+    console.warn(
+      '[notify] skipped approver notifications: SUPABASE_SERVICE_ROLE_KEY is not configured'
+    )
+    return { notified: 0 }
+  }
+
   const recipientIds = await resolveApproverRecipientIds(
     service,
     input.institutionId,

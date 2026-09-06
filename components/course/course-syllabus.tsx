@@ -6,9 +6,9 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Play, FileText, Code, Clock, CheckCircle, Circle, ChevronRight, Lock } from 'lucide-react'
+import { FileText, Clock, CheckCircle, ChevronRight, Lock, Video, Paperclip } from 'lucide-react'
 import type { Database } from '@/types/database.types'
+import { formatLectureDuration, inferLectureKind } from '@/lib/lesson-kind'
 
 type Lesson = Database['public']['Tables']['lessons']['Row']
 type Module = Database['public']['Tables']['modules']['Row']
@@ -61,18 +61,13 @@ export function CourseSyllabus({
   }).filter(module => module.lessons.length > 0)
 
   const getLessonIcon = (lesson: Lesson) => {
-    if (lesson.lesson_type === 'video') return Play
-    if (lesson.lesson_type === 'resource') return FileText
-    if (lesson.lesson_type === 'exercise') return Code
+    const kind = inferLectureKind(lesson)
+    if (kind === 'video') return Video
+    if (kind === 'resource') return Paperclip
     return FileText
   }
 
-  const formatDuration = (minutes: number) => {
-    const hours = Math.floor(minutes / 60)
-    const mins = minutes % 60
-    if (hours > 0) return `${hours}h ${mins}m`
-    return `${mins}m`
-  }
+  const formatDuration = (storedSeconds: number) => formatLectureDuration(storedSeconds) || '0min'
 
   return (
     <Card className="glass">
@@ -167,7 +162,7 @@ export function CourseSyllabus({
                               </div>
                               <div className="flex items-center gap-2 mt-1">
                                 <Badge variant="outline" className="text-xs">
-                                  {lesson.lesson_type || 'video'}
+                                  {inferLectureKind(lesson)}
                                 </Badge>
                                 {lesson.duration_minutes && (
                                   <span className="text-xs text-muted-foreground flex items-center gap-1">

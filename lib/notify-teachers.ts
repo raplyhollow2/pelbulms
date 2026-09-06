@@ -2,6 +2,8 @@
  * Notify course instructors when students enroll or complete.
  */
 
+import { publicAppUrl, sendEmail } from '@/lib/email/send'
+
 async function insertNotification(
   service: any,
   row: {
@@ -20,6 +22,32 @@ async function insertNotification(
   })
   if (error) {
     console.error('[notify-teachers] insert failed:', error)
+    return false
+  }
+  return true
+}
+
+async function insertNotifications(
+  service: any,
+  rows: Array<{
+    user_id: string
+    type: string
+    title: string
+    message: string
+    action_url: string
+    metadata?: Record<string, unknown>
+  }>
+) {
+  if (rows.length === 0) return false
+  const { error } = await service.from('notifications').insert(
+    rows.map((row) => ({
+      ...row,
+      is_read: false,
+      metadata: row.metadata || {},
+    }))
+  )
+  if (error) {
+    console.error('[notify-teachers] bulk insert failed:', error)
     return false
   }
   return true
@@ -51,30 +79,102 @@ async function resolveStudentName(service: any, studentId: string): Promise<stri
   return profile?.full_name || profile?.email || 'A student'
 }
 
+async function resolvePendingRecipientIds(
+  service: any,
+  instructorId: string | null,
+  studentId: string
+): Promise<string[]> {
+  const ids = new Set<string>()
+  if (instructorId && instructorId !== studentId) ids.add(instructorId)
+
+  const { data: admins } = await service
+    .from('profiles')
+    .select('id')
+    .in('role', ['admin', 'superadmin'])
+
+  for (const p of admins || []) {
+    if (p.id && p.id !== studentId) ids.add(p.id)
+  }
+
+  return [...ids]
+}
+
 export async function notifyTeacherOfEnrollment(
   service: any,
   input: { courseId: string; studentId: string; pending?: boolean }
 ): Promise<boolean> {
   const { instructorId, courseTitle } = await resolveCourseInstructor(service, input.courseId)
-  if (!instructorId || instructorId === input.studentId) return false
-
   const studentName = await resolveStudentName(service, input.studentId)
   const pending = Boolean(input.pending)
+  const actionUrl = `/teach/courses/${input.courseId}/students`
 
-  return insertNotification(service, {
-    user_id: instructorId,
-    type: pending ? 'enrollment_request' : 'student_enrolled',
-    title: pending ? 'Enrollment request' : 'New student enrolled',
-    message: pending
-      ? `${studentName} requested to join “${courseTitle}”. Approve or reject on the students page.`
-      : `${studentName} enrolled in “${courseTitle}”.`,
-    action_url: `/teach/courses/${input.courseId}/students`,
-    metadata: {
-      course_id: input.courseId,
-      student_id: input.studentId,
-      event: pending ? 'enrollment_request' : 'enrolled',
-    },
-  })
+  if (!pending) {
+    if (!instructorId || instructorId === input.studentId) return false
+    return insertNotification(service, {
+      user_id: instructorId,
+      type: 'student_enrolled',
+      title: 'New student enrolled',
+      message: `${studentName} enrolled in “${courseTitle}”.`,
+      action_url: actionUrl,
+      metadata: {
+        course_id: input.courseId,
+        student_id: input.studentId,
+        event: 'enrolled',
+      },
+    })
+  }
+
+  const recipientIds = await resolvePendingRecipientIds(service, instructorId, input.studentId)
+  if (recipientIds.length === 0) return false
+
+  const title = 'Enrollment request'
+  const message = `${studentName} requested to join “${courseTitle}”. Approve or reject on the students page.`
+  const metadata = {
+    course_id: input.courseId,
+    student_id: input.studentId,
+    event: 'enrollment_request',
+  }
+
+  const inserted = await insertNotifications(
+    service,
+    recipientIds.map((user_id) => ({
+      user_id,
+      type: 'enrollment_request',
+      title,
+      message,
+      action_url: actionUrl,
+      metadata,
+    }))
+  )
+
+  const { data: recipients } = await service
+    .from('profiles')
+    .select('id, email')
+    .in('id', recipientIds)
+
+  const approveUrl = `${publicAppUrl()}${actionUrl}`
+  const text = [
+    `${studentName} requested to join “${courseTitle}”.`,
+    '',
+    `Review the request: ${approveUrl}`,
+  ].join('\n')
+  const html = `<p>${escapeHtml(studentName)} requested to join “${escapeHtml(courseTitle)}”.</p><p><a href="${approveUrl}">Review enrollment request</a></p>`
+
+  for (const r of recipients || []) {
+    const email = (r as any).email as string | null
+    if (!email) continue
+    const result = await sendEmail({
+      to: email,
+      subject: `Enrollment request: ${courseTitle}`,
+      text,
+      html,
+    })
+    if (!result.sent && result.error) {
+      console.error('[notify-teachers] email failed:', result.error)
+    }
+  }
+
+  return inserted
 }
 
 export async function notifyTeacherOfCompletion(
@@ -98,4 +198,12 @@ export async function notifyTeacherOfCompletion(
       event: 'completed',
     },
   })
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
 }

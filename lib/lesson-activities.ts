@@ -255,42 +255,60 @@ export function newActivityId(): string {
   return `act_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
 }
 
+function coerceActivityItem(item: unknown): Record<string, any> | null {
+  if (!item) return null
+  if (typeof item === 'string') {
+    try {
+      const parsed = JSON.parse(item)
+      return parsed && typeof parsed === 'object' ? parsed : null
+    } catch {
+      return null
+    }
+  }
+  if (typeof item === 'object') return item as Record<string, any>
+  return null
+}
+
 /** Normalize legacy file resources + new activities into a typed list. */
 export function parseLessonActivities(raw: unknown): LessonActivity[] {
   if (!Array.isArray(raw)) return []
-  return raw.map((item: any, index: number) => {
-    if (item?.activity) {
-      return {
-        id: item.id || `legacy_${index}`,
-        activity: item.activity as LessonActivityType,
-        title: item.title || 'Untitled',
-        description: item.description,
-        url: item.url,
-        fileUrl: item.fileUrl,
-        fileName: item.fileName,
-        dueDate: item.dueDate,
-        maxGrade: item.maxGrade,
-        passGrade: item.passGrade,
-        allowSubmissions: item.allowSubmissions,
-        choices: item.choices,
-        content: item.content,
-        quizId: item.quizId,
-        required: typeof item.required === 'boolean' ? item.required : undefined,
-        createdAt: item.createdAt,
-      } satisfies LessonActivity
+  const items: LessonActivity[] = []
+  raw.forEach((item: unknown, index: number) => {
+    const value = coerceActivityItem(item)
+    if (!value) return
+    if (value.activity) {
+      items.push({
+        id: value.id || `legacy_${index}`,
+        activity: value.activity as LessonActivityType,
+        title: value.title || 'Untitled',
+        description: value.description,
+        url: value.url,
+        fileUrl: value.fileUrl,
+        fileName: value.fileName,
+        dueDate: value.dueDate,
+        maxGrade: value.maxGrade,
+        passGrade: value.passGrade,
+        allowSubmissions: value.allowSubmissions,
+        choices: value.choices,
+        content: value.content,
+        quizId: value.quizId,
+        required: typeof value.required === 'boolean' ? value.required : undefined,
+        createdAt: value.createdAt,
+      })
+      return
     }
-    // Legacy { title, url, type, size }
-    return {
-      id: item.id || `file_${index}`,
-      activity: 'file' as const,
-      title: item.title || item.fileName || 'File',
-      url: item.url,
-      fileUrl: item.url,
-      fileName: item.title,
-      description: item.type,
-      createdAt: item.createdAt,
-    } satisfies LessonActivity
+    items.push({
+      id: value.id || `file_${index}`,
+      activity: 'file',
+      title: value.title || value.fileName || 'File',
+      url: value.url,
+      fileUrl: value.url,
+      fileName: value.title,
+      description: value.type,
+      createdAt: value.createdAt,
+    })
   })
+  return items
 }
 
 /** Default required=true for assessments/readings; false for decorative labels. */

@@ -93,6 +93,12 @@ export async function enrollViaApi(page: Page, courseId: string) {
   return { ok: res.ok(), status: res.status(), body }
 }
 
+export async function listEnrollmentRequestsViaApi(page: Page) {
+  const res = await page.request.get('/api/teach/enrollment-requests', { timeout: 60_000 })
+  const body = await res.json().catch(() => ({}))
+  return { ok: res.ok(), status: res.status(), body }
+}
+
 export async function decideEnrollmentViaApi(
   page: Page,
   enrollmentId: string,

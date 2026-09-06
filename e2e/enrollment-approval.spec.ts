@@ -8,6 +8,7 @@ import {
 import {
   decideEnrollmentViaApi,
   enrollViaApi,
+  listEnrollmentRequestsViaApi,
   loginWithPassword,
 } from './helpers/auth'
 
@@ -66,6 +67,29 @@ test('5 students enroll into the shared course as pending', async ({ browser }) 
 
     await context.close()
   }
+})
+
+test('owner sees pending requests on the teach dashboard', async ({ browser }) => {
+  test.setTimeout(90_000)
+  const context = await browser.newContext()
+  await loginWithPassword(context, fixture.owner.email, TEST_PASSWORD)
+  const page = await context.newPage()
+
+  const queue = await listEnrollmentRequestsViaApi(page)
+  expect(queue.ok, `${queue.status} ${JSON.stringify(queue.body)}`).toBe(true)
+  expect(queue.body.requests).toHaveLength(5)
+
+  await page.goto('/teach/dashboard', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('heading', { name: /Teacher Dashboard|Course Design Dashboard/i })).toBeVisible({
+    timeout: 20_000,
+  })
+  await expect(page.getByTestId('pending-enrollment-count')).toHaveText('5', { timeout: 20_000 })
+  await expect(page.getByText('Enrollment requests').first()).toBeVisible()
+  for (const student of fixture.students) {
+    await expect(page.getByText(student.email).first()).toBeVisible()
+  }
+
+  await context.close()
 })
 
 test('owner teacher sees all 5 pending students and can approve or reject', async ({
@@ -168,6 +192,34 @@ test('co-teacher can open students page but cannot approve enrollments', async (
   const denied = await decideEnrollmentViaApi(page, enrollmentId, 'approve')
   expect(denied.status).toBe(403)
   expect(String(denied.body.error || '')).toMatch(/course creator/i)
+
+  await context.close()
+})
+
+test('owner can approve a pending request from the teach dashboard', async ({ browser }) => {
+  test.setTimeout(90_000)
+  const context = await browser.newContext()
+  await loginWithPassword(context, fixture.owner.email, TEST_PASSWORD)
+  const page = await context.newPage()
+
+  const queue = await listEnrollmentRequestsViaApi(page)
+  expect(queue.ok, `${queue.status} ${JSON.stringify(queue.body)}`).toBe(true)
+  expect((queue.body.requests as unknown[]).length).toBeGreaterThan(0)
+
+  await page.goto('/teach/dashboard', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByText('Enrollment requests').first()).toBeVisible({
+    timeout: 20_000,
+  })
+
+  const pendingEmail = fixture.students[3].email
+  const row = page
+    .locator('div.rounded-lg.border')
+    .filter({ hasText: pendingEmail })
+    .filter({ has: page.getByRole('button', { name: /^Approve$/i }) })
+    .first()
+  await row.getByRole('button', { name: /^Approve$/i }).click()
+  await expect(row).toHaveCount(0, { timeout: 15_000 })
+  await expect(page.getByTestId('pending-enrollment-count')).toHaveText('0')
 
   await context.close()
 })

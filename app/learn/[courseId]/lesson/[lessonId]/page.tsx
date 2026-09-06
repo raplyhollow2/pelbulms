@@ -11,13 +11,13 @@ import { QuizPlayer } from '@/components/quiz/quiz-player'
 import { GeminiTutor } from '@/components/ai/gemini-tutor'
 import { ScenarioPlayer } from '@/components/learning/scenario-player'
 import { CurriculumRail } from '@/components/learning/curriculum-rail'
-import { LessonFocusHeader } from '@/components/learning/lesson-focus-header'
+import { LessonPlayerHeader } from '@/components/learning/lesson-player-header'
 import { LessonNextBar } from '@/components/learning/lesson-next-bar'
 import { CourseLearningTabs } from '@/components/course/course-learning-tabs'
 import { LessonBlocks } from '@/components/course/lesson-blocks'
-import { TrackedVideoPlayer, type VideoProgressData } from '@/components/learning/tracked-video-player'
+import { LessonContentStage } from '@/components/learning/lesson-content-stage'
+import { type VideoProgressData } from '@/components/learning/tracked-video-player'
 import { parseLessonBlocks, readCourseAiMetadata } from '@/lib/lesson-blocks'
-import { resolveMediaUrl } from '@/lib/media'
 import {
   mergeGateSettings,
   canViewResourcesAndFlashcards,
@@ -197,7 +197,7 @@ export default function LessonViewPage() {
 
       if (lessonError) throw lessonError
       if (!lessonData) {
-        router.push(`/learn/${courseId}`)
+        router.push('/dashboard')
         return
       }
 
@@ -818,7 +818,7 @@ export default function LessonViewPage() {
   }
 
   const goBackToModules = () => {
-    router.push(`/learn/${courseId}`)
+    router.push('/dashboard')
   }
 
   const settingsForLesson = (id: string) => {
@@ -885,10 +885,10 @@ export default function LessonViewPage() {
           <Button
             variant="outline"
             className="mt-4"
-            onClick={() => router.push(`/learn/${courseId}`)}
+            onClick={() => router.push('/dashboard')}
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Course
+            Back to dashboard
           </Button>
         </div>
       </div>
@@ -976,7 +976,7 @@ export default function LessonViewPage() {
 
   return (
     <div
-      className="min-h-screen"
+      className="flex min-h-dvh flex-col bg-background"
       style={
         {
           backgroundColor: courseAi.theme?.background,
@@ -987,79 +987,69 @@ export default function LessonViewPage() {
         } as React.CSSProperties
       }
     >
-      <div className="mx-auto max-w-7xl px-4 py-4 sm:py-6">
-        <LessonFocusHeader
-          courseTitle={course?.title}
-          moduleTitle={module.title}
-          lessonTitle={lesson.title}
-          lessonDescription={lesson.description}
-          completedCount={completedCount}
-          totalLessons={allLessons.length}
-          progressPercent={progressPercent}
-          isCompleted={isCompleted}
-          savingProgress={savingProgress}
-          completeDisabled={
-            !isCompleted &&
-            currentGateSettings.gateNextUntilActivitiesDone &&
-            !activityCompleted
-          }
-          completeHint={
-            !isCompleted &&
-            currentGateSettings.gateNextUntilActivitiesDone &&
-            !activityCompleted
-              ? mandatoryTotal > 0
-                ? `Complete mandatory activities (${mandatoryCompleted}/${mandatoryTotal}) before marking this lesson complete.`
-                : 'Finish mandatory activities before marking this lesson complete.'
-              : currentGateSettings.completionMode === 'auto'
-                ? 'Auto-completes when video watch threshold and mandatory activities are done.'
-                : null
-          }
-          onBack={goBackToModules}
-          onToggleComplete={toggleLessonComplete}
-          headingColor={courseAi.theme?.heading}
-        />
+      <LessonPlayerHeader
+        courseTitle={course?.title}
+        completedCount={completedCount}
+        totalLessons={allLessons.length}
+        progressPercent={progressPercent}
+        isCompleted={isCompleted}
+        savingProgress={savingProgress}
+        completeDisabled={
+          !isCompleted &&
+          currentGateSettings.gateNextUntilActivitiesDone &&
+          !activityCompleted
+        }
+        completeHint={
+          !isCompleted &&
+          currentGateSettings.gateNextUntilActivitiesDone &&
+          !activityCompleted
+            ? mandatoryTotal > 0
+              ? `Complete mandatory activities (${mandatoryCompleted}/${mandatoryTotal}) before marking this lesson complete.`
+              : 'Finish mandatory activities before marking this lesson complete.'
+            : null
+        }
+        onBack={goBackToModules}
+        onToggleComplete={toggleLessonComplete}
+      />
 
-        {/* Udemy-style stage: dominant player + slim curriculum */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-5">
-          <div className="space-y-4 lg:col-span-8 xl:col-span-9">
-            <Card className="overflow-hidden border-border/60 shadow-sm">
-              <CardContent className="p-0 sm:p-0">
-                <div className="bg-black">
-                  <TrackedVideoPlayer
-                    key={lessonId}
-                    videoUrl={resolveMediaUrl(lesson.video_url) || lesson.video_url || ''}
-                    title={lesson.title}
-                    initialPositionSeconds={(lessonProgress as any)?.last_position_seconds || 0}
-                    thresholdPercent={90}
-                    onProgress={persistWatchProgress}
-                    onThresholdReached={handleThresholdReached}
-                  />
-                </div>
-                <div className="space-y-1 px-3 pb-1 pt-2 sm:px-4">
-                  {lesson.video_url && !isCompleted && (
-                    <p className="text-xs text-muted-foreground">
-                      {currentGateSettings.completionMode === 'auto'
-                        ? 'Auto-completes after ~90% watched and mandatory activities are done. Resume picks up where you left off.'
-                        : 'Watch progress saves automatically. Mark the lesson complete when you are ready.'}
-                    </p>
-                  )}
-                  <LessonNextBar
-                    currentIndex={currentLessonIndex}
-                    total={allLessons.length}
-                    currentTitle={allLessons[currentLessonIndex]?.title}
-                    canGoPrev={currentLessonIndex > 0}
-                    canGoNext={
-                      currentLessonIndex < allLessons.length - 1 && canProceedToNext
-                    }
-                    onPrev={goToPreviousLesson}
-                    onNext={goToNextLesson}
-                    sticky
-                  />
-                </div>
-              </CardContent>
-            </Card>
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <div className="min-w-0 flex-1 overflow-y-auto">
+          <LessonContentStage
+            lesson={lesson}
+            lessonId={lessonId}
+            initialPositionSeconds={(lessonProgress as any)?.last_position_seconds || 0}
+            onProgress={persistWatchProgress}
+            onThresholdReached={handleThresholdReached}
+            canGoPrev={currentLessonIndex > 0}
+            canGoNext={
+              currentLessonIndex < allLessons.length - 1 && canProceedToNext
+            }
+            onPrev={goToPreviousLesson}
+            onNext={goToNextLesson}
+            extraResources={(module as any)?.resources}
+            onTakeQuiz={(quizId) => void openQuiz(quizId)}
+            progressById={activityProgressById}
+            mandatoryTotal={mandatoryTotal}
+            mandatoryCompleted={mandatoryCompleted}
+            onMarkDone={(id) => void markActivityDone(id)}
+            markingActivityId={markingActivityId}
+          />
+          <div className="px-3 py-2 lg:hidden">
+            <LessonNextBar
+              currentIndex={currentLessonIndex}
+              total={allLessons.length}
+              currentTitle={allLessons[currentLessonIndex]?.title}
+              canGoPrev={currentLessonIndex > 0}
+              canGoNext={
+                currentLessonIndex < allLessons.length - 1 && canProceedToNext
+              }
+              onPrev={goToPreviousLesson}
+              onNext={goToNextLesson}
+            />
+          </div>
 
-            {parseLessonBlocks(lesson.content).length > 0 && (
+          {lesson.video_url && parseLessonBlocks(lesson.content).length > 0 && (
+            <div className="px-4 py-3">
               <Card className="glass">
                 <CardContent className="p-4 sm:p-6">
                   <LessonBlocks
@@ -1069,82 +1059,78 @@ export default function LessonViewPage() {
                   />
                 </CardContent>
               </Card>
-            )}
+            </div>
+          )}
 
-            {/* Secondary surface — Activities default; scenarios/quiz live here */}
-            {course && (
-              <div className="rounded-xl border bg-background/50 p-3 sm:p-4">
-                <p className="mb-3 text-sm font-medium">More for this lesson</p>
-                <CourseLearningTabs
-                  course={course}
-                  modules={allModules}
-                  lessons={allLessons}
-                  currentLessonId={lessonId}
-                  currentLesson={lesson}
-                  currentModule={module}
-                  instructor={instructor}
-                  videoRef={videoRef}
-                  userId={currentUser?.id}
-                  completedLessons={completedLessonIds}
-                  lockedLessonIds={lockedLessonIds}
-                  resourcesLocked={resourcesLocked}
-                  activityCompleted={activityCompleted}
-                  mandatoryTotal={mandatoryTotal}
-                  mandatoryCompleted={mandatoryCompleted}
-                  activityProgressById={activityProgressById}
-                  markingActivityId={markingActivityId}
-                  onMarkActivityDone={(id) => void markActivityDone(id)}
-                  defaultTab="resources"
-                  activitiesExtra={activitiesExtra}
-                  onLessonClick={(clickedLessonId) => tryOpenLesson(clickedLessonId)}
-                  onLessonComplete={(targetLessonId, completed) => {
-                    if (targetLessonId === lessonId) {
-                      setLessonCompletedState(completed)
-                    }
-                  }}
-                  moduleResources={(module as any)?.resources}
-                  onTakeQuiz={(quizId) => void openQuiz(quizId)}
-                />
-              </div>
-            )}
-
-            {showQuiz && quiz && (
-              <QuizPlayer
-                quizId={(quiz as any).id}
-                lessonId={lessonId}
-                courseId={courseId}
-                quizData={quiz as any}
-                questionsData={quizQuestions}
-                onClose={() => setShowQuiz(false)}
-                onComplete={(outcome) => void syncAfterQuiz(outcome)}
-                onRedoLesson={() => void redoLessonAfterFailedQuiz()}
-              />
-            )}
-
-            {courseAi.tutor?.enabled !== false && (
-              <GeminiTutor
-                courseId={courseId}
-                lessonId={lessonId}
-                floating
-                name={courseAi.tutor?.name || 'Course tutor'}
-                photoUrl={courseAi.tutor?.photoUrl}
-              />
-            )}
-          </div>
-
-          <div className="lg:col-span-4 xl:col-span-3">
-            <div className="lg:sticky lg:top-4">
-              <CurriculumRail
+          {course && (
+            <div className="border-t px-4 py-4">
+              <CourseLearningTabs
+                course={course}
+                modules={allModules}
                 lessons={allLessons}
-                currentLessonId={lesson.id}
-                completedLessonIds={completedLessonIds}
+                currentLessonId={lessonId}
+                currentLesson={lesson}
+                currentModule={module}
+                instructor={instructor}
+                videoRef={videoRef}
+                userId={currentUser?.id}
+                completedLessons={completedLessonIds}
                 lockedLessonIds={lockedLessonIds}
-                onSelect={tryOpenLesson}
+                resourcesLocked={resourcesLocked}
+                activityCompleted={activityCompleted}
+                mandatoryTotal={mandatoryTotal}
+                mandatoryCompleted={mandatoryCompleted}
+                activityProgressById={activityProgressById}
+                markingActivityId={markingActivityId}
+                onMarkActivityDone={(id) => void markActivityDone(id)}
+                defaultTab="overview"
+                activitiesExtra={activitiesExtra}
+                onLessonClick={(clickedLessonId) => tryOpenLesson(clickedLessonId)}
+                onLessonComplete={(targetLessonId, completed) => {
+                  if (targetLessonId === lessonId) {
+                    setLessonCompletedState(completed)
+                  }
+                }}
+                moduleResources={(module as any)?.resources}
+                onTakeQuiz={(quizId) => void openQuiz(quizId)}
               />
             </div>
-          </div>
+          )}
+
+          {showQuiz && quiz && (
+            <QuizPlayer
+              quizId={(quiz as any).id}
+              lessonId={lessonId}
+              courseId={courseId}
+              quizData={quiz as any}
+              questionsData={quizQuestions}
+              onClose={() => setShowQuiz(false)}
+              onComplete={(outcome) => void syncAfterQuiz(outcome)}
+              onRedoLesson={() => void redoLessonAfterFailedQuiz()}
+            />
+          )}
         </div>
+
+        <CurriculumRail
+          lessons={allLessons}
+          modules={allModules}
+          currentLessonId={lesson.id}
+          completedLessonIds={completedLessonIds}
+          lockedLessonIds={lockedLessonIds}
+          onSelect={tryOpenLesson}
+          className="border-t lg:h-[calc(100dvh-3.5rem)] lg:w-[380px] lg:shrink-0 lg:border-l lg:border-t-0"
+        />
       </div>
+
+      {courseAi.tutor?.enabled !== false && (
+        <GeminiTutor
+          courseId={courseId}
+          lessonId={lessonId}
+          floating
+          name={courseAi.tutor?.name || 'Course tutor'}
+          photoUrl={courseAi.tutor?.photoUrl}
+        />
+      )}
     </div>
   )
 }
