@@ -133,7 +133,11 @@ export async function POST(request: Request) {
           reviewNotes: reviewNotes || null,
           rejectionReason: rejectionReason || null,
           assignedRole: assignedRole || null,
-          scope,
+          scope: {
+            isSuper: scope.isSuper,
+            isSuperadmin: scope.isSuperadmin,
+            institutionIds: scope.institutionIds,
+          },
         })
 
         if (!result.success) {
@@ -168,7 +172,11 @@ export async function POST(request: Request) {
             reviewNotes: reviewNotes || null,
             rejectionReason: rejectionReason || null,
             assignedRole: assignedRole || null,
-            scope,
+            scope: {
+              isSuper: scope.isSuper,
+              isSuperadmin: scope.isSuperadmin,
+              institutionIds: scope.institutionIds,
+            },
           })
           if (!itemResult.success) {
             results.push({ id, error: itemResult.error })
@@ -207,6 +215,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const institutionId = searchParams.get('institution_id')
     const status = searchParams.get('status')
+    const queue = searchParams.get('queue') // student | teaching
 
     let query = service.from('student_registrations').select('*')
 
@@ -224,7 +233,7 @@ export async function GET(request: Request) {
           success: true,
           registrations: [],
           statistics: null,
-          scope: { isSuper: false, institutionIds: [] },
+          scope: { isSuper: false, isSuperadmin: false, institutionIds: [] },
         })
       }
       query = query.in('institution_id', scope.institutionIds)
@@ -232,6 +241,25 @@ export async function GET(request: Request) {
 
     if (status) {
       query = query.eq('registration_status', status)
+    }
+
+    const teachingRoles = ['instructor', 'resource_person']
+    if (queue === 'teaching') {
+      if (!scope.isSuperadmin) {
+        return NextResponse.json({
+          success: true,
+          registrations: [],
+          statistics: null,
+          scope: {
+            isSuper: scope.isSuper,
+            isSuperadmin: false,
+            institutionIds: scope.isSuper ? null : scope.institutionIds,
+          },
+        })
+      }
+      query = query.in('requested_role', teachingRoles)
+    } else if (queue === 'student' || !scope.isSuperadmin) {
+      query = query.or('requested_role.eq.student,requested_role.is.null')
     }
 
     const { data: registrations, error: registrationsError } = await query.order(
@@ -265,11 +293,13 @@ export async function GET(request: Request) {
       statistics: stats,
       scope: {
         isSuper: scope.isSuper,
+        isSuperadmin: Boolean(scope.isSuperadmin),
         institutionIds: scope.isSuper ? null : scope.institutionIds,
       },
       filters: {
         institution_id: institutionId,
         status,
+        queue,
       },
     })
   } catch (error: any) {

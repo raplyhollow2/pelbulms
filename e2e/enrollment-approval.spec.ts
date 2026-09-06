@@ -40,6 +40,18 @@ test('creates 5 student-role users and 2 instructors on one approval course', as
   expect(fixture.courseId).toBeTruthy()
 })
 
+test('student without approved KYC cannot request enrollment', async ({ browser }) => {
+  test.setTimeout(60_000)
+  const context = await browser.newContext()
+  await loginWithPassword(context, fixture.noKycStudent.email, TEST_PASSWORD)
+  const page = await context.newPage()
+  const result = await enrollViaApi(page, fixture.courseId)
+  expect(result.ok).toBe(false)
+  expect(result.status).toBe(403)
+  expect(result.body.needsKyc).toBe(true)
+  await context.close()
+})
+
 test('5 students enroll into the shared course as pending', async ({ browser }) => {
   test.setTimeout(120_000)
   for (const student of fixture.students) {

@@ -24,6 +24,13 @@ type StudentWithProgress = Profile & {
   has_certificate: boolean
 }
 
+type StudentIdentity = {
+  cid_number: string | null
+  dzongkhag: string | null
+  gewog: string | null
+  institution: string | null
+}
+
 export default function CourseStudentsPage() {
   const router = useRouter()
   const params = useParams()
@@ -32,6 +39,7 @@ export default function CourseStudentsPage() {
   const [loading, setLoading] = useState(true)
   const [course, setCourse] = useState<Course | null>(null)
   const [students, setStudents] = useState<StudentWithProgress[]>([])
+  const [identities, setIdentities] = useState<Record<string, StudentIdentity>>({})
   const [searchTerm, setSearchTerm] = useState('')
   const [decidingId, setDecidingId] = useState<string | null>(null)
 
@@ -87,6 +95,13 @@ export default function CourseStudentsPage() {
       }
 
       setCourse(courseData)
+
+      fetch(`/api/teach/enrollments?courseId=${encodeURIComponent(courseId)}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data?.identities) setIdentities(data.identities)
+        })
+        .catch(() => {})
 
       // Fetch enrollments with student profiles
       const { data: enrollments } = await supabase
@@ -290,7 +305,10 @@ export default function CourseStudentsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {pendingStudents.map((student) => (
+              {pendingStudents.map((student) => {
+                const identity = identities[student.id]
+                const place = [identity?.gewog, identity?.dzongkhag].filter(Boolean).join(', ')
+                return (
                 <div
                   key={student.id}
                   className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-3"
@@ -300,6 +318,13 @@ export default function CourseStudentsPage() {
                     {(student as any).email && (
                       <p className="text-sm text-muted-foreground truncate">
                         {(student as any).email}
+                      </p>
+                    )}
+                    {(identity?.cid_number || identity?.institution || place) && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {identity?.cid_number ? `CID ${identity.cid_number}` : 'KYC verified'}
+                        {identity?.institution ? ` · ${identity.institution}` : ''}
+                        {place ? ` · ${place}` : ''}
                       </p>
                     )}
                   </div>
@@ -334,7 +359,8 @@ export default function CourseStudentsPage() {
                     </Button>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </CardContent>
           </Card>
         )}

@@ -2,9 +2,10 @@
  * Registration approval access.
  *
  * Who may approve:
- *   1. superadmin / admin — all institutes
- *   2. resource_person — institutes they are assigned to
+ *   1. superadmin / admin — all institutes (student KYC)
+ *   2. resource_person — institutes they are assigned to (student KYC)
  *   3. active registration_reviewers row — explicitly assigned helpers
+ *   4. Teaching roles (instructor / resource_person) — Superadmin only
  *
  * Regular instructors are NOT auto-approvers unless assigned as reviewers.
  */
@@ -56,16 +57,37 @@ export function canSeeApprovalsNav(role: string | null | undefined, assignedRevi
   return isGlobalApproverRole(role) || role === 'resource_person' || assignedReviewer
 }
 
+export type ApprovalScope =
+  | {
+      allowed: true
+      isSuper: boolean
+      isSuperadmin: boolean
+      institutionIds: string[]
+    }
+  | {
+      allowed: false
+      isSuper: false
+      isSuperadmin: false
+      institutionIds: string[]
+    }
+
 /** Coarse gate: may open the approvals API at all */
 export async function getApprovalScope(
   supabase: any,
   userId: string,
   role: string,
   profileInstitutionId?: string | null
-) {
-  // Platform admins see every institute's queue
+): Promise<ApprovalScope> {
+  const isSuperadmin = isSuperadminRole(role)
+
+  // Platform admins see every institute's student queue
   if (isGlobalApproverRole(role)) {
-    return { allowed: true as const, isSuper: true as const, institutionIds: [] as string[] }
+    return {
+      allowed: true as const,
+      isSuper: true as const,
+      isSuperadmin,
+      institutionIds: [] as string[],
+    }
   }
 
   const institutionIds = new Set<string>()
@@ -108,8 +130,18 @@ export async function getApprovalScope(
   const ids = Array.from(institutionIds)
 
   if (ids.length === 0) {
-    return { allowed: false as const, isSuper: false as const, institutionIds: [] as string[] }
+    return {
+      allowed: false as const,
+      isSuper: false as const,
+      isSuperadmin: false as const,
+      institutionIds: [] as string[],
+    }
   }
 
-  return { allowed: true as const, isSuper: false as const, institutionIds: ids }
+  return {
+    allowed: true as const,
+    isSuper: false as const,
+    isSuperadmin: false as const,
+    institutionIds: ids,
+  }
 }

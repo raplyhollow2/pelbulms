@@ -1069,8 +1069,8 @@ export default function EditCoursePage() {
                       type="button"
                       className={`rounded-lg border p-3 text-left transition-colors ${
                         (courseData as any).enrollment_mode === 'auto'
-                          ? 'border-bhutan-yellow bg-bhutan-yellow/10'
-                          : 'hover:border-muted-foreground/40'
+                          ? 'border-muted-foreground/40 bg-muted/30'
+                          : 'opacity-70 hover:border-muted-foreground/40 hover:opacity-100'
                       }`}
                       onClick={() =>
                         setCourseData({ ...courseData, enrollment_mode: 'auto' } as any)
@@ -1078,7 +1078,7 @@ export default function EditCoursePage() {
                     >
                       <p className="text-sm font-medium">Auto enroll</p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        Students get access as soon as they enroll
+                        Not recommended — free courses should be approved by the creator
                       </p>
                     </button>
                     <button

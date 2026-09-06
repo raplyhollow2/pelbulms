@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Clock, LogOut, BookOpen, Loader2 } from 'lucide-react'
+import { Clock, LogOut, Loader2, FilePenLine } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/client'
@@ -13,6 +13,7 @@ export default function PendingApprovalPage() {
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
   const [kycStatus, setKycStatus] = useState<string | null>(null)
+  const [requestedRole, setRequestedRole] = useState<string | null>(null)
 
   useEffect(() => {
     ;(async () => {
@@ -28,22 +29,26 @@ export default function PendingApprovalPage() {
           return
         }
         const regStatus = data.registration?.registration_status as string | undefined
-        if (!regStatus) {
-          // No KYC submission — LMS access does not require this page
+        if (!regStatus || regStatus === 'draft') {
+          router.push('/auth/register')
+          return
+        }
+        if (regStatus === 'additional_info_requested') {
+          router.push('/auth/register')
+          return
+        }
+        if (regStatus === 'approved' && data.account_status === 'active') {
           router.push('/dashboard')
           return
         }
-        if (regStatus === 'approved') {
-          router.push('/dashboard')
-          return
-        }
+        setRequestedRole(data.registration?.requested_role || 'student')
         if (regStatus === 'rejected') {
           setKycStatus('rejected')
         } else {
           setKycStatus(regStatus)
         }
       } catch {
-        router.push('/dashboard')
+        router.push('/auth/register')
       } finally {
         setLoading(false)
       }
@@ -68,7 +73,11 @@ export default function PendingApprovalPage() {
         return
       }
       const regStatus = data.registration?.registration_status
-      if (regStatus === 'approved') {
+      if (regStatus === 'additional_info_requested') {
+        router.push('/auth/register')
+        return
+      }
+      if (regStatus === 'approved' && data.account_status === 'active') {
         await supabase.auth.refreshSession()
         router.push('/dashboard')
         return
@@ -88,6 +97,8 @@ export default function PendingApprovalPage() {
     )
   }
 
+  const teaching = requestedRole === 'instructor' || requestedRole === 'resource_person'
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
       <Card className="w-full max-w-md">
@@ -96,22 +107,26 @@ export default function PendingApprovalPage() {
             <Clock className="h-7 w-7 text-bhutan-orange" />
           </div>
           <CardTitle className="text-2xl">
-            {kycStatus === 'rejected' ? 'Profile review declined' : 'Profile under review'}
+            {kycStatus === 'rejected' ? 'Identity not approved' : 'Waiting for KYC approval'}
           </CardTitle>
           <CardDescription>
             {kycStatus === 'rejected'
-              ? 'Your optional identity profile was not approved. You can still browse the LMS and request course enrollment.'
-              : 'Thanks for submitting your details. An administrator may review them for certificates and institutional records. You already have full LMS browse access.'}
+              ? 'Your identity documents were not approved. You can update your KYC and resubmit.'
+              : teaching
+                ? 'A Superadmin is reviewing your instructor or resource person application. You cannot teach until that KYC is approved.'
+                : 'An assigned reviewer, resource person, or administrator is confirming your CID and photos. You can request courses after approval.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Button
-            className="w-full gap-2 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
-            onClick={() => router.push('/dashboard')}
-          >
-            <BookOpen className="h-4 w-4" />
-            Continue to LMS
-          </Button>
+          {kycStatus === 'rejected' && (
+            <Button
+              className="w-full gap-2 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+              onClick={() => router.push('/auth/register')}
+            >
+              <FilePenLine className="h-4 w-4" />
+              Update KYC and resubmit
+            </Button>
+          )}
           {kycStatus !== 'rejected' && (
             <Button variant="outline" className="w-full gap-2" onClick={handleCheckAgain}>
               Check review status

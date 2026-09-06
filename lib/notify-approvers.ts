@@ -8,14 +8,28 @@ export type RegistrationNotifyInput = {
   institutionId: string
   institutionName?: string | null
   registrationUserId: string
+  requestedRole?: string | null
 }
 
 /** Resolve who should be notified for a given institute registration. */
 export async function resolveApproverRecipientIds(
   service: any,
-  institutionId: string
+  institutionId: string,
+  requestedRole?: string | null
 ): Promise<string[]> {
   const ids = new Set<string>()
+  const teaching = requestedRole === 'instructor' || requestedRole === 'resource_person'
+
+  if (teaching) {
+    const { data: supers } = await service
+      .from('profiles')
+      .select('id')
+      .eq('role', 'superadmin')
+    for (const p of supers || []) {
+      if (p.id) ids.add(p.id)
+    }
+    return Array.from(ids)
+  }
 
   const { data: globals } = await service
     .from('profiles')
@@ -63,8 +77,11 @@ export async function notifyApproversOfRegistration(
   service: any,
   input: RegistrationNotifyInput
 ): Promise<{ notified: number }> {
-  const recipientIds = await resolveApproverRecipientIds(service, input.institutionId)
-  // Never notify the applicant about their own submission
+  const recipientIds = await resolveApproverRecipientIds(
+    service,
+    input.institutionId,
+    input.requestedRole
+  )
   const targets = recipientIds.filter((id) => id !== input.registrationUserId)
 
   if (targets.length === 0) return { notified: 0 }
@@ -79,10 +96,14 @@ export async function notifyApproversOfRegistration(
     institutionLabel = inst?.display_name || inst?.name || 'your institution'
   }
 
-  const title = 'New registration pending approval'
+  const teaching =
+    input.requestedRole === 'instructor' || input.requestedRole === 'resource_person'
+  const title = teaching
+    ? 'Teaching application pending Superadmin review'
+    : 'New registration pending approval'
   const message = `${input.applicantName}${
     input.applicantEmail ? ` (${input.applicantEmail})` : ''
-  } submitted a registration for ${institutionLabel}.`
+  } submitted a ${teaching ? 'teaching' : 'student'} registration for ${institutionLabel}.`
 
   const rows = targets.map((user_id) => ({
     user_id,
@@ -95,6 +116,7 @@ export async function notifyApproversOfRegistration(
       institution_id: input.institutionId,
       applicant_user_id: input.registrationUserId,
       applicant_name: input.applicantName,
+      requested_role: input.requestedRole || 'student',
     },
   }))
 

@@ -98,6 +98,15 @@ export async function PATCH(
       if (!VALID_ROLES.includes(body.role)) {
         return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
       }
+      if (
+        (body.role === 'instructor' || body.role === 'resource_person') &&
+        rbac.userRole !== 'superadmin'
+      ) {
+        return NextResponse.json(
+          { error: 'Only a superadmin can grant instructor or resource person roles' },
+          { status: 403 }
+        )
+      }
       updates.role = body.role
     }
 

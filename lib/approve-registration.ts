@@ -1,11 +1,11 @@
 /**
  * Server-side registration review using the service client.
  *
- * The legacy RPC checks is_registration_reviewer() which may be out of date in
- * deployed databases (migration 033 not applied). The approvals API already
- * validates caller permissions via getApprovalScope(), so we perform the writes
- * here with the service role instead.
+ * Student KYC: resource person, admin, assigned reviewer, or superadmin.
+ * Teaching KYC (instructor / resource_person): Superadmin only.
  */
+
+import { isTeachingRequestRole } from '@/lib/kyc'
 
 type ReviewAction = 'approve' | 'reject' | 'request_info'
 
@@ -16,12 +16,13 @@ const APPROVABLE_STATUSES = new Set([
 ])
 
 const TEACHER_ROLES = new Set(['instructor', 'admin', 'resource_person'])
+const ASSIGNABLE_TEACHING_ROLES = new Set(['instructor', 'resource_person'])
 
 export type RegistrationReviewResult =
   | { success: true; message: string; user_id?: string; registration_id: string; assigned_role?: string }
   | { success: false; error: string }
 
-type Scope = { isSuper: boolean; institutionIds: string[] }
+type Scope = { isSuper: boolean; isSuperadmin?: boolean; institutionIds: string[] }
 
 export async function processRegistrationReview(
   service: any,
@@ -59,6 +60,14 @@ export async function processRegistrationReview(
     return { success: false, error: 'Institution access denied' }
   }
 
+  const teachingRequest = isTeachingRequestRole(reg.requested_role)
+  if (teachingRequest && !scope.isSuperadmin) {
+    return {
+      success: false,
+      error: 'Only a superadmin can review instructor or resource person applications',
+    }
+  }
+
   const now = new Date().toISOString()
 
   if (action === 'request_info') {
@@ -82,6 +91,16 @@ export async function processRegistrationReview(
   }
 
   if (action === 'reject') {
+    const { data: existingProfile } = await service
+      .from('profiles')
+      .select('account_status, role')
+      .eq('id', reg.user_id)
+      .maybeSingle()
+
+    const alreadyActiveStudent =
+      existingProfile?.account_status === 'active' &&
+      (existingProfile?.role === 'student' || teachingRequest)
+
     const { error: regUpdateError } = await service
       .from('student_registrations')
       .update({
@@ -96,7 +115,24 @@ export async function processRegistrationReview(
 
     if (regUpdateError) return { success: false, error: regUpdateError.message }
 
-    // KYC reject is optional profile review only — do not lock LMS account access.
+    // Teaching reject of an already-approved student must not lock the LMS.
+    // Student KYC reject (or teaching reject while still pending) locks the account.
+    if (!alreadyActiveStudent || existingProfile?.account_status === 'pending') {
+      if (existingProfile?.account_status !== 'active') {
+        await service
+          .from('profiles')
+          .update({
+            account_status: 'rejected',
+            updated_at: now,
+          })
+          .eq('id', reg.user_id)
+
+        await mergeAuthAppMetadata(service, reg.user_id, {
+          account_status: 'rejected',
+        })
+      }
+    }
+
     await service.from('user_approvals').upsert(
       {
         user_id: reg.user_id,
@@ -105,14 +141,18 @@ export async function processRegistrationReview(
         reviewed_by: reviewerId,
         reviewed_at: now,
         rejection_reason: rejectionReason || null,
-        notes: `KYC rejected (account remains active): ${reviewNotes || 'No notes'}`,
+        notes: teachingRequest
+          ? `Teaching application rejected: ${reviewNotes || 'No notes'}`
+          : `KYC rejected: ${reviewNotes || 'No notes'}`,
       },
       { onConflict: 'user_id,institution_id' }
     )
 
     return {
       success: true,
-      message: 'Registration rejected (LMS access unchanged)',
+      message: alreadyActiveStudent && existingProfile?.account_status === 'active'
+        ? 'Teaching application rejected. Student access unchanged.'
+        : 'Registration rejected',
       registration_id: registrationId,
     }
   }
@@ -122,7 +162,15 @@ export async function processRegistrationReview(
       return { success: false, error: 'Registration not in approvable state' }
     }
 
-    const finalRole = assignedRole || reg.requested_role || 'student'
+    let finalRole = 'student'
+    if (teachingRequest && scope.isSuperadmin) {
+      const requested = assignedRole || reg.requested_role || 'student'
+      finalRole = ASSIGNABLE_TEACHING_ROLES.has(requested) ? requested : 'student'
+    } else {
+      // Student queue — never grant teaching/admin from institutional reviewers
+      finalRole = 'student'
+    }
+
     const institutionRole = TEACHER_ROLES.has(finalRole) ? 'teacher' : 'student'
 
     const { error: regUpdateError } = await service

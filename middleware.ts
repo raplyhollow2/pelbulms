@@ -99,20 +99,30 @@ export async function middleware(req: NextRequest) {
       return redirectTo('/auth/login')
     }
 
-    // Redirect to dashboard if accessing auth route with an active session
+    // Logged-in users hitting /auth/login go to the right gate.
     if (isAuthPath && user) {
+      const accountStatus = user.app_metadata?.account_status
+      if (accountStatus === 'rejected' || accountStatus === 'suspended') {
+        return redirectTo('/auth/access-denied')
+      }
+      if (accountStatus === 'pending') {
+        return redirectTo('/auth/register')
+      }
       return redirectTo('/dashboard')
     }
 
-    // Account status gate: only block rejected/suspended accounts.
-    // New users are active immediately; course enrollment is the approval point.
-    // Undefined status is treated as legacy and allowed through.
+    // Account status gate. Undefined status is treated as legacy (pre-KYC
+    // default) and allowed through. New users are pending until KYC approval.
     if (isProtectedPath && user) {
       const accountStatus = user.app_metadata?.account_status
       const userRole = user.app_metadata?.role
 
       if (accountStatus === 'rejected' || accountStatus === 'suspended') {
         return redirectTo('/auth/access-denied')
+      }
+
+      if (accountStatus === 'pending') {
+        return redirectTo('/auth/register')
       }
 
       // Role-based access control — only enforced when a role is present in

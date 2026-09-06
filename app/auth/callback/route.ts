@@ -2,30 +2,19 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { resolvePostLoginPath } from '@/lib/auth-destination'
 
 /**
- * Post-login destination: LMS access is immediate for active accounts.
- * Only rejected/suspended users are blocked. KYC registration is optional.
+ * Post-login destination: pending KYC stays on the registration wizard;
+ * rejected/suspended go to access-denied; approved accounts go to dashboard.
  */
 async function destinationFor(userId: string, origin: string): Promise<string> {
   try {
     const service = await createServiceClient()
-
-    const { data: profile } = await service
-      .from('profiles')
-      .select('account_status')
-      .eq('id', userId)
-      .maybeSingle()
-
-    const status = (profile as any)?.account_status as string | undefined
-
-    if (status === 'rejected' || status === 'suspended') {
-      return `${origin}/auth/access-denied`
-    }
-
-    return `${origin}/dashboard`
+    const path = await resolvePostLoginPath(service, userId)
+    return `${origin}${path}`
   } catch {
-    return `${origin}/dashboard`
+    return `${origin}/auth/register`
   }
 }
 

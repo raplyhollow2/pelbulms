@@ -1,6 +1,6 @@
 // @ts-nocheck - student_registrations columns not fully in generated Database types
 import { NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient, tryCreateServiceClient } from '@/lib/supabase/server'
 
 const PHONE_RE = /^\+975[0-9]{8}$/
 const CID_RE = /^[0-9]{11}$/
@@ -55,7 +55,7 @@ export async function GET() {
 
   const { data: registration } = await supabase
     .from('student_registrations')
-    .select('id, registration_status, institution_id, review_notes, rejection_reason')
+    .select('id, registration_status, institution_id, review_notes, rejection_reason, requested_role')
     .eq('user_id', user.id)
     .maybeSingle()
 
@@ -76,7 +76,7 @@ export async function GET() {
 /**
  * POST /api/register
  * Submit (or resubmit) the Bhutan KYC registration form.
- * Leaves the account 'pending' until an assigned reviewer approves.
+ * Leaves the account pending until a reviewer (or Superadmin for teaching roles) approves.
  * Uses the signed-in session + RLS (owner insert/update policies).
  */
 export async function POST(request: Request) {
@@ -181,9 +181,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: upsertError.message }, { status: 400 })
   }
 
-  // Keep the account pending + attach the institution so the gate routes them
-  // to the pending page (not back to the form).
-  // account_status must remain unchanged per RLS (Users can update own profile limited).
+  // Attach institution. If this is a resubmit after reject, restore pending.
   await supabase
     .from('profiles')
     .update({
@@ -193,6 +191,35 @@ export async function POST(request: Request) {
     })
     .eq('id', user.id)
 
+  const admin = await tryCreateServiceClient()
+  if (admin) {
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('account_status')
+      .eq('id', user.id)
+      .maybeSingle()
+    if (profile?.account_status === 'rejected' || profile?.account_status === 'pending' || !profile?.account_status) {
+      await admin
+        .from('profiles')
+        .update({
+          account_status: 'pending',
+          institution_id,
+          full_name: full_name.trim(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', user.id)
+      try {
+        const { data } = await admin.auth.admin.getUserById(user.id)
+        const current = (data?.user?.app_metadata as Record<string, unknown>) || {}
+        await admin.auth.admin.updateUserById(user.id, {
+          app_metadata: { ...current, account_status: 'pending' },
+        })
+      } catch (metaErr) {
+        console.error('[register] failed to sync pending metadata:', metaErr)
+      }
+    }
+  }
+
   // Alert superadmins, admins, resource persons, and assigned reviewers
   try {
     const { notifyApproversOfRegistration } = await import('@/lib/notify-approvers')
@@ -201,6 +228,7 @@ export async function POST(request: Request) {
       applicantEmail: user.email,
       institutionId: institution_id,
       registrationUserId: user.id,
+      requestedRole: role,
     })
   } catch (notifyErr) {
     console.error('[register] notification fan-out failed:', notifyErr)

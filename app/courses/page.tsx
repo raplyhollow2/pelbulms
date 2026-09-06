@@ -239,6 +239,11 @@ export default function CoursesPage() {
       })
       const data = await res.json().catch(() => ({}))
 
+      if (data.needsKyc) {
+        window.location.href = '/auth/register'
+        return
+      }
+
       if (!res.ok) {
         throw new Error(data.error || 'Failed to enroll')
       }

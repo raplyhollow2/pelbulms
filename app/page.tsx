@@ -119,12 +119,12 @@ const STEPS = [
   {
     icon: ShieldCheck,
     title: 'Get approved',
-    desc: 'An assigned reviewer or superadmin confirms your identity and role. This keeps Pelbu a trusted, closed network.',
+    desc: 'An assigned reviewer confirms student identity. Superadmin confirms instructors and resource persons.',
   },
   {
     icon: GraduationCap,
     title: 'Start learning',
-    desc: 'Once approved, your dashboard, courses and certificates unlock instantly.',
+    desc: 'After KYC approval you can request a free course. The course creator verifies each enrollment before you can learn.',
   },
 ]
 
@@ -135,7 +135,7 @@ const FAQ = [
   },
   {
     q: 'How do I get access to Pelbu?',
-    a: 'Sign in with Google, complete the Bhutan KYC registration form (CID number, CID photo, passport photo and your institution), then wait for an assigned reviewer to approve your account. Access to the dashboard and courses unlocks after approval.',
+    a: 'Sign in with Google, complete the Bhutan KYC registration form (CID number, CID photo, passport photo and your institution), then wait for approval. Students are approved by a resource person or administrator; instructors and resource persons need Superadmin approval. After that, request a course — the course creator still verifies each enrollment.',
   },
   {
     q: 'Why does Pelbu require KYC verification?',

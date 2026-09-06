@@ -11,7 +11,7 @@ export type TestUser = {
   id: string
   email: string
   full_name: string
-  role: 'student' | 'instructor'
+  role: 'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
 }
 
 export type Fixture = {
@@ -21,6 +21,7 @@ export type Fixture = {
   owner: TestUser
   coTeacher: TestUser
   students: TestUser[]
+  noKycStudent: TestUser
 }
 
 function loadEnv() {
@@ -49,7 +50,7 @@ async function ensureUser(
   admin: SupabaseClient,
   email: string,
   full_name: string,
-  role: 'student' | 'instructor'
+  role: TestUser['role']
 ): Promise<TestUser> {
   let userId: string | undefined
 
@@ -90,7 +91,61 @@ async function ensureUser(
   )
   if (profileError) throw new Error(`profile upsert ${email}: ${profileError.message}`)
 
+  await admin.auth.admin.updateUserById(userId, {
+    app_metadata: { role, account_status: 'active' },
+    user_metadata: { full_name, role },
+  })
+
   return { id: userId, email, full_name, role }
+}
+
+async function ensureInstitution(admin: SupabaseClient): Promise<string> {
+  const { data: existing } = await admin.from('institutions').select('id').limit(1).maybeSingle()
+  if (existing?.id) return existing.id as string
+
+  const slug = `e2e-inst-${RUN_ID}`
+  const { data, error } = await admin
+    .from('institutions')
+    .insert({
+      name: `E2E Institute ${RUN_ID}`,
+      slug,
+      display_name: 'E2E Institute',
+    })
+    .select('id')
+    .single()
+  if (error || !data) throw new Error(`institution create: ${error?.message}`)
+  return data.id as string
+}
+
+async function seedApprovedKyc(
+  admin: SupabaseClient,
+  user: TestUser,
+  institutionId: string,
+  index: number
+) {
+  const cid = `1${String(Date.now() + index).slice(-10)}`
+  const phone = `+9751711${String(1000 + index).slice(-4)}`
+  const { error } = await admin.from('student_registrations').upsert(
+    {
+      user_id: user.id,
+      institution_id: institutionId,
+      full_name: user.full_name,
+      email: user.email,
+      phone_number: phone,
+      cid_number: cid,
+      passport_photo_url: `e2e/${user.id}/passport.jpg`,
+      cid_photo_url: `e2e/${user.id}/cid.jpg`,
+      gewog: 'Chang',
+      dzongkhag: 'Thimphu',
+      requested_role: user.role === 'instructor' ? 'instructor' : 'student',
+      registration_status: 'approved',
+      submitted_at: new Date().toISOString(),
+      reviewed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id,institution_id' }
+  )
+  if (error) throw new Error(`kyc upsert ${user.email}: ${error.message}`)
 }
 
 export async function seedEnrollmentFixture(): Promise<Fixture> {
@@ -121,6 +176,21 @@ export async function seedEnrollmentFixture(): Promise<Fixture> {
       )
     )
   }
+
+  const noKycStudent = await ensureUser(
+    admin,
+    `nokyc.${runId}@pelbu-e2e.test`,
+    `E2E No KYC ${runId}`,
+    'student'
+  )
+
+  const institutionId = await ensureInstitution(admin)
+  let kycIndex = 1
+  for (const student of students) {
+    await seedApprovedKyc(admin, student, institutionId, kycIndex++)
+  }
+  await seedApprovedKyc(admin, owner, institutionId, kycIndex++)
+  await seedApprovedKyc(admin, coTeacher, institutionId, kycIndex++)
 
   const courseTitle = `E2E Enrollment Approval ${runId}`
   const slug = `e2e-enroll-${runId}`
@@ -167,6 +237,7 @@ export async function seedEnrollmentFixture(): Promise<Fixture> {
     owner,
     coTeacher,
     students,
+    noKycStudent,
   }
   fs.writeFileSync(FIXTURE_PATH, JSON.stringify(fixture, null, 2))
   return fixture
@@ -188,10 +259,117 @@ export async function cleanupFixture(fixture?: Fixture) {
   await admin.from('course_instructors').delete().eq('course_id', data.courseId)
   await admin.from('courses').delete().eq('id', data.courseId)
 
-  const users = [data.owner, data.coTeacher, ...data.students]
+  const users = [data.owner, data.coTeacher, ...data.students, data.noKycStudent].filter(Boolean)
+  await admin
+    .from('student_registrations')
+    .delete()
+    .in(
+      'user_id',
+      users.map((u) => u.id)
+    )
   for (const u of users) {
     await admin.auth.admin.deleteUser(u.id).catch(() => {})
   }
 
   if (fs.existsSync(FIXTURE_PATH)) fs.unlinkSync(FIXTURE_PATH)
+}
+
+export type TeachingKycFixture = {
+  runId: string
+  institutionId: string
+  superadmin: TestUser
+  resourcePerson: TestUser
+  applicant: TestUser
+  registrationId: string
+}
+
+export async function seedTeachingKycFixture(): Promise<TeachingKycFixture> {
+  const admin = getServiceClient()
+  const runId = `${RUN_ID}t`
+  const institutionId = await ensureInstitution(admin)
+
+  const superadmin = await ensureUser(
+    admin,
+    `super.${runId}@pelbu-e2e.test`,
+    `E2E Super ${runId}`,
+    'superadmin'
+  )
+  const resourcePerson = await ensureUser(
+    admin,
+    `rp.${runId}@pelbu-e2e.test`,
+    `E2E RP ${runId}`,
+    'resource_person'
+  )
+  const applicant = await ensureUser(
+    admin,
+    `teachapp.${runId}@pelbu-e2e.test`,
+    `E2E TeachApp ${runId}`,
+    'student'
+  )
+
+  await admin
+    .from('profiles')
+    .update({
+      institution_id: institutionId,
+      account_status: 'active',
+      updated_at: new Date().toISOString(),
+    })
+    .in('id', [superadmin.id, resourcePerson.id])
+
+  await admin
+    .from('profiles')
+    .update({
+      institution_id: institutionId,
+      account_status: 'pending',
+      role: 'student',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', applicant.id)
+
+  const cid = `2${String(Date.now()).slice(-10)}`
+  const { data: reg, error } = await admin
+    .from('student_registrations')
+    .insert({
+      user_id: applicant.id,
+      institution_id: institutionId,
+      full_name: applicant.full_name,
+      email: applicant.email,
+      phone_number: '+97517119999',
+      cid_number: cid,
+      passport_photo_url: `e2e/${applicant.id}/passport.jpg`,
+      cid_photo_url: `e2e/${applicant.id}/cid.jpg`,
+      gewog: 'Chang',
+      dzongkhag: 'Thimphu',
+      requested_role: 'instructor',
+      registration_status: 'submitted',
+      submitted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select('id')
+    .single()
+  if (error || !reg) throw new Error(`teaching kyc insert: ${error?.message}`)
+
+  return {
+    runId,
+    institutionId,
+    superadmin,
+    resourcePerson,
+    applicant,
+    registrationId: reg.id as string,
+  }
+}
+
+export async function cleanupTeachingKycFixture(data: TeachingKycFixture) {
+  const admin = getServiceClient()
+  const users = [data.superadmin, data.resourcePerson, data.applicant]
+  await admin
+    .from('student_registrations')
+    .delete()
+    .in(
+      'user_id',
+      users.map((u) => u.id)
+    )
+  for (const u of users) {
+    await admin.auth.admin.deleteUser(u.id).catch(() => {})
+  }
 }

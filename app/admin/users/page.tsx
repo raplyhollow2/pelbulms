@@ -609,8 +609,12 @@ export default function AdminUsersPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="student">Student</SelectItem>
-                        <SelectItem value="instructor">Instructor</SelectItem>
-                        <SelectItem value="resource_person">Resource person</SelectItem>
+                        {isSuperAdmin && (
+                          <>
+                            <SelectItem value="instructor">Instructor</SelectItem>
+                            <SelectItem value="resource_person">Resource person</SelectItem>
+                          </>
+                        )}
                         <SelectItem value="admin">Admin</SelectItem>
                         {isSuperAdmin && (
                           <SelectItem value="superadmin">Super admin</SelectItem>
@@ -707,7 +711,11 @@ export default function AdminUsersPage() {
                         <Select
                           value={user.role}
                           onValueChange={(value) => handleUpdateRole(user.id, value as Role)}
-                          disabled={user.role === 'superadmin' && !isSuperAdmin}
+                          disabled={
+                            (user.role === 'superadmin' && !isSuperAdmin) ||
+                            ((user.role === 'instructor' || user.role === 'resource_person') &&
+                              !isSuperAdmin)
+                          }
                         >
                           <SelectTrigger
                             className="h-9 flex-1 text-xs lg:w-[9.5rem] lg:flex-none"
@@ -717,8 +725,12 @@ export default function AdminUsersPage() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="student">Student</SelectItem>
-                            <SelectItem value="instructor">Instructor</SelectItem>
-                            <SelectItem value="resource_person">Resource person</SelectItem>
+                            {(isSuperAdmin || user.role === 'instructor') && (
+                              <SelectItem value="instructor">Instructor</SelectItem>
+                            )}
+                            {(isSuperAdmin || user.role === 'resource_person') && (
+                              <SelectItem value="resource_person">Resource person</SelectItem>
+                            )}
                             <SelectItem value="admin">Admin</SelectItem>
                             {(isSuperAdmin || user.role === 'superadmin') && (
                               <SelectItem value="superadmin">Super admin</SelectItem>
@@ -878,8 +890,12 @@ export default function AdminUsersPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="student">Student</SelectItem>
-                    <SelectItem value="instructor">Instructor</SelectItem>
-                    <SelectItem value="resource_person">Resource person</SelectItem>
+                    {isSuperAdmin && (
+                      <>
+                        <SelectItem value="instructor">Instructor</SelectItem>
+                        <SelectItem value="resource_person">Resource person</SelectItem>
+                      </>
+                    )}
                     <SelectItem value="admin">Admin</SelectItem>
                     {(isSuperAdmin || editData.role === 'superadmin') && (
                       <SelectItem value="superadmin">Super admin</SelectItem>

@@ -199,6 +199,10 @@ export default function CourseDetailPage() {
       } catch {
         data = { error: raw?.slice(0, 200) || `HTTP ${res.status}` }
       }
+      if (data.needsKyc) {
+        router.push('/auth/register')
+        return
+      }
       if (res.status === 402 || data.enrollmentMode === 'paid') {
         const checkout = await fetch('/api/enrollments/checkout', {
           method: 'POST',

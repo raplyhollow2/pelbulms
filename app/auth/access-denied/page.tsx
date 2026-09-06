@@ -25,11 +25,16 @@ export default function AccessDeniedPage() {
           </div>
           <CardTitle className="text-2xl">Access Denied</CardTitle>
           <CardDescription>
-            Your account request was not approved. If you believe this is a
-            mistake, please contact your institution&apos;s administrator.
+            Your account request was not approved. You can update your KYC documents and resubmit, or contact your institution&apos;s administrator if you believe this is a mistake.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
+          <Button
+            className="w-full gap-2 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+            onClick={() => router.push('/auth/register')}
+          >
+            Update KYC and resubmit
+          </Button>
           <Button variant="outline" className="w-full gap-2" onClick={handleSignOut}>
             <LogOut className="h-4 w-4" />
             Sign out

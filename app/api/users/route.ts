@@ -75,6 +75,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
     }
 
+    if (
+      (role === 'instructor' || role === 'resource_person') &&
+      rbac.userRole !== 'superadmin'
+    ) {
+      return NextResponse.json(
+        { error: 'Only a superadmin can grant instructor or resource person roles' },
+        { status: 403 }
+      )
+    }
+
     const supabase = await createServiceClient()
 
     // Create the auth user (email confirmed so they can be invited/reset later)
@@ -105,6 +115,7 @@ export async function POST(request: NextRequest) {
           role,
           bio,
           avatar_url,
+          account_status: 'active',
           updated_at: new Date().toISOString(),
         },
         { onConflict: 'id' }

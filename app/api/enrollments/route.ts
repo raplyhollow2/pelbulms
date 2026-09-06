@@ -3,16 +3,15 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getDbClient } from '@/lib/db'
 import { notifyTeacherOfEnrollment } from '@/lib/notify-teachers'
+import { isKycExemptRole } from '@/lib/kyc'
 
 /**
  * POST /api/enrollments
  * Body: { courseId }
  * Enrolls the authenticated user.
+ * Requires approved KYC (admin/superadmin exempt) and account_status = active.
  * - enrollment_mode=approval (default) → status pending until creator verifies
  * - enrollment_mode=auto → status active immediately
- *
- * Uses service_role when available; falls back to the user session so local
- * dev works without SUPABASE_SERVICE_ROLE_KEY (RLS allows self-enroll).
  */
 export async function POST(request: Request) {
   try {
@@ -27,21 +26,19 @@ export async function POST(request: Request) {
 
     const service = await getDbClient()
 
-    let accountStatus =
+    const { data: profile } = await service
+      .from('profiles')
+      .select('account_status, role')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    const accountStatus =
+      (profile as any)?.account_status ||
       (user.app_metadata as any)?.account_status ||
       (user.user_metadata as any)?.account_status ||
       null
+    const role = (profile as any)?.role || (user.app_metadata as any)?.role || 'student'
 
-    if (!accountStatus) {
-      const { data: profile } = await service
-        .from('profiles')
-        .select('account_status')
-        .eq('id', user.id)
-        .maybeSingle()
-      accountStatus = (profile as any)?.account_status || null
-    }
-
-    // Only hard-block rejected/suspended accounts; KYC pending no longer blocks enroll.
     if (accountStatus === 'rejected' || accountStatus === 'suspended') {
       return NextResponse.json(
         {
@@ -50,6 +47,36 @@ export async function POST(request: Request) {
         },
         { status: 403 }
       )
+    }
+
+    if (accountStatus === 'pending') {
+      return NextResponse.json(
+        {
+          error: 'Complete Bhutan KYC and wait for approval before requesting enrollment.',
+          accountStatus: 'pending',
+          needsKyc: true,
+        },
+        { status: 403 }
+      )
+    }
+
+    if (!isKycExemptRole(role)) {
+      const { data: kyc } = await service
+        .from('student_registrations')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('registration_status', 'approved')
+        .limit(1)
+        .maybeSingle()
+      if (!kyc) {
+        return NextResponse.json(
+          {
+            error: 'Complete Bhutan KYC verification before requesting enrollment.',
+            needsKyc: true,
+          },
+          { status: 403 }
+        )
+      }
     }
 
     const body = await request.json().catch(() => ({}))

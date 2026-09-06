@@ -54,7 +54,6 @@ const ROLE_OPTIONS = [
   { value: 'student', label: 'Student' },
   { value: 'instructor', label: 'Instructor' },
   { value: 'resource_person', label: 'Resource person' },
-  { value: 'admin', label: 'Admin' },
 ]
 
 function docUrl(path: string | null) {
@@ -203,16 +202,18 @@ export function PendingApprovalsPanel({
   const [notes, setNotes] = useState<Record<string, string>>({})
   const [busyId, setBusyId] = useState<string | null>(null)
   const [preview, setPreview] = useState<{ src: string; label: string } | null>(null)
+  const [isSuperadmin, setIsSuperadmin] = useState(false)
+  const [queue, setQueue] = useState<'student' | 'teaching'>('student')
 
   const openPreview = useCallback((src: string, label: string) => {
     setPreview({ src, label })
   }, [])
 
-  const load = async () => {
+  const load = async (nextQueue = queue) => {
     setLoading(true)
     setError('')
     try {
-      const res = await fetch('/api/admin/approvals')
+      const res = await fetch(`/api/admin/approvals?queue=${nextQueue}`)
       const data = await res.json()
       if (res.status === 403) {
         throw new Error(
@@ -220,6 +221,7 @@ export function PendingApprovalsPanel({
         )
       }
       if (!res.ok) throw new Error(data.error || data.message || 'Failed to load')
+      setIsSuperadmin(Boolean(data.scope?.isSuperadmin))
       const pendingStatuses = new Set([
         'submitted',
         'under_review',
@@ -254,7 +256,10 @@ export function PendingApprovalsPanel({
           action,
           registrationId: reg.id,
           userId: reg.user_id,
-          assignedRole: roleChoice[reg.id] || reg.requested_role || 'student',
+          assignedRole:
+            queue === 'teaching'
+              ? roleChoice[reg.id] || reg.requested_role || 'instructor'
+              : 'student',
           reviewNotes: notes[reg.id] || null,
           rejectionReason: action === 'reject' ? notes[reg.id] || 'Not approved' : null,
         }),
@@ -287,12 +292,44 @@ export function PendingApprovalsPanel({
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0 space-y-1">
-          <h2 className="text-base font-semibold tracking-tight">Registration queue</h2>
+          <h2 className="text-base font-semibold tracking-tight">
+            {queue === 'teaching' ? 'Teaching applications' : 'Student identity'}
+          </h2>
           <p className="text-sm text-muted-foreground">
-            Review KYC documents, assign a role, then approve or reject.
+            {queue === 'teaching'
+              ? 'Only Superadmin can grant instructor or resource person after reviewing KYC.'
+              : 'Review CID and photos, then approve the learner. Course creators still approve each enrollment.'}
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {isSuperadmin && (
+            <div className="flex rounded-lg border border-border/60 p-0.5">
+              <Button
+                type="button"
+                variant={queue === 'student' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-8"
+                onClick={() => {
+                  setQueue('student')
+                  load('student')
+                }}
+              >
+                Students
+              </Button>
+              <Button
+                type="button"
+                variant={queue === 'teaching' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-8"
+                onClick={() => {
+                  setQueue('teaching')
+                  load('teaching')
+                }}
+              >
+                Teaching
+              </Button>
+            </div>
+          )}
           <span className="rounded-md border border-border/60 bg-muted/40 px-2.5 py-1 text-xs tabular-nums text-muted-foreground">
             {registrations.length} pending
           </span>
@@ -429,27 +466,33 @@ export function PendingApprovalsPanel({
                         htmlFor={`role-${reg.id}`}
                         className="text-[11px] font-medium text-muted-foreground"
                       >
-                        Assign role
+                        {queue === 'teaching' && isSuperadmin ? 'Assign teaching role' : 'Role'}
                       </label>
-                      <Select
-                        value={assigned}
-                        onValueChange={(v) =>
-                          setRoleChoice((s) => ({ ...s, [reg.id]: v ?? 'student' }))
-                        }
-                      >
-                        <SelectTrigger id={`role-${reg.id}`} className="h-10 w-full text-sm">
-                          <SelectValue>
-                            {(v: string | null) => roleLabel(v)}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ROLE_OPTIONS.map((r) => (
-                            <SelectItem key={r.value} value={r.value}>
-                              {r.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {queue === 'teaching' && isSuperadmin ? (
+                        <Select
+                          value={assigned}
+                          onValueChange={(v) =>
+                            setRoleChoice((s) => ({ ...s, [reg.id]: v ?? 'instructor' }))
+                          }
+                        >
+                          <SelectTrigger id={`role-${reg.id}`} className="h-10 w-full text-sm">
+                            <SelectValue>
+                              {(v: string | null) => roleLabel(v)}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ROLE_OPTIONS.filter((r) => r.value !== 'admin').map((r) => (
+                              <SelectItem key={r.value} value={r.value}>
+                                {r.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <p className="flex h-10 items-center rounded-md border border-border/60 bg-muted/40 px-3 text-sm">
+                          Student
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-1.5">
                       <label
