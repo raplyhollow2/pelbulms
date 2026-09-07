@@ -11,7 +11,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '@/components/ui/hover-card'
-import { BookOpen, Clock, Users, Star, Play, Award, TrendingUp } from 'lucide-react'
+import { BookOpen, Clock, Users, Star, Play, Award, TrendingUp, Loader2 } from 'lucide-react'
 import type { Database } from '@/types/database.types'
 import { resolveMediaUrl } from '@/lib/media'
 
@@ -23,6 +23,8 @@ interface CourseCardProps {
   progress?: number
   isEnrolled?: boolean
   enrollmentPending?: boolean
+  requesting?: boolean
+  onRequestEnrollment?: (courseId: string) => void
 }
 
 export function CourseCard({
@@ -30,6 +32,8 @@ export function CourseCard({
   progress = 0,
   isEnrolled = false,
   enrollmentPending = false,
+  requesting = false,
+  onRequestEnrollment,
 }: CourseCardProps) {
   const [imageError, setImageError] = useState(false)
   const thumbSrc = resolveMediaUrl(course.thumbnail_url)
@@ -62,13 +66,39 @@ export function CourseCard({
   }
 
   const duration = calculateDuration()
+  const enrollmentMode = (course as any).enrollment_mode as string | undefined
+  const requiresApproval =
+    enrollmentMode !== 'auto' &&
+    enrollmentMode !== 'invite_code' &&
+    enrollmentMode !== 'paid'
+  const requestOnThisPage = Boolean(
+    onRequestEnrollment && !isEnrolled && requiresApproval
+  )
+  const ctaLabel = requesting
+    ? 'Sending request'
+    : isEnrolled
+      ? 'Continue learning'
+      : enrollmentPending
+        ? 'Pending approval'
+        : enrollmentMode === 'auto' ||
+            enrollmentMode === 'invite_code' ||
+            enrollmentMode === 'paid'
+          ? 'Enroll now'
+          : 'Request enrollment'
+  const ctaClassName = `h-9 w-full rounded-full text-sm font-medium ${
+    isEnrolled
+      ? 'bg-green-600 hover:bg-green-700 text-white'
+      : enrollmentPending
+        ? 'bg-amber-500 hover:bg-amber-600 text-black'
+        : 'bg-bhutan-yellow text-black hover:bg-bhutan-orange'
+  }`
 
   return (
     <HoverCard openDelay={300} closeDelay={200}>
+      <Card className="group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 h-full overflow-hidden border-border/50 hover:border-bhutan-yellow/30 flex flex-col">
       <HoverCardTrigger
-        render={<Link href={`/courses/${course.id}`} className="block h-full" />}
+        render={<Link href={`/courses/${course.id}`} className="block flex-1 cursor-pointer" />}
       >
-          <Card className="group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 cursor-pointer h-full overflow-hidden border-border/50 hover:border-bhutan-yellow/30">
         {/* Thumbnail - 16:9 Aspect Ratio (Standard Video Format) */}
         <div className="relative w-full pt-[56.25%] overflow-hidden bg-gray-900 rounded-t-lg">
           {thumbSrc && !imageError ? (
@@ -99,7 +129,7 @@ export function CourseCard({
           )}
         </div>
 
-        <CardContent className="space-y-3 p-4">
+        <CardContent className="space-y-3 p-4 pb-3">
           {/* Course Title and Category */}
           <div className="space-y-1.5">
             <h3 className="line-clamp-2 text-sm font-semibold leading-snug tracking-tight transition-colors group-hover:text-bhutan-orange sm:text-base">
@@ -140,30 +170,33 @@ export function CourseCard({
               <Progress value={progress} className="h-1.5" />
             </div>
           )}
-
-          {/* Continue or Enroll Button */}
-          <Button
-            className={`h-9 w-full rounded-full text-sm font-medium ${
-              isEnrolled
-                ? 'bg-green-600 hover:bg-green-700 text-white'
-                : enrollmentPending
-                  ? 'bg-amber-500 hover:bg-amber-600 text-black'
-                  : 'bg-bhutan-yellow text-black hover:bg-bhutan-orange'
-            }`}
-          >
-            {isEnrolled
-              ? 'Continue learning'
-              : enrollmentPending
-                ? 'Pending approval'
-                : (course as any).enrollment_mode === 'auto' ||
-                    (course as any).enrollment_mode === 'invite_code' ||
-                    (course as any).enrollment_mode === 'paid'
-                  ? 'Enroll now'
-                  : 'Request enrollment'}
-          </Button>
         </CardContent>
-      </Card>
       </HoverCardTrigger>
+        <div className="px-4 pb-4">
+          {requestOnThisPage ? (
+            <Button
+              type="button"
+              nativeButton
+              disabled={requesting || enrollmentPending}
+              className={ctaClassName}
+              onClick={() => onRequestEnrollment?.(course.id)}
+            >
+              {requesting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {ctaLabel}
+                </>
+              ) : (
+                ctaLabel
+              )}
+            </Button>
+          ) : (
+            <Button className={ctaClassName} render={<Link href={`/courses/${course.id}`} />}>
+              {ctaLabel}
+            </Button>
+          )}
+        </div>
+      </Card>
 
       <HoverCardContent className="w-80 p-4" side="right" sideOffset={10}>
         <div className="space-y-3">

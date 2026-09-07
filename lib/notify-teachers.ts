@@ -2,6 +2,7 @@
  * Notify course instructors when students enroll or complete.
  */
 
+import { listCourseStaffIds } from '@/lib/course-access'
 import { publicAppUrl, sendEmail } from '@/lib/email/send'
 
 async function insertNotification(
@@ -82,10 +83,20 @@ async function resolveStudentName(service: any, studentId: string): Promise<stri
 async function resolvePendingRecipientIds(
   service: any,
   instructorId: string | null,
-  studentId: string
+  studentId: string,
+  courseId: string
 ): Promise<string[]> {
   const ids = new Set<string>()
   if (instructorId && instructorId !== studentId) ids.add(instructorId)
+
+  try {
+    const staffIds = await listCourseStaffIds(service, courseId)
+    for (const id of staffIds) {
+      if (id && id !== studentId) ids.add(id)
+    }
+  } catch (err) {
+    console.error('[notify-teachers] course staff lookup failed:', err)
+  }
 
   const { data: admins } = await service
     .from('profiles')
@@ -124,7 +135,12 @@ export async function notifyTeacherOfEnrollment(
     })
   }
 
-  const recipientIds = await resolvePendingRecipientIds(service, instructorId, input.studentId)
+  const recipientIds = await resolvePendingRecipientIds(
+    service,
+    instructorId,
+    input.studentId,
+    input.courseId
+  )
   if (recipientIds.length === 0) return false
 
   const title = 'Enrollment request'

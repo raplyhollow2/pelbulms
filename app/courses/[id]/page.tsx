@@ -5,13 +5,15 @@ import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BookOpen, Clock, Users, Star, ArrowLeft, Loader2, CheckCircle, Play } from 'lucide-react'
+import { BookOpen, Clock, Users, Star, ArrowLeft, CheckCircle, Play, Hourglass } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { CourseActionDeck } from '@/components/courses/course-action-deck'
 import { CurriculumTimeline } from '@/components/courses/curriculum-timeline'
 import { CourseDetailSkeleton } from '@/components/courses/course-detail-skeleton'
 import { VideoPreviewModal } from '@/components/courses/video-preview-modal'
 import { resumeLearnPath } from '@/lib/resume-path'
+import { postEnrollmentRequest } from '@/lib/request-enrollment'
+import { toast } from 'sonner'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
@@ -175,7 +177,7 @@ export default function CourseDetailPage() {
       router.push('/auth/login')
       return
     }
-    if (enrollmentPending || isEnrolled) return
+    if (enrollmentPending || isEnrolled || enrolling) return
 
     try {
       setEnrolling(true)
@@ -183,27 +185,15 @@ export default function CourseDetailPage() {
         typeof window !== 'undefined'
           ? new URLSearchParams(window.location.search).get('session_id') || undefined
           : undefined
-      const res = await fetch('/api/enrollments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          courseId,
-          inviteCode: inviteCode.trim() || undefined,
-          sessionId: stripeSessionId,
-        }),
+      const { ok, httpStatus, data } = await postEnrollmentRequest(courseId, {
+        inviteCode: inviteCode.trim() || undefined,
+        sessionId: stripeSessionId,
       })
-      const raw = await res.text()
-      let data: any = {}
-      try {
-        data = raw ? JSON.parse(raw) : {}
-      } catch {
-        data = { error: raw?.slice(0, 200) || `HTTP ${res.status}` }
-      }
       if (data.needsKyc) {
         router.push('/auth/register')
         return
       }
-      if (res.status === 402 || data.enrollmentMode === 'paid') {
+      if (httpStatus === 402 || data.enrollmentMode === 'paid') {
         const checkout = await fetch('/api/enrollments/checkout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -216,15 +206,11 @@ export default function CourseDetailPage() {
         }
         throw new Error(checkoutData.error || data.error || 'Payment is required')
       }
-      if (!res.ok) throw new Error(data.error || `Failed to enroll (HTTP ${res.status})`)
+      if (!ok) throw new Error(data.error || `Failed to enroll (HTTP ${httpStatus})`)
 
       if (data.status === 'pending' || data.pending) {
         setEnrollmentPending(true)
         setIsEnrolled(false)
-        alert(
-          data.message ||
-            'Enrollment request sent. The course creator will verify your request.'
-        )
         return
       }
 
@@ -235,14 +221,11 @@ export default function CourseDetailPage() {
         return
       }
 
-      alert('Successfully enrolled! Redirecting to your course...')
-      setTimeout(() => {
-        router.push(resumeLearnPath(courseId, lastLessonId))
-      }, 800)
+      router.push(resumeLearnPath(courseId, lastLessonId))
     } catch (error: any) {
       if (error?.name === 'AbortError') return
       console.error('Enrollment error:', error?.message || error)
-      alert(error?.message ? `Failed to enroll: ${error.message}` : 'Failed to enroll. Please try again.')
+      toast.error(error?.message ? `Failed to enroll: ${error.message}` : 'Failed to enroll. Please try again.')
     } finally {
       setEnrolling(false)
     }
@@ -283,6 +266,18 @@ export default function CourseDetailPage() {
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Courses
         </Button>
+
+        {enrollmentPending && (
+          <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+            <Hourglass className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <div>
+              <p className="font-medium text-amber-900 dark:text-amber-100">Enrollment request pending</p>
+              <p className="text-sm text-muted-foreground">
+                Your request was sent to the course creator and course admins. You can start learning once they approve it.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Course Header */}
         <div className="space-y-4" data-hero-section>
@@ -478,6 +473,7 @@ export default function CourseDetailPage() {
               course={course}
               isEnrolled={isEnrolled}
               enrollmentPending={enrollmentPending}
+              enrolling={enrolling}
               onEnroll={handleEnroll}
               onLearn={() => router.push(resumeLearnPath(courseId, lastLessonId))}
               inviteMode={(course as any).enrollment_mode === 'invite_code'}
@@ -495,6 +491,7 @@ export default function CourseDetailPage() {
             course={course}
             isEnrolled={isEnrolled}
             enrollmentPending={enrollmentPending}
+            enrolling={enrolling}
             onEnroll={handleEnroll}
             onLearn={() => router.push(resumeLearnPath(courseId, lastLessonId))}
             inviteMode={(course as any).enrollment_mode === 'invite_code'}

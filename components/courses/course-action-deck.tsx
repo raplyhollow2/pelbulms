@@ -3,7 +3,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BookOpen, Clock, Users, Star, Play, CheckCircle, Hourglass } from 'lucide-react'
+import { BookOpen, Clock, Users, Star, Play, CheckCircle, Hourglass, Loader2 } from 'lucide-react'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
@@ -18,6 +18,7 @@ interface CourseActionDeckProps {
   inviteMode?: boolean
   inviteCode?: string
   onInviteCodeChange?: (value: string) => void
+  enrolling?: boolean
   variant?: 'sidebar' | 'mobile' | 'both'
 }
 
@@ -31,6 +32,7 @@ export function CourseActionDeck({
   inviteMode = false,
   inviteCode = '',
   onInviteCodeChange,
+  enrolling = false,
   variant = 'both',
 }: CourseActionDeckProps) {
   const requiresApproval = (course as any).enrollment_mode !== 'auto' &&
@@ -40,7 +42,12 @@ export function CourseActionDeck({
     ? `${Math.floor(course.duration_minutes / 60)}h ${course.duration_minutes % 60}m`
     : 'Self-paced'
 
-  const cta = isEnrolled ? (
+  const cta = enrolling ? (
+    <>
+      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+      Sending request
+    </>
+  ) : isEnrolled ? (
     <>
       <BookOpen className="mr-2 h-5 w-5" />
       Continue Learning
@@ -136,7 +143,9 @@ export function CourseActionDeck({
             {isEnrolled
               ? 'Pick up where you left off'
               : enrollmentPending
-                ? 'Waiting for the course creator to approve your request'
+                ? 'Request sent. Waiting for the course creator or a course admin to approve.'
+                : enrolling
+                  ? 'Sending your enrollment request…'
                 : inviteMode
                   ? 'Your teacher sends a unique code by email or SMS'
                   : requiresApproval
@@ -152,7 +161,7 @@ export function CourseActionDeck({
                   : 'bg-bhutan-yellow hover:bg-bhutan-orange'
             }`}
             size="lg"
-            disabled={enrollmentPending}
+            disabled={enrollmentPending || enrolling}
             onClick={isEnrolled ? onLearn : onEnroll}
           >
             {cta}
@@ -177,7 +186,9 @@ export function CourseActionDeck({
                 {isEnrolled
                   ? 'Resume from last lesson'
                   : enrollmentPending
-                    ? 'Awaiting creator approval'
+                    ? 'Request sent — awaiting approval'
+                    : enrolling
+                      ? 'Sending request…'
                     : requiresApproval
                       ? 'Request to enroll'
                       : 'Start learning'}
@@ -192,10 +203,18 @@ export function CourseActionDeck({
                     ? 'bg-amber-500 hover:bg-amber-600'
                     : 'bg-bhutan-yellow hover:bg-bhutan-orange'
               }`}
-              disabled={enrollmentPending}
+              disabled={enrollmentPending || enrolling}
               onClick={isEnrolled ? onLearn : onEnroll}
             >
-              {isEnrolled ? 'Resume' : enrollmentPending ? 'Pending' : requiresApproval ? 'Request' : 'Enroll'}
+              {enrolling
+                ? 'Sending…'
+                : isEnrolled
+                  ? 'Resume'
+                  : enrollmentPending
+                    ? 'Pending'
+                    : requiresApproval
+                      ? 'Request'
+                      : 'Enroll'}
             </Button>
           </div>
         </div>

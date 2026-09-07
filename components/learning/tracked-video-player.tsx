@@ -128,6 +128,7 @@ export function TrackedVideoPlayer({
           rel: 0,
           modestbranding: 1,
           enablejsapi: 1,
+          origin: typeof window !== 'undefined' ? window.location.origin : undefined,
         },
         events: {
           onReady: (e: any) => {
@@ -144,9 +145,12 @@ export function TrackedVideoPlayer({
               startPolling()
             }
             if ((e.data === 2 || e.data === 0) && intervalRef.current) {
-              // paused or ended -> flush and stop
               const t = playerRef.current?.getCurrentTime?.() || 0
-              emit(t, true)
+              const dur = playerRef.current?.getDuration?.() || durationRef.current
+              if (e.data === 0 && dur > 0) {
+                furthestRef.current = Math.max(furthestRef.current, dur)
+              }
+              emit(e.data === 0 ? dur || t : t, true)
               stopPolling()
             }
           },

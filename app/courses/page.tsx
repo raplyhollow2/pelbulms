@@ -30,6 +30,8 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 import { buildInstructorShowcaseData } from '@/lib/instructor-stats'
+import { postEnrollmentRequest } from '@/lib/request-enrollment'
+import { toast } from 'sonner'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -46,6 +48,7 @@ export default function CoursesPage() {
   const [currentUser, setCurrentUser] = useState<Profile | null>(null)
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<Set<string>>(new Set())
   const [pendingCourseIds, setPendingCourseIds] = useState<Set<string>>(new Set())
+  const [requestingCourseId, setRequestingCourseId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [selectedLevel, setSelectedLevel] = useState('All')
@@ -222,38 +225,24 @@ export default function CoursesPage() {
       return
     }
 
-    if (enrolledCourseIds.has(courseId)) {
-      window.location.href = `/learn/${courseId}`
-      return
-    }
-    if (pendingCourseIds.has(courseId)) {
-      alert('Your enrollment request is waiting for the course creator to approve.')
-      return
-    }
+    if (enrolledCourseIds.has(courseId) || requestingCourseId) return
+    if (pendingCourseIds.has(courseId)) return
 
     try {
-      const res = await fetch('/api/enrollments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courseId }),
-      })
-      const data = await res.json().catch(() => ({}))
+      setRequestingCourseId(courseId)
+      const { ok, data } = await postEnrollmentRequest(courseId)
 
       if (data.needsKyc) {
         window.location.href = '/auth/register'
         return
       }
 
-      if (!res.ok) {
+      if (!ok) {
         throw new Error(data.error || 'Failed to enroll')
       }
 
       if (data.status === 'pending' || data.pending) {
         setPendingCourseIds((prev) => new Set(prev).add(courseId))
-        alert(
-          data.message ||
-            'Enrollment request sent. The course creator will verify your request.'
-        )
         return
       }
 
@@ -264,13 +253,12 @@ export default function CoursesPage() {
         return
       }
 
-      alert('Successfully enrolled! Redirecting to your course...')
-      setTimeout(() => {
-        window.location.href = `/learn/${courseId}`
-      }, 800)
+      window.location.href = `/learn/${courseId}`
     } catch (error: any) {
       console.error('Enrollment error:', error)
-      alert(error?.message ? `Failed to enroll: ${error.message}` : 'Failed to enroll. Please try again.')
+      toast.error(error?.message ? `Failed to enroll: ${error.message}` : 'Failed to enroll. Please try again.')
+    } finally {
+      setRequestingCourseId(null)
     }
   }
 
@@ -474,6 +462,8 @@ export default function CoursesPage() {
                 course={course}
                 isEnrolled={isEnrolled}
                 enrollmentPending={enrollmentPending}
+                requesting={requestingCourseId === course.id}
+                onRequestEnrollment={handleEnroll}
                 progress={progress}
               />
             )

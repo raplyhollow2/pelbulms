@@ -105,7 +105,18 @@ export function CurriculumRail({
     })
   }, [currentSectionId])
 
-  let lectureNumber = 0
+  const lectureNumbers = useMemo(() => {
+    const numbers = new Map<string, number>()
+    let n = 0
+    for (const section of sections) {
+      for (const lesson of section.lessons) {
+        n += 1
+        numbers.set(lesson.id, n)
+      }
+    }
+    return numbers
+  }, [sections])
+
   const completedCount = lessons.filter((lesson) => completedLessonIds.has(lesson.id)).length
 
   return (
@@ -161,8 +172,7 @@ export function CurriculumRail({
               {open ? (
                 <ul>
                   {section.lessons.map((lesson) => {
-                    lectureNumber += 1
-                    const number = lectureNumber
+                    const number = lectureNumbers.get(lesson.id) ?? 0
                     const done = completedLessonIds.has(lesson.id)
                     const current = lesson.id === currentLessonId
                     const locked = lockedLessonIds?.has(lesson.id)
@@ -226,9 +236,7 @@ export function CurriculumRail({
                     )
                   })}
                 </ul>
-              ) : (
-                (lectureNumber += section.lessons.length) && null
-              )}
+              ) : null}
             </div>
           )
         })}

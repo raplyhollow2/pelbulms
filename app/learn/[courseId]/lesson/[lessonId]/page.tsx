@@ -77,6 +77,8 @@ export default function LessonViewPage() {
   const lessonProgressIdRef = useRef<string | null>(null)
   const timeSpentBaseRef = useRef(0)
   const certAutoRequestedRef = useRef(false)
+  const activeLessonIdRef = useRef(lessonId)
+  activeLessonIdRef.current = lessonId
 
   // Notes state
   const [notes, setNotes] = useState<Note[]>([])
@@ -93,6 +95,17 @@ export default function LessonViewPage() {
   const videoRef = useRef<HTMLVideoElement>(null)
 
   const supabase = createClient()
+
+  // Drop previous-lesson watch/complete flags before the new lesson's data lands.
+  useEffect(() => {
+    setVideoWatchSatisfied(false)
+    setIsCompleted(false)
+    setActivityCompleted(false)
+    setLessonProgress(null)
+    setMandatoryTotal(0)
+    setMandatoryCompleted(0)
+    setActivityProgressById({})
+  }, [lessonId])
 
   useEffect(() => {
     fetchLessonData()
@@ -202,9 +215,8 @@ export default function LessonViewPage() {
       }
 
       setLesson(lessonData as Lesson)
-      if (!(lessonData as Lesson).video_url) {
-        setVideoWatchSatisfied(true)
-      }
+      setIsCompleted(false)
+      setVideoWatchSatisfied(!(lessonData as Lesson).video_url)
 
       // Fetch all modules for this course
       const { data: modulesData } = await supabase
@@ -301,6 +313,7 @@ export default function LessonViewPage() {
         } else {
           lessonProgressIdRef.current = null
           timeSpentBaseRef.current = 0
+          setIsCompleted(false)
           setActivityCompleted(false)
           setVideoWatchSatisfied(!(lessonData as Lesson).video_url)
         }
@@ -522,6 +535,9 @@ export default function LessonViewPage() {
   // Persist watch progress (throttled by the player). Never un-completes.
   const persistWatchProgress = async (data: VideoProgressData) => {
     if (!currentUser || !lesson) return
+    if (data.percent >= 90 && activeLessonIdRef.current === lessonId) {
+      setVideoWatchSatisfied(true)
+    }
     const payload: any = {
       course_id: courseId,
       progress_percentage: data.percent,
@@ -633,7 +649,7 @@ export default function LessonViewPage() {
 
   // Auto completion mode: video threshold (or no video) + mandatory activities
   useEffect(() => {
-    if (loading || !lesson || isCompleted || savingProgress) return
+    if (loading || !lesson || lesson.id !== lessonId || isCompleted || savingProgress) return
     const settings = mergeGateSettings(
       (module as any)?.metadata,
       (lesson as any)?.metadata
@@ -643,7 +659,7 @@ export default function LessonViewPage() {
     if (lesson.video_url && !videoWatchSatisfied) return
     void setLessonCompletedState(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, lesson, module, isCompleted, savingProgress, activityCompleted, videoWatchSatisfied])
+  }, [loading, lesson, lessonId, module, isCompleted, savingProgress, activityCompleted, videoWatchSatisfied])
 
   const toggleLessonComplete = () => {
     if (!isCompleted) {
@@ -755,8 +771,8 @@ export default function LessonViewPage() {
     }
   }
 
-  // Auto mode watches videoWatchSatisfied + activityCompleted via useEffect
   const handleThresholdReached = () => {
+    if (activeLessonIdRef.current !== lessonId) return
     setVideoWatchSatisfied(true)
   }
 
