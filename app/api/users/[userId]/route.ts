@@ -94,6 +94,28 @@ export async function PATCH(
     if (typeof body.bio === 'string' || body.bio === null) updates.bio = body.bio
     if (typeof body.avatar_url === 'string' || body.avatar_url === null)
       updates.avatar_url = body.avatar_url
+    if (body.institution_id !== undefined) {
+      if (body.institution_id === null || body.institution_id === '') {
+        updates.institution_id = null
+      } else if (typeof body.institution_id === 'string') {
+        updates.institution_id = body.institution_id
+      } else {
+        return NextResponse.json({ error: 'Invalid institution' }, { status: 400 })
+      }
+    }
+    if (body.account_status !== undefined) {
+      const statuses = ['pending', 'active', 'suspended', 'rejected'] as const
+      if (
+        typeof body.account_status !== 'string' ||
+        !statuses.includes(body.account_status as (typeof statuses)[number])
+      ) {
+        return NextResponse.json({ error: 'Invalid account status' }, { status: 400 })
+      }
+      if (body.account_status === 'suspended' && userId === rbac.userId) {
+        return NextResponse.json({ error: 'You cannot suspend your own account' }, { status: 400 })
+      }
+      updates.account_status = body.account_status
+    }
     if (body.role !== undefined) {
       if (!VALID_ROLES.includes(body.role)) {
         return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
@@ -112,7 +134,7 @@ export async function PATCH(
 
     const { data: profile, error } = await supabase
       .from('profiles')
-      .update(updates)
+      .update(updates as never)
       .eq('id', userId)
       .select()
       .single()
@@ -127,6 +149,18 @@ export async function PATCH(
     if (updates.role !== undefined) metadata.role = updates.role
     if (Object.keys(metadata).length > 0) {
       await supabase.auth.admin.updateUserById(userId, { user_metadata: metadata })
+    }
+
+    if (updates.account_status !== undefined || updates.role !== undefined || updates.institution_id !== undefined) {
+      const { data: authUser } = await supabase.auth.admin.getUserById(userId)
+      const current = (authUser?.user?.app_metadata as Record<string, unknown>) || {}
+      const appPatch: Record<string, unknown> = { ...current }
+      if (updates.account_status !== undefined) appPatch.account_status = updates.account_status
+      if (updates.role !== undefined) appPatch.role = updates.role
+      if (updates.institution_id !== undefined) {
+        appPatch.institution_id = updates.institution_id ? String(updates.institution_id) : null
+      }
+      await supabase.auth.admin.updateUserById(userId, { app_metadata: appPatch })
     }
 
     return NextResponse.json({ user: profile })

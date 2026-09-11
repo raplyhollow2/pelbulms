@@ -19,10 +19,15 @@ export async function GET(request: NextRequest) {
 
   const service = await createServiceClient()
 
-  const { data: institutions } = await service
+  let { data: institutions, error: instError } = await service
     .from('institutions')
-    .select('id, name')
+    .select('id, name, display_name, is_active')
+    .eq('is_active', true)
     .order('name')
+  if (instError) {
+    const fallback = await service.from('institutions').select('id, name, display_name').order('name')
+    institutions = fallback.data
+  }
 
   const { data: reviewers } = await service
     .from('registration_reviewers')

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   BookOpen,
@@ -21,6 +21,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -30,6 +31,7 @@ import {
 } from '@/components/ui/select'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import type { RegistrationPolicy } from '@/lib/platform-settings'
 
 const DZONGKHAGS = [
   'Bumthang', 'Chukha', 'Dagana', 'Gasa', 'Haa', 'Lhuentse', 'Mongar', 'Paro',
@@ -43,14 +45,40 @@ const ROLE_OPTIONS = [
   { value: 'resource_person', label: 'Resource Person' },
 ]
 
-const STEPS = [
-  { id: 'personal', title: 'Personal', icon: UserRound },
-  { id: 'identity', title: 'Identity', icon: IdCard },
-  { id: 'institution', title: 'Institution', icon: Building2 },
-  { id: 'academic', title: 'Academic', icon: GraduationCap },
-] as const
+const HEAR_ABOUT = [
+  'School / institute',
+  'Teacher',
+  'Social media',
+  'Friend / family',
+  'Government programme',
+  'Other',
+]
 
+const DEFAULT_POLICY: RegistrationPolicy = {
+  require_identity_documents: true,
+  require_qualification: false,
+  require_student_id: false,
+  require_emergency_contact: false,
+  require_tos_consent: false,
+  collect_hear_about_us: false,
+}
+
+type StepId = 'personal' | 'identity' | 'institution' | 'academic'
 type Institution = { id: string; name: string; slug: string; display_name?: string }
+
+function buildSteps(policy: RegistrationPolicy) {
+  const steps: { id: StepId; title: string; icon: typeof UserRound }[] = [
+    { id: 'personal', title: 'Personal', icon: UserRound },
+  ]
+  if (policy.require_identity_documents) {
+    steps.push({ id: 'identity', title: 'Identity', icon: IdCard })
+  }
+  steps.push({ id: 'institution', title: 'Institution', icon: Building2 })
+  if (policy.require_qualification) {
+    steps.push({ id: 'academic', title: 'Academic', icon: GraduationCap })
+  }
+  return steps
+}
 
 function PhotoUpload({
   label,
@@ -138,6 +166,9 @@ export default function RegisterPage() {
   const [error, setError] = useState('')
   const [step, setStep] = useState(0)
   const [institutions, setInstitutions] = useState<Institution[]>([])
+  const [policy, setPolicy] = useState<RegistrationPolicy>(DEFAULT_POLICY)
+  const [siteName, setSiteName] = useState('Pelbu LMS')
+  const [tosAccepted, setTosAccepted] = useState(false)
 
   const [form, setForm] = useState({
     full_name: '',
@@ -155,11 +186,19 @@ export default function RegisterPage() {
     parent_guardian_name: '',
     parent_guardian_phone: '',
     motivation_statement: '',
+    pelsung_number: '',
+    emergency_contact_name: '',
+    emergency_contact_phone: '',
+    hear_about_us: '',
   })
   const [infoNotes, setInfoNotes] = useState<string | null>(null)
   const [isResubmit, setIsResubmit] = useState(false)
   const [passport, setPassport] = useState<{ path: string; previewUrl: string | null } | null>(null)
   const [cid, setCid] = useState<{ path: string; previewUrl: string | null } | null>(null)
+
+  const steps = useMemo(() => buildSteps(policy), [policy])
+  const currentId = steps[step]?.id
+  const lastIndex = steps.length - 1
 
   useEffect(() => {
     ;(async () => {
@@ -171,6 +210,8 @@ export default function RegisterPage() {
         }
         const data = await res.json()
         setInstitutions(data.institutions || [])
+        if (data.policy) setPolicy({ ...DEFAULT_POLICY, ...data.policy })
+        if (data.site_name) setSiteName(data.site_name)
         setForm((f) => ({
           ...f,
           full_name: data.user?.full_name || '',
@@ -178,6 +219,11 @@ export default function RegisterPage() {
         }))
         if (data.account_status === 'suspended') {
           router.push('/auth/access-denied')
+          return
+        }
+        if (data.account_status === 'active') {
+          await supabase.auth.refreshSession()
+          router.push('/dashboard')
           return
         }
         const regStatus = data.registration?.registration_status as string | undefined
@@ -212,8 +258,10 @@ export default function RegisterPage() {
     return i?.display_name || i?.name || 'Select your institution'
   }
 
-  const validateStep = (index: number): string | null => {
-    if (index === 0) {
+  const extrasOnThisStep = currentId === steps[lastIndex]?.id
+
+  const validateStepId = (id: StepId): string | null => {
+    if (id === 'personal') {
       if (!form.full_name.trim()) return 'Please enter your full name.'
       if (!/^\+975[0-9]{8}$/.test(form.phone_number))
         return 'Phone must be +975 followed by 8 digits.'
@@ -221,7 +269,7 @@ export default function RegisterPage() {
       if (!form.gender) return 'Please select your gender.'
       return null
     }
-    if (index === 1) {
+    if (id === 'identity') {
       if (!/^[0-9]{11}$/.test(form.cid_number)) return 'CID number must be exactly 11 digits.'
       if (!passport?.path) return 'Please upload your passport-size photo.'
       if (!cid?.path) return 'Please upload a photo of your CID.'
@@ -229,22 +277,49 @@ export default function RegisterPage() {
       if (!form.gewog.trim()) return 'Please enter your gewog.'
       return null
     }
-    if (index === 2) {
+    if (id === 'institution') {
       if (!form.institution_id) return 'Please select your institution.'
       if (!form.requested_role) return 'Please select your role.'
+      if (policy.require_student_id && !form.pelsung_number.trim()) {
+        return 'Please enter your student or staff ID.'
+      }
       return null
+    }
+    if (id === 'academic') {
+      if (policy.require_qualification && !form.education_level.trim()) {
+        return 'Please enter your education level.'
+      }
+      return null
+    }
+    return null
+  }
+
+  const validateExtras = (): string | null => {
+    if (policy.require_emergency_contact) {
+      if (!form.emergency_contact_name.trim()) return 'Please enter an emergency contact name.'
+      if (!form.emergency_contact_phone.trim()) return 'Please enter an emergency contact phone.'
+    }
+    if (policy.require_tos_consent && !tosAccepted) {
+      return 'Please accept the terms to continue.'
     }
     return null
   }
 
   const goNext = () => {
     setError('')
-    const err = validateStep(step)
+    const err = validateStepId(currentId)
     if (err) {
       setError(err)
       return
     }
-    setStep((s) => Math.min(s + 1, STEPS.length - 1))
+    if (step === lastIndex) {
+      const extraErr = validateExtras()
+      if (extraErr) {
+        setError(extraErr)
+        return
+      }
+    }
+    setStep((s) => Math.min(s + 1, lastIndex))
   }
 
   const goBack = () => {
@@ -254,13 +329,18 @@ export default function RegisterPage() {
 
   const handleSubmit = async () => {
     setError('')
-    for (let i = 0; i < STEPS.length; i++) {
-      const err = validateStep(i)
+    for (let i = 0; i < steps.length; i++) {
+      const err = validateStepId(steps[i].id)
       if (err) {
         setStep(i)
         setError(err)
         return
       }
+    }
+    const extraErr = validateExtras()
+    if (extraErr) {
+      setError(extraErr)
+      return
     }
 
     setSubmitting(true)
@@ -270,12 +350,18 @@ export default function RegisterPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
-          passport_photo_url: passport!.path,
-          cid_photo_url: cid!.path,
+          passport_photo_url: passport?.path || null,
+          cid_photo_url: cid?.path || null,
+          tos_accepted: tosAccepted,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Submission failed')
+      if (data.activated) {
+        await supabase.auth.refreshSession()
+        router.push('/dashboard')
+        return
+      }
       router.push('/auth/pending-approval')
     } catch (e: any) {
       setError(e.message)
@@ -296,6 +382,65 @@ export default function RegisterPage() {
     )
   }
 
+  const extrasBlock = extrasOnThisStep && (
+    <div className="grid gap-4">
+      {policy.require_emergency_contact && (
+        <>
+          <div className="space-y-2">
+            <Label>Emergency contact name</Label>
+            <Input
+              value={form.emergency_contact_name}
+              onChange={(e) => set('emergency_contact_name', e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Emergency contact phone</Label>
+            <Input
+              value={form.emergency_contact_phone}
+              onChange={(e) => set('emergency_contact_phone', e.target.value)}
+              placeholder="+975..."
+            />
+          </div>
+        </>
+      )}
+      {policy.collect_hear_about_us && (
+        <div className="space-y-2">
+          <Label>How did you hear about us? (optional)</Label>
+          <Select
+            value={form.hear_about_us}
+            onValueChange={(v) => set('hear_about_us', v ?? '')}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select">
+                {(v: string | null) => v || 'Select'}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {HEAR_ABOUT.map((opt) => (
+                <SelectItem key={opt} value={opt}>
+                  {opt}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      {policy.require_tos_consent && (
+        <label className="flex items-start gap-2.5 text-sm leading-snug">
+          <Checkbox
+            checked={tosAccepted}
+            onCheckedChange={(v) => setTosAccepted(v === true)}
+            className="mt-0.5"
+          />
+          <span>
+            I agree to the {siteName} terms of service and privacy policy, and confirm that the
+            information I provided is accurate.
+          </span>
+        </label>
+      )}
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-white px-4 py-6 pb-[calc(2rem+env(safe-area-inset-bottom))] dark:from-gray-900 dark:via-gray-900 dark:to-black">
       <div className="mx-auto w-full max-w-lg space-y-5">
@@ -303,15 +448,19 @@ export default function RegisterPage() {
           <div className="mb-3 inline-flex items-center gap-2 rounded-full glass-strong px-5 py-2">
             <BookOpen className="h-6 w-6 text-bhutan-yellow" />
             <span className="bg-gradient-to-r from-bhutan-yellow to-bhutan-orange bg-clip-text text-lg font-bold text-transparent">
-              Pelbu LMS
+              {siteName}
             </span>
           </div>
-          <h1 className="text-2xl font-bold">Verify your identity</h1>
+          <h1 className="text-2xl font-bold">
+            {policy.require_identity_documents ? 'Verify your identity' : 'Complete your profile'}
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Bhutan KYC is required before you can request a course. Upload your CID and a passport photo.
+            {policy.require_identity_documents
+              ? 'Bhutan KYC is required before you can request a course. Upload your CID and a passport photo.'
+              : 'Tell us who you are and which institution you are joining.'}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Step {step + 1} of {STEPS.length} — tap Next when you are ready.
+            Step {step + 1} of {steps.length} — tap Next when you are ready.
           </p>
         </div>
 
@@ -325,9 +474,8 @@ export default function RegisterPage() {
           </div>
         )}
 
-        {/* Progress */}
         <div className="flex items-center gap-1.5">
-          {STEPS.map((s, i) => {
+          {steps.map((s, i) => {
             const Icon = s.icon
             const active = i === step
             const done = i < step
@@ -356,8 +504,7 @@ export default function RegisterPage() {
           })}
         </div>
 
-        {/* Step 0 — Personal */}
-        {step === 0 && (
+        {currentId === 'personal' && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -367,7 +514,7 @@ export default function RegisterPage() {
             </CardHeader>
             <CardContent className="grid gap-4">
               <div className="space-y-2">
-                <Label>Full name (as on CID)</Label>
+                <Label>Full name{policy.require_identity_documents ? ' (as on CID)' : ''}</Label>
                 <Input
                   value={form.full_name}
                   onChange={(e) => set('full_name', e.target.value)}
@@ -407,12 +554,12 @@ export default function RegisterPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {extrasBlock}
             </CardContent>
           </Card>
         )}
 
-        {/* Step 1 — Identity + location (CID section) */}
-        {step === 1 && (
+        {currentId === 'identity' && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -484,12 +631,12 @@ export default function RegisterPage() {
                   />
                 </div>
               </div>
+              {extrasBlock}
             </CardContent>
           </Card>
         )}
 
-        {/* Step 2 — Institution only */}
-        {step === 2 && (
+        {currentId === 'institution' && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -540,18 +687,32 @@ export default function RegisterPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {policy.require_student_id && (
+                <div className="space-y-2">
+                  <Label>Student / staff ID</Label>
+                  <Input
+                    value={form.pelsung_number}
+                    onChange={(e) => set('pelsung_number', e.target.value)}
+                    placeholder="Dessung or Pelsung number"
+                  />
+                </div>
+              )}
+              {extrasBlock}
             </CardContent>
           </Card>
         )}
 
-        {/* Step 3 — Academic */}
-        {step === 3 && (
+        {currentId === 'academic' && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-lg">
                 <GraduationCap className="h-5 w-5" /> Academic background
               </CardTitle>
-              <CardDescription>Optional, but helps reviewers place you correctly.</CardDescription>
+              <CardDescription>
+                {policy.require_qualification
+                  ? 'Required so reviewers can place you correctly.'
+                  : 'Optional, but helps reviewers place you correctly.'}
+              </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
               <div className="space-y-2">
@@ -563,7 +724,7 @@ export default function RegisterPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Education level</Label>
+                <Label>Education level{policy.require_qualification ? '' : ' (optional)'}</Label>
                 <Input
                   value={form.education_level}
                   onChange={(e) => set('education_level', e.target.value)}
@@ -594,6 +755,7 @@ export default function RegisterPage() {
                   placeholder="A short motivation statement"
                 />
               </div>
+              {extrasBlock}
             </CardContent>
           </Card>
         )}
@@ -612,7 +774,7 @@ export default function RegisterPage() {
                 <ChevronLeft className="h-4 w-4" /> Back
               </Button>
             )}
-            {step < STEPS.length - 1 ? (
+            {step < lastIndex ? (
               <Button
                 type="button"
                 onClick={goNext}
@@ -631,8 +793,10 @@ export default function RegisterPage() {
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...
                   </>
-                ) : (
+                ) : policy.require_identity_documents ? (
                   'Submit for review'
+                ) : (
+                  'Finish and continue'
                 )}
               </Button>
             )}

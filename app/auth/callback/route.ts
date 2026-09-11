@@ -1,7 +1,10 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
+import {
+  createSupabaseServerClient,
+  tryCreateServiceClient,
+} from '@/lib/supabase/server'
 import { resolvePostLoginPath } from '@/lib/auth-destination'
 
 /**
@@ -10,11 +13,11 @@ import { resolvePostLoginPath } from '@/lib/auth-destination'
  */
 async function destinationFor(userId: string, origin: string): Promise<string> {
   try {
-    const service = await createServiceClient()
-    const path = await resolvePostLoginPath(service, userId)
+    const db = (await tryCreateServiceClient()) || (await createSupabaseServerClient())
+    const path = await resolvePostLoginPath(db, userId)
     return `${origin}${path}`
   } catch {
-    return `${origin}/auth/register`
+    return `${origin}/dashboard`
   }
 }
 

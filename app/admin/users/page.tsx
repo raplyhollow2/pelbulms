@@ -45,6 +45,8 @@ import {
   ShieldCheck,
   Users as UsersIcon,
   MoreHorizontal,
+  Ban,
+  CircleCheck,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
@@ -63,6 +65,8 @@ const EMPTY_FORM = {
   role: 'student' as Role,
   bio: '',
   avatar_url: '',
+  institution_id: '',
+  account_status: 'active',
 }
 
 function getInitials(name?: string | null) {
@@ -123,6 +127,21 @@ function RoleBadge({ role }: { role: string }) {
   )
 }
 
+function statusBadgeClass(status?: string | null) {
+  switch (status) {
+    case 'active':
+      return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+    case 'pending':
+      return 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300'
+    case 'suspended':
+      return 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300'
+    case 'rejected':
+      return 'border-border bg-muted text-muted-foreground'
+    default:
+      return 'border-border bg-muted text-muted-foreground'
+  }
+}
+
 export default function AdminUsersPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -140,6 +159,7 @@ export default function AdminUsersPage() {
 
   const [users, setUsers] = useState<Profile[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [institutions, setInstitutions] = useState<{ id: string; name: string; display_name?: string | null }[]>([])
 
   // Create form
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -239,7 +259,18 @@ export default function AdminUsersPage() {
         setActiveTab('approvals')
       }
 
-      if (manage) await fetchUsers()
+      if (manage) {
+        await fetchUsers()
+        try {
+          const instRes = await fetch('/api/admin/institutions?archived=1')
+          if (instRes.ok) {
+            const instJson = await instRes.json()
+            setInstitutions(instJson.institutions || [])
+          }
+        } catch {
+          // institution list is optional for the directory
+        }
+      }
 
       // Prefetch pending count so the Approvals tab badge is visible immediately
       if (approve) {
@@ -325,6 +356,12 @@ export default function AdminUsersPage() {
     }
   }
 
+  const institutionLabel = (id?: string | null) => {
+    if (!id) return 'No institution'
+    const i = institutions.find((x) => x.id === id)
+    return i?.display_name || i?.name || 'Unknown institution'
+  }
+
   const openEdit = (user: Profile) => {
     setEditingUser(user)
     setEditError('')
@@ -334,6 +371,8 @@ export default function AdminUsersPage() {
       role: (user.role as Role) || 'student',
       bio: user.bio || '',
       avatar_url: user.avatar_url || '',
+      institution_id: (user as any).institution_id || '',
+      account_status: (user as any).account_status || 'active',
     })
   }
 
@@ -351,6 +390,8 @@ export default function AdminUsersPage() {
           bio: editData.bio,
           role: editData.role,
           avatar_url: editData.avatar_url || null,
+          institution_id: editData.institution_id || null,
+          account_status: editData.account_status,
         }),
       })
       const json = await res.json()
@@ -698,6 +739,21 @@ export default function AdminUsersPage() {
                             </span>
                           </div>
                           <p className="mt-0.5 truncate text-xs text-muted-foreground">{email}</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                            <span
+                              className={cn(
+                                'inline-flex h-5 items-center rounded-md border px-1.5 text-[10px] font-medium capitalize',
+                                statusBadgeClass((user as any).account_status)
+                              )}
+                            >
+                              {(user as any).account_status || 'active'}
+                            </span>
+                            {(user as any).institution_id && (
+                              <span className="truncate text-[11px] text-muted-foreground">
+                                {institutionLabel((user as any).institution_id)}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -902,6 +958,78 @@ export default function AdminUsersPage() {
                     )}
                   </SelectContent>
                 </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_institution" className="text-xs font-medium">
+                  Institution
+                </Label>
+                <Select
+                  value={editData.institution_id || '__none__'}
+                  onValueChange={(value: any) =>
+                    setEditData({ ...editData, institution_id: value === '__none__' ? '' : value })
+                  }
+                >
+                  <SelectTrigger id="edit_institution" className="h-10">
+                    <SelectValue>
+                      {(v: string | null) =>
+                        !v || v === '__none__' ? 'No institution' : institutionLabel(v)
+                      }
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">No institution</SelectItem>
+                    {institutions.map((i) => (
+                      <SelectItem key={i.id} value={i.id}>
+                        {i.display_name || i.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_status" className="text-xs font-medium">
+                  Account status
+                </Label>
+                <Select
+                  value={editData.account_status || 'active'}
+                  onValueChange={(value: any) => setEditData({ ...editData, account_status: value })}
+                >
+                  <SelectTrigger id="edit_status" className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="suspended">Suspended</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div className="flex gap-2 pt-1">
+                  {editData.account_status === 'suspended' ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1.5 text-xs"
+                      onClick={() => setEditData({ ...editData, account_status: 'active' })}
+                    >
+                      <CircleCheck className="h-3 w-3" /> Activate
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1.5 text-xs text-destructive"
+                      disabled={editingUser?.id === currentUser?.id}
+                      onClick={() => setEditData({ ...editData, account_status: 'suspended' })}
+                    >
+                      <Ban className="h-3 w-3" /> Suspend
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1.5">

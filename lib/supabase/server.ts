@@ -89,6 +89,16 @@ export const tryCreateServiceClient = async () => {
 }
 
 /**
+ * Prefer service role; fall back to the signed-in session (local/dev without
+ * SUPABASE_SERVICE_ROLE_KEY). Callers must still enforce RBAC.
+ */
+export async function getAdminDb() {
+  const service = await tryCreateServiceClient()
+  if (service) return service
+  return createSupabaseServerClient()
+}
+
+/**
  * Legacy singleton pattern - deprecated
  * Use createSupabaseServerClient or createServiceClient instead
  * @deprecated Use the async factory functions instead

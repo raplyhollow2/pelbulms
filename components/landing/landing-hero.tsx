@@ -44,7 +44,17 @@ function useTypewriter(words: string[]) {
   return text
 }
 
-export function LandingHero() {
+export function LandingHero({
+  siteName = 'Pelbu LMS',
+  tagline,
+  description,
+  requireIdentity = true,
+}: {
+  siteName?: string
+  tagline?: string | null
+  description?: string | null
+  requireIdentity?: boolean
+}) {
   const typed = useTypewriter(ROTATING)
 
   return (
@@ -65,7 +75,7 @@ export function LandingHero() {
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-bhutan-yellow to-bhutan-orange shadow-brand">
             <BookGlyph className="h-5 w-5 text-white" />
           </span>
-          <span className="text-lg font-semibold tracking-tight">Pelbu LMS</span>
+          <span className="text-lg font-semibold tracking-tight">{siteName}</span>
         </Link>
         <nav className="flex items-center gap-1.5">
           <Button
@@ -93,7 +103,10 @@ export function LandingHero() {
         <div className="max-w-xl">
           <span className="reveal reveal-1 inline-flex items-center gap-2 rounded-full border border-border/60 bg-background/60 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
             <ShieldCheck className="h-3.5 w-3.5 text-bhutan-orange" />
-            A verified, closed learning network for Bhutan
+            {tagline ||
+              (requireIdentity
+                ? 'A verified, closed learning network for Bhutan'
+                : 'A learning network for Bhutan')}
           </span>
 
           <h1 className="reveal reveal-2 mt-5 text-4xl font-semibold leading-[1.05] tracking-tight sm:text-5xl md:text-6xl">
@@ -107,9 +120,10 @@ export function LandingHero() {
           </h1>
 
           <p className="reveal reveal-3 mt-5 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
-            Pelbu LMS is Bhutan&apos;s private learning platform — identity-verified access,
-            world-class courses, progress tracking, and recognised certificates. Built for
-            students, teachers and institutions shaping the nation&apos;s future.
+            {description ||
+              (requireIdentity
+                ? "Pelbu LMS is Bhutan's private learning platform — identity-verified access, world-class courses, progress tracking, and recognised certificates. Built for students, teachers and institutions shaping the nation's future."
+                : "Pelbu LMS is Bhutan's learning platform — world-class courses, progress tracking, and recognised certificates. Built for students, teachers and institutions shaping the nation's future.")}
           </p>
 
           <div className="reveal reveal-4 mt-8 flex flex-wrap items-center gap-3">

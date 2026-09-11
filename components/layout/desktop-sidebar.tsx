@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   Home, BookOpen, GraduationCap, Settings, User,
   ChevronLeft, ChevronRight, LogOut, Search, TrendingUp, Users,
-  Bell, HardDrive, Sparkles,
+  Bell, HardDrive, Sparkles, Building2,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -76,6 +76,12 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
 
   const adminNavigation: NavItem[] = [
     { name: 'Users', href: '/admin/users', icon: Users },
+    ...(canAdmin
+      ? [
+          { name: 'Institutions', href: '/admin/settings/institutions', icon: Building2 } as NavItem,
+          { name: 'Site admin', href: '/admin/settings', icon: Settings },
+        ]
+      : []),
     ...(isSuper ? [{ name: 'AI', href: '/admin/ai', icon: Sparkles } as NavItem] : []),
   ]
 

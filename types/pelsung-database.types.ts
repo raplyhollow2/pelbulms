@@ -22,9 +22,9 @@ export interface StudentRegistration {
   gender: 'male' | 'female' | 'other' | null
 
   // Identification & Pelsung Details
-  cid_number: string
+  cid_number: string | null
   pelsung_number: string | null
-  passport_photo_url: string
+  passport_photo_url: string | null
 
   // Academic Information
   class: string | null
@@ -34,8 +34,8 @@ export interface StudentRegistration {
 
   // Location (Bhutan Administrative Divisions)
   village: string | null
-  gewog: string
-  dzongkhag: string
+  gewog: string | null
+  dzongkhag: string | null
 
   // Family/Guardian Information
   parent_guardian_name: string | null
@@ -74,6 +74,8 @@ export interface StudentRegistration {
   submitted_ip: string | null
   submitted_from: string | null
   updated_at: string
+  tos_accepted_at: string | null
+  hear_about_us: string | null
 }
 
 export interface UserApproval {
@@ -140,6 +142,9 @@ export interface Institution {
   allowed_email_domains: string[] | null
   max_students: number | null
   resource_person_id: string | null
+  display_name: string | null
+  is_active: boolean
+  archived_at: string | null
   settings: any
   created_at: string
   updated_at: string

@@ -13,57 +13,70 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { LandingHero } from '@/components/landing/landing-hero'
+import { getPlatformSettings } from '@/lib/platform-settings'
+import { tryCreateServiceClient, createSupabaseServerClient } from '@/lib/supabase/server'
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pelbu.bt'
-const SITE_NAME = 'Pelbu LMS'
-const DESCRIPTION =
+const FALLBACK_NAME = 'Pelbu LMS'
+const FALLBACK_DESCRIPTION =
   'Pelbu LMS is Bhutan’s private, identity-verified learning platform. Students and teachers get world-class courses, progress tracking, private video lessons and recognised certificates — access granted only after Bhutan KYC approval.'
 
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
-  title: {
-    default: 'Pelbu LMS — Bhutan’s Private Learning Platform',
-    template: '%s · Pelbu LMS',
-  },
-  description: DESCRIPTION,
-  applicationName: SITE_NAME,
-  keywords: [
-    'Bhutan LMS',
-    'learning management system Bhutan',
-    'online courses Bhutan',
-    'Pelbu',
-    'Pelsung',
-    'Gelephu Mindfulness City education',
-    'KYC verified learning',
-    'private video courses',
-    'digital certificates Bhutan',
-    'e-learning Bhutan',
-  ],
-  authors: [{ name: 'Pelbu' }],
-  creator: 'Pelbu',
-  publisher: 'Pelbu',
-  alternates: { canonical: '/' },
-  category: 'education',
-  openGraph: {
-    type: 'website',
-    locale: 'en_BT',
-    url: SITE_URL,
-    siteName: SITE_NAME,
-    title: 'Pelbu LMS — Bhutan’s Private Learning Platform',
-    description: DESCRIPTION,
-    images: [{ url: '/icon.svg', width: 512, height: 512, alt: 'Pelbu LMS' }],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Pelbu LMS — Bhutan’s Private Learning Platform',
-    description: DESCRIPTION,
-    images: ['/icon.svg'],
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 },
-  },
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getPlatformSettings()
+  const siteName = settings.site_name || FALLBACK_NAME
+  const description =
+    settings.landing_description ||
+    settings.tagline ||
+    (settings.require_identity_documents
+      ? FALLBACK_DESCRIPTION
+      : `${siteName} is Bhutan’s learning platform for students, teachers and institutions.`)
+
+  return {
+    metadataBase: new URL(SITE_URL),
+    title: {
+      default: `${siteName} — Bhutan’s Private Learning Platform`,
+      template: `%s · ${siteName}`,
+    },
+    description,
+    applicationName: siteName,
+    keywords: [
+      'Bhutan LMS',
+      'learning management system Bhutan',
+      'online courses Bhutan',
+      'Pelbu',
+      'Pelsung',
+      'Dessung',
+      'Gelephu Mindfulness City education',
+      'private video courses',
+      'digital certificates Bhutan',
+      'e-learning Bhutan',
+    ],
+    authors: [{ name: 'Pelbu' }],
+    creator: 'Pelbu',
+    publisher: 'Pelbu',
+    alternates: { canonical: '/' },
+    category: 'education',
+    openGraph: {
+      type: 'website',
+      locale: 'en_BT',
+      url: SITE_URL,
+      siteName,
+      title: `${siteName} — Bhutan’s Private Learning Platform`,
+      description,
+      images: [{ url: '/icon.svg', width: 512, height: 512, alt: siteName }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${siteName} — Bhutan’s Private Learning Platform`,
+      description,
+      images: ['/icon.svg'],
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 },
+    },
+  }
 }
 
 const FEATURES = [
@@ -151,16 +164,16 @@ const FAQ = [
   },
 ]
 
-function jsonLd() {
+function jsonLd(siteName: string, description: string, faq: { q: string; a: string }[]) {
   return {
     '@context': 'https://schema.org',
     '@graph': [
       {
         '@type': 'EducationalOrganization',
         '@id': `${SITE_URL}/#organization`,
-        name: SITE_NAME,
+        name: siteName,
         url: SITE_URL,
-        description: DESCRIPTION,
+        description,
         areaServed: { '@type': 'Country', name: 'Bhutan' },
         logo: `${SITE_URL}/icon.svg`,
       },
@@ -168,14 +181,14 @@ function jsonLd() {
         '@type': 'WebSite',
         '@id': `${SITE_URL}/#website`,
         url: SITE_URL,
-        name: SITE_NAME,
+        name: siteName,
         publisher: { '@id': `${SITE_URL}/#organization` },
         inLanguage: 'en',
       },
       {
         '@type': 'FAQPage',
         '@id': `${SITE_URL}/#faq`,
-        mainEntity: FAQ.map((f) => ({
+        mainEntity: faq.map((f) => ({
           '@type': 'Question',
           name: f.q,
           acceptedAnswer: { '@type': 'Answer', text: f.a },
@@ -185,16 +198,118 @@ function jsonLd() {
   }
 }
 
-export default function Home() {
+async function loadFeaturedCourses(ids: string[]) {
+  if (!ids.length) return [] as { id: string; title: string; description: string | null }[]
+  try {
+    const service = await tryCreateServiceClient()
+    const client = service || (await createSupabaseServerClient())
+    const { data } = await client
+      .from('courses')
+      .select('id, title, description')
+      .in('id', ids)
+      .eq('is_published', true)
+    const byId = new Map((data || []).map((c: any) => [c.id, c]))
+    return ids.map((id) => byId.get(id)).filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+export default async function Home() {
+  const settings = await getPlatformSettings()
+  const siteName = settings.site_name || FALLBACK_NAME
+  const requireIdentity = settings.require_identity_documents
+  const description =
+    settings.landing_description ||
+    (requireIdentity
+      ? FALLBACK_DESCRIPTION
+      : `${siteName} is Bhutan’s learning platform for students, teachers and institutions.`)
+  const featured = settings.public_catalog
+    ? await loadFeaturedCourses(settings.featured_course_ids)
+    : []
+
+  const features = FEATURES.map((f) =>
+    f.title === 'Bhutan KYC access' && !requireIdentity
+      ? {
+          ...f,
+          title: 'Trusted learner accounts',
+          desc: 'Every learner registers with a real profile and institution so certificates stay trustworthy.',
+        }
+      : f
+  )
+
+  const steps = requireIdentity
+    ? STEPS
+    : [
+        STEPS[0],
+        {
+          icon: UserPlus,
+          title: 'Complete your profile',
+          desc: 'Choose your institution and role — no CID upload is required right now.',
+        },
+        {
+          icon: GraduationCap,
+          title: 'Start learning',
+          desc: 'Browse the catalog and request a course. The course creator still verifies each enrollment.',
+        },
+      ]
+
+  const faq = requireIdentity
+    ? FAQ.map((f) =>
+        f.q === 'What is Pelbu LMS?' ? { ...f, q: `What is ${siteName}?`, a: f.a.replaceAll('Pelbu LMS', siteName) } : { ...f, a: f.a.replaceAll('Pelbu LMS', siteName).replaceAll('Pelbu', siteName) }
+      )
+    : [
+        {
+          q: `What is ${siteName}?`,
+          a: `${siteName} is Bhutan’s learning management platform. It offers private video courses, progress tracking and recognised certificates for students, teachers and institutions.`,
+        },
+        {
+          q: `How do I get access to ${siteName}?`,
+          a: 'Sign in with Google, complete a short profile (name, phone and institution), then request a course. Instructors and resource persons still need Superadmin approval. Course creators verify each enrollment.',
+        },
+        FAQ[3],
+        FAQ[4],
+      ]
+
   return (
     <div className="min-h-screen bg-background">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd()) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd(siteName, description, faq)) }}
       />
 
       <main>
-        <LandingHero />
+        <LandingHero
+          siteName={siteName}
+          tagline={settings.tagline}
+          description={settings.landing_description || settings.landing_headline || description}
+          requireIdentity={requireIdentity}
+        />
+
+        {featured.length > 0 && (
+          <section className="mx-auto max-w-6xl px-5 pb-8">
+            <div className="mb-6">
+              <p className="text-sm font-semibold uppercase tracking-widest text-bhutan-orange">
+                Featured
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight">Courses to start with</h2>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {featured.map((c: any) => (
+                <Link
+                  key={c.id}
+                  href="/auth/login"
+                  className="hover-lift rounded-2xl border border-border/60 bg-card/70 p-5"
+                >
+                  <h3 className="text-base font-semibold tracking-tight">{c.title}</h3>
+                  {c.description && (
+                    <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{c.description}</p>
+                  )}
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Features */}
         <section id="features" className="mx-auto max-w-6xl px-5 py-20 md:py-28">
@@ -211,7 +326,7 @@ export default function Home() {
           </div>
 
           <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map((f) => (
+            {features.map((f) => (
               <article
                 key={f.title}
                 className="hover-lift group rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur"
@@ -236,15 +351,17 @@ export default function Home() {
                 Getting started
               </p>
               <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-                Four steps to join Pelbu
+                {requireIdentity ? 'Four steps to join Pelbu' : 'How to join'}
               </h2>
               <p className="mt-4 text-muted-foreground">
-                Pelbu is a verified, closed network. Here’s exactly how access works.
+                {requireIdentity
+                  ? 'Pelbu is a verified, closed network. Here’s exactly how access works.'
+                  : 'Create an account, pick your institution, then start requesting courses.'}
               </p>
             </div>
 
-            <ol className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {STEPS.map((s, i) => (
+            <ol className={`mt-14 grid gap-6 sm:grid-cols-2 ${steps.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
+              {steps.map((s, i) => (
                 <li
                   key={s.title}
                   className="relative rounded-2xl border border-border/60 bg-card/70 p-6 backdrop-blur"
@@ -285,7 +402,7 @@ export default function Home() {
             </h2>
           </div>
           <div className="mt-10 divide-y divide-border/60 rounded-2xl border border-border/60 bg-card/50 backdrop-blur">
-            {FAQ.map((f) => (
+            {faq.map((f) => (
               <details key={f.q} className="group px-6 py-5 [&_summary::-webkit-details-marker]:hidden">
                 <summary className="flex cursor-pointer items-center justify-between gap-4 text-base font-medium">
                   {f.q}
@@ -308,8 +425,9 @@ export default function Home() {
               Ready to learn with the best in Bhutan?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-              Join a verified community of learners and educators. Get approved, then start your
-              first course today.
+              {requireIdentity
+                ? 'Join a verified community of learners and educators. Get approved, then start your first course today.'
+                : 'Join learners and educators across Bhutan. Create an account and start your first course today.'}
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Button
@@ -327,7 +445,7 @@ export default function Home() {
 
       <footer className="border-t border-border/50">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-8 text-sm text-muted-foreground sm:flex-row">
-          <p>© {new Date().getFullYear()} Pelbu LMS · Empowering education in Bhutan.</p>
+          <p>© {new Date().getFullYear()} {siteName} · Empowering education in Bhutan.</p>
           <nav className="flex items-center gap-5">
             <Link href="/auth/login" className="transition-colors hover:text-foreground">
               Sign in

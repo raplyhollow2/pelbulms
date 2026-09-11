@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   Home, BookOpen, GraduationCap, User,
   Menu, X, LogOut, Settings, Search,
-  Bell, TrendingUp, Users, Plus, HardDrive, Sparkles
+  Bell, TrendingUp, Users, Plus, HardDrive, Sparkles, Building2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -60,6 +60,12 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
 
   const adminNavigation = [
     { name: 'Users', href: '/admin/users', icon: Users },
+    ...(canAdmin
+      ? [
+          { name: 'Institutions', href: '/admin/settings/institutions', icon: Building2 },
+          { name: 'Site admin', href: '/admin/settings', icon: Settings },
+        ]
+      : []),
     ...(isSuper ? [{ name: 'AI', href: '/admin/ai', icon: Sparkles }] : []),
   ]
 

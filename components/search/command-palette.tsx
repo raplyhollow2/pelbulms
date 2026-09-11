@@ -10,7 +10,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { BookOpen, Home, User, Settings, GraduationCap, Users, Bell, TrendingUp, Loader2 } from 'lucide-react'
+import { BookOpen, Home, User, Settings, GraduationCap, Users, Bell, TrendingUp, Loader2, Building2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 interface CourseHit {
@@ -155,6 +155,14 @@ export function CommandPalette() {
                 <CommandItem value="user management admin" onSelect={() => runCommand('/admin/users')}>
                   <Users className="mr-2 h-4 w-4" />
                   <span>User Management</span>
+                </CommandItem>
+                <CommandItem value="site administration settings" onSelect={() => runCommand('/admin/settings')}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Site administration</span>
+                </CommandItem>
+                <CommandItem value="institutions dessung pelsung" onSelect={() => runCommand('/admin/settings/institutions')}>
+                  <Building2 className="mr-2 h-4 w-4" />
+                  <span>Institutions</span>
                 </CommandItem>
               </CommandGroup>
             </CommandList>

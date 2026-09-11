@@ -48,6 +48,12 @@ export async function middleware(req: NextRequest) {
 
   const pathname = req.nextUrl.pathname
 
+  // OAuth code exchange lives in the route handler. Do not call getUser()
+  // here — the 4s Auth timeout aborts the callback and the session never sticks.
+  if (pathname.startsWith('/auth/callback')) {
+    return NextResponse.next({ request: req })
+  }
+
   // IMPORTANT: getUser() validates the token against the Auth server AND
   // refreshes it when needed, writing the new cookies via setAll above.
   // When Auth is unreachable (timeout / offline), NEVER throw — that surfaces
@@ -133,6 +139,9 @@ export async function middleware(req: NextRequest) {
         // Assigned reviewers (often instructors) need the approvals screen even
         // though it lives under /admin; the page + API enforce reviewer rights.
         const isApprovalsPath = pathname.startsWith('/admin/approvals')
+        if (pathname.startsWith('/admin/ai')) {
+          return redirectTo('/dashboard')
+        }
         if (pathname.startsWith('/admin') && !isApprovalsPath) {
           if (userRole !== 'resource_person' && userRole !== 'admin') {
             return redirectTo('/dashboard')

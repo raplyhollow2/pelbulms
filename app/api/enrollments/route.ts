@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getDbClient } from '@/lib/db'
 import { notifyTeacherOfEnrollment } from '@/lib/notify-teachers'
 import { isKycExemptRole } from '@/lib/kyc'
+import { getPlatformSettings } from '@/lib/platform-settings'
 
 /**
  * POST /api/enrollments
@@ -60,7 +61,8 @@ export async function POST(request: Request) {
       )
     }
 
-    if (!isKycExemptRole(role)) {
+    const platform = await getPlatformSettings()
+    if (!isKycExemptRole(role) && platform.require_identity_documents) {
       const { data: kyc } = await service
         .from('student_registrations')
         .select('id')

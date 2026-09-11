@@ -261,7 +261,106 @@ export async function processRegistrationReview(
   return { success: false, error: 'Invalid action' }
 }
 
-async function mergeAuthAppMetadata(
+/**
+ * Activate a learner immediately without a reviewer (used when identity
+ * documents are turned off in platform settings). Teaching-role requests
+ * still stay in the approval queue; this only grants student access.
+ */
+export async function autoActivateStudentAccount(
+  service: any,
+  opts: {
+    userId: string
+    institutionId: string
+    fullName: string
+    registrationId?: string | null
+    approveRegistration: boolean
+    phoneNumber?: string | null
+    cidNumber?: string | null
+    pelsungNumber?: string | null
+    className?: string | null
+    dzongkhag?: string | null
+  }
+): Promise<{ success: true } | { success: false; error: string }> {
+  const now = new Date().toISOString()
+
+  if (opts.approveRegistration && opts.registrationId) {
+    const { error: regError } = await service
+      .from('student_registrations')
+      .update({
+        registration_status: 'approved',
+        reviewed_at: now,
+        review_notes: 'Auto-approved: identity documents are not required.',
+        updated_at: now,
+      })
+      .eq('id', opts.registrationId)
+    if (regError) return { success: false, error: regError.message }
+  }
+
+  const { data: existingProfile } = await service
+    .from('profiles')
+    .select('metadata, role, account_status')
+    .eq('id', opts.userId)
+    .maybeSingle()
+
+  const existingMetadata =
+    existingProfile?.metadata && typeof existingProfile.metadata === 'object'
+      ? existingProfile.metadata
+      : {}
+
+  const keepTeachingRole =
+    existingProfile?.account_status === 'active' &&
+    ['instructor', 'resource_person', 'admin', 'superadmin'].includes(
+      existingProfile?.role || ''
+    )
+  const nextRole = keepTeachingRole ? existingProfile.role : 'student'
+
+  const profilePatch: Record<string, unknown> = {
+    account_status: 'active',
+    role: nextRole,
+    institution_id: opts.institutionId,
+    full_name: opts.fullName,
+    location: opts.dzongkhag || null,
+    metadata: {
+      ...existingMetadata,
+      cid_number: opts.cidNumber || existingMetadata.cid_number || null,
+      pelsung_number: opts.pelsungNumber || existingMetadata.pelsung_number || null,
+      class: opts.className || existingMetadata.class || null,
+      phone_number: opts.phoneNumber || existingMetadata.phone_number || null,
+    },
+    updated_at: now,
+  }
+  if (existingProfile?.account_status !== 'active') {
+    profilePatch.enrollment_date = now
+  }
+
+  const { error: profileError } = await service
+    .from('profiles')
+    .update(profilePatch)
+    .eq('id', opts.userId)
+
+  if (profileError) return { success: false, error: profileError.message }
+
+  await service.from('institution_access').upsert(
+    {
+      institution_id: opts.institutionId,
+      user_id: opts.userId,
+      role_within_institution: 'student',
+      granted_at: now,
+      is_active: true,
+    },
+    { onConflict: 'institution_id,user_id' }
+  )
+
+  await mergeAuthAppMetadata(service, opts.userId, {
+    account_status: 'active',
+    role: String(nextRole),
+    institution_id: String(opts.institutionId),
+  })
+
+  return { success: true }
+}
+
+export async function mergeAuthAppMetadata(
   service: any,
   userId: string,
   patch: Record<string, string>
