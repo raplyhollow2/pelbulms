@@ -1,30 +1,66 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from '@/components/ui/hover-card'
-import { BookOpen, Clock, Users, Star, Play, Award, TrendingUp, Loader2 } from 'lucide-react'
+import { BookOpen, Check, Loader2, Star } from 'lucide-react'
 import type { Database } from '@/types/database.types'
 import { resolveMediaUrl } from '@/lib/media'
+import { cn } from '@/lib/utils'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Module = Database['public']['Tables']['modules']['Row']
+type Profile = Database['public']['Tables']['profiles']['Row']
 
 interface CourseCardProps {
-  course: Course & { modules?: Module[] }
+  course: Course & {
+    modules?: Module[] | { id?: string; count?: number }[]
+    students_count?: number
+    modules_count?: number
+    enrollment_count?: number
+    profiles?: Pick<Profile, 'full_name' | 'avatar_url' | 'bio'> | null
+  }
   progress?: number
   isEnrolled?: boolean
   enrollmentPending?: boolean
   requesting?: boolean
   onRequestEnrollment?: (courseId: string) => void
+}
+
+function moduleCount(course: CourseCardProps['course']) {
+  if (typeof course.modules_count === 'number') return course.modules_count
+  const modules = course.modules
+  if (!modules || modules.length === 0) return 0
+  const first = modules[0] as { count?: number }
+  if (typeof first?.count === 'number') return first.count
+  return modules.length
+}
+
+function studentCount(course: CourseCardProps['course']) {
+  if (typeof course.students_count === 'number') return course.students_count
+  if (typeof course.enrollment_count === 'number') return course.enrollment_count
+  return 0
+}
+
+function Chip({
+  children,
+  className,
+}: {
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-md border border-border/80 bg-background px-2 py-0.5 text-[11px] font-medium text-foreground/80',
+        className
+      )}
+    >
+      {children}
+    </span>
+  )
 }
 
 export function CourseCard({
@@ -36,37 +72,23 @@ export function CourseCard({
   onRequestEnrollment,
 }: CourseCardProps) {
   const [imageError, setImageError] = useState(false)
+
   const thumbSrc = resolveMediaUrl(course.thumbnail_url)
+  const modules = moduleCount(course)
+  const students = studentCount(course)
+  const brief = (course.description || '').trim() || 'No description available.'
+  const instructorName =
+    course.profiles?.full_name?.trim() ||
+    (course as { instructor_name?: string }).instructor_name ||
+    'Instructor'
+  const rating =
+    typeof course.average_rating === 'number' && course.average_rating > 0
+      ? course.average_rating
+      : null
+  const ratingCount =
+    typeof course.rating_count === 'number' ? course.rating_count : 0
 
-  const calculateDuration = () => {
-    if (!course.modules || course.modules.length === 0) return 'Self-paced'
-
-    // Calculate total duration from modules if available
-    const totalMinutes = course.modules?.reduce((sum: number, m: any) =>
-      sum + (m.lessons?.reduce((lessonSum: number, l: any) =>
-        lessonSum + (l.duration_minutes || 0), 0) || 0), 0)
-
-    if (totalMinutes > 0) {
-      const hours = Math.floor(totalMinutes / 60)
-      const minutes = totalMinutes % 60
-      return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
-    }
-
-    return 'Self-paced'
-  }
-
-  const getLevelColor = (level: string) => {
-    switch (level?.toLowerCase()) {
-      case 'beginner': return 'bg-green-600'
-      case 'intermediate': return 'bg-blue-600'
-      case 'advanced': return 'bg-purple-600'
-      case 'expert': return 'bg-red-600'
-      default: return 'bg-gray-600'
-    }
-  }
-
-  const duration = calculateDuration()
-  const enrollmentMode = (course as any).enrollment_mode as string | undefined
+  const enrollmentMode = (course as { enrollment_mode?: string }).enrollment_mode
   const requiresApproval =
     enrollmentMode !== 'auto' &&
     enrollmentMode !== 'invite_code' &&
@@ -85,85 +107,87 @@ export function CourseCard({
             enrollmentMode === 'paid'
           ? 'Enroll now'
           : 'Request enrollment'
-  const ctaClassName = `h-9 w-full rounded-full text-sm font-medium ${
+  const ctaClassName = cn(
+    'h-9 w-full rounded-full text-sm font-medium',
     isEnrolled
-      ? 'bg-green-600 hover:bg-green-700 text-white'
+      ? 'bg-green-600 text-white hover:bg-green-700'
       : enrollmentPending
-        ? 'bg-amber-500 hover:bg-amber-600 text-black'
+        ? 'bg-amber-500 text-black hover:bg-amber-600'
         : 'bg-bhutan-yellow text-black hover:bg-bhutan-orange'
-  }`
+  )
 
   return (
-    <HoverCard openDelay={300} closeDelay={200}>
-      <Card className="group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 h-full overflow-hidden border-border/50 hover:border-bhutan-yellow/30 flex flex-col">
-      <HoverCardTrigger
-        render={<Link href={`/courses/${course.id}`} className="block flex-1 cursor-pointer" />}
-      >
-        {/* Thumbnail - 16:9 Aspect Ratio (Standard Video Format) */}
-        <div className="relative w-full pt-[56.25%] overflow-hidden bg-gray-900 rounded-t-lg">
+    <Card className="group flex h-full flex-col gap-0 overflow-hidden border-border/60 bg-card py-0 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
+      <div className="relative w-full overflow-hidden bg-muted pt-[56.25%]">
+        <Link
+          href={`/courses/${course.id}`}
+          className="absolute inset-0 block"
+          aria-label={course.title}
+        >
           {thumbSrc && !imageError ? (
             <img
               src={thumbSrc}
-              alt={course.title}
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              alt=""
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
               onError={() => setImageError(true)}
             />
           ) : (
-            <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20 flex items-center justify-center">
-              <BookOpen className="w-12 h-12 text-bhutan-yellow" />
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20">
+              <BookOpen className="h-12 w-12 text-bhutan-yellow" />
             </div>
           )}
-
-          {/* Play Button Overlay */}
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center pointer-events-none z-10">
-            <div className="w-12 h-12 rounded-full bg-bhutan-yellow flex items-center justify-center">
-              <Play className="w-6 h-6 text-black ml-1" />
-            </div>
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-end bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+            <p className="line-clamp-3 text-xs leading-relaxed text-white/95 sm:text-sm">
+              {brief}
+            </p>
           </div>
+        </Link>
 
-          {/* Badge */}
-          {course.is_featured && (
-            <Badge className="absolute top-3 right-3 bg-bhutan-yellow text-black z-20">
-              Featured
-            </Badge>
-          )}
-        </div>
+        {course.is_featured && (
+          <span className="pointer-events-none absolute left-2.5 top-2.5 z-30 inline-flex items-center gap-1 rounded-full bg-bhutan-orange px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm">
+            <Check className="h-3 w-3" strokeWidth={3} />
+            Featured
+          </span>
+        )}
+      </div>
 
-        <CardContent className="space-y-3 p-4 pb-3">
-          {/* Course Title and Category */}
-          <div className="space-y-1.5">
-            <h3 className="line-clamp-2 text-sm font-semibold leading-snug tracking-tight transition-colors group-hover:text-bhutan-orange sm:text-base">
+      <Link href={`/courses/${course.id}`} className="block flex-1 cursor-pointer">
+        <CardContent className="flex flex-1 flex-col gap-2.5 px-3.5 py-3">
+          <div className="space-y-1">
+            <h3 className="line-clamp-2 text-[15px] font-bold leading-snug tracking-tight text-foreground">
               {course.title}
             </h3>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <Badge variant="outline" className="text-[10px] font-medium capitalize">
-                {course.category}
-              </Badge>
-              <Badge className={`text-[10px] font-medium capitalize ${getLevelColor(course.level)}`}>
-                {course.level}
-              </Badge>
-            </div>
+            <p className="truncate text-xs text-muted-foreground">{instructorName}</p>
           </div>
 
-          {/* Course Stats */}
-          <div className="flex items-center justify-between border-y py-2 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Clock className="h-3.5 w-3.5" />
-              <span>{duration}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Users className="h-3.5 w-3.5" />
-              <span>{(course as any).students_count || 0}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-              <span className="font-medium">{(course as any).rating || 'New'}</span>
-            </div>
+          <div className="flex flex-wrap gap-1.5">
+            {course.category && <Chip className="capitalize">{course.category}</Chip>}
+            {course.level && <Chip className="capitalize">{course.level}</Chip>}
+            {rating != null ? (
+              <Chip>
+                <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                {rating.toFixed(1)}
+              </Chip>
+            ) : (
+              <Chip>New</Chip>
+            )}
           </div>
 
-          {/* Progress Bar for Enrolled Courses */}
+          <div className="flex flex-wrap gap-1.5">
+            <Chip>
+              {modules} {modules === 1 ? 'module' : 'modules'}
+            </Chip>
+            <Chip>
+              {students.toLocaleString()}{' '}
+              {students === 1 ? 'student' : 'students'}
+            </Chip>
+            {ratingCount > 0 && (
+              <Chip>{ratingCount.toLocaleString()} ratings</Chip>
+            )}
+          </div>
+
           {isEnrolled && progress > 0 && (
-            <div className="space-y-1.5">
+            <div className="space-y-1 pt-0.5">
               <div className="flex justify-between text-[11px] font-medium">
                 <span className="text-muted-foreground">{progress}% complete</span>
               </div>
@@ -171,111 +195,32 @@ export function CourseCard({
             </div>
           )}
         </CardContent>
-      </HoverCardTrigger>
-        <div className="px-4 pb-4">
-          {requestOnThisPage ? (
-            <Button
-              type="button"
-              nativeButton
-              disabled={requesting || enrollmentPending}
-              className={ctaClassName}
-              onClick={() => onRequestEnrollment?.(course.id)}
-            >
-              {requesting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {ctaLabel}
-                </>
-              ) : (
-                ctaLabel
-              )}
-            </Button>
-          ) : (
-            <Button className={ctaClassName} render={<Link href={`/courses/${course.id}`} />}>
-              {ctaLabel}
-            </Button>
-          )}
-        </div>
-      </Card>
+      </Link>
 
-      <HoverCardContent className="w-80 p-4" side="right" sideOffset={10}>
-        <div className="space-y-3">
-          {/* Course Title */}
-          <div>
-            <h4 className="font-semibold text-sm mb-1">{course.title}</h4>
-            <p className="text-xs text-muted-foreground line-clamp-2">
-              {course.description || 'No description available.'}
-            </p>
-          </div>
-
-          {/* Course Stats */}
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="flex items-center gap-1.5">
-              <Clock className="w-3 h-3 text-muted-foreground" />
-              <span>{duration}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Users className="w-3 h-3 text-muted-foreground" />
-              <span>{(course as any).students_count || 0} students</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-              <span>{(course as any).rating || 'New'}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <BookOpen className="w-3 h-3 text-muted-foreground" />
-              <span>{course.modules?.length || 0} modules</span>
-            </div>
-          </div>
-
-          {/* Level and Category */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="outline" className="text-xs">
-              {course.category}
-            </Badge>
-            <Badge className={`text-xs ${getLevelColor(course.level)}`}>
-              {course.level}
-            </Badge>
-            {course.is_featured && (
-              <Badge className="text-xs bg-bhutan-yellow text-black">
-                <Award className="w-3 h-3 mr-1" />
-                Featured
-              </Badge>
+      <div className="mt-auto px-3.5 pb-3.5">
+        {requestOnThisPage ? (
+          <Button
+            type="button"
+            nativeButton
+            disabled={requesting || enrollmentPending}
+            className={ctaClassName}
+            onClick={() => onRequestEnrollment?.(course.id)}
+          >
+            {requesting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {ctaLabel}
+              </>
+            ) : (
+              ctaLabel
             )}
-          </div>
-
-          {/* Instructor Info */}
-          {(course as any).instructor_name && (
-            <div className="pt-2 border-t border-border/50">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-bhutan-yellow/20 flex items-center justify-center">
-                  <span className="text-xs font-semibold text-bhutan-yellow">
-                    {(course as any).instructor_name?.[0]?.toUpperCase() || 'I'}
-                  </span>
-                </div>
-                <span className="text-xs text-muted-foreground">
-                  {(course as any).instructor_name}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Learning Outcome */}
-          {course.learning_outcomes && (
-            <div className="pt-2 border-t border-border/50">
-              <div className="flex items-start gap-2">
-                <TrendingUp className="w-3 h-3 text-bhutan-yellow mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-xs font-medium mb-1">What you'll learn:</p>
-                  <p className="text-xs text-muted-foreground line-clamp-2">
-                    {course.learning_outcomes}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </HoverCardContent>
-    </HoverCard>
+          </Button>
+        ) : (
+          <Button className={ctaClassName} render={<Link href={`/courses/${course.id}`} />}>
+            {ctaLabel}
+          </Button>
+        )}
+      </div>
+    </Card>
   )
 }

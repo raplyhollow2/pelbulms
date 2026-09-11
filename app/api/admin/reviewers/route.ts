@@ -24,7 +24,8 @@ export async function GET(request: NextRequest) {
     .select('id, name, display_name, is_active')
     .eq('is_active', true)
     .order('name')
-  if (instError) {
+  if (instError && /is_active/.test(instError.message || '')) {
+    // Pre-is_active schema: the column is missing, so every row is active.
     const fallback = await service.from('institutions').select('id, name, display_name').order('name')
     institutions = fallback.data
   }

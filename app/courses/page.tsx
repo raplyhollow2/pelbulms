@@ -38,7 +38,13 @@ type Profile = Database['public']['Tables']['profiles']['Row']
 type Module = Database['public']['Tables']['modules']['Row']
 type Enrollment = Database['public']['Tables']['enrollments']['Row']
 
-type CourseWithInstructor = Course & { profiles?: Profile | null, modules?: Module[] }
+type CourseWithInstructor = Course & {
+  profiles?: Profile | null
+  modules?: Module[] | { id: string }[]
+  students_count?: number
+  modules_count?: number
+  enrollment_count?: number
+}
 
 export default function CoursesPage() {
   const router = useRouter()
@@ -77,24 +83,84 @@ export default function CoursesPage() {
         setCurrentUser(profile)
       }
 
-      // Fetch published courses with instructor info
-      const { data: coursesData, error } = await supabase
-        .from('courses')
-        .select(`
-          *,
-          profiles:instructor_id (
-            full_name,
-            avatar_url,
-            bio
-          )
-        `)
-        .eq('is_published', true)
-        .order('created_at', { ascending: false })
+      // Fetch published courses with instructor + module rows for catalog stats
+      let coursesData: CourseWithInstructor[] | null = null
+      {
+        const withModules = await supabase
+          .from('courses')
+          .select(`
+            *,
+            profiles:instructor_id (
+              full_name,
+              avatar_url,
+              bio
+            ),
+            modules ( id )
+          `)
+          .eq('is_published', true)
+          .order('created_at', { ascending: false })
 
-      if (error) throw error
+        if (!withModules.error) {
+          coursesData = (withModules.data || []) as CourseWithInstructor[]
+        } else {
+          const fallback = await supabase
+            .from('courses')
+            .select(`
+              *,
+              profiles:instructor_id (
+                full_name,
+                avatar_url,
+                bio
+              )
+            `)
+            .eq('is_published', true)
+            .order('created_at', { ascending: false })
+          if (fallback.error) throw fallback.error
+          coursesData = (fallback.data || []) as CourseWithInstructor[]
+        }
+      }
 
-      setCourses((coursesData || []) as CourseWithInstructor[])
-      setFilteredCourses((coursesData || []) as CourseWithInstructor[])
+      const withStats = (coursesData || []).map((course) => ({
+        ...course,
+        modules_count: Array.isArray(course.modules) ? course.modules.length : 0,
+        students_count:
+          typeof course.enrollment_count === 'number'
+            ? course.enrollment_count
+            : typeof course.students_count === 'number'
+              ? course.students_count
+              : 0,
+      }))
+
+      // Live module + student counts (enrollment_count is often missing/stale;
+      // learners cannot count other enrollments under RLS).
+      const courseIds = withStats.map((c) => c.id)
+      if (courseIds.length) {
+        try {
+          const statsRes = await fetch('/api/courses/catalog-stats', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ courseIds }),
+          })
+          if (statsRes.ok) {
+            const { stats } = (await statsRes.json()) as {
+              stats?: Record<string, { modules?: number; students?: number }>
+            }
+            if (stats) {
+              for (const course of withStats) {
+                const s = stats[course.id]
+                if (!s) continue
+                if (typeof s.students === 'number') course.students_count = s.students
+                if (typeof s.modules === 'number') course.modules_count = s.modules
+              }
+            }
+          }
+        } catch (statsErr) {
+          console.warn('Catalog stats enrichment failed:', statsErr)
+        }
+      }
+
+      setCourses(withStats)
+      setFilteredCourses(withStats)
 
       // Fetch user's enrollments
       if (user) {
@@ -449,7 +515,6 @@ export default function CoursesPage() {
           </p>
         </div>
 
-        {/* Enhanced Course Grid with Hover Cards */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
           {filteredCourses.map((course) => {
             const isEnrolled = enrolledCourseIds.has(course.id)

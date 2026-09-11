@@ -215,7 +215,7 @@ export async function POST(request: Request) {
     emergency_contact_name: emergency_contact_name?.trim() || null,
     emergency_contact_phone: emergency_contact_phone?.trim() || null,
     hear_about_us: hear_about_us?.trim() || null,
-    tos_accepted_at: policy.require_tos_consent || tos_accepted ? now : null,
+    tos_accepted_at: policy.require_tos_consent && tos_accepted ? now : null,
     registration_status: autoActivate && !teachingRequest ? 'approved' : 'submitted',
     submitted_at: now,
     updated_at: now,

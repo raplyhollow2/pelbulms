@@ -5,12 +5,11 @@ import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BookOpen, Clock, Users, Star, ArrowLeft, CheckCircle, Play, Hourglass } from 'lucide-react'
+import { BookOpen, Clock, Users, Star, ArrowLeft, CheckCircle, Hourglass } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { CourseActionDeck } from '@/components/courses/course-action-deck'
 import { CurriculumTimeline } from '@/components/courses/curriculum-timeline'
 import { CourseDetailSkeleton } from '@/components/courses/course-detail-skeleton'
-import { VideoPreviewModal } from '@/components/courses/video-preview-modal'
 import { resumeLearnPath } from '@/lib/resume-path'
 import { postEnrollmentRequest } from '@/lib/request-enrollment'
 import { toast } from 'sonner'
@@ -34,7 +33,6 @@ export default function CourseDetailPage() {
   const [enrollmentPending, setEnrollmentPending] = useState(false)
   const [enrolling, setEnrolling] = useState(false)
   const [currentUser, setCurrentUser] = useState<any>(null)
-  const [showVideoPreview, setShowVideoPreview] = useState(false)
   const [lastLessonId, setLastLessonId] = useState<string | null>(null)
   const [inviteCode, setInviteCode] = useState('')
 
@@ -292,26 +290,6 @@ export default function CourseDetailPage() {
               </div>
               <h1 className="text-4xl font-bold mb-2">{course.title}</h1>
               <p className="text-lg text-muted-foreground">{course.description}</p>
-
-              {/* Video Preview Button */}
-              {((course as any).metadata?.preview_video_url ||
-                (course as any).preview_video_url) && (
-                <div className="mt-4 flex items-center gap-3">
-                  <Button
-                    variant="outline"
-                    className="bg-bhutan-yellow/10 hover:bg-bhutan-yellow/20 border-bhutan-yellow/50"
-                    onClick={() => setShowVideoPreview(true)}
-                  >
-                    <Play className="w-4 h-4 mr-2" />
-                    Watch Preview
-                  </Button>
-                  <span className="text-sm text-muted-foreground">
-                    {course.duration_minutes
-                      ? `${course.duration_minutes} min of content`
-                      : 'Self-paced content'}
-                  </span>
-                </div>
-              )}
             </div>
           </div>
 
@@ -500,22 +478,6 @@ export default function CourseDetailPage() {
             variant="mobile"
           />
         </div>
-      )}
-
-      {/* Video Preview Modal */}
-      {course && (
-        <VideoPreviewModal
-          courseId={course.id}
-          courseTitle={course.title}
-          previewVideoUrl={
-            (course as any).metadata?.preview_video_url ||
-            (course as any).preview_video_url ||
-            null
-          }
-          isOpen={showVideoPreview}
-          onOpenChange={setShowVideoPreview}
-          onEnroll={handleEnroll}
-        />
       )}
     </div>
   )

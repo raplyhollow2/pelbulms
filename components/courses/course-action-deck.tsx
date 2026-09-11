@@ -1,12 +1,24 @@
 'use client'
 
+import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { BookOpen, Clock, Users, Star, Play, CheckCircle, Hourglass, Loader2 } from 'lucide-react'
-import type { Database } from '@/types/database.types'
+import { VideoPreviewModal } from '@/components/courses/video-preview-modal'
+import { resolveMediaUrl } from '@/lib/media'
+import type { Database, Json } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
+
+function previewUrlFromCourse(course: Course): string {
+  const meta = course.metadata as (Json & { preview_video_url?: string }) | null
+  const fromMeta =
+    meta && typeof meta === 'object' && !Array.isArray(meta)
+      ? String((meta as { preview_video_url?: string }).preview_video_url || '').trim()
+      : ''
+  return fromMeta || String((course as { preview_video_url?: string | null }).preview_video_url || '').trim()
+}
 
 interface CourseActionDeckProps {
   course: Course
@@ -35,12 +47,19 @@ export function CourseActionDeck({
   enrolling = false,
   variant = 'both',
 }: CourseActionDeckProps) {
+  const [showVideoPreview, setShowVideoPreview] = useState(false)
+  const [imageError, setImageError] = useState(false)
+
   const requiresApproval = (course as any).enrollment_mode !== 'auto' &&
     (course as any).enrollment_mode !== 'invite_code' &&
     (course as any).enrollment_mode !== 'paid'
   const duration = course.duration_minutes
     ? `${Math.floor(course.duration_minutes / 60)}h ${course.duration_minutes % 60}m`
     : 'Self-paced'
+
+  const previewVideoUrl = previewUrlFromCourse(course)
+  const hasPreview = Boolean(previewVideoUrl)
+  const thumbSrc = resolveMediaUrl(course.thumbnail_url)
 
   const cta = enrolling ? (
     <>
@@ -75,8 +94,49 @@ export function CourseActionDeck({
   )
 
   const body = (
-    <Card className="border-border/60 shadow-lg">
+    <Card className="overflow-hidden border-border/60 shadow-lg">
       <CardContent className="p-0">
+        {(hasPreview || thumbSrc) && (
+          <button
+            type="button"
+            onClick={() => hasPreview && setShowVideoPreview(true)}
+            disabled={!hasPreview}
+            className="group relative block w-full overflow-hidden bg-muted text-left disabled:cursor-default"
+            aria-label={hasPreview ? `Preview ${course.title}` : course.title}
+          >
+            <div className="relative aspect-video w-full">
+              {thumbSrc && !imageError ? (
+                <img
+                  src={thumbSrc}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover"
+                  onError={() => setImageError(true)}
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20">
+                  <BookOpen className="h-10 w-10 text-bhutan-yellow" />
+                </div>
+              )}
+
+              {hasPreview && (
+                <>
+                  <div className="absolute inset-0 bg-black/25 transition-colors group-hover:bg-black/35" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-black shadow-lg transition-transform group-hover:scale-105">
+                      <Play className="ml-0.5 h-7 w-7 fill-current" />
+                    </span>
+                  </div>
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 pb-3 pt-10">
+                    <p className="text-center text-sm font-semibold text-white">
+                      Preview this course
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+          </button>
+        )}
+
         <div className="border-b border-border/50 p-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Course preview
@@ -219,6 +279,17 @@ export function CourseActionDeck({
           </div>
         </div>
       </div>
+      )}
+
+      {hasPreview && variant !== 'mobile' && (
+        <VideoPreviewModal
+          courseId={course.id}
+          courseTitle={course.title}
+          previewVideoUrl={previewVideoUrl}
+          isOpen={showVideoPreview}
+          onOpenChange={setShowVideoPreview}
+          onEnroll={onEnroll}
+        />
       )}
     </>
   )
