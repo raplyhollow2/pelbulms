@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,7 @@ import { LessonNextBar } from '@/components/learning/lesson-next-bar'
 import { CourseLearningTabs } from '@/components/course/course-learning-tabs'
 import { LessonBlocks } from '@/components/course/lesson-blocks'
 import { LessonContentStage } from '@/components/learning/lesson-content-stage'
+import { CourseCompletionDialog } from '@/components/learning/course-completion-dialog'
 import { type VideoProgressData } from '@/components/learning/tracked-video-player'
 import { parseLessonBlocks, readCourseAiMetadata } from '@/lib/lesson-blocks'
 import {
@@ -74,10 +75,16 @@ export default function LessonViewPage() {
   )
   const [certificateUrl, setCertificateUrl] = useState<string | null>(null)
   const [issuingCert, setIssuingCert] = useState(false)
+  const [focusLearningTab, setFocusLearningTab] = useState<string | null>(null)
+  const [autoAdvanceNotice, setAutoAdvanceNotice] = useState<string | null>(null)
+  const [showCompletionDialog, setShowCompletionDialog] = useState(false)
   const lessonProgressIdRef = useRef<string | null>(null)
   const timeSpentBaseRef = useRef(0)
   const certAutoRequestedRef = useRef(false)
+  const congratsShownRef = useRef(false)
+  const completingLessonRef = useRef(false)
   const activeLessonIdRef = useRef(lessonId)
+  const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   activeLessonIdRef.current = lessonId
 
   // Notes state
@@ -96,6 +103,14 @@ export default function LessonViewPage() {
 
   const supabase = createClient()
 
+  const clearAutoAdvance = () => {
+    if (autoAdvanceTimerRef.current) {
+      clearTimeout(autoAdvanceTimerRef.current)
+      autoAdvanceTimerRef.current = null
+    }
+    setAutoAdvanceNotice(null)
+  }
+
   // Drop previous-lesson watch/complete flags before the new lesson's data lands.
   useEffect(() => {
     setVideoWatchSatisfied(false)
@@ -105,13 +120,23 @@ export default function LessonViewPage() {
     setMandatoryTotal(0)
     setMandatoryCompleted(0)
     setActivityProgressById({})
+    setFocusLearningTab(null)
+    lessonProgressIdRef.current = null
+    completingLessonRef.current = false
+    clearAutoAdvance()
   }, [lessonId])
+
+  useEffect(() => {
+    return () => {
+      if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current)
+    }
+  }, [])
 
   useEffect(() => {
     fetchLessonData()
   }, [courseId, lessonId])
 
-  // If sequential unlock is enabled and this lesson isn't open yet, bounce back
+  // If sequential unlock is enabled and this lesson isn't open yet, bounce back (no alert spam)
   useEffect(() => {
     if (loading || !lesson || allLessons.length === 0) return
     const ordered = allLessons.map((l) => l.id)
@@ -136,7 +161,6 @@ export default function LessonViewPage() {
         })
       )
       if (firstOpen && firstOpen !== lessonId) {
-        alert('This lesson is locked. Opening the next available lesson.')
         router.replace(`/learn/${courseId}/lesson/${firstOpen}`)
       }
     }
@@ -292,6 +316,7 @@ export default function LessonViewPage() {
       }
 
       // Fetch lesson progress for THIS lesson
+      let thisLessonCompleted = false
       try {
         const { data: progressData } = await supabase
           .from('lesson_progress')
@@ -302,14 +327,22 @@ export default function LessonViewPage() {
 
         if (progressData) {
           const pd = progressData as any
+          thisLessonCompleted = Boolean(pd.completed)
           setLessonProgress(pd as LessonProgress)
-          setIsCompleted(pd.completed || false)
+          setIsCompleted(thisLessonCompleted)
           setActivityCompleted(Boolean(pd.activity_completed))
           lessonProgressIdRef.current = pd.id
           timeSpentBaseRef.current = pd.time_spent_seconds || 0
           setVideoWatchSatisfied(
             !(lessonData as Lesson).video_url || (pd.progress_percentage || 0) >= 90
           )
+          if (thisLessonCompleted) {
+            setCompletedLessonIds((prev) => {
+              const next = new Set(prev)
+              next.add(lessonId)
+              return next
+            })
+          }
         } else {
           lessonProgressIdRef.current = null
           timeSpentBaseRef.current = 0
@@ -323,29 +356,71 @@ export default function LessonViewPage() {
 
       // Fetch completed-lesson ids across the whole course (for checkmarks/progress)
       try {
-        const { data: courseProgress } = await supabase
+        const { data: courseProgress, error: courseProgressError } = await supabase
           .from('lesson_progress')
           .select('lesson_id, completed, activity_completed')
           .eq('user_id', user.id)
           .eq('course_id', courseId)
 
-        if (courseProgress) {
+        if (courseProgressError) {
+          // Fallback without activity_completed for older DBs
+          const { data: fallback } = await supabase
+            .from('lesson_progress')
+            .select('lesson_id, completed')
+            .eq('user_id', user.id)
+            .eq('course_id', courseId)
+          if (fallback) {
+            const map = new Map<string, LessonProgressLite>()
+            for (const r of fallback as any[]) {
+              map.set(r.lesson_id, {
+                lesson_id: r.lesson_id,
+                completed: r.completed,
+                activity_completed: Boolean(r.completed),
+              })
+            }
+            if (thisLessonCompleted) {
+              map.set(lessonId, {
+                lesson_id: lessonId,
+                completed: true,
+                activity_completed: map.get(lessonId)?.activity_completed ?? true,
+              })
+            }
+            setProgressByLesson(map)
+            setCompletedLessonIds(
+              new Set(
+                (fallback as any[])
+                  .filter((r) => r.completed)
+                  .map((r) => r.lesson_id as string)
+                  .concat(thisLessonCompleted ? [lessonId] : [])
+              )
+            )
+          }
+        } else if (courseProgress) {
           const map = new Map<string, LessonProgressLite>()
           for (const r of courseProgress as any[]) {
             map.set(r.lesson_id, {
               lesson_id: r.lesson_id,
               completed: r.completed,
-              activity_completed: r.activity_completed,
+              activity_completed:
+                r.activity_completed == null
+                  ? Boolean(r.completed)
+                  : Boolean(r.activity_completed),
+            })
+          }
+          if (thisLessonCompleted) {
+            const cur = map.get(lessonId)
+            map.set(lessonId, {
+              lesson_id: lessonId,
+              completed: true,
+              activity_completed: cur?.activity_completed ?? true,
             })
           }
           setProgressByLesson(map)
-          setCompletedLessonIds(
-            new Set(
-              (courseProgress as any[])
-                .filter((r) => r.completed)
-                .map((r) => r.lesson_id as string)
-            )
-          )
+          const ids = (courseProgress as any[])
+            .filter((r) => r.completed)
+            .map((r) => r.lesson_id as string)
+          if (thisLessonCompleted && !ids.includes(lessonId)) ids.push(lessonId)
+          setCompletedLessonIds(new Set(ids))
         }
       } catch (e) {
         console.log('Course progress fetch error (continuing anyway):', e)
@@ -443,7 +518,8 @@ export default function LessonViewPage() {
       const cur = next.get(lessonId)
       next.set(lessonId, {
         lesson_id: lessonId,
-        completed: Boolean(cur?.completed),
+        // Never wipe a known completed flag when activity sync lands first
+        completed: Boolean(cur?.completed) || completedLessonIds.has(lessonId),
         activity_completed: done,
       })
       return next
@@ -574,36 +650,52 @@ export default function LessonViewPage() {
   }
 
   // Set the completed flag for the current lesson and refresh rollups.
-  const setLessonCompletedState = async (completed: boolean) => {
-    if (!currentUser || !lesson) return
+  const setLessonCompletedState = async (completed: boolean): Promise<boolean> => {
+    if (!currentUser || !lesson) return false
+    if (completingLessonRef.current) return false
+    if (activeLessonIdRef.current !== lessonId) return false
+    // Avoid no-op writes that still trip the enrollment trigger
+    if (completed === isCompleted && lessonProgressIdRef.current) return true
+
+    completingLessonRef.current = true
     try {
       setSavingProgress(true)
-      const payload: any = {
+      const now = new Date().toISOString()
+      const payload: Record<string, unknown> = {
+        user_id: currentUser.id,
+        lesson_id: lessonId,
         course_id: courseId,
         completed,
-        completed_at: completed ? new Date().toISOString() : null,
-        last_accessed_at: new Date().toISOString(),
+        // Keep legacy column in sync when present
+        is_completed: completed,
+        completed_at: completed ? now : null,
+        last_accessed_at: now,
+        time_spent_seconds: timeSpentBaseRef.current,
       }
       const db = supabase as any
-      if (lessonProgressIdRef.current) {
-        const { error } = await db
-          .from('lesson_progress')
-          .update(payload)
-          .eq('id', lessonProgressIdRef.current)
-        if (error) throw error
-      } else {
-        const { data: inserted, error } = await db
-          .from('lesson_progress')
-          .insert({
-            user_id: currentUser.id,
-            lesson_id: lessonId,
-            time_spent_seconds: timeSpentBaseRef.current,
-            ...payload,
-          })
-          .select()
-          .single()
-        if (error) throw error
-        if (inserted) lessonProgressIdRef.current = (inserted as any).id
+
+      const { data: upserted, error } = await db
+        .from('lesson_progress')
+        .upsert(payload, { onConflict: 'user_id,lesson_id' })
+        .select('id, completed, activity_completed')
+        .single()
+
+      if (error) {
+        // Retry without legacy is_completed if the column write is rejected
+        if (String(error.message || '').toLowerCase().includes('is_completed')) {
+          delete payload.is_completed
+          const retry = await db
+            .from('lesson_progress')
+            .upsert(payload, { onConflict: 'user_id,lesson_id' })
+            .select('id, completed, activity_completed')
+            .single()
+          if (retry.error) throw retry.error
+          if (retry.data) lessonProgressIdRef.current = retry.data.id
+        } else {
+          throw error
+        }
+      } else if (upserted) {
+        lessonProgressIdRef.current = upserted.id
       }
 
       setIsCompleted(completed)
@@ -634,15 +726,22 @@ export default function LessonViewPage() {
 
       if (updatedEnrollment) {
         setEnrollment(updatedEnrollment)
-        if ((updatedEnrollment as any).progress_percentage >= 100 && !certAutoRequestedRef.current) {
-          certAutoRequestedRef.current = true
-          issueCertificate()
+        if ((updatedEnrollment as any).progress_percentage >= 100) {
+          celebrateCourseCompletion()
         }
       }
-    } catch (error) {
-      console.error('Error updating progress:', error)
-      alert('Failed to update progress. Please try again.')
+      return true
+    } catch (error: any) {
+      const message =
+        error?.message ||
+        error?.error_description ||
+        error?.details ||
+        (typeof error === 'string' ? error : 'Unknown error')
+      console.warn('Error updating progress:', message, error?.code || '', error?.details || '')
+      alert(`Failed to update progress: ${message}`)
+      return false
     } finally {
+      completingLessonRef.current = false
       setSavingProgress(false)
     }
   }
@@ -655,11 +754,38 @@ export default function LessonViewPage() {
       (lesson as any)?.metadata
     )
     if (settings.completionMode !== 'auto') return
-    if (!activityCompleted) return
+    // No mandatory activities ⇒ treated as done (avoids stuck false before/without API row)
+    if (!activityCompleted && mandatoryTotal > 0) return
     if (lesson.video_url && !videoWatchSatisfied) return
     void setLessonCompletedState(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, lesson, lessonId, module, isCompleted, savingProgress, activityCompleted, videoWatchSatisfied])
+  }, [
+    loading,
+    lesson,
+    lessonId,
+    module,
+    isCompleted,
+    savingProgress,
+    activityCompleted,
+    mandatoryTotal,
+    videoWatchSatisfied,
+  ])
+
+  // Greet learners when the course is fully complete (fresh completion or revisit)
+  useEffect(() => {
+    if (loading) return
+    const pct =
+      enrollment?.progress_percentage ??
+      (allLessons.length > 0
+        ? Math.round((completedLessonIds.size / allLessons.length) * 100)
+        : 0)
+    const allDone =
+      pct >= 100 ||
+      (allLessons.length > 0 && completedLessonIds.size >= allLessons.length)
+    if (!allDone) return
+    celebrateCourseCompletion()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, enrollment?.progress_percentage, completedLessonIds, allLessons.length])
 
   const toggleLessonComplete = () => {
     if (!isCompleted) {
@@ -667,7 +793,7 @@ export default function LessonViewPage() {
         (module as any)?.metadata,
         (lesson as any)?.metadata
       )
-      if (settings.gateNextUntilActivitiesDone && !activityCompleted) {
+      if (settings.gateNextUntilActivitiesDone && !activityCompleted && mandatoryTotal > 0) {
         alert('Finish mandatory activities for this lesson before marking it complete.')
         return
       }
@@ -776,14 +902,107 @@ export default function LessonViewPage() {
     setVideoWatchSatisfied(true)
   }
 
+  // Latest lesson runtime — video player callbacks stay stable via ref
+  const videoEndRuntimeRef = useRef({
+    lessonId,
+    courseId,
+    currentLessonIndex,
+    allLessons,
+    module,
+    lesson,
+    isCompleted,
+    activityCompleted,
+    mandatoryTotal,
+    savingProgress,
+    setLessonCompletedState,
+    router,
+  })
+  videoEndRuntimeRef.current = {
+    lessonId,
+    courseId,
+    currentLessonIndex,
+    allLessons,
+    module,
+    lesson,
+    isCompleted,
+    activityCompleted,
+    mandatoryTotal,
+    savingProgress,
+    setLessonCompletedState,
+    router,
+  }
+
+  const handleVideoEnded = useCallback(() => {
+    const ctx = videoEndRuntimeRef.current
+    if (activeLessonIdRef.current !== ctx.lessonId) return
+    setVideoWatchSatisfied(true)
+
+    void (async () => {
+      const settings = mergeGateSettings(
+        (ctx.module as any)?.metadata,
+        (ctx.lesson as any)?.metadata
+      )
+      const activitiesDone = ctx.activityCompleted || ctx.mandatoryTotal === 0
+
+      let completedNow = ctx.isCompleted
+      if (
+        settings.completionMode === 'auto' &&
+        activitiesDone &&
+        !ctx.isCompleted &&
+        !ctx.savingProgress
+      ) {
+        completedNow = await ctx.setLessonCompletedState(true)
+      }
+
+      // Course structure: finish mandatory tasks before jumping ahead
+      if (!activitiesDone && ctx.mandatoryTotal > 0) {
+        setFocusLearningTab('resources')
+        setAutoAdvanceNotice(
+          'Video finished — complete the required activities below, then continue.'
+        )
+        requestAnimationFrame(() => {
+          document
+            .getElementById('lesson-learning-tabs')
+            ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        })
+        return
+      }
+
+      const allowed = canGoToNextLesson({
+        settings,
+        lessonCompleted: completedNow || ctx.isCompleted,
+        activityCompleted: activitiesDone,
+      })
+      if (!allowed) {
+        if (settings.gateNextUntilActivitiesDone || settings.sequentialUnlock) {
+          setAutoAdvanceNotice(
+            'Mark this lesson complete (and finish required activities) before the next lecture unlocks.'
+          )
+        }
+        return
+      }
+
+      if (ctx.currentLessonIndex >= ctx.allLessons.length - 1) return
+      const nextLesson = ctx.allLessons[ctx.currentLessonIndex + 1]
+      if (!nextLesson) return
+
+      clearAutoAdvance()
+      setAutoAdvanceNotice('Up next — continuing to the next lecture…')
+      autoAdvanceTimerRef.current = setTimeout(() => {
+        if (activeLessonIdRef.current !== ctx.lessonId) return
+        ctx.router.push(`/learn/${ctx.courseId}/lesson/${nextLesson.id}`)
+      }, 1600)
+    })()
+  }, [])
+
   // Issue (or fetch existing) certificate; returns the PDF URL if available
-  const issueCertificate = async (): Promise<string | null> => {
+  const issueCertificate = async (force = false): Promise<string | null> => {
     try {
       setIssuingCert(true)
       const res = await fetch('/api/certificates/issue', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courseId }),
+        body: JSON.stringify({ courseId, force }),
       })
       const json = await res.json().catch(() => ({}))
       const url = json?.certificate?.certificate_url || null
@@ -797,12 +1016,32 @@ export default function LessonViewPage() {
     }
   }
 
+  const celebrateCourseCompletion = (opts?: { force?: boolean }) => {
+    if (typeof window !== 'undefined') {
+      const key = `pelbu-cert-congrats-${courseId}`
+      if (!opts?.force && sessionStorage.getItem(key) === '1') return
+      sessionStorage.setItem(key, '1')
+    }
+    if (congratsShownRef.current && !opts?.force) return
+    congratsShownRef.current = true
+    clearAutoAdvance()
+    setShowCompletionDialog(true)
+    if (!certAutoRequestedRef.current) {
+      certAutoRequestedRef.current = true
+      void issueCertificate(true)
+    }
+  }
+
   const handleGetCertificate = async () => {
-    const url = certificateUrl || (await issueCertificate())
-    if (url) window.open(url, '_blank')
+    const url = (await issueCertificate(true)) || certificateUrl
+    if (url) {
+      const bust = url.includes('?') ? `${url}&t=${Date.now()}` : `${url}?t=${Date.now()}`
+      window.open(bust, '_blank')
+    }
   }
 
   const goToNextLesson = () => {
+    clearAutoAdvance()
     const settings = mergeGateSettings(
       (module as any)?.metadata,
       (lesson as any)?.metadata
@@ -810,10 +1049,10 @@ export default function LessonViewPage() {
     const allowed = canGoToNextLesson({
       settings,
       lessonCompleted: isCompleted,
-      activityCompleted,
+      activityCompleted: activityCompleted || mandatoryTotal === 0,
     })
     if (!allowed) {
-      if (settings.gateNextUntilActivitiesDone && !activityCompleted) {
+      if (settings.gateNextUntilActivitiesDone && !activityCompleted && mandatoryTotal > 0) {
         alert('Finish mandatory activities for this lesson before continuing.')
       } else {
         alert('Complete this lesson before continuing to the next one.')
@@ -827,6 +1066,7 @@ export default function LessonViewPage() {
   }
 
   const goToPreviousLesson = () => {
+    clearAutoAdvance()
     if (currentLessonIndex > 0) {
       const prevLesson = allLessons[currentLessonIndex - 1]
       router.push(`/learn/${courseId}/lesson/${prevLesson.id}`)
@@ -848,10 +1088,13 @@ export default function LessonViewPage() {
     (lesson as any)?.metadata
   )
 
-  const resourcesLocked = !canViewResourcesAndFlashcards({
-    settings: currentGateSettings,
-    lessonCompleted: isCompleted,
-  })
+  const resourcesLocked =
+    !canViewResourcesAndFlashcards({
+      settings: currentGateSettings,
+      lessonCompleted: isCompleted,
+    }) &&
+    // Keep Resources open while mandatory activities are still required (otherwise Auto can't finish)
+    !(mandatoryTotal > 0 && !activityCompleted)
 
   const canProceedToNext = canGoToNextLesson({
     settings: currentGateSettings,
@@ -980,9 +1223,16 @@ export default function LessonViewPage() {
               ) : (
                 <>
                   <Award className="mr-2 h-4 w-4" />
-                  {certificateUrl ? 'View Certificate' : 'Get Certificate'}
+                  {certificateUrl ? 'Download certificate' : 'Get certificate'}
                 </>
               )}
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => router.push(`/certificates/${courseId}`)}
+            >
+              Open certificate claim page
             </Button>
           </CardContent>
         </Card>
@@ -1003,6 +1253,15 @@ export default function LessonViewPage() {
         } as React.CSSProperties
       }
     >
+      <CourseCompletionDialog
+        open={showCompletionDialog}
+        onOpenChange={setShowCompletionDialog}
+        courseTitle={course?.title}
+        certificateUrl={certificateUrl}
+        issuing={issuingCert}
+        claimHref={`/certificates/${courseId}`}
+        onDownload={() => void handleGetCertificate()}
+      />
       <LessonPlayerHeader
         courseTitle={course?.title}
         completedCount={completedCount}
@@ -1036,6 +1295,7 @@ export default function LessonViewPage() {
             initialPositionSeconds={(lessonProgress as any)?.last_position_seconds || 0}
             onProgress={persistWatchProgress}
             onThresholdReached={handleThresholdReached}
+            onEnded={handleVideoEnded}
             canGoPrev={currentLessonIndex > 0}
             canGoNext={
               currentLessonIndex < allLessons.length - 1 && canProceedToNext
@@ -1050,6 +1310,11 @@ export default function LessonViewPage() {
             onMarkDone={(id) => void markActivityDone(id)}
             markingActivityId={markingActivityId}
           />
+          {autoAdvanceNotice ? (
+            <div className="border-b border-bhutan-yellow/40 bg-bhutan-yellow/15 px-4 py-2 text-center text-sm font-medium">
+              {autoAdvanceNotice}
+            </div>
+          ) : null}
           <div className="px-3 py-2 lg:hidden">
             <LessonNextBar
               currentIndex={currentLessonIndex}
@@ -1079,7 +1344,7 @@ export default function LessonViewPage() {
           )}
 
           {course && (
-            <div className="border-t px-4 py-4">
+            <div id="lesson-learning-tabs" className="border-t px-4 py-4">
               <CourseLearningTabs
                 course={course}
                 modules={allModules}
@@ -1097,6 +1362,7 @@ export default function LessonViewPage() {
                 mandatoryTotal={mandatoryTotal}
                 mandatoryCompleted={mandatoryCompleted}
                 activityProgressById={activityProgressById}
+                focusTab={focusLearningTab}
                 markingActivityId={markingActivityId}
                 onMarkActivityDone={(id) => void markActivityDone(id)}
                 defaultTab="overview"

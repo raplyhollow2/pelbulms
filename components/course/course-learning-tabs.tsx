@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CourseOverview, type InstructorInfo } from './course-overview'
 import { SimpleNotes } from './simple-notes'
@@ -53,6 +53,8 @@ interface CourseLearningTabsProps {
   /** Scenarios / quiz CTA — kept under Activities, off the first viewport */
   activitiesExtra?: ReactNode
   defaultTab?: string
+  /** When set, switches the active tab (e.g. after video ends with pending tasks) */
+  focusTab?: string | null
 }
 
 export function CourseLearningTabs({
@@ -80,8 +82,13 @@ export function CourseLearningTabs({
   onTakeQuiz,
   activitiesExtra,
   defaultTab = 'overview',
+  focusTab = null,
 }: CourseLearningTabsProps) {
   const [activeTab, setActiveTab] = useState(defaultTab)
+
+  useEffect(() => {
+    if (focusTab) setActiveTab(focusTab)
+  }, [focusTab])
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BookOpen },

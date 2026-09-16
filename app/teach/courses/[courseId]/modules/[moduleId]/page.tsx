@@ -663,16 +663,17 @@ export default function ModuleLessonsPage() {
                           <div className="min-w-0">
                             <Label className="text-sm">Lesson completion default</Label>
                             <p className="text-xs text-muted-foreground">
-                              Auto = complete when video + mandatory activities are done. Manual =
-                              learner clicks Complete. Lessons can override this.
+                              Auto = complete when video + mandatory activities are done, then advance
+                              to the next lecture. Manual = learner clicks Complete. Lessons can
+                              override this.
                             </p>
                           </div>
                           <div className="flex shrink-0 items-center gap-2">
                             <span className="text-xs text-muted-foreground">
-                              {(gates.completionMode || 'manual') === 'auto' ? 'Auto' : 'Manual'}
+                              {(gates.completionMode || 'auto') === 'auto' ? 'Auto' : 'Manual'}
                             </span>
                             <Switch
-                              checked={(gates.completionMode || 'manual') === 'auto'}
+                              checked={(gates.completionMode || 'auto') === 'auto'}
                               onCheckedChange={(checked) =>
                                 patchMeta({ completionMode: checked ? 'auto' : 'manual' })
                               }

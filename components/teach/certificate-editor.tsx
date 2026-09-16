@@ -326,7 +326,7 @@ export function CertificateEditor({
                 {t.id === 'ornamental' ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src="/certificates/molhr-ornamental-border.png"
+                    src="/certificates/molhr-ornamental-border.jpg"
                     alt=""
                     className="mb-2 h-14 w-full rounded border border-white/10 object-cover bg-white"
                   />

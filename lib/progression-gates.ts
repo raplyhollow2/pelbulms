@@ -23,7 +23,8 @@ export const DEFAULT_GATE_SETTINGS: ProgressionGateSettings = {
   gateResourcesUntilComplete: false,
   gateNextUntilActivitiesDone: false,
   sequentialUnlock: false,
-  completionMode: 'manual',
+  /** Video LMS default: mark complete when watch threshold + mandatory activities are done */
+  completionMode: 'auto',
 }
 
 function asRecord(raw: unknown): Record<string, unknown> {
@@ -122,7 +123,8 @@ export function isLessonUnlocked(args: {
 
     if (settings.gateNextUntilActivitiesDone) {
       if (!completed) return false
-      if (!prog?.activity_completed) return false
+      // Missing activity flag on an already-completed lesson ⇒ treat as done
+      if (prog?.activity_completed === false) return false
     }
   }
   return true

@@ -53,19 +53,49 @@ function sy(n: number) {
   return (n / CANVAS.h) * PAGE.h
 }
 
+/** Detect image mime from magic bytes (file extension is often wrong). */
+function sniffImageMime(buf: Buffer): string {
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    return 'image/jpeg'
+  }
+  if (
+    buf.length >= 8 &&
+    buf[0] === 0x89 &&
+    buf[1] === 0x50 &&
+    buf[2] === 0x4e &&
+    buf[3] === 0x47
+  ) {
+    return 'image/png'
+  }
+  if (
+    buf.length >= 12 &&
+    buf.toString('ascii', 0, 4) === 'RIFF' &&
+    buf.toString('ascii', 8, 12) === 'WEBP'
+  ) {
+    return 'image/webp'
+  }
+  if (buf.length >= 5 && buf.toString('ascii', 0, 5) === '%PDF-') {
+    return 'application/pdf'
+  }
+  if (buf.length >= 4 && buf.toString('ascii', 0, 4) === '<svg') {
+    return 'image/svg+xml'
+  }
+  return 'image/png'
+}
+
 /** Resolve public/ relative paths for @react-pdf Image */
 function resolvePdfImageSrc(src: string): string {
   if (!src) return src
-  if (src.startsWith('http://') || src.startsWith('https://') || src.startsWith('data:')) {
+  if (src.startsWith('data:')) return src
+  if (src.startsWith('http://') || src.startsWith('https://')) {
     return src
   }
   try {
     const filePath = path.join(process.cwd(), 'public', src.replace(/^\//, ''))
     if (fs.existsSync(filePath)) {
       const buf = fs.readFileSync(filePath)
-      const ext = path.extname(filePath).slice(1).toLowerCase() || 'png'
-      const mime = ext === 'jpg' || ext === 'jpeg' ? 'jpeg' : ext === 'svg' ? 'svg+xml' : ext
-      return `data:image/${mime};base64,${buf.toString('base64')}`
+      const mime = sniffImageMime(buf)
+      return `data:${mime};base64,${buf.toString('base64')}`
     }
   } catch {
     /* fall through */
@@ -275,7 +305,7 @@ function CertificateDocument(data: CertificateData) {
               return (
                 <Image
                   key={layer.id}
-                  src={layer.src}
+                  src={resolvePdfImageSrc(layer.src)}
                   style={{
                     position: 'absolute',
                     left: sx(layer.x),

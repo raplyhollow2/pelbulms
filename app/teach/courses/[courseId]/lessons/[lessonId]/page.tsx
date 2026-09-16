@@ -284,7 +284,7 @@ export default function LessonEditPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => router.push(`/teach/courses/${courseId}/modules/${lesson.module_id}/edit`)}>
+            <Button variant="ghost" size="sm" onClick={() => router.push(`/teach/courses/${courseId}/modules/${lesson.module_id}`)}>
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
@@ -435,17 +435,18 @@ export default function LessonEditPage() {
                           Lesson completion
                         </Label>
                         <p className="text-xs text-muted-foreground">
-                          Auto marks the lesson complete when video watch threshold and mandatory
-                          activities are done. Manual keeps the Complete button.
+                          Auto marks the lesson complete when the video watch threshold and mandatory
+                          activities are done, then continues to the next lecture. Manual keeps the
+                          Complete button only.
                         </p>
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
                         <span className="text-xs text-muted-foreground">
-                          {(gates.completionMode || 'manual') === 'auto' ? 'Auto' : 'Manual'}
+                          {(gates.completionMode || 'auto') === 'auto' ? 'Auto' : 'Manual'}
                         </span>
                         <Switch
                           id="completion-mode"
-                          checked={(gates.completionMode || 'manual') === 'auto'}
+                          checked={(gates.completionMode || 'auto') === 'auto'}
                           onCheckedChange={(checked) =>
                             updateLesson({
                               metadata: withGateSettings((lesson as any).metadata, {
@@ -731,7 +732,7 @@ export default function LessonEditPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <Button
                 variant="outline"
-                onClick={() => router.push(`/teach/courses/${courseId}/modules/${lesson.module_id}/edit`)}
+                onClick={() => router.push(`/teach/courses/${courseId}/modules/${lesson.module_id}`)}
                 className="justify-start"
               >
                 <BookOpen className="w-4 h-4 mr-2" />

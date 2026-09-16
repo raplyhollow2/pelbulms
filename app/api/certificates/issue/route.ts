@@ -60,7 +60,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Return existing certificate if already issued
+    // Return existing certificate if already issued (unless force regenerate)
+    const force = Boolean(body?.force)
     const { data: existing } = await service
       .from('certificates')
       .select('*')
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
       .eq('course_id', courseId)
       .maybeSingle()
 
-    if (existing && (existing as any).certificate_url) {
+    if (!force && existing && (existing as any).certificate_url) {
       return NextResponse.json({ certificate: existing, alreadyIssued: true })
     }
 

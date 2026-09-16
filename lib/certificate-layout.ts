@@ -61,8 +61,8 @@ export type CertificateLayout = {
   layers: CertificateLayer[]
 }
 
-/** Bundled MoLHR ornamental certificate frame */
-export const MOLHR_ORNAMENTAL_BORDER = '/certificates/molhr-ornamental-border.png'
+/** Bundled MoLHR ornamental certificate frame (JPEG bytes; keep .jpg extension) */
+export const MOLHR_ORNAMENTAL_BORDER = '/certificates/molhr-ornamental-border.jpg'
 
 export const CERT_CANVAS = { width: 1123, height: 794 }
 

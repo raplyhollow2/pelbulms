@@ -32,6 +32,8 @@ interface TrackedVideoPlayerProps {
   onProgress?: (data: VideoProgressData) => void
   /** Fires once when the watch threshold is first reached */
   onThresholdReached?: () => void
+  /** Fires once when the video finishes (YouTube ended / HTML5 ended) */
+  onEnded?: () => void
   className?: string
 }
 
@@ -67,6 +69,7 @@ export function TrackedVideoPlayer({
   thresholdPercent = 90,
   onProgress,
   onThresholdReached,
+  onEnded,
   className,
 }: TrackedVideoPlayerProps) {
   const youtubeId = getYoutubeId(videoUrl)
@@ -85,10 +88,19 @@ export function TrackedVideoPlayer({
   const durationRef = useRef(0)
   const lastEmitRef = useRef(0)
   const thresholdFiredRef = useRef(false)
+  const endedFiredRef = useRef(false)
   const initialSeekRef = useRef(initialPositionSeconds)
+  const onEndedRef = useRef(onEnded)
+  onEndedRef.current = onEnded
 
   const [duration, setDuration] = useState(0)
   const [watchedPercent, setWatchedPercent] = useState(0)
+
+  const fireEnded = useCallback(() => {
+    if (endedFiredRef.current) return
+    endedFiredRef.current = true
+    onEndedRef.current?.()
+  }, [])
 
   const emit = useCallback(
     (positionSeconds: number, force = false) => {
@@ -144,7 +156,8 @@ export function TrackedVideoPlayer({
             if (e.data === 1 && !intervalRef.current) {
               startPolling()
             }
-            if ((e.data === 2 || e.data === 0) && intervalRef.current) {
+            // 2 = paused, 0 = ended
+            if (e.data === 2 || e.data === 0) {
               const t = playerRef.current?.getCurrentTime?.() || 0
               const dur = playerRef.current?.getDuration?.() || durationRef.current
               if (e.data === 0 && dur > 0) {
@@ -152,6 +165,7 @@ export function TrackedVideoPlayer({
               }
               emit(e.data === 0 ? dur || t : t, true)
               stopPolling()
+              if (e.data === 0) fireEnded()
             }
           },
         },
@@ -223,6 +237,16 @@ export function TrackedVideoPlayer({
     if (el) emit(el.currentTime || 0, true)
   }
 
+  const handleEnded = () => {
+    const el = videoElRef.current
+    if (el) {
+      const dur = el.duration || durationRef.current
+      if (dur > 0) furthestRef.current = Math.max(furthestRef.current, dur)
+      emit(dur || el.currentTime || 0, true)
+    }
+    fireEnded()
+  }
+
   // Flush on unmount
   useEffect(() => {
     return () => {
@@ -260,6 +284,7 @@ export function TrackedVideoPlayer({
             onLoadedMetadata={handleLoadedMetadata}
             onTimeUpdate={handleTimeUpdate}
             onPause={handlePause}
+            onEnded={handleEnded}
             title={title}
           />
         ) : driveEmbedUrl ? (

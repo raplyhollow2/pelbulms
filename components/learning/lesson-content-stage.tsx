@@ -25,6 +25,7 @@ type Props = {
   initialPositionSeconds?: number
   onProgress?: (data: VideoProgressData) => void
   onThresholdReached?: () => void
+  onEnded?: () => void
   canGoPrev: boolean
   canGoNext: boolean
   onPrev: () => void
@@ -44,6 +45,7 @@ export function LessonContentStage({
   initialPositionSeconds = 0,
   onProgress,
   onThresholdReached,
+  onEnded,
   canGoPrev,
   canGoNext,
   onPrev,
@@ -73,6 +75,7 @@ export function LessonContentStage({
             thresholdPercent={90}
             onProgress={onProgress}
             onThresholdReached={onThresholdReached}
+            onEnded={onEnded}
           />
           <div className="pointer-events-none absolute inset-x-0 top-0 aspect-video">
             <button
