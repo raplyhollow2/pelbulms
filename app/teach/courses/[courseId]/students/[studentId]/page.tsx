@@ -83,17 +83,20 @@ export default function StudentDetailPage() {
       }
       setCourse(courseData)
 
-      // Enrollment (also carries the student's profile via join)
-      const { data: enrollmentData } = await supabase
-        .from('enrollments')
-        .select('*, profiles(*)')
-        .eq('course_id', courseId)
-        .eq('user_id', studentId)
-        .maybeSingle()
-
-      if (enrollmentData) {
-        setEnrollment(enrollmentData)
-        setStudent((enrollmentData as any).profiles)
+      // Enrollment via service-role API (client RLS hides non-owner course enrollments)
+      const rosterRes = await fetch(
+        `/api/teach/enrollments?courseId=${encodeURIComponent(courseId)}`
+      )
+      const rosterData = await rosterRes.json().catch(() => ({}))
+      if (!rosterRes.ok) {
+        throw new Error(rosterData?.error || 'Failed to load enrollment')
+      }
+      const rosterStudent = Array.isArray(rosterData?.students)
+        ? rosterData.students.find((s: any) => s.id === studentId || s.enrollment?.user_id === studentId)
+        : null
+      if (rosterStudent?.enrollment) {
+        setEnrollment(rosterStudent.enrollment)
+        setStudent(rosterStudent)
       }
 
       // Modules + published lessons

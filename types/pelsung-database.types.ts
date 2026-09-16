@@ -150,6 +150,13 @@ export interface Institution {
   updated_at: string
 }
 
+/** Junction: optional course audience targeting (empty = open to all). */
+export interface CourseInstitution {
+  course_id: string
+  institution_id: string
+  created_at: string
+}
+
 // ============================================================================
 // AUTH METADATA TYPES
 // ============================================================================

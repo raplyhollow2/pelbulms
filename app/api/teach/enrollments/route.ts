@@ -40,7 +40,7 @@ async function assertCourseStaff(
 
 /**
  * GET /api/teach/enrollments?courseId=
- * Identity snapshot for the roster (CID, institution) from approved KYC.
+ * Full roster (bypasses client RLS) + KYC identity snapshot for course staff.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -63,13 +63,52 @@ export async function GET(request: NextRequest) {
 
     const { data: enrollments } = await service
       .from('enrollments')
+      .select('*, profiles(*)')
+      .eq('course_id', courseId)
+      .order('enrolled_at', { ascending: false })
+
+    const userIds = Array.from(
+      new Set((enrollments || []).map((e: any) => e.user_id).filter(Boolean))
+    )
+    if (userIds.length === 0) {
+      return NextResponse.json({ identities: {}, students: [] })
+    }
+
+    const { data: modules } = await service.from('modules').select('id').eq('course_id', courseId)
+    let totalLessons = 0
+    if (modules && modules.length > 0) {
+      const moduleIds = modules.map((m: any) => m.id)
+      const { count } = await service
+        .from('lessons')
+        .select('*', { count: 'exact', head: true })
+        .in('module_id', moduleIds)
+        .eq('is_published', true)
+      totalLessons = count || 0
+    }
+
+    const { data: certs } = await service.from('certificates').select('user_id').eq('course_id', courseId)
+    const certifiedIds = new Set((certs || []).map((c: any) => c.user_id))
+
+    const { data: progressRows } = await service
+      .from('lesson_progress')
       .select('user_id')
       .eq('course_id', courseId)
+      .eq('completed', true)
+      .in('user_id', userIds)
 
-    const userIds = Array.from(new Set((enrollments || []).map((e: any) => e.user_id).filter(Boolean)))
-    if (userIds.length === 0) {
-      return NextResponse.json({ identities: {} })
+    const completedByUser = new Map<string, number>()
+    for (const row of progressRows || []) {
+      const uid = (row as any).user_id as string
+      completedByUser.set(uid, (completedByUser.get(uid) || 0) + 1)
     }
+
+    const students = (enrollments || []).map((enrollment: any) => ({
+      ...(enrollment.profiles || {}),
+      enrollment,
+      completed_lessons: completedByUser.get(enrollment.user_id) || 0,
+      total_lessons: totalLessons,
+      has_certificate: certifiedIds.has(enrollment.user_id),
+    }))
 
     const { data: regs } = await service
       .from('student_registrations')
@@ -104,7 +143,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ identities })
+    return NextResponse.json({ identities, students })
   } catch (e) {
     console.error('[teach/enrollments] GET error:', e)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

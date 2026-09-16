@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   },
   // @react-pdf/renderer must not be bundled; it runs in the Node runtime
   // for server-side certificate PDF generation.
-  serverExternalPackages: ['@react-pdf/renderer'],
+  serverExternalPackages: ['@react-pdf/renderer', 'exceljs'],
   // Safety net for small proxy uploads; large media goes direct to Cloudinary.
   experimental: {
     serverActions: {

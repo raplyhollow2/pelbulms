@@ -28,6 +28,12 @@ import {
 } from '@/lib/video-url'
 import { GeminiCoursePanel } from '@/components/teach/gemini-course-panel'
 import { CourseStaffPanel } from '@/components/teach/course-staff-panel'
+import { InstitutionAudienceFields } from '@/components/teach/institution-audience-fields'
+import {
+  loadCourseInstitutions,
+  syncCourseInstitutions,
+  countCrossInstitutionEnrollments,
+} from '@/lib/course-institution-access'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Module = Database['public']['Tables']['modules']['Row']
@@ -74,6 +80,9 @@ export default function EditCoursePage() {
   const [newObjective, setNewObjective] = useState('')
   const [discussionEnabled, setDiscussionEnabled] = useState(false)
   const [discussionSaving, setDiscussionSaving] = useState(false)
+  const [audienceInstitutionIds, setAudienceInstitutionIds] = useState<string[]>([])
+  const [restrictToInstitutions, setRestrictToInstitutions] = useState(false)
+  const [crossOrgEnrollmentCount, setCrossOrgEnrollmentCount] = useState(0)
 
   const supabase = createClient()
 
@@ -177,6 +186,21 @@ export default function EditCoursePage() {
         .maybeSingle()
       setDiscussionEnabled(Boolean(forum?.is_enabled))
 
+      const audience = await loadCourseInstitutions(supabase as any, courseId)
+      const audienceIds = audience.map((i) => i.id)
+      setAudienceInstitutionIds(audienceIds)
+      setRestrictToInstitutions(audienceIds.length > 0)
+      if (audienceIds.length > 0) {
+        const cross = await countCrossInstitutionEnrollments(
+          supabase as any,
+          courseId,
+          audienceIds
+        )
+        setCrossOrgEnrollmentCount(cross)
+      } else {
+        setCrossOrgEnrollmentCount(0)
+      }
+
     } catch (error) {
       console.error('Error fetching course data:', error)
       alert('Failed to load course data. Please try again.')
@@ -231,6 +255,12 @@ export default function EditCoursePage() {
       return
     }
 
+    if (restrictToInstitutions && audienceInstitutionIds.length === 0) {
+      alert('Select at least one institution, or turn off “Restrict to institutions”.')
+      setActiveTab('settings')
+      return
+    }
+
     try {
       setSaving(true)
 
@@ -276,6 +306,10 @@ export default function EditCoursePage() {
         .eq('id', courseId)
 
       if (error) throw error
+
+      const idsToSync = restrictToInstitutions ? audienceInstitutionIds : []
+      const sync = await syncCourseInstitutions(supabase as any, courseId, idsToSync)
+      if (sync.error) throw new Error(sync.error)
 
       alert('Course updated successfully!')
       router.push('/teach/dashboard')
@@ -1040,6 +1074,25 @@ export default function EditCoursePage() {
                     onCheckedChange={(checked) => setCourseData({ ...courseData, is_featured: checked } as any)}
                   />
                 </div>
+                <InstitutionAudienceFields
+                  selectedIds={audienceInstitutionIds}
+                  onChange={async (ids) => {
+                    setAudienceInstitutionIds(ids)
+                    if (ids.length > 0) {
+                      const cross = await countCrossInstitutionEnrollments(
+                        supabase as any,
+                        courseId,
+                        ids
+                      )
+                      setCrossOrgEnrollmentCount(cross)
+                    } else {
+                      setCrossOrgEnrollmentCount(0)
+                    }
+                  }}
+                  restrictEnabled={restrictToInstitutions}
+                  onRestrictEnabledChange={setRestrictToInstitutions}
+                  crossOrgEnrollmentCount={crossOrgEnrollmentCount}
+                />
                 <div className="rounded-lg border p-4 space-y-3">
                   <div>
                     <Label className="font-medium">Enrollment</Label>

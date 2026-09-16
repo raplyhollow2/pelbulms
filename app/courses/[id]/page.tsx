@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BookOpen, Clock, Users, Star, ArrowLeft, CheckCircle, Hourglass } from 'lucide-react'
+import { BookOpen, Clock, Users, Star, ArrowLeft, CheckCircle, Hourglass, Building2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { CourseActionDeck } from '@/components/courses/course-action-deck'
 import { CurriculumTimeline } from '@/components/courses/curriculum-timeline'
@@ -14,6 +14,12 @@ import { resumeLearnPath } from '@/lib/resume-path'
 import { postEnrollmentRequest } from '@/lib/request-enrollment'
 import { toast } from 'sonner'
 import type { Database } from '@/types/database.types'
+import {
+  loadCourseInstitutions,
+  userCanSeeCourseAudience,
+  institutionLabel,
+} from '@/lib/course-institution-access'
+import { canAccessTeaching } from '@/lib/roles'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -29,6 +35,7 @@ export default function CourseDetailPage() {
   >([])
   const [modules, setModules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [accessDenied, setAccessDenied] = useState<{ names: string[] } | null>(null)
   const [isEnrolled, setIsEnrolled] = useState(false)
   const [enrollmentPending, setEnrollmentPending] = useState(false)
   const [enrolling, setEnrolling] = useState(false)
@@ -45,12 +52,21 @@ export default function CourseDetailPage() {
   const fetchCourseDetails = async () => {
     try {
       setLoading(true)
+      setAccessDenied(null)
 
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser()
       setCurrentUser(user)
 
-      // Fetch course with instructor details
+      let profile: { role?: string; institution_id?: string | null } | null = null
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('role, institution_id')
+          .eq('id', user.id)
+          .maybeSingle()
+        profile = data as any
+      }
+
       const { data: courseData, error: courseError } = await supabase
         .from('courses')
         .select(`
@@ -65,15 +81,66 @@ export default function CourseDetailPage() {
         .eq('id', courseId)
         .single()
 
-      if (courseError) throw courseError
-      if (!courseData) {
-        router.push('/courses')
+      if (courseError || !courseData) {
+        setAccessDenied({ names: [] })
+        setCourse(null)
+        return
+      }
+
+      let enrolled = false
+      let pending = false
+      if (user) {
+        const paidSession =
+          typeof window !== 'undefined'
+            ? new URLSearchParams(window.location.search).get('session_id')
+            : null
+        if (paidSession) {
+          const paidRes = await fetch('/api/enrollments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ courseId, sessionId: paidSession }),
+          })
+          if (paidRes.ok) {
+            enrolled = true
+            pending = false
+          }
+        }
+        const { data: enrollmentRows } = await supabase
+          .from('enrollments')
+          .select('id, status, last_lesson_id')
+          .eq('user_id', user.id)
+          .eq('course_id', courseId)
+          .limit(1)
+
+        const row = enrollmentRows?.[0] as any
+        if (row) {
+          const status = row.status || 'active'
+          enrolled = status === 'active' || status === 'completed'
+          pending = status === 'pending'
+          setLastLessonId(row.last_lesson_id || null)
+        }
+      }
+      setIsEnrolled(enrolled)
+      setEnrollmentPending(pending)
+
+      const audienceInstitutions = await loadCourseInstitutions(supabase as any, courseId)
+      const isOwner = Boolean(user && (courseData as any).instructor_id === user.id)
+      const allowed = userCanSeeCourseAudience({
+        institutionIds: audienceInstitutions.map((i) => i.id),
+        userInstitutionId: profile?.institution_id,
+        role: profile?.role,
+        isInstructorOrStaff: isOwner || canAccessTeaching(profile?.role),
+        isEnrolled: enrolled || pending,
+      })
+
+      if (!allowed) {
+        setAccessDenied({ names: audienceInstitutions.map((i) => institutionLabel(i)) })
+        setCourse(null)
         return
       }
 
       setCourse(courseData as any)
 
-      // Owner + co-facilitators from course_instructors
       try {
         const { data: staffRows } = await (supabase as any)
           .from('course_instructors')
@@ -119,7 +186,6 @@ export default function CourseDetailPage() {
         )
       }
 
-      // Fetch modules for this course
       const { data: modulesData } = await supabase
         .from('modules')
         .select('*')
@@ -127,44 +193,10 @@ export default function CourseDetailPage() {
         .order('order_index', { ascending: true })
 
       setModules(modulesData || [])
-
-      // Check enrollment (active = can learn; pending = awaiting creator)
-      if (user) {
-        const paidSession =
-          typeof window !== 'undefined'
-            ? new URLSearchParams(window.location.search).get('session_id')
-            : null
-        if (paidSession) {
-          const paidRes = await fetch('/api/enrollments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ courseId, sessionId: paidSession }),
-          })
-          if (paidRes.ok) {
-            setIsEnrolled(true)
-            setEnrollmentPending(false)
-          }
-        }
-        const { data: enrollmentRows } = await supabase
-          .from('enrollments')
-          .select('id, status, last_lesson_id')
-          .eq('user_id', user.id)
-          .eq('course_id', courseId)
-          .limit(1)
-
-        const row = enrollmentRows?.[0] as any
-        if (row) {
-          const status = row.status || 'active'
-          setIsEnrolled(status === 'active' || status === 'completed')
-          setEnrollmentPending(status === 'pending')
-          setLastLessonId(row.last_lesson_id || null)
-        } else {
-          setIsEnrolled(false)
-          setEnrollmentPending(false)
-        }
-      }
     } catch (error) {
       console.error('Error fetching course details:', error)
+      setAccessDenied({ names: [] })
+      setCourse(null)
     } finally {
       setLoading(false)
     }
@@ -234,15 +266,26 @@ export default function CourseDetailPage() {
   }
 
   if (!course) {
+    const restrictedNames = accessDenied?.names?.filter(Boolean) || []
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">Course not found</p>
-          <Button
-            variant="outline"
-            className="mt-4"
-            onClick={() => router.push('/courses')}
-          >
+        <div className="mx-auto max-w-md text-center py-12 space-y-4">
+          <Building2 className="mx-auto h-10 w-10 text-muted-foreground" />
+          <div className="space-y-2">
+            <p className="font-medium">
+              {accessDenied
+                ? 'This course is not available for your institution'
+                : 'Course not found'}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {restrictedNames.length > 0
+                ? `It is published only for members of ${restrictedNames.join(', ')}.`
+                : accessDenied
+                  ? 'Ask your administrator if you believe you should have access.'
+                  : 'This course may have been removed or is no longer published.'}
+            </p>
+          </div>
+          <Button variant="outline" onClick={() => router.push('/courses')}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Courses
           </Button>

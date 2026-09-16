@@ -23,6 +23,8 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { InstitutionAudienceFields } from '@/components/teach/institution-audience-fields'
+import { syncCourseInstitutions } from '@/lib/course-institution-access'
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 
@@ -61,6 +63,8 @@ export default function NewCoursePage() {
 
   const [modules, setModules] = useState<ModuleRow[]>([])
   const [objectiveDraft, setObjectiveDraft] = useState('')
+  const [audienceInstitutionIds, setAudienceInstitutionIds] = useState<string[]>([])
+  const [restrictToInstitutions, setRestrictToInstitutions] = useState(false)
 
   // Refs to avoid stale closures / duplicate draft creation
   const courseIdRef = useRef<string | null>(null)
@@ -68,10 +72,20 @@ export default function NewCoursePage() {
   const slugRef = useRef<string>('')
   const courseSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const moduleSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+  const audienceIdsRef = useRef<string[]>([])
+  const restrictRef = useRef(false)
 
   useEffect(() => {
     courseIdRef.current = courseId
   }, [courseId])
+
+  useEffect(() => {
+    audienceIdsRef.current = audienceInstitutionIds
+  }, [audienceInstitutionIds])
+
+  useEffect(() => {
+    restrictRef.current = restrictToInstitutions
+  }, [restrictToInstitutions])
 
   // Create a draft course row the first time we have meaningful input.
   const ensureCourse = useCallback(async (): Promise<string | null> => {
@@ -147,6 +161,14 @@ export default function NewCoursePage() {
         .eq('id', id)
       if (error) throw error
       setSaveState('saved')
+
+      const idsToSync = restrictRef.current ? audienceIdsRef.current : []
+      if (restrictRef.current && idsToSync.length === 0) {
+        // Keep draft open until user picks institutions; don't wipe silently
+      } else {
+        const sync = await syncCourseInstitutions(db, id, idsToSync)
+        if (sync.error) console.warn('Institution audience sync:', sync.error)
+      }
     } catch (err: any) {
       console.error('Autosave error:', err)
       setSaveState('error')
@@ -173,7 +195,7 @@ export default function NewCoursePage() {
       if (courseSaveTimer.current) clearTimeout(courseSaveTimer.current)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [courseData])
+  }, [courseData, audienceInstitutionIds, restrictToInstitutions])
 
   const addObjective = () => {
     const v = objectiveDraft.trim()
@@ -383,6 +405,13 @@ export default function NewCoursePage() {
                 <Label htmlFor="featured" className="text-sm">Featured</Label>
               </div>
             </div>
+
+            <InstitutionAudienceFields
+              selectedIds={audienceInstitutionIds}
+              onChange={setAudienceInstitutionIds}
+              restrictEnabled={restrictToInstitutions}
+              onRestrictEnabledChange={setRestrictToInstitutions}
+            />
           </CardContent>
         </Card>
 

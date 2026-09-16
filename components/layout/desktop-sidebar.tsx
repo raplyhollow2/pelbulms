@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   Home, BookOpen, GraduationCap, Settings, User,
   ChevronLeft, ChevronRight, LogOut, Search, TrendingUp, Users,
-  Bell, HardDrive, Sparkles, Building2,
+  Bell, HardDrive, Sparkles, Building2, BarChart3,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -57,7 +57,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
   const navigation: NavItem[] = [
     { name: 'Dashboard', href: '/dashboard', icon: Home },
     { name: 'Courses', href: '/courses', icon: BookOpen },
-    { name: 'My Progress', href: '/learn/progress', icon: TrendingUp },
+    { name: 'Reports', href: '/learn/reports', icon: TrendingUp },
     { name: 'Announcements', href: '/announcements', icon: Bell },
     { name: 'Profile', href: '/profile', icon: User },
     { name: 'Settings', href: '/settings', icon: Settings },
@@ -67,7 +67,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
     { name: 'Teacher Dashboard', href: '/teach/dashboard', icon: GraduationCap },
     { name: 'New Course', href: '/teach/create', icon: BookOpen },
     { name: 'Media Library', href: '/teach/media', icon: HardDrive },
-    { name: 'Analytics', href: '/teach/analytics', icon: TrendingUp },
+    { name: 'Reports', href: '/teach/reports', icon: BarChart3 },
     { name: 'Announcements', href: '/teach/announcements', icon: Bell },
     ...(showApprovals && !canAdmin
       ? [{ name: 'Users', href: '/admin/users?tab=approvals', icon: Users } as NavItem]
@@ -78,6 +78,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
     { name: 'Users', href: '/admin/users', icon: Users },
     ...(canAdmin
       ? [
+          { name: 'Reports', href: '/admin/reports', icon: BarChart3 } as NavItem,
           { name: 'Institutions', href: '/admin/settings/institutions', icon: Building2 } as NavItem,
           { name: 'Site admin', href: '/admin/settings', icon: Settings },
         ]
@@ -172,7 +173,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
 
   const renderNav = (items: NavItem[]) =>
     items.map((item) => {
-      const isActive = pathname === item.href
+      const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
       const link = (
         <Link
           key={item.name}

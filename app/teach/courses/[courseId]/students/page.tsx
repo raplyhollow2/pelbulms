@@ -96,67 +96,16 @@ export default function CourseStudentsPage() {
 
       setCourse(courseData)
 
-      fetch(`/api/teach/enrollments?courseId=${encodeURIComponent(courseId)}`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (data?.identities) setIdentities(data.identities)
-        })
-        .catch(() => {})
-
-      // Fetch enrollments with student profiles
-      const { data: enrollments } = await supabase
-        .from('enrollments')
-        .select('*, profiles(*)')
-        .eq('course_id', courseId)
-        .order('enrolled_at', { ascending: false })
-
-      if (enrollments) {
-        // Count total PUBLISHED lessons in course (matches completion rollup)
-        const { data: modules } = await supabase
-          .from('modules')
-          .select('id')
-          .eq('course_id', courseId)
-
-        let totalLessons = 0
-        if (modules && (modules as any).length > 0) {
-          const moduleIds = (modules as any).map((m: any) => m.id)
-          const { count } = await supabase
-            .from('lessons')
-            .select('*', { count: 'exact', head: true })
-            .in('module_id', moduleIds)
-            .eq('is_published', true)
-          totalLessons = count || 0
-        }
-
-        // Which students have an issued certificate
-        const { data: certs } = await supabase
-          .from('certificates')
-          .select('user_id')
-          .eq('course_id', courseId)
-        const certifiedIds = new Set((certs || []).map((c: any) => c.user_id))
-
-        // Get progress data for each student
-        const studentsWithProgress = await Promise.all(
-          enrollments.map(async (enrollment: any) => {
-            const { count } = await supabase
-              .from('lesson_progress')
-              .select('*', { count: 'exact', head: true })
-              .eq('user_id', enrollment.user_id)
-              .eq('course_id', courseId)
-              .eq('completed', true)
-
-            return {
-              ...(enrollment as any).profiles,
-              enrollment: enrollment,
-              completed_lessons: count || 0,
-              total_lessons: totalLessons,
-              has_certificate: certifiedIds.has(enrollment.user_id),
-            } as StudentWithProgress
-          })
-        )
-
-        setStudents(studentsWithProgress)
+      // Roster via service-role API (client RLS only allows course owners to read enrollments)
+      const rosterRes = await fetch(
+        `/api/teach/enrollments?courseId=${encodeURIComponent(courseId)}`
+      )
+      const rosterData = await rosterRes.json().catch(() => ({}))
+      if (!rosterRes.ok) {
+        throw new Error(rosterData?.error || 'Failed to load enrollments')
       }
+      if (rosterData?.identities) setIdentities(rosterData.identities)
+      setStudents((rosterData?.students || []) as StudentWithProgress[])
 
     } catch (error) {
       console.error('Error fetching students data:', error)

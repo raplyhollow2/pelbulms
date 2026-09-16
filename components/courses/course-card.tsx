@@ -5,10 +5,14 @@ import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { BookOpen, Check, Loader2, Star } from 'lucide-react'
+import { BookOpen, Check, Loader2, Star, Building2 } from 'lucide-react'
 import type { Database } from '@/types/database.types'
 import { resolveMediaUrl } from '@/lib/media'
 import { cn } from '@/lib/utils'
+import {
+  audienceBadgeForCourse,
+  type InstitutionSummary,
+} from '@/lib/course-institution-access'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Module = Database['public']['Tables']['modules']['Row']
@@ -21,6 +25,7 @@ interface CourseCardProps {
     modules_count?: number
     enrollment_count?: number
     profiles?: Pick<Profile, 'full_name' | 'avatar_url' | 'bio'> | null
+    audience_institutions?: InstitutionSummary[]
   }
   progress?: number
   isEnrolled?: boolean
@@ -87,6 +92,8 @@ export function CourseCard({
       : null
   const ratingCount =
     typeof course.rating_count === 'number' ? course.rating_count : 0
+
+  const audienceBadge = audienceBadgeForCourse(course.audience_institutions || [])
 
   const enrollmentMode = (course as { enrollment_mode?: string }).enrollment_mode
   const requiresApproval =
@@ -163,6 +170,16 @@ export function CourseCard({
           <div className="flex flex-wrap gap-1.5">
             {course.category && <Chip className="capitalize">{course.category}</Chip>}
             {course.level && <Chip className="capitalize">{course.level}</Chip>}
+            <Chip
+              className={
+                audienceBadge.kind === 'open'
+                  ? 'border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
+                  : ''
+              }
+            >
+              <Building2 className="h-3 w-3" />
+              {audienceBadge.label}
+            </Chip>
             {rating != null ? (
               <Chip>
                 <Star className="h-3 w-3 fill-amber-400 text-amber-400" />

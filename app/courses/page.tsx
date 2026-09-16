@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Search, BookOpen, Clock, Users, Star, Filter, Loader2, Command } from 'lucide-react'
+import { Search, BookOpen, Clock, Users, Star, Filter, Loader2, Command, Building2 } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { CourseCard } from '@/components/courses/course-card'
 import { CourseGridSkeleton } from '@/components/courses/course-card-skeleton'
@@ -32,6 +32,13 @@ import type { Database } from '@/types/database.types'
 import { buildInstructorShowcaseData } from '@/lib/instructor-stats'
 import { postEnrollmentRequest } from '@/lib/request-enrollment'
 import { toast } from 'sonner'
+import {
+  filterVisibleCourses,
+  institutionLabel,
+  loadInstitutionsForCourses,
+  matchesInstitutionFilter,
+  type InstitutionSummary,
+} from '@/lib/course-institution-access'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -44,10 +51,12 @@ type CourseWithInstructor = Course & {
   students_count?: number
   modules_count?: number
   enrollment_count?: number
+  audience_institutions?: InstitutionSummary[]
 }
 
 export default function CoursesPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [courses, setCourses] = useState<CourseWithInstructor[]>([])
   const [filteredCourses, setFilteredCourses] = useState<CourseWithInstructor[]>([])
   const [loading, setLoading] = useState(true)
@@ -58,13 +67,35 @@ export default function CoursesPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
   const [selectedLevel, setSelectedLevel] = useState('All')
+  /** 'All' | 'mine' | institution uuid */
+  const [selectedInstitution, setSelectedInstitution] = useState<string>('All')
+  const [institutions, setInstitutions] = useState<InstitutionSummary[]>([])
   const [instructors, setInstructors] = useState<any[]>([])
 
   const supabase = createClient()
 
+  const syncInstitutionQuery = useCallback(
+    (value: string, instList: InstitutionSummary[] = institutions) => {
+      const params = new URLSearchParams(searchParams.toString())
+      if (value === 'All') {
+        params.delete('institution')
+      } else if (value === 'mine') {
+        params.set('institution', 'mine')
+      } else {
+        const inst = instList.find((i) => i.id === value)
+        if (inst) params.set('institution', inst.slug)
+        else params.delete('institution')
+      }
+      const qs = params.toString()
+      router.replace(qs ? `/courses?${qs}` : '/courses', { scroll: false })
+    },
+    [institutions, router, searchParams]
+  )
+
   // Fetch current user and courses
   useEffect(() => {
     fetchData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchData = async () => {
@@ -73,14 +104,28 @@ export default function CoursesPage() {
 
       // Get current user
       const { data: { user } } = await supabase.auth.getUser()
+      let profile: Profile | null = null
       if (user) {
-        const { data: profile } = await supabase
+        const { data } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single()
 
+        profile = data
         setCurrentUser(profile)
+      }
+
+      let activeInstitutions: InstitutionSummary[] = []
+      try {
+        const instRes = await fetch('/api/institutions')
+        if (instRes.ok) {
+          const instJson = await instRes.json()
+          activeInstitutions = instJson.institutions || []
+          setInstitutions(activeInstitutions)
+        }
+      } catch {
+        /* ignore */
       }
 
       // Fetch published courses with instructor + module rows for catalog stats
@@ -101,7 +146,7 @@ export default function CoursesPage() {
           .order('created_at', { ascending: false })
 
         if (!withModules.error) {
-          coursesData = (withModules.data || []) as CourseWithInstructor[]
+          coursesData = (withModules.data || []) as unknown as CourseWithInstructor[]
         } else {
           const fallback = await supabase
             .from('courses')
@@ -116,7 +161,7 @@ export default function CoursesPage() {
             .eq('is_published', true)
             .order('created_at', { ascending: false })
           if (fallback.error) throw fallback.error
-          coursesData = (fallback.data || []) as CourseWithInstructor[]
+          coursesData = (fallback.data || []) as unknown as CourseWithInstructor[]
         }
       }
 
@@ -159,8 +204,37 @@ export default function CoursesPage() {
         }
       }
 
-      setCourses(withStats)
-      setFilteredCourses(withStats)
+      const audienceMap = await loadInstitutionsForCourses(supabase as any, courseIds)
+      const institutionIdsByCourse = new Map<string, string[]>()
+      for (const id of courseIds) {
+        institutionIdsByCourse.set(
+          id,
+          (audienceMap.get(id) || []).map((i) => i.id)
+        )
+      }
+
+      const visible = filterVisibleCourses(withStats, institutionIdsByCourse, {
+        userInstitutionId: (profile as any)?.institution_id,
+        role: (profile as any)?.role,
+      }).map((course) => ({
+        ...course,
+        audience_institutions: audienceMap.get(course.id) || [],
+      }))
+
+      setCourses(visible)
+      setFilteredCourses(visible)
+
+      const q = searchParams.get('institution')
+      let initialFilter = 'All'
+      if (q === 'mine') {
+        initialFilter = 'mine'
+      } else if (q) {
+        const bySlug = activeInstitutions.find((i) => i.slug === q)
+        if (bySlug) initialFilter = bySlug.id
+      } else if ((profile as any)?.institution_id) {
+        initialFilter = 'mine'
+      }
+      setSelectedInstitution(initialFilter)
 
       // Fetch user's enrollments
       if (user) {
@@ -282,8 +356,21 @@ export default function CoursesPage() {
       filtered = filtered.filter((course: any) => course.level === selectedLevel)
     }
 
+    filtered = filtered.filter((course) =>
+      matchesInstitutionFilter(
+        (course.audience_institutions || []).map((i) => i.id),
+        selectedInstitution,
+        (currentUser as any)?.institution_id
+      )
+    )
+
     setFilteredCourses(filtered)
-  }, [searchTerm, selectedCategory, selectedLevel, courses])
+  }, [searchTerm, selectedCategory, selectedLevel, selectedInstitution, courses, currentUser])
+
+  const setInstitutionFilter = (value: string) => {
+    setSelectedInstitution(value)
+    syncInstitutionQuery(value)
+  }
 
   const handleEnroll = async (courseId: string) => {
     if (!currentUser) {
@@ -418,6 +505,25 @@ export default function CoursesPage() {
                 </SheetHeader>
                 <div className="space-y-5 pt-6">
                   <div>
+                    <label className="text-sm font-medium mb-2 block">Institution</label>
+                    <Select value={selectedInstitution} onValueChange={setInstitutionFilter}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="All">All</SelectItem>
+                        {(currentUser as any)?.institution_id && (
+                          <SelectItem value="mine">My institution</SelectItem>
+                        )}
+                        {institutions.map((inst) => (
+                          <SelectItem key={inst.id} value={inst.id}>
+                            {institutionLabel(inst)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
                     <label className="text-sm font-medium mb-2 block">Category</label>
                     <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                       <SelectTrigger className="w-full">
@@ -506,6 +612,52 @@ export default function CoursesPage() {
               </Button>
             ))}
           </div>
+
+          {(institutions.length > 0 || (currentUser as any)?.institution_id) && (
+            <div className="hidden lg:flex flex-wrap gap-3">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Institution:</span>
+              </div>
+              <Button
+                variant={selectedInstitution === 'All' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setInstitutionFilter('All')}
+                className={
+                  selectedInstitution === 'All' ? 'bg-bhutan-yellow hover:bg-bhutan-orange' : ''
+                }
+              >
+                All
+              </Button>
+              {(currentUser as any)?.institution_id && (
+                <Button
+                  variant={selectedInstitution === 'mine' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setInstitutionFilter('mine')}
+                  className={
+                    selectedInstitution === 'mine' ? 'bg-bhutan-yellow hover:bg-bhutan-orange' : ''
+                  }
+                >
+                  My institution
+                </Button>
+              )}
+              {institutions.map((inst) => (
+                <Button
+                  key={inst.id}
+                  variant={selectedInstitution === inst.id ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setInstitutionFilter(inst.id)}
+                  className={
+                    selectedInstitution === inst.id
+                      ? 'bg-bhutan-yellow hover:bg-bhutan-orange'
+                      : ''
+                  }
+                >
+                  {institutionLabel(inst)}
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Results Count */}
@@ -539,9 +691,21 @@ export default function CoursesPage() {
         {filteredCourses.length === 0 && (
           <div className="text-center py-12">
             <BookOpen className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-semibold mb-2">No courses found</h3>
+            <h3 className="text-lg font-semibold mb-2">
+              {selectedInstitution !== 'All' &&
+              !searchTerm &&
+              selectedCategory === 'All' &&
+              selectedLevel === 'All'
+                ? 'No courses for this institution yet'
+                : 'No courses found'}
+            </h3>
             <p className="text-muted-foreground mb-4">
-              Try adjusting your search or filters to find what you're looking for.
+              {selectedInstitution !== 'All' &&
+              !searchTerm &&
+              selectedCategory === 'All' &&
+              selectedLevel === 'All'
+                ? 'Try All institutions, or check back when more courses are published for your organization.'
+                : "Try adjusting your search or filters to find what you're looking for."}
             </p>
             <Button
               variant="outline"
@@ -549,6 +713,7 @@ export default function CoursesPage() {
                 setSearchTerm('')
                 setSelectedCategory('All')
                 setSelectedLevel('All')
+                setInstitutionFilter('All')
               }}
             >
               Clear Filters

@@ -1,0 +1,337 @@
+import type { ReportAudience, ReportDefinition, ReportSectionId } from '@/lib/reports/types'
+
+export const REPORT_SECTIONS: Record<
+  ReportSectionId,
+  { title: string; description: string; audiences: ReportAudience[] }
+> = {
+  'my-learning': {
+    title: 'My Learning',
+    description: 'Your progress, assessments, and certificates.',
+    audiences: ['student'],
+  },
+  'course-insights': {
+    title: 'Course Insights',
+    description: 'Engagement, at-risk learners, and content friction for your courses.',
+    audiences: ['instructor'],
+  },
+  'approvals-health': {
+    title: 'Approvals & Institution Quality',
+    description: 'KYC queue health, reviewer load, and post-approval activation.',
+    audiences: ['resource_person', 'admin', 'superadmin'],
+  },
+  'institution-ops': {
+    title: 'Institution & Catalog Ops',
+    description: 'Adoption, catalog health, registration funnel, and audience fit.',
+    audiences: ['admin', 'superadmin'],
+  },
+  'platform-command': {
+    title: 'Platform Command Center',
+    description: 'Cross-tenant comparison, feature adoption, and interventions.',
+    audiences: ['superadmin'],
+  },
+  'system-pulse': {
+    title: 'System Pulse',
+    description: 'Data quality, tenancy, enrollment states, and instrumentation gaps for developers.',
+    audiences: ['developer', 'superadmin'],
+  },
+}
+
+export const REPORT_CATALOG: ReportDefinition[] = [
+  {
+    id: 'progress-overview',
+    section: 'my-learning',
+    title: 'Progress overview',
+    description: 'Completion % per enrollment, last activity, remaining work.',
+    audiences: ['student'],
+    phase: 'P0',
+  },
+  {
+    id: 'activity-streak',
+    section: 'my-learning',
+    title: 'Activity streak',
+    description: 'Lessons completed per week and learning habit signals.',
+    audiences: ['student'],
+    phase: 'P0',
+  },
+  {
+    id: 'assessment-history',
+    section: 'my-learning',
+    title: 'Assessment history',
+    description: 'Quiz scores, attempts, and weak spots.',
+    audiences: ['student'],
+    phase: 'P0',
+  },
+  {
+    id: 'certificates',
+    section: 'my-learning',
+    title: 'Certificates',
+    description: 'Earned certificates and courses near completion.',
+    audiences: ['student'],
+    phase: 'P0',
+  },
+  {
+    id: 'communication-digest',
+    section: 'my-learning',
+    title: 'Communication digest',
+    description: 'Unread announcements relevant to your enrollments.',
+    audiences: ['student'],
+    phase: 'P0',
+  },
+  {
+    id: 'engagement',
+    section: 'course-insights',
+    title: 'Engagement',
+    description: 'Weekly active learners and course-level engagement rates.',
+    audiences: ['instructor'],
+    phase: 'P0',
+  },
+  {
+    id: 'at-risk',
+    section: 'course-insights',
+    title: 'At-risk learners',
+    description: 'Students inactive or lagging behind cohort progress.',
+    audiences: ['instructor'],
+    phase: 'P0',
+  },
+  {
+    id: 'assessment-quality',
+    section: 'course-insights',
+    title: 'Assessment quality',
+    description: 'Quiz pass rates and attempt patterns.',
+    audiences: ['instructor'],
+    phase: 'P1',
+  },
+  {
+    id: 'roster-ops',
+    section: 'course-insights',
+    title: 'Roster ops',
+    description: 'Enrollment status counts and invite redemption.',
+    audiences: ['instructor'],
+    phase: 'P0',
+  },
+  {
+    id: 'outcomes',
+    section: 'course-insights',
+    title: 'Outcomes',
+    description: 'Completions, certificates, and review ratings.',
+    audiences: ['instructor'],
+    phase: 'P0',
+  },
+  {
+    id: 'lesson-friction',
+    section: 'course-insights',
+    title: 'Lesson Friction Map',
+    description: 'Behavioral hotspots: drop-off, hesitation (dwell), stuck mid-lesson, and assessment fail rates — with scores and fix guidance.',
+    audiences: ['instructor'],
+    phase: 'P1',
+  },
+  {
+    id: 'approval-queue-aging',
+    section: 'approvals-health',
+    title: 'Approval queue aging',
+    description: 'Median and P95 time-to-decision; open backlog.',
+    audiences: ['resource_person', 'admin', 'superadmin'],
+    phase: 'P1',
+  },
+  {
+    id: 'rejection-reasons',
+    section: 'approvals-health',
+    title: 'Rejection reasons',
+    description: 'Where applicants fail KYC.',
+    audiences: ['resource_person', 'admin', 'superadmin'],
+    phase: 'P1',
+  },
+  {
+    id: 'reviewer-workload',
+    section: 'approvals-health',
+    title: 'Reviewer workload',
+    description: 'Decisions per reviewer and pending load.',
+    audiences: ['resource_person', 'admin', 'superadmin'],
+    phase: 'P1',
+  },
+  {
+    id: 'post-approval-activation',
+    section: 'approvals-health',
+    title: 'Post-approval activation',
+    description: 'Approved users who never enroll or open a course.',
+    audiences: ['resource_person', 'admin', 'superadmin'],
+    phase: 'P1',
+  },
+  {
+    id: 'approval-first-lesson-latency',
+    section: 'approvals-health',
+    title: 'Approval → first lesson latency',
+    description: 'Time from KYC approve to first lesson progress.',
+    audiences: ['resource_person', 'admin', 'superadmin'],
+    phase: 'P1',
+  },
+  {
+    id: 'institution-coverage',
+    section: 'approvals-health',
+    title: 'Institution coverage',
+    description: 'Institutions missing teachers or students.',
+    audiences: ['resource_person', 'admin', 'superadmin'],
+    phase: 'P1',
+  },
+  {
+    id: 'adoption',
+    section: 'institution-ops',
+    title: 'Adoption',
+    description: 'Active users, published courses, enrollments by institution.',
+    audiences: ['admin', 'superadmin'],
+    phase: 'P0',
+  },
+  {
+    id: 'catalog-health',
+    section: 'institution-ops',
+    title: 'Catalog health',
+    description: 'Empty or unpublished structure issues in the catalog.',
+    audiences: ['admin', 'superadmin'],
+    phase: 'P0',
+  },
+  {
+    id: 'access-audience',
+    section: 'institution-ops',
+    title: 'Access & audience',
+    description: 'Course institution targeting coverage.',
+    audiences: ['admin', 'superadmin'],
+    phase: 'P0',
+  },
+  {
+    id: 'learning-outcomes',
+    section: 'institution-ops',
+    title: 'Learning outcomes',
+    description: 'Completion rates and certificate issuance.',
+    audiences: ['admin', 'superadmin'],
+    phase: 'P0',
+  },
+  {
+    id: 'registration-funnel',
+    section: 'institution-ops',
+    title: 'Registration funnel',
+    description: 'Signup → KYC → approval → first enrollment.',
+    audiences: ['admin', 'superadmin'],
+    phase: 'P0',
+  },
+  {
+    id: 'instructor-health',
+    section: 'institution-ops',
+    title: 'Instructor health',
+    description: 'Courses with low teacher activity or missing co-teachers.',
+    audiences: ['admin', 'superadmin'],
+    phase: 'P0',
+  },
+  {
+    id: 'dark-catalog',
+    section: 'institution-ops',
+    title: 'Dark Catalog Index',
+    description: 'Published courses with near-zero enrollments for 30+ days.',
+    audiences: ['admin', 'superadmin'],
+    phase: 'P1',
+  },
+  {
+    id: 'audience-lock-misfit',
+    section: 'institution-ops',
+    title: 'Audience Lock Misfit',
+    description: 'Restricted courses with eligible institution users but 0 enrollments.',
+    audiences: ['admin', 'superadmin'],
+    phase: 'P1',
+  },
+  {
+    id: 'cross-tenant',
+    section: 'platform-command',
+    title: 'Cross-tenant comparison',
+    description: 'Institutions ranked by engagement and completion.',
+    audiences: ['superadmin'],
+    phase: 'P2',
+  },
+  {
+    id: 'role-audit',
+    section: 'platform-command',
+    title: 'Role & privilege audit',
+    description: 'Role distribution across the platform.',
+    audiences: ['superadmin'],
+    phase: 'P2',
+  },
+  {
+    id: 'feature-adoption',
+    section: 'platform-command',
+    title: 'Feature adoption',
+    description: 'Share of courses using quizzes, flashcards, forums, certificates.',
+    audiences: ['superadmin'],
+    phase: 'P2',
+  },
+  {
+    id: 'intervention-effectiveness',
+    section: 'platform-command',
+    title: 'Intervention effectiveness',
+    description: 'Whether teacher interventions resume learner progress within 7 days.',
+    audiences: ['superadmin'],
+    phase: 'P2',
+  },
+  {
+    id: 'data-quality',
+    section: 'system-pulse',
+    title: 'Data quality debt',
+    description: 'Orphan rows, missing instructors, progress for missing lessons.',
+    audiences: ['developer', 'superadmin'],
+    phase: 'P2',
+  },
+  {
+    id: 'enrollment-state-machine',
+    section: 'system-pulse',
+    title: 'Enrollment state machine',
+    description: 'Stuck invites, pending enrollments, incomplete states.',
+    audiences: ['developer', 'superadmin'],
+    phase: 'P2',
+  },
+  {
+    id: 'tenancy-leak',
+    section: 'system-pulse',
+    title: 'Institution tenancy leak scanner',
+    description: 'Enrollments that violate course_institutions audience rules.',
+    audiences: ['developer', 'superadmin'],
+    phase: 'P2',
+  },
+  {
+    id: 'path-breakage',
+    section: 'system-pulse',
+    title: 'Learning path breakage',
+    description: 'Published courses with no modules/lessons or incomplete paths.',
+    audiences: ['developer', 'superadmin'],
+    phase: 'P2',
+  },
+  {
+    id: 'teacher-time-to-value',
+    section: 'system-pulse',
+    title: 'Teacher time-to-value',
+    description: 'New instructor → first published course → first enrollment.',
+    audiences: ['developer', 'superadmin'],
+    phase: 'P2',
+  },
+  {
+    id: 'instrumentation-gaps',
+    section: 'system-pulse',
+    title: 'Instrumentation gaps',
+    description: 'Known telemetry and ledger gaps that block richer reports.',
+    audiences: ['developer', 'superadmin'],
+    phase: 'P2',
+  },
+]
+
+export function sectionsForAudiences(audiences: ReportAudience[]): ReportSectionId[] {
+  const set = new Set(audiences)
+  return (Object.keys(REPORT_SECTIONS) as ReportSectionId[]).filter((id) =>
+    REPORT_SECTIONS[id].audiences.some((a) => set.has(a))
+  )
+}
+
+export function reportsForSection(
+  section: ReportSectionId,
+  audiences: ReportAudience[]
+): ReportDefinition[] {
+  const set = new Set(audiences)
+  return REPORT_CATALOG.filter(
+    (r) => r.section === section && r.audiences.some((a) => set.has(a))
+  )
+}

@@ -5,6 +5,7 @@ import { getDbClient } from '@/lib/db'
 import { notifyTeacherOfEnrollment } from '@/lib/notify-teachers'
 import { isKycExemptRole } from '@/lib/kyc'
 import { getPlatformSettings } from '@/lib/platform-settings'
+import { assertUserMayEnrollInCourse } from '@/lib/course-institution-access'
 
 /**
  * POST /api/enrollments
@@ -100,6 +101,18 @@ export async function POST(request: Request) {
 
     if (!(course as any).is_published) {
       return NextResponse.json({ error: 'This course is not published yet' }, { status: 400 })
+    }
+
+    const audience = await assertUserMayEnrollInCourse(service, courseId, user.id, role)
+    if (!audience.ok) {
+      return NextResponse.json(
+        {
+          error: audience.error,
+          institutionRestricted: true,
+          institutionNames: audience.institutionNames,
+        },
+        { status: audience.status }
+      )
     }
 
     const mode = ((course as any).enrollment_mode as string) || 'approval'
