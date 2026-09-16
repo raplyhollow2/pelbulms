@@ -21,6 +21,7 @@ import {
   type CertificateLayout,
   type CertificateLayer,
 } from '@/lib/certificate-layout'
+import { MOLHR_ORNAMENTAL_BORDER_DATA_URI } from '@/lib/certificate-border-data'
 
 export interface CertificateDesignSettings {
   brandName?: string
@@ -74,32 +75,47 @@ function sniffImageMime(buf: Buffer): string {
   ) {
     return 'image/webp'
   }
-  if (buf.length >= 5 && buf.toString('ascii', 0, 5) === '%PDF-') {
-    return 'application/pdf'
-  }
   if (buf.length >= 4 && buf.toString('ascii', 0, 4) === '<svg') {
     return 'image/svg+xml'
   }
   return 'image/png'
 }
 
-/** Resolve public/ relative paths for @react-pdf Image */
+function isOrnamentalBorderPath(src: string): boolean {
+  return /molhr-ornamental-border\.(png|jpg|jpeg)$/i.test(src.replace(/^\//, ''))
+}
+
+/** Resolve public/ relative paths for @react-pdf Image (works on Vercel serverless). */
 function resolvePdfImageSrc(src: string): string {
   if (!src) return src
   if (src.startsWith('data:')) return src
+
+  // Always use the bundled asset for the MoLHR frame — public/ is not reliable in
+  // serverless runtimes, and a wrong MIME used to drop the background silently.
+  if (isOrnamentalBorderPath(src) || src.includes('molhr-ornamental-border')) {
+    return MOLHR_ORNAMENTAL_BORDER_DATA_URI
+  }
+
   if (src.startsWith('http://') || src.startsWith('https://')) {
     return src
   }
-  try {
-    const filePath = path.join(process.cwd(), 'public', src.replace(/^\//, ''))
-    if (fs.existsSync(filePath)) {
-      const buf = fs.readFileSync(filePath)
-      const mime = sniffImageMime(buf)
-      return `data:${mime};base64,${buf.toString('base64')}`
+
+  const relative = src.replace(/^\//, '')
+  const candidates = [
+    path.join(process.cwd(), 'public', relative),
+    path.join(process.cwd(), relative),
+  ]
+  for (const filePath of candidates) {
+    try {
+      if (fs.existsSync(filePath)) {
+        const buf = fs.readFileSync(filePath)
+        return `data:${sniffImageMime(buf)};base64,${buf.toString('base64')}`
+      }
+    } catch {
+      /* try next */
     }
-  } catch {
-    /* fall through */
   }
+
   const base = process.env.NEXT_PUBLIC_APP_URL || process.env.VERCEL_URL
   if (base) {
     const origin = base.startsWith('http') ? base : `https://${base}`
@@ -206,6 +222,12 @@ function CertificateDocument(data: CertificateData) {
   const layout = data.design?.layout
     ? defaultCertificateLayout(data.design.layout)
     : layoutFromLegacySettings(data.design as any)
+
+  // Guarantee the ornamental frame is present whenever that template is selected
+  if (layout.template === 'ornamental' && !layout.backgroundImage) {
+    layout.backgroundImage = '/certificates/molhr-ornamental-border.jpg'
+  }
+
   const accent = layout.accentColor || '#E9B308'
   const borderW =
     layout.borderStyle === 'none'
@@ -215,6 +237,10 @@ function CertificateDocument(data: CertificateData) {
         : layout.borderStyle === 'double'
           ? 4
           : 3
+
+  const bgSrc = layout.backgroundImage
+    ? resolvePdfImageSrc(layout.backgroundImage)
+    : null
 
   const styles = StyleSheet.create({
     page: {
@@ -227,6 +253,7 @@ function CertificateDocument(data: CertificateData) {
       borderColor: accent,
       borderStyle: layout.borderStyle === 'double' ? 'dashed' : 'solid',
       position: 'relative',
+      overflow: 'hidden',
     },
   })
 
@@ -236,9 +263,9 @@ function CertificateDocument(data: CertificateData) {
     <Document title={`Certificate - ${data.courseTitle}`} author={layout.brandName}>
       <Page size="A4" orientation="landscape" style={styles.page}>
         <View style={styles.frame}>
-          {layout.backgroundImage ? (
+          {bgSrc ? (
             <Image
-              src={resolvePdfImageSrc(layout.backgroundImage)}
+              src={bgSrc}
               style={{
                 position: 'absolute',
                 left: 0,

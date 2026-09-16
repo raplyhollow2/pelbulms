@@ -515,7 +515,7 @@ export function defaultCertificateLayout(
   const tagline = partial?.tagline || 'This is proudly presented to'
   const signatureName = partial?.signatureName || ''
   const signatureTitle = partial?.signatureTitle || 'Instructor'
-  const template = partial?.template || 'classic'
+  const template = partial?.template || 'ornamental'
 
   const layers =
     template === 'bhutan'

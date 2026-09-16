@@ -120,6 +120,26 @@ export async function POST(request: NextRequest) {
 
     const design = ((course as any).certificate_settings || {}) as Record<string, any>
     const theme = ((course as any).metadata as any)?.theme || {}
+    const { defaultCertificateLayout } = await import('@/lib/certificate-layout')
+    // Normalize layout so ornamental template always carries the MoLHR frame
+    let layout =
+      design.layout && typeof design.layout === 'object'
+        ? defaultCertificateLayout(design.layout)
+        : defaultCertificateLayout({
+            brandName: design.brandName,
+            titleLine: design.titleLine,
+            accentColor: design.accentColor || theme.primary,
+            signatureName: design.signatureName || instructorName,
+            signatureTitle: design.signatureTitle,
+          })
+    if (layout.template === 'ornamental' && !layout.backgroundImage) {
+      layout = defaultCertificateLayout({
+        ...layout,
+        template: 'ornamental',
+        backgroundImage: '/certificates/molhr-ornamental-border.jpg',
+        borderStyle: 'none',
+      })
+    }
 
     const pdfBuffer = await generateCertificatePdf({
       recipientName: (profile as any)?.full_name || user.email || 'Student',
@@ -129,23 +149,32 @@ export async function POST(request: NextRequest) {
       verifyUrl: `${appUrl}/verify/${verificationCode}`,
       instructorName,
       design: {
-        brandName: design.brandName,
-        titleLine: design.titleLine,
-        accentColor: design.accentColor || theme.primary,
-        signatureName: design.signatureName || instructorName,
-        signatureTitle: design.signatureTitle,
+        brandName: design.brandName || layout.brandName,
+        titleLine: design.titleLine || layout.titleLine,
+        accentColor: design.accentColor || layout.accentColor || theme.primary,
+        signatureName: design.signatureName || layout.signatureName || instructorName,
+        signatureTitle: design.signatureTitle || layout.signatureTitle,
         logoUrl: design.logoUrl || theme.logoUrl,
-        layout: design.layout,
+        layout,
       },
     })
 
-    // Upload to Storage
-    const path = `${user.id}/${courseId}.pdf`
+    if (!pdfBuffer?.length || pdfBuffer.length < 1000) {
+      return NextResponse.json(
+        { error: 'Certificate PDF generation produced an empty file' },
+        { status: 500 }
+      )
+    }
+
+    // Upload to Storage (remove first so CDN/clients cannot keep a stale object)
+    const storagePath = `${user.id}/${courseId}.pdf`
+    await service.storage.from('certificates').remove([storagePath])
     const { error: uploadError } = await service.storage
       .from('certificates')
-      .upload(path, pdfBuffer, {
+      .upload(storagePath, pdfBuffer, {
         contentType: 'application/pdf',
         upsert: true,
+        cacheControl: '0',
       })
 
     if (uploadError) {
@@ -157,8 +186,8 @@ export async function POST(request: NextRequest) {
 
     const { data: publicUrlData } = service.storage
       .from('certificates')
-      .getPublicUrl(path)
-    const certificateUrl = publicUrlData.publicUrl
+      .getPublicUrl(storagePath)
+    const certificateUrl = `${publicUrlData.publicUrl}?v=${Date.now()}`
 
     // Upsert the certificate row
     const { data: certificate, error: upsertError } = await service
