@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, ClipboardList, Globe, Megaphone } from 'lucide-react'
+import { Building2, ClipboardList, Globe, Megaphone, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const ITEMS = [
@@ -10,6 +10,7 @@ const ITEMS = [
   { href: '/admin/settings/registration', label: 'Registration', icon: ClipboardList },
   { href: '/admin/settings/institutions', label: 'Institutions', icon: Building2 },
   { href: '/admin/settings/marketing', label: 'Marketing', icon: Megaphone },
+  { href: '/admin/permissions', label: 'Permissions', icon: Shield },
 ]
 
 export function AdminSettingsNav() {

@@ -9,6 +9,7 @@ import {
 import { REPORT_SECTIONS } from '@/lib/reports/catalog'
 import type { ReportSectionPayload } from '@/lib/reports/types'
 import type { UserRole as AppRole } from '@/lib/roles'
+import { CAP, hasCapability, resolveUserCapabilities } from '@/lib/capabilities'
 
 /** GET /api/reports/admin — Institution ops + approvals (+ platform for superadmin) */
 export async function GET(_request: NextRequest) {
@@ -33,12 +34,13 @@ export async function GET(_request: NextRequest) {
     }
 
     const role = resolveEffectiveRole((profile as any).role, user) as AppRole
-    const allowed =
+    const caps = await resolveUserCapabilities(user.id, role)
+    const canReports =
+      hasCapability(caps, CAP.REPORTS_VIEW) ||
       role === 'admin' ||
       role === 'superadmin' ||
       role === 'resource_person'
 
-    // Assigned reviewers may see approvals health only
     const scope = await getApprovalScope(
       service,
       user.id,
@@ -46,7 +48,12 @@ export async function GET(_request: NextRequest) {
       (profile as any).institution_id
     )
 
-    if (!allowed && !scope.allowed) {
+    if (scope.allowed && !caps.allInstitutions && caps.institutionIds.length) {
+      scope.institutionIds = caps.institutionIds
+      ;(scope as any).isSuper = false
+    }
+
+    if (!canReports && !scope.allowed) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -54,7 +61,9 @@ export async function GET(_request: NextRequest) {
 
     if (scope.allowed) {
       const institutionIds =
-        scope.isSuper || scope.isSuperadmin ? null : scope.institutionIds
+        scope.isSuper || scope.isSuperadmin || caps.allInstitutions
+          ? null
+          : scope.institutionIds
       const blocks = await computeApprovalsReports(service as any, {
         institutionIds: institutionIds && institutionIds.length ? institutionIds : null,
       })
@@ -66,7 +75,11 @@ export async function GET(_request: NextRequest) {
       })
     }
 
-    if (role === 'admin' || role === 'superadmin') {
+    if (
+      hasCapability(caps, CAP.REPORTS_VIEW) ||
+      role === 'admin' ||
+      role === 'superadmin'
+    ) {
       const ops = await computeAdminOpsReports(service as any)
       sections.push({
         section: 'institution-ops',

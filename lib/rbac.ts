@@ -143,3 +143,12 @@ export const isTeacherOrAdmin = async (request: NextRequest): Promise<RBACCheck>
 
 export const isAnyAuthenticated = async (request: NextRequest): Promise<RBACCheck> =>
   checkRBAC(request, ['student', 'instructor', 'admin', 'resource_person', 'superadmin'])
+
+/** Capability-based checks (Phase 1 permissions). Prefer these for new admin APIs. */
+export {
+  checkCapability,
+  capabilityDenied,
+  resolveUserCapabilities,
+  hasCapability,
+  CAP,
+} from '@/lib/capabilities'

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRBAC } from '@/lib/rbac'
+import { checkRBAC, checkCapability, CAP } from '@/lib/rbac'
 import { ADMIN_ROLES } from '@/lib/roles'
 import { getAdminDb } from '@/lib/supabase/server'
 import { uniqueInstitutionSlug } from '@/lib/institution-slug'
@@ -10,6 +10,20 @@ function denied(rbac: { error?: string }) {
     { error: rbac.error || 'Access denied' },
     { status: rbac.error?.includes('Unauthorized') ? 401 : 403 }
   )
+}
+
+async function requireInstitutions(request: NextRequest, action: 'view' | 'add' | 'edit' | 'delete') {
+  const key =
+    action === 'view'
+      ? CAP.INSTITUTIONS_VIEW
+      : action === 'add'
+        ? CAP.INSTITUTIONS_ADD
+        : action === 'edit'
+          ? CAP.INSTITUTIONS_EDIT
+          : CAP.INSTITUTIONS_DELETE
+  const cap = await checkCapability(request, key)
+  if (cap.hasAccess) return cap
+  return checkRBAC(request, ADMIN_ROLES)
 }
 
 function parseDomains(value: unknown): string[] | null {
@@ -33,7 +47,7 @@ function parseDomains(value: unknown): string[] | null {
  * Admin or superadmin. Includes archived rows when ?archived=1 (superadmin UI).
  */
 export async function GET(request: NextRequest) {
-  const rbac = await checkRBAC(request, ADMIN_ROLES)
+  const rbac = await requireInstitutions(request, 'view')
   if (!rbac.hasAccess) return denied(rbac)
 
   const service = await getAdminDb()
@@ -88,7 +102,7 @@ export async function GET(request: NextRequest) {
  * Admin or superadmin. Create Dessung, Pelsung, or any other institute.
  */
 export async function POST(request: NextRequest) {
-  const rbac = await checkRBAC(request, ADMIN_ROLES)
+  const rbac = await requireInstitutions(request, 'add')
   if (!rbac.hasAccess) return denied(rbac)
 
   let body: any

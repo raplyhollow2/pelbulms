@@ -138,8 +138,10 @@ export async function middleware(req: NextRequest) {
       if (userRole && userRole !== 'superadmin') {
         // Assigned reviewers (often instructors) need the approvals screen even
         // though it lives under /admin; the page + API enforce reviewer rights.
-        const isApprovalsPath = pathname.startsWith('/admin/approvals')
-        if (pathname.startsWith('/admin/ai')) {
+        const isApprovalsPath =
+          pathname.startsWith('/admin/approvals') ||
+          pathname.startsWith('/admin/users')
+        if (pathname.startsWith('/admin/ai') || pathname.startsWith('/admin/permissions')) {
           return redirectTo('/dashboard')
         }
         if (pathname.startsWith('/admin') && !isApprovalsPath) {

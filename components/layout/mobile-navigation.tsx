@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   Home, BookOpen, GraduationCap, User,
   Menu, X, LogOut, Settings, Search,
-  Bell, TrendingUp, Users, Plus, HardDrive, Sparkles, Building2, BarChart3
+  Bell, TrendingUp, Users, Plus, HardDrive, Sparkles, Building2, BarChart3, Shield
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -24,6 +24,15 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
     'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
   >('student')
   const [canApprove, setCanApprove] = useState(false)
+  const [caps, setCaps] = useState<{
+    canUsers?: boolean
+    canReports?: boolean
+    canInstitutions?: boolean
+    canSettings?: boolean
+    canPermissions?: boolean
+    canAi?: boolean
+    canApprovals?: boolean
+  }>({})
 
   const canTeach =
     userRole === 'instructor' ||
@@ -33,7 +42,7 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
   const canAdmin = userRole === 'admin' || userRole === 'superadmin'
   const isSuper = userRole === 'superadmin'
   const isResourcePerson = userRole === 'resource_person'
-  const showApprovals = isSuper || isResourcePerson || canApprove
+  const showApprovals = isSuper || isResourcePerson || canApprove || caps.canApprovals
 
   const mainNavigation = [
     { name: 'Home', href: '/dashboard', icon: Home },
@@ -58,16 +67,24 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
       : []),
   ]
 
+  const showUsers = canAdmin || caps.canUsers
+  const showReports = canAdmin || caps.canReports
+  const showInstitutions = canAdmin || caps.canInstitutions
+  const showSettings = canAdmin || caps.canSettings
+  const showPermissions = isSuper || caps.canPermissions
+  const showAi = isSuper || caps.canAi
+
   const adminNavigation = [
-    { name: 'Users', href: '/admin/users', icon: Users },
-    ...(canAdmin
-      ? [
-          { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
-          { name: 'Institutions', href: '/admin/settings/institutions', icon: Building2 },
-          { name: 'Site admin', href: '/admin/settings', icon: Settings },
-        ]
+    ...(showUsers ? [{ name: 'Users', href: '/admin/users', icon: Users }] : []),
+    ...(showReports ? [{ name: 'Reports', href: '/admin/reports', icon: BarChart3 }] : []),
+    ...(showInstitutions
+      ? [{ name: 'Institutions', href: '/admin/settings/institutions', icon: Building2 }]
       : []),
-    ...(isSuper ? [{ name: 'AI', href: '/admin/ai', icon: Sparkles }] : []),
+    ...(showSettings ? [{ name: 'Site admin', href: '/admin/settings', icon: Settings }] : []),
+    ...(showPermissions
+      ? [{ name: 'Permissions', href: '/admin/permissions', icon: Shield }]
+      : []),
+    ...(showAi ? [{ name: 'AI', href: '/admin/ai', icon: Sparkles }] : []),
   ]
 
   useEffect(() => {
@@ -118,6 +135,26 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
           .eq('is_active', true)
           .limit(1)
         setCanApprove(!!(reviewerRows && reviewerRows.length > 0))
+      }
+
+      try {
+        const capRes = await fetch('/api/admin/capabilities/me')
+        if (capRes.ok) {
+          const capJson = await capRes.json()
+          const list: string[] = capJson.capabilities || []
+          const has = (key: string) => list.includes('*') || list.includes(key)
+          setCaps({
+            canUsers: has('admin.users.view'),
+            canReports: has('admin.reports.view'),
+            canInstitutions: has('admin.institutions.view'),
+            canSettings: has('admin.settings.view'),
+            canPermissions: has('admin.permissions.view') || role === 'superadmin',
+            canAi: has('admin.ai.view') || role === 'superadmin',
+            canApprovals: has('admin.approvals.view') || !!capJson.canApprovals,
+          })
+        }
+      } catch {
+        // optional until migration applied
       }
     } catch (error) {
       console.error('Error fetching user role:', error)
@@ -289,7 +326,7 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
               </div>
             )}
 
-            {canAdmin && (
+            {(canAdmin || adminNavigation.length > 0) && (
               <div className="mb-4">
                 <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Admin

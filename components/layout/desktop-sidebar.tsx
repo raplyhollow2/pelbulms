@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   Home, BookOpen, GraduationCap, Settings, User,
   ChevronLeft, ChevronRight, LogOut, Search, TrendingUp, Users,
-  Bell, HardDrive, Sparkles, Building2, BarChart3,
+  Bell, HardDrive, Sparkles, Building2, BarChart3, Shield,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -41,6 +41,15 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
   >('student')
   const [profile, setProfile] = useState<{ full_name?: string; avatar_url?: string } | null>(null)
   const [canApprove, setCanApprove] = useState(false)
+  const [caps, setCaps] = useState<{
+    canUsers?: boolean
+    canReports?: boolean
+    canInstitutions?: boolean
+    canSettings?: boolean
+    canPermissions?: boolean
+    canAi?: boolean
+    canApprovals?: boolean
+  }>({})
 
   const canTeach =
     userRole === 'instructor' ||
@@ -51,7 +60,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
   const isSuper = userRole === 'superadmin'
   const isResourcePerson = userRole === 'resource_person'
   // Always show Approvals for superadmin + resource_person; also assigned reviewers
-  const showApprovals = isSuper || isResourcePerson || canApprove
+  const showApprovals = isSuper || isResourcePerson || canApprove || caps.canApprovals
 
   // Ordered by everyday priority for a learner.
   const navigation: NavItem[] = [
@@ -74,16 +83,28 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
       : []),
   ]
 
+  const showUsers = canAdmin || caps.canUsers
+  const showReports = canAdmin || caps.canReports
+  const showInstitutions = canAdmin || caps.canInstitutions
+  const showSettings = canAdmin || caps.canSettings
+  const showPermissions = isSuper || caps.canPermissions
+  const showAi = isSuper || caps.canAi
+
   const adminNavigation: NavItem[] = [
-    { name: 'Users', href: '/admin/users', icon: Users },
-    ...(canAdmin
-      ? [
-          { name: 'Reports', href: '/admin/reports', icon: BarChart3 } as NavItem,
-          { name: 'Institutions', href: '/admin/settings/institutions', icon: Building2 } as NavItem,
-          { name: 'Site admin', href: '/admin/settings', icon: Settings },
-        ]
+    ...(showUsers ? [{ name: 'Users', href: '/admin/users', icon: Users } as NavItem] : []),
+    ...(showReports
+      ? [{ name: 'Reports', href: '/admin/reports', icon: BarChart3 } as NavItem]
       : []),
-    ...(isSuper ? [{ name: 'AI', href: '/admin/ai', icon: Sparkles } as NavItem] : []),
+    ...(showInstitutions
+      ? [{ name: 'Institutions', href: '/admin/settings/institutions', icon: Building2 } as NavItem]
+      : []),
+    ...(showSettings
+      ? [{ name: 'Site admin', href: '/admin/settings', icon: Settings } as NavItem]
+      : []),
+    ...(showPermissions
+      ? [{ name: 'Permissions', href: '/admin/permissions', icon: Shield } as NavItem]
+      : []),
+    ...(showAi ? [{ name: 'AI', href: '/admin/ai', icon: Sparkles } as NavItem] : []),
   ]
 
   // Restore persisted collapse state and notify the layout on mount.
@@ -135,6 +156,26 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
           .eq('is_active', true)
           .limit(1)
         setCanApprove(!!(reviewerRows && reviewerRows.length > 0))
+      }
+
+      try {
+        const capRes = await fetch('/api/admin/capabilities/me')
+        if (capRes.ok) {
+          const capJson = await capRes.json()
+          const list: string[] = capJson.capabilities || []
+          const has = (key: string) => list.includes('*') || list.includes(key)
+          setCaps({
+            canUsers: has('admin.users.view'),
+            canReports: has('admin.reports.view'),
+            canInstitutions: has('admin.institutions.view'),
+            canSettings: has('admin.settings.view'),
+            canPermissions: has('admin.permissions.view') || role === 'superadmin',
+            canAi: has('admin.ai.view') || role === 'superadmin',
+            canApprovals: has('admin.approvals.view') || !!capJson.canApprovals,
+          })
+        }
+      } catch {
+        // capability endpoint optional until migration is applied
       }
     } catch (error) {
       console.error('Error fetching profile:', error)
@@ -334,7 +375,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
             </>
           )}
 
-          {canAdmin && (
+          {(canAdmin || adminNavigation.length > 0) && (
             <>
               {sectionLabel('Administration', 'Admin')}
               {renderNav(adminNavigation)}

@@ -1,15 +1,24 @@
 // @ts-nocheck - registration_reviewers not in generated Database types
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRBAC } from '@/lib/rbac'
+import { checkRBAC, checkCapability, CAP } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
+
+async function requireReviewers(request: NextRequest, write: boolean) {
+  const cap = await checkCapability(
+    request,
+    write
+      ? [CAP.REVIEWERS_ADD, CAP.REVIEWERS_EDIT, CAP.REVIEWERS_DELETE]
+      : CAP.REVIEWERS_VIEW
+  )
+  if (cap.hasAccess) return cap
+  return checkRBAC(request, ['superadmin'])
+}
 
 /**
  * GET /api/admin/reviewers
- * Superadmin only. Returns institutions, current active reviewers, and a list
- * of candidate users who can be assigned as reviewers.
  */
 export async function GET(request: NextRequest) {
-  const rbac = await checkRBAC(request, ['superadmin'])
+  const rbac = await requireReviewers(request, false)
   if (!rbac.hasAccess) {
     return NextResponse.json(
       { error: rbac.error || 'Access denied' },
@@ -60,7 +69,7 @@ export async function GET(request: NextRequest) {
  * Superadmin only. Body: { action: 'assign' | 'revoke', userId, institutionId }
  */
 export async function POST(request: NextRequest) {
-  const rbac = await checkRBAC(request, ['superadmin'])
+  const rbac = await requireReviewers(request, true)
   if (!rbac.hasAccess) {
     return NextResponse.json(
       { error: rbac.error || 'Access denied' },

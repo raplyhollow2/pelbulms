@@ -1,8 +1,15 @@
+// @ts-nocheck - roles / role_id not yet in generated Database types
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRBAC } from '@/lib/rbac'
+import {
+  CAP,
+  checkCapability,
+  institutionAllowed,
+} from '@/lib/capabilities'
 import { createServiceClient } from '@/lib/supabase/server'
+import type { UserRole } from '@/lib/roles'
 
-type Role = 'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
+type Role = UserRole
 
 const VALID_ROLES: Role[] = ['student', 'instructor', 'admin', 'resource_person', 'superadmin']
 
@@ -13,15 +20,19 @@ function denied(rbac: { error?: string }) {
   )
 }
 
-/**
- * GET /api/users/[userId]
- * Fetch a single profile. Admin only.
- */
+async function requireUsersCap(request: NextRequest, caps: string[]) {
+  const cap = await checkCapability(request, caps)
+  if (cap.hasAccess) return cap
+  const rbac = await checkRBAC(request, ['admin', 'superadmin'])
+  if (rbac.hasAccess) return { ...rbac, capabilities: cap.capabilities }
+  return cap
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
-  const rbac = await checkRBAC(request, ['admin', 'superadmin'])
+  const rbac = await requireUsersCap(request, [CAP.USERS_VIEW])
   if (!rbac.hasAccess) return denied(rbac)
 
   try {
@@ -38,6 +49,15 @@ export async function GET(
       return NextResponse.json({ error: error.message }, { status: 404 })
     }
 
+    if (
+      !institutionAllowed(
+        (data as any)?.institution_id,
+        (rbac as any).capabilities
+      )
+    ) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    }
+
     return NextResponse.json({ user: data })
   } catch (error: any) {
     return NextResponse.json(
@@ -47,31 +67,33 @@ export async function GET(
   }
 }
 
-/**
- * PATCH /api/users/[userId]
- * Update profile fields (full_name, bio, avatar_url, role). Admin only.
- */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
-  const rbac = await checkRBAC(request, ['admin', 'superadmin'])
+  const rbac = await requireUsersCap(request, [CAP.USERS_EDIT])
   if (!rbac.hasAccess) return denied(rbac)
 
   try {
     const { userId } = await params
     const body = await request.json()
-
     const supabase = await createServiceClient()
 
-    // Guard the superadmin tier: only a superadmin may touch a superadmin
-    // account or grant/revoke the superadmin role.
     const { data: target } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, institution_id')
       .eq('id', userId)
       .single()
     const targetRole = (target as { role?: string } | null)?.role
+
+    if (
+      !institutionAllowed(
+        (target as any)?.institution_id,
+        (rbac as any).capabilities
+      )
+    ) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    }
 
     if (rbac.userRole !== 'superadmin') {
       if (targetRole === 'superadmin') {
@@ -98,6 +120,12 @@ export async function PATCH(
       if (body.institution_id === null || body.institution_id === '') {
         updates.institution_id = null
       } else if (typeof body.institution_id === 'string') {
+        if (!institutionAllowed(body.institution_id, (rbac as any).capabilities)) {
+          return NextResponse.json(
+            { error: 'Institution outside your permission scope' },
+            { status: 403 }
+          )
+        }
         updates.institution_id = body.institution_id
       } else {
         return NextResponse.json({ error: 'Invalid institution' }, { status: 400 })
@@ -116,7 +144,35 @@ export async function PATCH(
       }
       updates.account_status = body.account_status
     }
-    if (body.role !== undefined) {
+
+    if (body.role_id !== undefined && body.role_id) {
+      const { data: roleRow } = await supabase
+        .from('roles')
+        .select('id, base_archetype, is_assignable')
+        .eq('id', body.role_id)
+        .maybeSingle()
+      if (!roleRow || !(roleRow as any).is_assignable) {
+        return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
+      }
+      const arche = (roleRow as any).base_archetype as Role
+      if (
+        (arche === 'instructor' || arche === 'resource_person') &&
+        rbac.userRole !== 'superadmin'
+      ) {
+        return NextResponse.json(
+          { error: 'Only a superadmin can grant instructor or resource person roles' },
+          { status: 403 }
+        )
+      }
+      if (arche === 'superadmin' && rbac.userRole !== 'superadmin') {
+        return NextResponse.json(
+          { error: 'Only a superadmin can grant the superadmin role' },
+          { status: 403 }
+        )
+      }
+      updates.role_id = (roleRow as any).id
+      updates.role = arche
+    } else if (body.role !== undefined) {
       if (!VALID_ROLES.includes(body.role)) {
         return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
       }
@@ -143,7 +199,6 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    // Keep auth user_metadata in sync for name/role
     const metadata: Record<string, unknown> = {}
     if (updates.full_name !== undefined) metadata.full_name = updates.full_name
     if (updates.role !== undefined) metadata.role = updates.role
@@ -151,7 +206,11 @@ export async function PATCH(
       await supabase.auth.admin.updateUserById(userId, { user_metadata: metadata })
     }
 
-    if (updates.account_status !== undefined || updates.role !== undefined || updates.institution_id !== undefined) {
+    if (
+      updates.account_status !== undefined ||
+      updates.role !== undefined ||
+      updates.institution_id !== undefined
+    ) {
       const { data: authUser } = await supabase.auth.admin.getUserById(userId)
       const current = (authUser?.user?.app_metadata as Record<string, unknown>) || {}
       const appPatch: Record<string, unknown> = { ...current }
@@ -172,15 +231,11 @@ export async function PATCH(
   }
 }
 
-/**
- * DELETE /api/users/[userId]
- * Remove the profile and auth account. Admin only. Cannot delete self.
- */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ userId: string }> }
 ) {
-  const rbac = await checkRBAC(request, ['admin', 'superadmin'])
+  const rbac = await requireUsersCap(request, [CAP.USERS_DELETE])
   if (!rbac.hasAccess) return denied(rbac)
 
   try {
@@ -195,10 +250,9 @@ export async function DELETE(
 
     const supabase = await createServiceClient()
 
-    // Only a superadmin can delete another superadmin.
     const { data: target } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, institution_id')
       .eq('id', userId)
       .single()
     if (
@@ -210,6 +264,14 @@ export async function DELETE(
         { status: 403 }
       )
     }
+    if (
+      !institutionAllowed(
+        (target as any)?.institution_id,
+        (rbac as any).capabilities
+      )
+    ) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+    }
 
     const { error: profileError } = await supabase
       .from('profiles')
@@ -220,7 +282,6 @@ export async function DELETE(
       return NextResponse.json({ error: profileError.message }, { status: 400 })
     }
 
-    // Remove the auth account (ignore "not found" style errors)
     const { error: authError } = await supabase.auth.admin.deleteUser(userId)
     if (authError && !/not.*found/i.test(authError.message)) {
       return NextResponse.json({ error: authError.message }, { status: 400 })

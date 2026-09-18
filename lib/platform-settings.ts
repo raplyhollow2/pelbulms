@@ -1,4 +1,21 @@
 import { tryCreateServiceClient, createSupabaseServerClient } from '@/lib/supabase/server'
+import {
+  DEFAULT_HERO_CTA_PRIMARY,
+  DEFAULT_HERO_ROTATING_WORDS,
+  DEFAULT_HERO_VIDEO_URL,
+  DEFAULT_LANDING_STATS,
+  parseHeroRotatingWords,
+  parseLandingFaq,
+  parseLandingFeatures,
+  parseLandingSectionTitles,
+  parseLandingStats,
+  parseLandingSteps,
+  type LandingFaqItem,
+  type LandingFeature,
+  type LandingSectionTitles,
+  type LandingStat,
+  type LandingStep,
+} from '@/lib/landing-content'
 
 export type PlatformSettings = {
   id: string
@@ -16,6 +33,19 @@ export type PlatformSettings = {
   require_emergency_contact: boolean
   require_tos_consent: boolean
   collect_hear_about_us: boolean
+  hero_video_url: string | null
+  /** Seconds into the video where the hero loop starts; null = 0 */
+  hero_video_start_seconds: number | null
+  /** Seconds where the hero loop ends and restarts; null = full video */
+  hero_video_end_seconds: number | null
+  hero_rotating_words: string[]
+  hero_cta_primary_label: string | null
+  landing_stats: LandingStat[]
+  /** null = use built-in defaults (KYC-aware on homepage) */
+  landing_features: LandingFeature[] | null
+  landing_steps: LandingStep[] | null
+  landing_faq: LandingFaqItem[] | null
+  landing_section_titles: LandingSectionTitles
   updated_at: string | null
 }
 
@@ -44,12 +74,37 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   require_emergency_contact: false,
   require_tos_consent: false,
   collect_hear_about_us: false,
+  hero_video_url: DEFAULT_HERO_VIDEO_URL,
+  hero_video_start_seconds: null,
+  hero_video_end_seconds: null,
+  hero_rotating_words: [...DEFAULT_HERO_ROTATING_WORDS],
+  hero_cta_primary_label: DEFAULT_HERO_CTA_PRIMARY,
+  landing_stats: [...DEFAULT_LANDING_STATS],
+  landing_features: null,
+  landing_steps: null,
+  landing_faq: null,
+  landing_section_titles: {},
   updated_at: null,
 }
 
 export function parsePlatformSettings(row: Record<string, unknown> | null | undefined): PlatformSettings {
-  if (!row) return { ...DEFAULT_PLATFORM_SETTINGS }
+  if (!row) return { ...DEFAULT_PLATFORM_SETTINGS, hero_rotating_words: [...DEFAULT_HERO_ROTATING_WORDS], landing_stats: [...DEFAULT_LANDING_STATS] }
   const featured = row.featured_course_ids
+  const heroUrl =
+    typeof row.hero_video_url === 'string' && row.hero_video_url.trim()
+      ? row.hero_video_url.trim()
+      : DEFAULT_HERO_VIDEO_URL
+  const cta =
+    typeof row.hero_cta_primary_label === 'string' && row.hero_cta_primary_label.trim()
+      ? row.hero_cta_primary_label.trim()
+      : DEFAULT_HERO_CTA_PRIMARY
+  const startSec = parseOptionalNonNegInt(row.hero_video_start_seconds)
+  const endSec = parseOptionalPositiveInt(row.hero_video_end_seconds)
+  const clip =
+    endSec != null && startSec != null && endSec <= startSec
+      ? { start: startSec, end: null as number | null }
+      : { start: startSec, end: endSec }
+
   return {
     id: 'default',
     site_name: typeof row.site_name === 'string' && row.site_name.trim()
@@ -70,8 +125,32 @@ export function parsePlatformSettings(row: Record<string, unknown> | null | unde
     require_emergency_contact: row.require_emergency_contact === true,
     require_tos_consent: row.require_tos_consent === true,
     collect_hear_about_us: row.collect_hear_about_us === true,
+    hero_video_url: heroUrl,
+    hero_video_start_seconds: clip.start,
+    hero_video_end_seconds: clip.end,
+    hero_rotating_words: parseHeroRotatingWords(row.hero_rotating_words),
+    hero_cta_primary_label: cta,
+    landing_stats: parseLandingStats(row.landing_stats),
+    landing_features: parseLandingFeatures(row.landing_features),
+    landing_steps: parseLandingSteps(row.landing_steps),
+    landing_faq: parseLandingFaq(row.landing_faq),
+    landing_section_titles: parseLandingSectionTitles(row.landing_section_titles),
     updated_at: typeof row.updated_at === 'string' ? row.updated_at : null,
   }
+}
+
+function parseOptionalNonNegInt(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null
+  const n = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(n) || n < 0) return null
+  return Math.floor(n)
+}
+
+function parseOptionalPositiveInt(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null
+  const n = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(n) || n <= 0) return null
+  return Math.floor(n)
 }
 
 export function toRegistrationPolicy(settings: PlatformSettings): RegistrationPolicy {
@@ -96,6 +175,16 @@ export function toPublicSite(settings: PlatformSettings) {
     featured_course_ids: settings.featured_course_ids,
     maintenance_mode: settings.maintenance_mode,
     require_identity_documents: settings.require_identity_documents,
+    hero_video_url: settings.hero_video_url,
+    hero_video_start_seconds: settings.hero_video_start_seconds,
+    hero_video_end_seconds: settings.hero_video_end_seconds,
+    hero_rotating_words: settings.hero_rotating_words,
+    hero_cta_primary_label: settings.hero_cta_primary_label,
+    landing_stats: settings.landing_stats,
+    landing_features: settings.landing_features,
+    landing_steps: settings.landing_steps,
+    landing_faq: settings.landing_faq,
+    landing_section_titles: settings.landing_section_titles,
   }
 }
 
@@ -108,9 +197,9 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
       .select('*')
       .eq('id', 'default')
       .maybeSingle()
-    if (error || !data) return { ...DEFAULT_PLATFORM_SETTINGS }
+    if (error || !data) return { ...DEFAULT_PLATFORM_SETTINGS, hero_rotating_words: [...DEFAULT_HERO_ROTATING_WORDS], landing_stats: [...DEFAULT_LANDING_STATS] }
     return parsePlatformSettings(data as unknown as Record<string, unknown>)
   } catch {
-    return { ...DEFAULT_PLATFORM_SETTINGS }
+    return { ...DEFAULT_PLATFORM_SETTINGS, hero_rotating_words: [...DEFAULT_HERO_ROTATING_WORDS], landing_stats: [...DEFAULT_LANDING_STATS] }
   }
 }

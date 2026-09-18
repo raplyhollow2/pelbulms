@@ -63,10 +63,19 @@ const EMPTY_FORM = {
   email: '',
   full_name: '',
   role: 'student' as Role,
+  role_id: '',
   bio: '',
   avatar_url: '',
   institution_id: '',
   account_status: 'active',
+}
+
+type AssignableRole = {
+  id: string
+  slug: string
+  name: string
+  base_archetype: Role
+  is_system: boolean
 }
 
 function getInitials(name?: string | null) {
@@ -127,6 +136,50 @@ function RoleBadge({ role }: { role: string }) {
   )
 }
 
+function roleSelectOptions(
+  assignableRoles: AssignableRole[],
+  isSuperAdmin: boolean,
+  currentValue?: string
+) {
+  if (assignableRoles.length > 0) {
+    return assignableRoles
+      .filter((r) => {
+        if (r.base_archetype === 'superadmin' && !isSuperAdmin && r.id !== currentValue) {
+          return false
+        }
+        if (
+          (r.base_archetype === 'instructor' || r.base_archetype === 'resource_person') &&
+          !isSuperAdmin &&
+          r.id !== currentValue
+        ) {
+          return false
+        }
+        return true
+      })
+      .map((r) => (
+        <SelectItem key={r.id} value={r.id}>
+          {r.name}
+          {!r.is_system ? ` (${r.base_archetype})` : ''}
+        </SelectItem>
+      ))
+  }
+  return (
+    <>
+      <SelectItem value="student">Student</SelectItem>
+      {isSuperAdmin && (
+        <>
+          <SelectItem value="instructor">Instructor</SelectItem>
+          <SelectItem value="resource_person">Resource person</SelectItem>
+        </>
+      )}
+      <SelectItem value="admin">Admin</SelectItem>
+      {(isSuperAdmin || currentValue === 'superadmin') && (
+        <SelectItem value="superadmin">Super admin</SelectItem>
+      )}
+    </>
+  )
+}
+
 function statusBadgeClass(status?: string | null) {
   switch (status) {
     case 'active':
@@ -160,6 +213,7 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<Profile[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [institutions, setInstitutions] = useState<{ id: string; name: string; display_name?: string | null }[]>([])
+  const [assignableRoles, setAssignableRoles] = useState<AssignableRole[]>([])
 
   // Create form
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -262,13 +316,20 @@ export default function AdminUsersPage() {
       if (manage) {
         await fetchUsers()
         try {
-          const instRes = await fetch('/api/admin/institutions?archived=1')
+          const [instRes, rolesRes] = await Promise.all([
+            fetch('/api/admin/institutions?archived=1'),
+            fetch('/api/admin/roles/assignable'),
+          ])
           if (instRes.ok) {
             const instJson = await instRes.json()
             setInstitutions(instJson.institutions || [])
           }
+          if (rolesRes.ok) {
+            const rolesJson = await rolesRes.json()
+            setAssignableRoles(rolesJson.roles || [])
+          }
         } catch {
-          // institution list is optional for the directory
+          // institution / roles lists are optional for the directory
         }
       }
 
@@ -339,7 +400,14 @@ export default function AdminUsersPage() {
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          email: formData.email,
+          full_name: formData.full_name,
+          role: formData.role,
+          role_id: formData.role_id || undefined,
+          bio: formData.bio || null,
+          institution_id: formData.institution_id || null,
+        }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Failed to create user')
@@ -369,6 +437,7 @@ export default function AdminUsersPage() {
       email: (user as any).email || '',
       full_name: user.full_name || '',
       role: (user.role as Role) || 'student',
+      role_id: (user as any).role_id || '',
       bio: user.bio || '',
       avatar_url: user.avatar_url || '',
       institution_id: (user as any).institution_id || '',
@@ -389,6 +458,7 @@ export default function AdminUsersPage() {
           full_name: editData.full_name,
           bio: editData.bio,
           role: editData.role,
+          role_id: editData.role_id || undefined,
           avatar_url: editData.avatar_url || null,
           institution_id: editData.institution_id || null,
           account_status: editData.account_status,
@@ -642,24 +712,31 @@ export default function AdminUsersPage() {
                       Role <span className="text-destructive">*</span>
                     </Label>
                     <Select
-                      value={formData.role}
-                      onValueChange={(value: any) => setFormData({ ...formData, role: value })}
+                      value={
+                        assignableRoles.length
+                          ? formData.role_id ||
+                            assignableRoles.find((r) => r.slug === formData.role)?.id ||
+                            ''
+                          : formData.role
+                      }
+                      onValueChange={(value: string) => {
+                        if (assignableRoles.length) {
+                          const found = assignableRoles.find((r) => r.id === value)
+                          setFormData({
+                            ...formData,
+                            role_id: value,
+                            role: (found?.base_archetype || 'student') as Role,
+                          })
+                        } else {
+                          setFormData({ ...formData, role: value as Role, role_id: '' })
+                        }
+                      }}
                     >
                       <SelectTrigger id="role" className="h-10">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="student">Student</SelectItem>
-                        {isSuperAdmin && (
-                          <>
-                            <SelectItem value="instructor">Instructor</SelectItem>
-                            <SelectItem value="resource_person">Resource person</SelectItem>
-                          </>
-                        )}
-                        <SelectItem value="admin">Admin</SelectItem>
-                        {isSuperAdmin && (
-                          <SelectItem value="superadmin">Super admin</SelectItem>
-                        )}
+                        {roleSelectOptions(assignableRoles, isSuperAdmin)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -938,23 +1015,34 @@ export default function AdminUsersPage() {
                   Role
                 </Label>
                 <Select
-                  value={editData.role}
-                  onValueChange={(value: any) => setEditData({ ...editData, role: value })}
+                  value={
+                    assignableRoles.length
+                      ? editData.role_id ||
+                        assignableRoles.find((r) => r.slug === editData.role)?.id ||
+                        ''
+                      : editData.role
+                  }
+                  onValueChange={(value: string) => {
+                    if (assignableRoles.length) {
+                      const found = assignableRoles.find((r) => r.id === value)
+                      setEditData({
+                        ...editData,
+                        role_id: value,
+                        role: (found?.base_archetype || 'student') as Role,
+                      })
+                    } else {
+                      setEditData({ ...editData, role: value as Role, role_id: '' })
+                    }
+                  }}
                 >
                   <SelectTrigger id="edit_role" className="h-10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="student">Student</SelectItem>
-                    {isSuperAdmin && (
-                      <>
-                        <SelectItem value="instructor">Instructor</SelectItem>
-                        <SelectItem value="resource_person">Resource person</SelectItem>
-                      </>
-                    )}
-                    <SelectItem value="admin">Admin</SelectItem>
-                    {(isSuperAdmin || editData.role === 'superadmin') && (
-                      <SelectItem value="superadmin">Super admin</SelectItem>
+                    {roleSelectOptions(
+                      assignableRoles,
+                      isSuperAdmin,
+                      editData.role_id || editData.role
                     )}
                   </SelectContent>
                 </Select>
