@@ -507,6 +507,15 @@ export default function LessonViewPage() {
         completed?: boolean
         source?: string | null
         response?: any
+        status?: string | null
+        grade?: number | null
+        max_grade?: number | null
+        feedback?: string | null
+        return_file_url?: string | null
+        return_file_name?: string | null
+        return_url?: string | null
+        graded_at?: string | null
+        submitted_at?: string | null
         chatMessages?: { userId: string; message: string; at?: string }[]
         choiceTallies?: Record<string, number> | null
       }
@@ -517,6 +526,15 @@ export default function LessonViewPage() {
         completed: Boolean(a.completed),
         source: a.source || null,
         response: a.response || null,
+        status: a.status || null,
+        grade: a.grade ?? null,
+        max_grade: a.max_grade ?? null,
+        feedback: a.feedback || null,
+        return_file_url: a.return_file_url || null,
+        return_file_name: a.return_file_name || null,
+        return_url: a.return_url || null,
+        graded_at: a.graded_at || null,
+        submitted_at: a.submitted_at || null,
         chatMessages: a.chatMessages || [],
         choiceTallies: a.choiceTallies || null,
       }
@@ -901,12 +919,14 @@ export default function LessonViewPage() {
         if (inserted) lessonProgressIdRef.current = inserted.id
       }
 
-      // Clear per-activity acknowledgements so mandatory work must be redone
+      // Clear quiz / ack progress so mandatory quiz work must be redone.
+      // Preserve assessable submissions (assignment files, written responses) for grading recovery.
       await db
         .from('lesson_activity_progress')
         .delete()
         .eq('user_id', currentUser.id)
         .eq('lesson_id', lessonId)
+        .in('source', ['ack', 'quiz_pass', 'choice', 'chat'])
 
       setIsCompleted(false)
       setActivityCompleted(false)

@@ -36,6 +36,15 @@ export type ActivityProgressItem = {
   completed?: boolean
   source?: string | null
   response?: ActivityResponsePayload | null
+  status?: string | null
+  grade?: number | null
+  max_grade?: number | null
+  feedback?: string | null
+  return_file_url?: string | null
+  return_file_name?: string | null
+  return_url?: string | null
+  graded_at?: string | null
+  submitted_at?: string | null
   chatMessages?: { userId: string; message: string; at?: string }[]
   choiceTallies?: Record<string, number> | null
 }
@@ -156,7 +165,15 @@ export function LessonResources({
                           className="gap-1 border-green-600/40 text-[10px] text-green-700"
                         >
                           <CheckCircle className="h-3 w-3" />
-                          {isQuiz ? 'Passed' : 'Done'}
+                          {isQuiz
+                            ? 'Passed'
+                            : progress?.status === 'graded'
+                              ? 'Graded'
+                              : progress?.status === 'late'
+                                ? 'Late'
+                                : progress?.status === 'returned'
+                                  ? 'Returned'
+                                  : 'Done'}
                         </Badge>
                       )}
                     </div>
@@ -171,9 +188,61 @@ export function LessonResources({
                       </p>
                     )}
                     {done && progress?.response ? (
-                      <p className="mt-1 text-xs text-green-700 dark:text-green-400">
-                        {summarizeResponse(item.activity, progress.response)}
-                      </p>
+                      <div className="mt-1 space-y-1">
+                        <p className="text-xs text-green-700 dark:text-green-400">
+                          {summarizeResponse(item.activity, progress.response)}
+                        </p>
+                        {progress.response.fileUrl ? (
+                          <a
+                            href={resolveMediaUrl(progress.response.fileUrl) || progress.response.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-bhutan-orange hover:underline"
+                          >
+                            <Download className="h-3 w-3" />
+                            {progress.response.fileName || 'Open submitted file'}
+                            <ExternalLink className="h-3 opacity-60" />
+                          </a>
+                        ) : null}
+                        {(progress.status === 'graded' || progress.status === 'returned') &&
+                        progress.grade != null ? (
+                          <p className="text-xs font-medium">
+                            Score: {progress.grade}
+                            {progress.max_grade != null ? ` / ${progress.max_grade}` : ''}
+                          </p>
+                        ) : null}
+                        {progress.feedback ? (
+                          <p className="text-xs text-muted-foreground">
+                            Feedback: {progress.feedback}
+                          </p>
+                        ) : null}
+                        {progress.return_file_url ? (
+                          <a
+                            href={
+                              resolveMediaUrl(progress.return_file_url) ||
+                              progress.return_file_url
+                            }
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-bhutan-orange hover:underline"
+                          >
+                            <Download className="h-3 w-3" />
+                            {progress.return_file_name || 'Open returned file'}
+                            <ExternalLink className="h-3 opacity-60" />
+                          </a>
+                        ) : null}
+                        {progress.return_url ? (
+                          <a
+                            href={progress.return_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-bhutan-orange hover:underline"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            Open return link
+                          </a>
+                        ) : null}
+                      </div>
                     ) : null}
                   </div>
                 </div>
@@ -403,78 +472,150 @@ function ActivityInputForm({
   }
 
   if (mode === 'assignment') {
+    const allowFiles = item.allowSubmissions !== false
     return (
       <div className="space-y-3">
-        <div className="space-y-1.5">
-          <Label htmlFor={`assign-upload-${item.id}`}>Upload your file</Label>
-          <input
-            ref={fileInputRef}
-            id={`assign-upload-${item.id}`}
-            type="file"
-            className="hidden"
-            disabled={done || uploading || !lessonId}
-            accept=".pdf,.ppt,.pptx,.doc,.docx,.txt,.png,.jpg,.jpeg,.webp,.xls,.xlsx,.zip,application/pdf"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) void uploadAssignmentFile(file)
-            }}
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="min-h-11"
-              disabled={done || uploading || !lessonId}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {uploading ? (
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <UploadCloud className="mr-1.5 h-3.5 w-3.5" />
-              )}
-              {uploading ? 'Uploading…' : fileName ? 'Replace file' : 'Choose file'}
-            </Button>
-            {fileName ? (
-              <span className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-xs">
-                <span className="truncate">{fileName}</span>
-                {!done ? (
-                  <button
-                    type="button"
-                    className="shrink-0 rounded p-0.5 hover:bg-muted"
-                    aria-label="Remove uploaded file"
-                    onClick={clearUploadedFile}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                ) : null}
-              </span>
-            ) : (
-              <span className="text-xs text-muted-foreground">
-                PDF, Word, PPT, Excel, images, or ZIP (max 50MB)
-              </span>
-            )}
+        {item.dueDate || item.maxGrade != null ? (
+          <p className="text-xs text-muted-foreground">
+            {item.dueDate ? `Due ${new Date(item.dueDate).toLocaleString()}` : null}
+            {item.dueDate && item.maxGrade != null ? ' · ' : null}
+            {item.maxGrade != null ? `Max grade: ${item.maxGrade}` : null}
+            {progress?.status === 'late' ? ' · Submitted late' : ''}
+          </p>
+        ) : null}
+        {(progress?.status === 'graded' || progress?.status === 'returned') &&
+        (progress.grade != null ||
+          progress.feedback ||
+          progress.return_file_url ||
+          progress.return_url) ? (
+          <div className="rounded-md border border-green-600/30 bg-green-500/10 px-3 py-2 text-xs space-y-1.5">
+            {progress.grade != null ? (
+              <p className="font-medium">
+                Grade: {progress.grade}
+                {progress.max_grade != null ? ` / ${progress.max_grade}` : ''}
+              </p>
+            ) : null}
+            {progress.feedback ? (
+              <p className="text-muted-foreground">{progress.feedback}</p>
+            ) : null}
+            {progress.return_file_url ? (
+              <a
+                href={
+                  resolveMediaUrl(progress.return_file_url) || progress.return_file_url
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-medium text-bhutan-orange hover:underline"
+              >
+                <Download className="h-3 w-3" />
+                {progress.return_file_name || 'Download returned file'}
+                <ExternalLink className="h-3 opacity-60" />
+              </a>
+            ) : null}
+            {progress.return_url ? (
+              <a
+                href={progress.return_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-medium text-bhutan-orange hover:underline"
+              >
+                <ExternalLink className="h-3 w-3" />
+                Open return link
+              </a>
+            ) : null}
           </div>
-          {!lessonId ? (
-            <p className="text-xs text-destructive">File upload is unavailable on this page.</p>
-          ) : null}
-        </div>
+        ) : null}
+        {allowFiles ? (
+          <div className="space-y-1.5">
+            <Label htmlFor={`assign-upload-${item.id}`}>Upload your file</Label>
+            <input
+              ref={fileInputRef}
+              id={`assign-upload-${item.id}`}
+              type="file"
+              className="hidden"
+              disabled={done || uploading || !lessonId}
+              accept=".pdf,.ppt,.pptx,.doc,.docx,.txt,.png,.jpg,.jpeg,.webp,.xls,.xlsx,.zip,application/pdf"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) void uploadAssignmentFile(file)
+              }}
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-11"
+                disabled={done || uploading || !lessonId}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {uploading ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <UploadCloud className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                {uploading ? 'Uploading…' : fileName ? 'Replace file' : 'Choose file'}
+              </Button>
+              {fileName ? (
+                <span className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-xs">
+                  {done && (uploadedUrl || progress?.response?.fileUrl) ? (
+                    <a
+                      href={
+                        resolveMediaUrl(uploadedUrl || progress?.response?.fileUrl || '') ||
+                        uploadedUrl ||
+                        progress?.response?.fileUrl ||
+                        '#'
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-w-0 items-center gap-1 truncate font-medium text-bhutan-orange hover:underline"
+                    >
+                      <Download className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{fileName}</span>
+                    </a>
+                  ) : (
+                    <span className="truncate">{fileName}</span>
+                  )}
+                  {!done ? (
+                    <button
+                      type="button"
+                      className="shrink-0 rounded p-0.5 hover:bg-muted"
+                      aria-label="Remove uploaded file"
+                      onClick={clearUploadedFile}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  ) : null}
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  PDF, Word, PPT, Excel, images, or ZIP (max 50MB)
+                </span>
+              )}
+            </div>
+            {!lessonId ? (
+              <p className="text-xs text-destructive">File upload is unavailable on this page.</p>
+            ) : null}
+          </div>
+        ) : null}
 
-        <div className="space-y-1.5">
-          <Label htmlFor={`assign-file-${item.id}`}>Or paste a file URL</Label>
-          <Input
-            id={`assign-file-${item.id}`}
-            value={pastedUrl}
-            disabled={done || Boolean(uploadedUrl)}
-            onChange={(e) => setPastedUrl(e.target.value)}
-            placeholder="https://… link to your file"
-          />
-          {uploadedUrl ? (
-            <p className="text-[11px] text-muted-foreground">
-              Clear the uploaded file to use a pasted URL instead.
-            </p>
-          ) : null}
-        </div>
+        {allowFiles ? (
+          <div className="space-y-1.5">
+            <Label htmlFor={`assign-file-${item.id}`}>Or paste a file URL</Label>
+            <Input
+              id={`assign-file-${item.id}`}
+              value={pastedUrl}
+              disabled={done || Boolean(uploadedUrl)}
+              onChange={(e) => setPastedUrl(e.target.value)}
+              placeholder="https://… link to your file"
+            />
+            {uploadedUrl ? (
+              <p className="text-[11px] text-muted-foreground">
+                Clear the uploaded file to use a pasted URL instead.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="space-y-1.5">
           <Label htmlFor={`assign-${item.id}`}>Notes or written response (optional)</Label>
@@ -488,12 +629,6 @@ function ActivityInputForm({
           />
         </div>
 
-        {item.dueDate ? (
-          <p className="text-xs text-muted-foreground">
-            Due: {new Date(item.dueDate).toLocaleString()}
-            {item.maxGrade != null ? ` · Max grade: ${item.maxGrade}` : ''}
-          </p>
-        ) : null}
         {error ? <p className="text-xs text-destructive">{error}</p> : null}
         {!done ? (
           <Button
@@ -504,8 +639,8 @@ function ActivityInputForm({
             onClick={() =>
               void submit({
                 text: text.trim() || undefined,
-                fileUrl: resolvedFileUrl || undefined,
-                fileName: fileName || undefined,
+                fileUrl: allowFiles ? resolvedFileUrl || undefined : undefined,
+                fileName: allowFiles ? fileName || undefined : undefined,
               })
             }
           >

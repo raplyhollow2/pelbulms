@@ -40,6 +40,24 @@ export default function StudentDetailPage() {
   const [modules, setModules] = useState<Module[]>([])
   const [lessonRows, setLessonRows] = useState<Record<string, LessonRow[]>>({})
   const [totals, setTotals] = useState({ total: 0, done: 0, timeSpent: 0 })
+  const [submissions, setSubmissions] = useState<
+    {
+      activityTitle: string
+      lessonTitle: string
+      activityType: string
+      status: string | null
+      grade: number | null
+      maxGrade: number | null
+      feedback: string | null
+      returnFileUrl: string | null
+      returnFileName: string | null
+      returnUrl: string | null
+      submittedAt: string | null
+      fileUrl: string | null
+      fileName: string | null
+      summary: string | null
+    }[]
+  >([])
 
   const supabase = createClient()
 
@@ -75,8 +93,17 @@ export default function StudentDetailPage() {
         .eq('id', user.id)
         .maybeSingle()
 
-      const isAdmin = (profile as any)?.role === 'admin' || (profile as any)?.role === 'superadmin'
-      if ((courseData as any).instructor_id !== user.id && !isAdmin) {
+      const role = (profile as any)?.role
+      const isAdmin =
+        role === 'admin' || role === 'superadmin' || role === 'resource_person'
+      const { data: staffRow } = await (supabase as any)
+        .from('course_instructors')
+        .select('id')
+        .eq('course_id', courseId)
+        .eq('user_id', user.id)
+        .maybeSingle()
+      const isOwner = (courseData as any).instructor_id === user.id
+      if (!isOwner && !isAdmin && !staffRow) {
         alert('Access denied.')
         router.push('/teach/dashboard')
         return
@@ -189,6 +216,41 @@ export default function StudentDetailPage() {
 
       setLessonRows(grouped)
       setTotals({ total: lessonsData.length, done, timeSpent: timeSpentTotal })
+
+      // Assessed activity submissions for this student
+      try {
+        const subRes = await fetch(
+          `/api/teach/courses/${courseId}/submissions?studentId=${encodeURIComponent(studentId)}`
+        )
+        const subData = await subRes.json().catch(() => ({}))
+        if (subRes.ok) {
+          const rows: typeof submissions = []
+          for (const act of subData.activities || []) {
+            for (const s of act.submissions || []) {
+              if (!s.completed && !s.status) continue
+              rows.push({
+                activityTitle: act.activityTitle,
+                lessonTitle: act.lessonTitle,
+                activityType: act.activityType,
+                status: s.status,
+                grade: s.grade,
+                maxGrade: s.maxGrade,
+                feedback: s.feedback,
+                returnFileUrl: s.returnFileUrl,
+                returnFileName: s.returnFileName,
+                returnUrl: s.returnUrl,
+                submittedAt: s.submittedAt,
+                fileUrl: s.fileUrl,
+                fileName: s.fileName,
+                summary: s.summary,
+              })
+            }
+          }
+          setSubmissions(rows)
+        }
+      } catch (e) {
+        console.log('Submissions fetch error:', e)
+      }
 
       // Certificate (instructor can read for own course)
       const { data: certData } = await supabase
@@ -333,6 +395,97 @@ export default function StudentDetailPage() {
                 </Button>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Assessed submissions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Award className="w-5 h-5" /> Assessed submissions
+            </CardTitle>
+            <CardDescription>Assignment and activity results with recoverable files</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {submissions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No assessed submissions yet.</p>
+            ) : (
+              submissions.map((s, i) => (
+                <div key={`${s.activityTitle}-${i}`} className="rounded-lg border p-3 space-y-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-medium">{s.activityTitle}</p>
+                    <Badge variant="secondary" className="text-[10px]">{s.activityType}</Badge>
+                    {s.status ? (
+                      <Badge variant="outline" className="text-[10px]">{s.status}</Badge>
+                    ) : null}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{s.lessonTitle}</p>
+                  {s.summary ? (
+                    <p className="text-xs line-clamp-3">{s.summary}</p>
+                  ) : null}
+                  <div className="flex flex-wrap items-center gap-3 text-xs">
+                    {s.grade != null ? (
+                      <span className="font-medium">
+                        Score: {s.grade}
+                        {s.maxGrade != null ? ` / ${s.maxGrade}` : ''}
+                      </span>
+                    ) : (
+                      <span className="text-amber-700">Awaiting grade</span>
+                    )}
+                    {s.submittedAt ? (
+                      <span className="text-muted-foreground">
+                        {new Date(s.submittedAt).toLocaleDateString()}
+                      </span>
+                    ) : null}
+                    {s.fileUrl ? (
+                      <a
+                        href={s.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-bhutan-orange hover:underline"
+                      >
+                        {s.fileName || 'Open file'}
+                      </a>
+                    ) : null}
+                  </div>
+                  {s.feedback ? (
+                    <p className="text-xs text-muted-foreground">Feedback: {s.feedback}</p>
+                  ) : null}
+                  {(s.returnFileUrl || s.returnUrl) && (
+                    <div className="flex flex-wrap gap-3 text-xs">
+                      {s.returnFileUrl ? (
+                        <a
+                          href={s.returnFileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-bhutan-orange hover:underline"
+                        >
+                          {s.returnFileName || 'Returned file'}
+                        </a>
+                      ) : null}
+                      {s.returnUrl ? (
+                        <a
+                          href={s.returnUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-medium text-bhutan-orange hover:underline"
+                        >
+                          Return link
+                        </a>
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2"
+              onClick={() => router.push(`/teach/courses/${courseId}/grading`)}
+            >
+              Open grading queue
+            </Button>
           </CardContent>
         </Card>
 

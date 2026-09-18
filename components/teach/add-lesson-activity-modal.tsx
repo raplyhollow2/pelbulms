@@ -335,7 +335,7 @@ export function AddLessonActivityModal({
                 implemented yet.
               </p>
             ) : null}
-            {def?.maturity === 'partial' && selected !== 'quiz' ? (
+            {def?.maturity === 'partial' && selected !== 'quiz' && selected !== 'assignment' ? (
               <p className="rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                 Partial: metadata and links work for learners. Full grading, submissions, or
                 embedded players may still be missing.

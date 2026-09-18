@@ -14,6 +14,7 @@ export async function computeStudentReports(db: Db, userId: string): Promise<Rep
     { data: enrollments },
     { data: lessonProgress },
     { data: quizAttempts },
+    { data: activityGrades },
     { data: certificates },
     { data: announcements },
   ] = await Promise.all([
@@ -31,6 +32,15 @@ export async function computeStudentReports(db: Db, userId: string): Promise<Rep
       .select('id, quiz_id, score, passed, completed_at, started_at')
       .eq('user_id', userId)
       .order('completed_at', { ascending: false })
+      .limit(50),
+    db
+      .from('lesson_activity_progress')
+      .select(
+        'id, lesson_id, activity_id, status, grade, max_grade, feedback, submitted_at, completed_at, source, response'
+      )
+      .eq('user_id', userId)
+      .in('source', ['submission', 'response'])
+      .order('submitted_at', { ascending: false })
       .limit(50),
     db
       .from('certificates')
@@ -64,6 +74,73 @@ export async function computeStudentReports(db: Db, userId: string): Promise<Rep
     ? await db.from('quizzes').select('id, title').in('id', quizIdsForTitles)
     : { data: [] }
   const quizTitleMap = new Map(((quizRows || []) as any[]).map((q) => [q.id, q.title]))
+
+  const activityList = (activityGrades || []) as any[]
+  const activityLessonIds = [...new Set(activityList.map((a) => a.lesson_id).filter(Boolean))]
+  const { data: activityLessons } = activityLessonIds.length
+    ? await db.from('lessons').select('id, title, resources').in('id', activityLessonIds)
+    : { data: [] }
+  const lessonTitleById = new Map(((activityLessons || []) as any[]).map((l) => [l.id, l.title]))
+  const activityTitleByKey = new Map<string, string>()
+  for (const lesson of (activityLessons || []) as any[]) {
+    try {
+      const resources = lesson.resources
+      const list = Array.isArray(resources)
+        ? resources
+        : typeof resources === 'string'
+          ? JSON.parse(resources)
+          : []
+      for (const item of list || []) {
+        if (item?.id && item?.title) {
+          activityTitleByKey.set(`${lesson.id}:${item.id}`, item.title)
+        }
+      }
+    } catch {
+      /* ignore malformed resources */
+    }
+  }
+
+  const assessmentRows = [
+    ...((quizAttempts || []) as any[]).map((a) => ({
+      id: `quiz-${a.id}`,
+      cells: {
+        assessment: quizTitleMap.get(a.quiz_id) || a.quiz_id,
+        type: 'Quiz',
+        score:
+          a.score != null
+            ? `${a.score}%${a.passed ? ' (pass)' : ' (fail)'}`
+            : '—',
+        status: a.passed ? 'passed' : 'attempted',
+        when: a.completed_at ? new Date(a.completed_at).toLocaleDateString() : '—',
+      },
+      sortAt: a.completed_at || a.started_at || '',
+    })),
+    ...activityList.map((a) => {
+      const title =
+        activityTitleByKey.get(`${a.lesson_id}:${a.activity_id}`) ||
+        lessonTitleById.get(a.lesson_id) ||
+        a.activity_id
+      const scoreLabel =
+        a.grade != null
+          ? a.max_grade != null
+            ? `${a.grade} / ${a.max_grade}`
+            : String(a.grade)
+          : '—'
+      return {
+        id: `act-${a.id}`,
+        cells: {
+          assessment: title,
+          type: 'Activity',
+          score: scoreLabel,
+          status: a.status || 'submitted',
+          when: a.submitted_at || a.completed_at
+            ? new Date(a.submitted_at || a.completed_at).toLocaleDateString()
+            : '—',
+        },
+        sortAt: a.submitted_at || a.completed_at || '',
+      }
+    }),
+  ].sort((a, b) => String(b.sortAt).localeCompare(String(a.sortAt)))
 
   const progressList = (lessonProgress || []) as any[]
   const avgProgress =
@@ -148,23 +225,16 @@ export async function computeStudentReports(db: Db, userId: string): Promise<Rep
     {
       id: 'assessment-history',
       title: 'Assessment history',
-      description: 'Recent quiz attempts.',
+      description: 'Quiz scores and graded activity results.',
       columns: [
-        { key: 'quiz', label: 'Quiz' },
+        { key: 'assessment', label: 'Assessment' },
+        { key: 'type', label: 'Type' },
         { key: 'score', label: 'Score' },
-        { key: 'passed', label: 'Passed' },
-        { key: 'when', label: 'Completed' },
+        { key: 'status', label: 'Status' },
+        { key: 'when', label: 'When' },
       ],
-      rows: ((quizAttempts || []) as any[]).map((a) => ({
-        id: a.id,
-        cells: {
-          quiz: quizTitleMap.get(a.quiz_id) || a.quiz_id,
-          score: a.score ?? 0,
-          passed: a.passed ? 'Yes' : 'No',
-          when: a.completed_at ? new Date(a.completed_at).toLocaleDateString() : '—',
-        },
-      })),
-      emptyMessage: 'No quiz attempts yet.',
+      rows: assessmentRows.slice(0, 50).map(({ id, cells }) => ({ id, cells })),
+      emptyMessage: 'No quiz or activity assessments yet.',
     },
     {
       id: 'certificates',

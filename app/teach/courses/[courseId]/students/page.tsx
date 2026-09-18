@@ -190,13 +190,20 @@ export default function CourseStudentsPage() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back
           </Button>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-2xl sm:text-3xl font-bold">Students & enrollment requests</h1>
             <p className="text-sm sm:text-base text-muted-foreground truncate">{course?.title}</p>
             <p className="text-xs text-muted-foreground mt-1">
               Only the course creator (or a platform admin) can approve enrollment requests.
             </p>
           </div>
+          <Button
+            variant="outline"
+            className="shrink-0"
+            onClick={() => router.push(`/teach/courses/${courseId}/grading`)}
+          >
+            Grading queue
+          </Button>
         </div>
 
         {/* Stats Overview */}

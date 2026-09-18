@@ -9,7 +9,9 @@ import {
   type LessonActivity,
 } from '@/lib/lesson-activities'
 import {
+  isAssessableActivity,
   requiresLearnerInput,
+  submissionStatusForActivity,
   validateActivityResponse,
   type ActivityResponsePayload,
 } from '@/lib/activity-responses'
@@ -141,7 +143,9 @@ async function buildProgressPayload(
 
   const { data: rows } = await db
     .from('lesson_activity_progress')
-    .select('activity_id, completed, completed_at, source, response, user_id')
+    .select(
+      'activity_id, completed, completed_at, source, response, user_id, status, grade, max_grade, feedback, return_file_url, return_file_name, return_url, graded_at, submitted_at'
+    )
     .eq('lesson_id', lessonId)
 
   const myRows = (rows || []).filter((r: any) => r.user_id === userId)
@@ -152,6 +156,15 @@ async function buildProgressPayload(
       completed_at?: string | null
       source?: string
       response?: ActivityResponsePayload | null
+      status?: string | null
+      grade?: number | null
+      max_grade?: number | null
+      feedback?: string | null
+      return_file_url?: string | null
+      return_file_name?: string | null
+      return_url?: string | null
+      graded_at?: string | null
+      submitted_at?: string | null
     }
   > = {}
   for (const row of myRows) {
@@ -160,6 +173,15 @@ async function buildProgressPayload(
       completed_at: row.completed_at,
       source: row.source,
       response: row.response || null,
+      status: row.status || null,
+      grade: row.grade ?? null,
+      max_grade: row.max_grade ?? null,
+      feedback: row.feedback || null,
+      return_file_url: row.return_file_url || null,
+      return_file_name: row.return_file_name || null,
+      return_url: row.return_url || null,
+      graded_at: row.graded_at || null,
+      submitted_at: row.submitted_at || null,
     }
   }
 
@@ -215,6 +237,15 @@ async function buildProgressPayload(
       completed_at: progressById[a.id]?.completed_at || null,
       source: progressById[a.id]?.source || null,
       response: progressById[a.id]?.response || null,
+      status: progressById[a.id]?.status || null,
+      grade: progressById[a.id]?.grade ?? null,
+      max_grade: progressById[a.id]?.max_grade ?? null,
+      feedback: progressById[a.id]?.feedback || null,
+      return_file_url: progressById[a.id]?.return_file_url || null,
+      return_file_name: progressById[a.id]?.return_file_name || null,
+      return_url: progressById[a.id]?.return_url || null,
+      graded_at: progressById[a.id]?.graded_at || null,
+      submitted_at: progressById[a.id]?.submitted_at || null,
       chatMessages: chatMessagesByActivity[a.id] || [],
       choiceTallies: choiceTalliesByActivity[a.id] || null,
     })),
@@ -301,16 +332,49 @@ export async function POST(
         if (!validated.ok) {
           return NextResponse.json({ error: validated.error }, { status: 400 })
         }
+
+        if (
+          activity.activity === 'assignment' &&
+          activity.allowSubmissions === false &&
+          validated.response.fileUrl
+        ) {
+          return NextResponse.json(
+            { error: 'File submissions are not allowed for this assignment' },
+            { status: 400 }
+          )
+        }
+
+        const now = new Date()
+        const nowIso = now.toISOString()
+        const assessable = isAssessableActivity(activity)
+        const status = assessable
+          ? submissionStatusForActivity(activity, now)
+          : 'submitted'
+        const maxGrade =
+          typeof activity.maxGrade === 'number' && activity.maxGrade > 0
+            ? activity.maxGrade
+            : null
+
         const { error } = await db.from('lesson_activity_progress').upsert(
           {
             user_id: user.id,
             lesson_id: lessonId,
             activity_id: activityId,
             completed: true,
-            completed_at: new Date().toISOString(),
+            completed_at: nowIso,
+            submitted_at: nowIso,
             source: validated.source,
             response: validated.response,
-            updated_at: new Date().toISOString(),
+            status,
+            max_grade: maxGrade,
+            grade: null,
+            feedback: null,
+            return_file_url: null,
+            return_file_name: null,
+            return_url: null,
+            graded_at: null,
+            graded_by: null,
+            updated_at: nowIso,
           },
           { onConflict: 'user_id,lesson_id,activity_id' }
         )
@@ -323,16 +387,19 @@ export async function POST(
             { status: 400 }
           )
         }
+        const nowIso = new Date().toISOString()
         const { error } = await db.from('lesson_activity_progress').upsert(
           {
             user_id: user.id,
             lesson_id: lessonId,
             activity_id: activityId,
             completed: true,
-            completed_at: new Date().toISOString(),
+            completed_at: nowIso,
+            submitted_at: nowIso,
             source: 'ack',
             response: responsePayload || null,
-            updated_at: new Date().toISOString(),
+            status: 'submitted',
+            updated_at: nowIso,
           },
           { onConflict: 'user_id,lesson_id,activity_id' }
         )

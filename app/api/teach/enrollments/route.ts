@@ -22,7 +22,7 @@ async function assertCourseStaff(
     .maybeSingle()
   const role = (profile as any)?.role
   const isOwner = (course as any).instructor_id === userId
-  const isStaff = role === 'admin' || role === 'superadmin'
+  const isStaff = role === 'admin' || role === 'superadmin' || role === 'resource_person'
   const { data: staffRow } = await service
     .from('course_instructors')
     .select('id')

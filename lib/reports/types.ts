@@ -42,6 +42,7 @@ export type ReportId =
   | 'catalog-health'
   | 'access-audience'
   | 'learning-outcomes'
+  | 'assessed-results'
   | 'registration-funnel'
   | 'instructor-health'
   | 'dark-catalog'

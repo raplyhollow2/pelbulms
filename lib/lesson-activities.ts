@@ -132,7 +132,7 @@ export const LESSON_ACTIVITY_TYPES: ActivityDefinition[] = [
     category: 'assessment',
     icon: ClipboardList,
     fields: ['title', 'description', 'dueDate', 'maxGrade', 'allowSubmissions', 'file'],
-    maturity: 'partial',
+    maturity: 'working',
   },
   {
     type: 'book',

@@ -76,6 +76,31 @@ export function requiresLearnerInput(type: LessonActivityType): boolean {
   return mode !== 'none' && mode !== 'link_ack'
 }
 
+export type ActivityGradeStatus = 'draft' | 'submitted' | 'graded' | 'returned' | 'late'
+
+/** Activities that appear in staff grading queues and assessed-results reports. */
+export function isAssessableActivity(activity: LessonActivity): boolean {
+  const mode = activityInputMode(activity.activity)
+  return (
+    mode === 'assignment' ||
+    mode === 'text' ||
+    mode === 'database' ||
+    mode === 'glossary' ||
+    (typeof activity.maxGrade === 'number' && activity.maxGrade > 0 && mode !== 'none')
+  )
+}
+
+/** Derive submitted/late status from activity due date. */
+export function submissionStatusForActivity(
+  activity: LessonActivity,
+  submittedAt: Date = new Date()
+): 'submitted' | 'late' {
+  if (!activity.dueDate) return 'submitted'
+  const due = new Date(activity.dueDate)
+  if (Number.isNaN(due.getTime())) return 'submitted'
+  return submittedAt.getTime() > due.getTime() ? 'late' : 'submitted'
+}
+
 export function validateActivityResponse(
   activity: LessonActivity,
   response: ActivityResponsePayload | null | undefined

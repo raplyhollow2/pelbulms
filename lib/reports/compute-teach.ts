@@ -201,6 +201,42 @@ export async function computeTeachReports(
   }
   const quizTitle = new Map(quizList.map((q) => [q.id, q.title]))
 
+  // Activity / assignment grading backlog
+  const courseLessonIds = lessonList.map((l) => l.id)
+  let activityProgress: any[] = []
+  if (courseLessonIds.length) {
+    const { data } = await db
+      .from('lesson_activity_progress')
+      .select('id, lesson_id, activity_id, status, grade, max_grade, source, completed')
+      .in('lesson_id', courseLessonIds.slice(0, 500))
+      .in('source', ['submission', 'response'])
+      .limit(5000)
+    activityProgress = (data || []) as any[]
+  }
+  const submittedActivities = activityProgress.filter((r) => r.completed || r.status)
+  const pendingActivities = submittedActivities.filter(
+    (r) => r.status !== 'graded' && r.status !== 'returned'
+  )
+  const gradedActivities = submittedActivities.filter(
+    (r) => r.status === 'graded' || r.status === 'returned'
+  )
+  const gradedWithScore = gradedActivities.filter((r) => r.grade != null)
+  const avgActivityGrade =
+    gradedWithScore.length > 0
+      ? Math.round(
+          (gradedWithScore.reduce((s, r) => {
+            const max = r.max_grade > 0 ? Number(r.max_grade) : 100
+            return s + (Number(r.grade) / max) * 100
+          }, 0) /
+            gradedWithScore.length) *
+            10
+        ) / 10
+      : 0
+  const gradedRate =
+    submittedActivities.length > 0
+      ? Math.round((gradedActivities.length / submittedActivities.length) * 100)
+      : 0
+
   // Quiz fail rate by lesson
   const quizIdsByLesson: Record<string, string[]> = {}
   for (const q of quizList) {
@@ -468,6 +504,28 @@ export async function computeTeachReports(
     {
       id: 'assessment-quality',
       title: 'Assessment quality',
+      metrics: [
+        {
+          key: 'pending',
+          label: 'Pending activity grades',
+          value: pendingActivities.length,
+        },
+        {
+          key: 'gradedRate',
+          label: 'Activity graded rate',
+          value: `${gradedRate}%`,
+        },
+        {
+          key: 'avgActivity',
+          label: 'Avg activity score %',
+          value: avgActivityGrade,
+        },
+        {
+          key: 'submitted',
+          label: 'Activity submissions',
+          value: submittedActivities.length,
+        },
+      ],
       columns: [
         { key: 'quiz', label: 'Quiz' },
         { key: 'attempts', label: 'Attempts' },
@@ -483,7 +541,7 @@ export async function computeTeachReports(
           avgScore: Math.round(stats.scoreSum / stats.total),
         },
       })),
-      emptyMessage: 'No quiz attempts for your courses yet.',
+      emptyMessage: 'No quiz attempts or activity submissions for your courses yet.',
     },
     {
       id: 'roster-ops',

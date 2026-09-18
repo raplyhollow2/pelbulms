@@ -270,11 +270,13 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
     { data: enrollments },
     { data: institutions },
     { data: modules },
+    { data: lessons },
     { data: courseInstitutions },
     { data: institutionAccess },
     { data: registrations },
     { data: certificates },
     { data: courseInstructors },
+    { data: activitySubmissions },
   ] = await Promise.all([
     db.from('profiles').select('id, role, institution_id, created_at, account_status'),
     db.from('courses').select('id, title, instructor_id, is_published, created_at, updated_at'),
@@ -283,6 +285,7 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
       .select('id, user_id, course_id, status, progress_percentage, last_accessed_at, completed_at, enrolled_at'),
     db.from('institutions').select('id, name, is_active'),
     db.from('modules').select('id, course_id'),
+    db.from('lessons').select('id, module_id').limit(8000),
     db.from('course_institutions').select('course_id, institution_id'),
     db.from('institution_access').select('institution_id, user_id, role_within_institution, is_active'),
     db
@@ -291,6 +294,11 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
       .limit(3000),
     db.from('certificates').select('id, course_id, user_id'),
     db.from('course_instructors').select('course_id, user_id, role'),
+    db
+      .from('lesson_activity_progress')
+      .select('id, lesson_id, status, grade, source, completed')
+      .in('source', ['submission', 'response'])
+      .limit(8000),
   ])
 
   const profileList = (profiles || []) as any[]
@@ -298,9 +306,11 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
   const enrollmentList = (enrollments || []) as any[]
   const instList = (institutions || []) as any[]
   const moduleList = (modules || []) as any[]
+  const lessonList = (lessons || []) as any[]
   const ciList = (courseInstitutions || []) as any[]
   const accessList = ((institutionAccess || []) as any[]).filter((a) => a.is_active)
   const regList = (registrations || []) as any[]
+  const activityList = (activitySubmissions || []) as any[]
 
   const published = courseList.filter((c) => c.is_published)
   const draft = courseList.filter((c) => !c.is_published)
@@ -407,6 +417,52 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
     return !hasRecent && (ensByCourse[c.id] || 0) > 0
   })
 
+  const moduleCourse = new Map(moduleList.map((m) => [m.id, m.course_id]))
+  const lessonCourse = new Map(
+    lessonList
+      .map((l) => [l.id, moduleCourse.get(l.module_id)] as const)
+      .filter(([, cid]) => Boolean(cid))
+  )
+  const courseTitleMap = new Map(courseList.map((c) => [c.id, c.title]))
+  const pendingByCourse: Record<string, number> = {}
+  const gradedByCourse: Record<string, number> = {}
+  const submittedByCourse: Record<string, number> = {}
+  for (const row of activityList) {
+    const courseId = lessonCourse.get(row.lesson_id)
+    if (!courseId) continue
+    submittedByCourse[courseId] = (submittedByCourse[courseId] || 0) + 1
+    if (row.status === 'graded' || row.status === 'returned') {
+      gradedByCourse[courseId] = (gradedByCourse[courseId] || 0) + 1
+    } else {
+      pendingByCourse[courseId] = (pendingByCourse[courseId] || 0) + 1
+    }
+  }
+  const totalActivitySubmitted = activityList.length
+  const totalActivityPending = Object.values(pendingByCourse).reduce((s, n) => s + n, 0)
+  const totalActivityGraded = Object.values(gradedByCourse).reduce((s, n) => s + n, 0)
+  const platformGradedRate =
+    totalActivitySubmitted > 0
+      ? Math.round((totalActivityGraded / totalActivitySubmitted) * 100)
+      : 0
+  const assessedCourseRows = Object.keys(submittedByCourse)
+    .map((courseId) => ({
+      id: courseId,
+      cells: {
+        course: courseTitleMap.get(courseId) || courseId,
+        submitted: submittedByCourse[courseId] || 0,
+        pending: pendingByCourse[courseId] || 0,
+        graded: gradedByCourse[courseId] || 0,
+        gradedRate:
+          submittedByCourse[courseId] > 0
+            ? `${Math.round(
+                ((gradedByCourse[courseId] || 0) / submittedByCourse[courseId]) * 100
+              )}%`
+            : '—',
+      },
+    }))
+    .sort((a, b) => Number(b.cells.pending) - Number(a.cells.pending))
+    .slice(0, 40)
+
   const instName = new Map(instList.map((i) => [i.id, i.name]))
 
   return [
@@ -471,6 +527,26 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
         { key: 'completions', label: 'Completions', value: completions },
         { key: 'certs', label: 'Certificates', value: (certificates || []).length },
       ],
+    },
+    {
+      id: 'assessed-results',
+      title: 'Assessed results',
+      description: 'Activity and assignment submission grading across courses.',
+      metrics: [
+        { key: 'submitted', label: 'Activity submissions', value: totalActivitySubmitted },
+        { key: 'pending', label: 'Pending grading', value: totalActivityPending },
+        { key: 'graded', label: 'Graded', value: totalActivityGraded },
+        { key: 'gradedRate', label: 'Graded rate', value: `${platformGradedRate}%` },
+      ],
+      columns: [
+        { key: 'course', label: 'Course' },
+        { key: 'submitted', label: 'Submitted' },
+        { key: 'pending', label: 'Pending' },
+        { key: 'graded', label: 'Graded' },
+        { key: 'gradedRate', label: 'Graded rate' },
+      ],
+      rows: assessedCourseRows,
+      emptyMessage: 'No assessed activity submissions yet.',
     },
     {
       id: 'registration-funnel',
