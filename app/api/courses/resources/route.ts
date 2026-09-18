@@ -16,7 +16,13 @@ const ALLOWED = [
   'image/webp',
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/octet-stream',
 ]
+
+const ALLOWED_EXT =
+  /\.(pdf|ppt|pptx|doc|docx|txt|png|jpe?g|webp|xls|xlsx|zip)$/i
 
 async function ensureBucket(
   admin: NonNullable<Awaited<ReturnType<typeof tryCreateServiceClient>>>
@@ -56,9 +62,12 @@ export async function POST(request: NextRequest) {
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
-    if (!ALLOWED.includes(file.type) && !/\.(pdf|ppt|pptx|doc|docx|txt|png|jpe?g|webp|xls|xlsx)$/i.test(file.name)) {
+    if (!ALLOWED.includes(file.type) && !ALLOWED_EXT.test(file.name)) {
       return NextResponse.json(
-        { error: 'Unsupported file type. Use PDF, PPT, Word, Excel, text, or images.' },
+        {
+          error:
+            'Unsupported file type. Use PDF, PPT, Word, Excel, text, images, or ZIP (SCORM).',
+        },
         { status: 400 }
       )
     }

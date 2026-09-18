@@ -46,6 +46,10 @@ interface CourseLearningTabsProps {
   mandatoryCompleted?: number
   activityProgressById?: Record<string, ActivityProgressItem>
   onMarkActivityDone?: (activityId: string) => void | Promise<void>
+  onSubmitActivityResponse?: (
+    activityId: string,
+    response: import('@/lib/activity-responses').ActivityResponsePayload
+  ) => void | Promise<void>
   markingActivityId?: string | null
   lockedLessonIds?: Set<string>
   moduleResources?: unknown
@@ -76,6 +80,7 @@ export function CourseLearningTabs({
   mandatoryCompleted = 0,
   activityProgressById,
   onMarkActivityDone,
+  onSubmitActivityResponse,
   markingActivityId,
   lockedLessonIds: _lockedLessonIds,
   moduleResources,
@@ -158,11 +163,13 @@ export function CourseLearningTabs({
             <LessonResources
               resources={(currentLesson as any)?.resources}
               extraResources={moduleResources}
+              lessonId={currentLessonId}
               onTakeQuiz={onTakeQuiz}
               progressById={activityProgressById}
               mandatoryTotal={mandatoryTotal}
               mandatoryCompleted={mandatoryCompleted}
               onMarkDone={onMarkActivityDone}
+              onSubmitResponse={onSubmitActivityResponse}
               markingActivityId={markingActivityId}
             />
             {activitiesExtra}

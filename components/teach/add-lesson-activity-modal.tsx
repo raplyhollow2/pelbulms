@@ -15,13 +15,15 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, ArrowLeft, UploadCloud } from 'lucide-react'
+import { Loader2, ArrowLeft, UploadCloud, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
-  LESSON_ACTIVITY_TYPES,
+  ACTIVITY_CATEGORY_FILTERS,
   defaultActivityRequired,
+  filterActivityTypes,
   getActivityDef,
   newActivityId,
+  type ActivityCategory,
   type LessonActivity,
   type LessonActivityType,
   type ActivityDefinition,
@@ -77,11 +79,18 @@ export function AddLessonActivityModal({
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
+  const [category, setCategory] = useState<ActivityCategory | 'all'>('all')
+  const [search, setSearch] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   const def = useMemo(
     () => (selected ? getActivityDef(selected) : undefined),
     [selected]
+  )
+
+  const filtered = useMemo(
+    () => filterActivityTypes(category, search),
+    [category, search]
   )
 
   useEffect(() => {
@@ -92,11 +101,10 @@ export function AddLessonActivityModal({
       setError('')
       setSaving(false)
       setUploading(false)
+      setCategory('all')
+      setSearch('')
     }
   }, [open])
-
-  const activities = LESSON_ACTIVITY_TYPES.filter((a) => a.category === 'activities')
-  const resources = LESSON_ACTIVITY_TYPES.filter((a) => a.category === 'resources')
 
   const show = (field: string) => Boolean(def?.fields.includes(field as any))
 
@@ -184,6 +192,12 @@ export function AddLessonActivityModal({
 
   const TypeCard = ({ item }: { item: ActivityDefinition }) => {
     const Icon = item.icon
+    const maturityLabel =
+      item.maturity === 'working'
+        ? 'Ready'
+        : item.maturity === 'partial'
+          ? 'Limited'
+          : 'Coming soon'
     return (
       <button
         type="button"
@@ -198,20 +212,31 @@ export function AddLessonActivityModal({
           selected === item.type && 'border-bhutan-yellow bg-bhutan-yellow/10'
         )}
       >
-        <div className="flex items-center gap-2">
-          <span className="flex h-9 w-9 items-center justify-center rounded-md bg-muted">
-            <Icon className="h-4 w-4 text-bhutan-yellow" />
-          </span>
-          <span className="text-sm font-semibold">{item.label}</span>
+        <div className="flex w-full items-start justify-between gap-2">
+          <Icon className="h-5 w-5 shrink-0 text-bhutan-orange" />
+          <Badge
+            variant="outline"
+            className={cn(
+              'shrink-0 text-[10px] font-normal',
+              item.maturity === 'working' && 'border-green-600/40 text-green-700',
+              item.maturity === 'partial' && 'border-amber-600/40 text-amber-700',
+              item.maturity === 'stub' && 'border-muted-foreground/30 text-muted-foreground'
+            )}
+          >
+            {maturityLabel}
+          </Badge>
         </div>
-        <p className="text-xs text-muted-foreground line-clamp-2">{item.description}</p>
+        <div>
+          <p className="text-sm font-medium">{item.label}</p>
+          <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
+        </div>
       </button>
     )
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {selected && def ? `Add ${def.label}` : 'Add an activity or resource'}
@@ -224,25 +249,52 @@ export function AddLessonActivityModal({
         </DialogHeader>
 
         {!selected ? (
-          <div className="space-y-5">
-            <div>
-              <div className="mb-2 flex items-center gap-2">
-                <Badge variant="secondary">Activities</Badge>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                {activities.map((item) => (
-                  <TypeCard key={item.type} item={item} />
-                ))}
-              </div>
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search"
+                className="min-h-11 pl-9"
+                aria-label="Search activities"
+              />
             </div>
-            <div>
-              <div className="mb-2 flex items-center gap-2">
-                <Badge variant="outline">Resources</Badge>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                {resources.map((item) => (
-                  <TypeCard key={item.type} item={item} />
+
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <nav
+                className="flex shrink-0 gap-1 overflow-x-auto sm:w-44 sm:flex-col sm:overflow-visible"
+                aria-label="Activity categories"
+              >
+                {ACTIVITY_CATEGORY_FILTERS.map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setCategory(f.id)}
+                    className={cn(
+                      'min-h-11 whitespace-nowrap rounded-md px-3 py-2 text-left text-sm transition-colors',
+                      category === f.id
+                        ? 'bg-bhutan-yellow/20 font-medium text-foreground'
+                        : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+                    )}
+                  >
+                    {f.label}
+                  </button>
                 ))}
+              </nav>
+
+              <div className="min-w-0 flex-1">
+                {filtered.length === 0 ? (
+                  <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
+                    No activities match your search.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {filtered.map((item) => (
+                      <TypeCard key={item.type} item={item} />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -276,6 +328,20 @@ export function AddLessonActivityModal({
               Back to types
             </Button>
 
+            {def?.maturity === 'stub' ? (
+              <p className="rounded-lg border border-amber-600/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+                Limited preview: this activity saves to the lesson and can be marked done, but
+                Moodle-style interaction (branching lesson player, IMS/SCORM player, etc.) is not
+                implemented yet.
+              </p>
+            ) : null}
+            {def?.maturity === 'partial' && selected !== 'quiz' ? (
+              <p className="rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                Partial: metadata and links work for learners. Full grading, submissions, or
+                embedded players may still be missing.
+              </p>
+            ) : null}
+
             {show('title') && (
               <div className="space-y-1.5">
                 <Label htmlFor="act-title">Name</Label>
@@ -304,7 +370,11 @@ export function AddLessonActivityModal({
             {show('content') && (
               <div className="space-y-1.5">
                 <Label htmlFor="act-content">
-                  {selected === 'book' ? 'Chapters / content' : 'Content'}
+                  {selected === 'book'
+                    ? 'Chapters / content'
+                    : selected === 'lesson'
+                      ? 'Pages / branching outline'
+                      : 'Content'}
                 </Label>
                 <Textarea
                   id="act-content"
@@ -314,7 +384,9 @@ export function AddLessonActivityModal({
                   placeholder={
                     selected === 'book'
                       ? 'Chapter 1…\nChapter 2…'
-                      : 'Write the page or label content…'
+                      : selected === 'lesson'
+                        ? 'Page 1 → Question → Branch A / Branch B…'
+                        : 'Write the page or text content…'
                   }
                 />
               </div>

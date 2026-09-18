@@ -36,6 +36,10 @@ type Props = {
   mandatoryTotal?: number
   mandatoryCompleted?: number
   onMarkDone?: (activityId: string) => void | Promise<void>
+  onSubmitResponse?: (
+    activityId: string,
+    response: import('@/lib/activity-responses').ActivityResponsePayload
+  ) => void | Promise<void>
   markingActivityId?: string | null
 }
 
@@ -56,6 +60,7 @@ export function LessonContentStage({
   mandatoryTotal,
   mandatoryCompleted,
   onMarkDone,
+  onSubmitResponse,
   markingActivityId,
 }: Props) {
   const kind = inferLectureKind(lesson)
@@ -113,11 +118,13 @@ export function LessonContentStage({
           <LessonResources
             resources={lesson.resources}
             extraResources={extraResources}
+            lessonId={lessonId}
             onTakeQuiz={onTakeQuiz}
             progressById={progressById}
             mandatoryTotal={mandatoryTotal}
             mandatoryCompleted={mandatoryCompleted}
             onMarkDone={onMarkDone}
+            onSubmitResponse={onSubmitResponse}
             markingActivityId={markingActivityId}
           />
         </div>

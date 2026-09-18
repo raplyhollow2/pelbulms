@@ -8,6 +8,11 @@ import {
   parseLessonActivities,
   type LessonActivity,
 } from '@/lib/lesson-activities'
+import {
+  requiresLearnerInput,
+  validateActivityResponse,
+  type ActivityResponsePayload,
+} from '@/lib/activity-responses'
 
 async function getSession() {
   const session = await createSupabaseServerClient()
@@ -126,9 +131,102 @@ async function syncQuizPasses(
   }
 }
 
+async function buildProgressPayload(
+  db: any,
+  userId: string,
+  lessonId: string,
+  activities: LessonActivity[]
+) {
+  await syncQuizPasses(db, userId, lessonId, activities)
+
+  const { data: rows } = await db
+    .from('lesson_activity_progress')
+    .select('activity_id, completed, completed_at, source, response, user_id')
+    .eq('lesson_id', lessonId)
+
+  const myRows = (rows || []).filter((r: any) => r.user_id === userId)
+  const progressById: Record<
+    string,
+    {
+      completed: boolean
+      completed_at?: string | null
+      source?: string
+      response?: ActivityResponsePayload | null
+    }
+  > = {}
+  for (const row of myRows) {
+    progressById[row.activity_id] = {
+      completed: Boolean(row.completed),
+      completed_at: row.completed_at,
+      source: row.source,
+      response: row.response || null,
+    }
+  }
+
+  // Aggregate chat messages for chat activities (all enrolled learners)
+  const chatMessagesByActivity: Record<
+    string,
+    { userId: string; message: string; at?: string }[]
+  > = {}
+  for (const row of rows || []) {
+    if (row.source !== 'chat' || !row.response?.message) continue
+    if (!chatMessagesByActivity[row.activity_id]) chatMessagesByActivity[row.activity_id] = []
+    chatMessagesByActivity[row.activity_id].push({
+      userId: row.user_id,
+      message: row.response.message,
+      at: row.completed_at || row.updated_at,
+    })
+  }
+
+  // Choice tallies for transparency
+  const choiceTalliesByActivity: Record<string, Record<string, number>> = {}
+  for (const row of rows || []) {
+    if (row.source !== 'choice' || !row.response?.choice) continue
+    if (!choiceTalliesByActivity[row.activity_id]) choiceTalliesByActivity[row.activity_id] = {}
+    const key = row.response.choice
+    choiceTalliesByActivity[row.activity_id][key] =
+      (choiceTalliesByActivity[row.activity_id][key] || 0) + 1
+  }
+
+  const completedIds = new Set(
+    Object.entries(progressById)
+      .filter(([, v]) => v.completed)
+      .map(([id]) => id)
+  )
+  const mandatory = getMandatoryActivities(activities)
+  const completedMandatory = mandatory.filter((a) => completedIds.has(a.id)).length
+  const activityCompleted = await syncLessonActivityCompleted(
+    db,
+    userId,
+    lessonId,
+    activities,
+    completedIds
+  )
+
+  return {
+    activities: activities.map((a) => ({
+      id: a.id,
+      title: a.title,
+      activity: a.activity,
+      required: isActivityRequired(a),
+      quizId: a.quizId || null,
+      choices: a.choices || null,
+      completed: Boolean(progressById[a.id]?.completed),
+      completed_at: progressById[a.id]?.completed_at || null,
+      source: progressById[a.id]?.source || null,
+      response: progressById[a.id]?.response || null,
+      chatMessages: chatMessagesByActivity[a.id] || [],
+      choiceTallies: choiceTalliesByActivity[a.id] || null,
+    })),
+    mandatoryTotal: mandatory.length,
+    mandatoryCompleted: completedMandatory,
+    activityCompleted,
+  }
+}
+
 /**
  * GET /api/lessons/[lessonId]/activity-progress
- * POST { activityId, action?: 'ack' | 'sync' }
+ * POST { activityId, action?: 'ack' | 'sync' | 'submit', response?: object }
  */
 export async function GET(
   _request: NextRequest,
@@ -148,56 +246,8 @@ export async function GET(
     }
 
     const activities = await loadLessonActivities(db, lessonId)
-    await syncQuizPasses(db, user.id, lessonId, activities)
-
-    const { data: rows } = await db
-      .from('lesson_activity_progress')
-      .select('activity_id, completed, completed_at, source')
-      .eq('user_id', user.id)
-      .eq('lesson_id', lessonId)
-
-    const progressById: Record<
-      string,
-      { completed: boolean; completed_at?: string | null; source?: string }
-    > = {}
-    for (const row of rows || []) {
-      progressById[row.activity_id] = {
-        completed: Boolean(row.completed),
-        completed_at: row.completed_at,
-        source: row.source,
-      }
-    }
-
-    const completedIds = new Set(
-      Object.entries(progressById)
-        .filter(([, v]) => v.completed)
-        .map(([id]) => id)
-    )
-    const mandatory = getMandatoryActivities(activities)
-    const completedMandatory = mandatory.filter((a) => completedIds.has(a.id)).length
-    const activityCompleted = await syncLessonActivityCompleted(
-      db,
-      user.id,
-      lessonId,
-      activities,
-      completedIds
-    )
-
-    return NextResponse.json({
-      activities: activities.map((a) => ({
-        id: a.id,
-        title: a.title,
-        activity: a.activity,
-        required: isActivityRequired(a),
-        quizId: a.quizId || null,
-        completed: Boolean(progressById[a.id]?.completed),
-        completed_at: progressById[a.id]?.completed_at || null,
-        source: progressById[a.id]?.source || null,
-      })),
-      mandatoryTotal: mandatory.length,
-      mandatoryCompleted: completedMandatory,
-      activityCompleted,
-    })
+    const payload = await buildProgressPayload(db, user.id, lessonId, activities)
+    return NextResponse.json(payload)
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to load progress' }, { status: 500 })
   }
@@ -223,6 +273,7 @@ export async function POST(
     const body = await request.json().catch(() => ({}))
     const action = body.action || 'ack'
     const activityId = typeof body.activityId === 'string' ? body.activityId : null
+    const responsePayload = (body.response || null) as ActivityResponsePayload | null
 
     const activities = await loadLessonActivities(db, lessonId)
 
@@ -243,25 +294,54 @@ export async function POST(
         )
       }
 
-      const { error } = await db.from('lesson_activity_progress').upsert(
-        {
-          user_id: user.id,
-          lesson_id: lessonId,
-          activity_id: activityId,
-          completed: true,
-          completed_at: new Date().toISOString(),
-          source: 'ack',
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id,lesson_id,activity_id' }
-      )
-      if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+      // Prefer explicit submit; also accept ack with response for input types
+      const needsInput = requiresLearnerInput(activity.activity)
+      if (needsInput || action === 'submit') {
+        const validated = validateActivityResponse(activity, responsePayload)
+        if (!validated.ok) {
+          return NextResponse.json({ error: validated.error }, { status: 400 })
+        }
+        const { error } = await db.from('lesson_activity_progress').upsert(
+          {
+            user_id: user.id,
+            lesson_id: lessonId,
+            activity_id: activityId,
+            completed: true,
+            completed_at: new Date().toISOString(),
+            source: validated.source,
+            response: validated.response,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id,lesson_id,activity_id' }
+        )
+        if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+      } else {
+        // Plain ack for link/file/page style activities
+        if (requiresLearnerInput(activity.activity)) {
+          return NextResponse.json(
+            { error: 'This activity requires a submission' },
+            { status: 400 }
+          )
+        }
+        const { error } = await db.from('lesson_activity_progress').upsert(
+          {
+            user_id: user.id,
+            lesson_id: lessonId,
+            activity_id: activityId,
+            completed: true,
+            completed_at: new Date().toISOString(),
+            source: 'ack',
+            response: responsePayload || null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id,lesson_id,activity_id' }
+        )
+        if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+      }
     }
 
-    // Return refreshed state
-    const url = new URL(request.url)
-    const getReq = new NextRequest(url, { headers: request.headers })
-    return GET(getReq, { params })
+    const payload = await buildProgressPayload(db, user.id, lessonId, activities)
+    return NextResponse.json(payload)
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || 'Failed to update progress' }, { status: 500 })
   }

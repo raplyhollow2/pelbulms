@@ -500,12 +500,25 @@ export default function LessonViewPage() {
   }
 
   const applyActivityProgressPayload = (data: any) => {
-    const map: Record<string, { id: string; completed?: boolean; source?: string | null }> = {}
+    const map: Record<
+      string,
+      {
+        id: string
+        completed?: boolean
+        source?: string | null
+        response?: any
+        chatMessages?: { userId: string; message: string; at?: string }[]
+        choiceTallies?: Record<string, number> | null
+      }
+    > = {}
     for (const a of data.activities || []) {
       map[a.id] = {
         id: a.id,
         completed: Boolean(a.completed),
         source: a.source || null,
+        response: a.response || null,
+        chatMessages: a.chatMessages || [],
+        choiceTallies: a.choiceTallies || null,
       }
     }
     setActivityProgressById(map)
@@ -526,7 +539,11 @@ export default function LessonViewPage() {
     })
   }
 
-  const refreshActivityProgress = async (opts?: { action?: 'sync'; activityId?: string }) => {
+  const refreshActivityProgress = async (opts?: {
+    action?: 'sync' | 'ack' | 'submit'
+    activityId?: string
+    response?: Record<string, unknown>
+  }) => {
     try {
       if (opts?.activityId || opts?.action === 'sync') {
         const res = await fetch(`/api/lessons/${lessonId}/activity-progress`, {
@@ -534,7 +551,11 @@ export default function LessonViewPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(
             opts.activityId
-              ? { activityId: opts.activityId, action: 'ack' }
+              ? {
+                  activityId: opts.activityId,
+                  action: opts.action || (opts.response ? 'submit' : 'ack'),
+                  response: opts.response,
+                }
               : { action: 'sync' }
           ),
         })
@@ -805,10 +826,31 @@ export default function LessonViewPage() {
     if (!currentUser || !lesson) return
     try {
       setMarkingActivityId(activityId)
-      await refreshActivityProgress({ activityId })
+      await refreshActivityProgress({ activityId, action: 'ack' })
     } catch (e: any) {
       console.error('markActivityDone failed:', e)
       alert(e?.message || 'Failed to mark activity done. Please try again.')
+    } finally {
+      setMarkingActivityId(null)
+    }
+  }
+
+  const submitActivityResponse = async (
+    activityId: string,
+    response: Record<string, unknown>
+  ) => {
+    if (!currentUser || !lesson) return
+    try {
+      setMarkingActivityId(activityId)
+      await refreshActivityProgress({
+        activityId,
+        action: 'submit',
+        response,
+      })
+    } catch (e: any) {
+      console.error('submitActivityResponse failed:', e)
+      alert(e?.message || 'Failed to submit. Please try again.')
+      throw e
     } finally {
       setMarkingActivityId(null)
     }
@@ -1308,6 +1350,7 @@ export default function LessonViewPage() {
             mandatoryTotal={mandatoryTotal}
             mandatoryCompleted={mandatoryCompleted}
             onMarkDone={(id) => void markActivityDone(id)}
+            onSubmitResponse={(id, response) => void submitActivityResponse(id, response)}
             markingActivityId={markingActivityId}
           />
           {autoAdvanceNotice ? (
@@ -1365,6 +1408,9 @@ export default function LessonViewPage() {
                 focusTab={focusLearningTab}
                 markingActivityId={markingActivityId}
                 onMarkActivityDone={(id) => void markActivityDone(id)}
+                onSubmitActivityResponse={(id, response) =>
+                  void submitActivityResponse(id, response)
+                }
                 defaultTab="overview"
                 activitiesExtra={activitiesExtra}
                 onLessonClick={(clickedLessonId) => tryOpenLesson(clickedLessonId)}
