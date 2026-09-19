@@ -82,7 +82,7 @@
                     android:host="www.pelbu.bt"
                     android:scheme="https" />
                 <data
-                    android:host="ulms.vercel.app"
+                    android:host="pelbulms.vercel.app"
                     android:scheme="https" />
             </intent-filter>
         </activity>

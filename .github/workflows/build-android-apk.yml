@@ -19,7 +19,7 @@ on:
       lms_url:
         description: LMS site URL baked into the APK
         required: false
-        default: https://ulms.vercel.app
+        default: https://pelbulms.vercel.app
         type: string
       publish_release:
         description: Create GitHub Release android-vX.Y.Z and attach the APK

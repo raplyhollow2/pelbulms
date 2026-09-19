@@ -40,8 +40,8 @@ android {
         versionCode = resolveVersionCode()
         versionName = resolveVersionName()
 
-        buildConfigField("String", "LMS_URL", "\"${project.findProperty("LMS_URL") ?: "https://ulms.vercel.app"}\"")
-        buildConfigField("String", "LMS_HOST", "\"${project.findProperty("LMS_HOST") ?: "ulms.vercel.app"}\"")
+        buildConfigField("String", "LMS_URL", "\"${project.findProperty("LMS_URL") ?: "https://pelbulms.vercel.app"}\"")
+        buildConfigField("String", "LMS_HOST", "\"${project.findProperty("LMS_HOST") ?: "pelbulms.vercel.app"}\"")
         buildConfigField("String", "VERSION_NAME_DISPLAY", "\"$versionName\"")
         buildConfigField("int", "VERSION_CODE_DISPLAY", "$versionCode")
     }
