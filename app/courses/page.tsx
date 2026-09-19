@@ -2,16 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Search, BookOpen, Clock, Users, Star, Filter, Loader2, Command, Building2 } from 'lucide-react'
+import { Search, BookOpen, Command } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { CourseCard } from '@/components/courses/course-card'
 import { CourseGridSkeleton } from '@/components/courses/course-card-skeleton'
 import { Skeleton } from '@/components/ui/skeleton'
 import { InstructorShowcase } from '@/components/courses/instructor-showcase'
-import { AdvancedSearchModal } from '@/components/courses/advanced-search-modal'
 import {
   Select,
   SelectContent,
@@ -19,14 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from '@/components/ui/sheet'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 import { buildInstructorShowcaseData } from '@/lib/instructor-stats'
@@ -415,34 +404,39 @@ export default function CoursesPage() {
     }
   }
 
-  // Get unique categories and levels from courses
-  const categories = ['All', ...Array.from(new Set(courses.map((c: any) => c.category)))]
-  const levels = ['All', ...Array.from(new Set(courses.map((c: any) => c.level)))]
+  const categories = [
+    'All',
+    ...Array.from(new Set(courses.map((c: any) => c.category).filter(Boolean))),
+  ]
+  const levels = [
+    'All',
+    ...Array.from(new Set(courses.map((c: any) => c.level).filter(Boolean))),
+  ]
+  const showInstitutionFilter =
+    institutions.length > 0 || !!(currentUser as any)?.institution_id
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="space-y-8">
-          {/* Header Skeleton */}
-          <div className="flex items-center justify-between">
-            <div>
-              <Skeleton className="h-10 w-48 mb-2" />
-              <Skeleton className="h-6 w-96" />
+      <div className="container mx-auto max-w-7xl px-4 py-3 sm:px-5 sm:py-4 md:px-6 lg:px-8">
+        <div className="space-y-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="shrink-0 space-y-1.5 lg:w-[220px]">
+              <Skeleton className="h-7 w-40" />
+              <Skeleton className="h-4 w-52" />
             </div>
-            <Skeleton className="h-12 w-40" />
-          </div>
-
-          {/* Search and Filters Skeleton */}
-          <div className="space-y-4">
-            <Skeleton className="h-12 w-full" />
-            <div className="flex gap-3">
-              <Skeleton className="h-9 w-24" />
-              <Skeleton className="h-9 w-28" />
-              <Skeleton className="h-9 w-32" />
+            <div className="flex min-w-0 flex-1 flex-col gap-2 lg:flex-row lg:items-center">
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <Skeleton className="h-9 flex-1" />
+                <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
+              </div>
+              <div className="grid grid-cols-3 gap-2 sm:flex">
+                <Skeleton className="h-9 w-full sm:w-32" />
+                <Skeleton className="h-9 w-full sm:w-28" />
+                <Skeleton className="h-9 w-full sm:w-36" />
+              </div>
             </div>
           </div>
-
-          {/* Course Grid Skeleton */}
+          <Skeleton className="h-4 w-36" />
           <CourseGridSkeleton count={6} />
         </div>
       </div>
@@ -450,222 +444,123 @@ export default function CoursesPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-7xl px-4 py-5 sm:px-5 sm:py-7 md:px-6 md:py-8 lg:px-8 lg:pb-8">
-      <div className="space-y-6 sm:space-y-8">
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Course catalog</h1>
-            <p className="text-sm text-muted-foreground sm:text-base">
+    <div className="container mx-auto max-w-7xl px-4 py-3 sm:px-5 sm:py-4 md:px-6 lg:px-8 lg:pb-6">
+      <div className="space-y-4">
+        {/* Compact catalog toolbar — title, search, dropdowns, quick search */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+          <div className="min-w-0 shrink-0 lg:max-w-[220px] xl:max-w-[260px]">
+            <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Course catalog</h1>
+            <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground sm:text-sm">
               Discover courses across Bhutan. Request enrollment — the course creator approves access.
             </p>
           </div>
-          <Button
-            variant="outline"
-            className="w-full gap-2 rounded-full sm:w-auto"
-            onClick={() => window.dispatchEvent(new Event('pelbu:open-search'))}
-          >
-            <Command className="h-4 w-4" />
-            <span className="sm:hidden">Search</span>
-            <span className="hidden sm:inline">Quick search</span>
-            <kbd className="ml-1 hidden rounded bg-muted px-1.5 py-0.5 text-[10px] sm:inline">⌘K</kbd>
-          </Button>
-        </div>
 
-        {/* Search and Filters */}
-        <div className="space-y-5">
-          {/* Search Bar with Mobile Filters */}
-          <div className="flex gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
-              <Input
-                type="text"
-                placeholder="Search courses by title, description, or tags..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 h-12 glass-strong"
-              />
-            </div>
-
-            {/* Mobile Filter Sheet */}
-            <Sheet>
-              <SheetTrigger
-                render={
-                  <Button variant="outline" size="icon" className="md:hidden h-12 w-12 shrink-0" />
-                }
-              >
-                <Filter className="w-5 h-5" />
-              </SheetTrigger>
-              <SheetContent className="pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-                <SheetHeader>
-                  <SheetTitle>Filters</SheetTitle>
-                  <SheetDescription>
-                    Refine your course search
-                  </SheetDescription>
-                </SheetHeader>
-                <div className="space-y-5 pt-6">
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Institution</label>
-                    <Select value={selectedInstitution} onValueChange={setInstitutionFilter}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="All">All</SelectItem>
-                        {(currentUser as any)?.institution_id && (
-                          <SelectItem value="mine">My institution</SelectItem>
-                        )}
-                        {institutions.map((inst) => (
-                          <SelectItem key={inst.id} value={inst.id}>
-                            {institutionLabel(inst)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Category</label>
-                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((category: any) => (
-                          <SelectItem key={category} value={category}>
-                            {category}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Level</label>
-                    <Select value={selectedLevel} onValueChange={setSelectedLevel}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {levels.map((level: any) => (
-                          <SelectItem key={level} value={level}>
-                            {level}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
-
-          {/* Phone one-tap category chips */}
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 py-1 scrollbar-hide md:hidden">
-            {categories.map((category: any) => (
-              <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                className={`shrink-0 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors ${
-                  selectedCategory === category
-                    ? 'border-transparent bg-gradient-to-r from-bhutan-yellow to-bhutan-orange text-black'
-                    : 'border-border/60 bg-background/60 text-muted-foreground'
-                }`}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-
-          {/* Tablet + desktop filters */}
-          <div className="hidden md:flex flex-wrap gap-3">
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Category:</span>
-            </div>
-            {categories.map((category: any) => (
-              <Button
-                key={category}
-                variant={selectedCategory === category ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedCategory(category)}
-                className={selectedCategory === category ? "bg-bhutan-yellow hover:bg-bhutan-orange" : ""}
-              >
-                {category}
-              </Button>
-            ))}
-          </div>
-
-          <div className="hidden md:flex flex-wrap gap-3">
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Level:</span>
-            </div>
-            {levels.map((level: any) => (
-              <Button
-                key={level}
-                variant={selectedLevel === level ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedLevel(level)}
-                className={selectedLevel === level ? "bg-bhutan-yellow hover:bg-bhutan-orange" : ""}
-              >
-                {level}
-              </Button>
-            ))}
-          </div>
-
-          {(institutions.length > 0 || (currentUser as any)?.institution_id) && (
-            <div className="hidden md:flex flex-wrap gap-3">
-              <div className="flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium">Institution:</span>
+          <div className="flex min-w-0 flex-1 flex-col gap-2 lg:flex-row lg:items-center lg:gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search courses…"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="h-9 pl-9 glass-strong"
+                  aria-label="Search courses"
+                />
               </div>
               <Button
-                variant={selectedInstitution === 'All' ? 'default' : 'outline'}
+                type="button"
+                variant="outline"
                 size="sm"
-                onClick={() => setInstitutionFilter('All')}
-                className={
-                  selectedInstitution === 'All' ? 'bg-bhutan-yellow hover:bg-bhutan-orange' : ''
-                }
+                className="h-9 shrink-0 gap-1.5 rounded-full px-2.5 sm:px-3"
+                onClick={() => window.dispatchEvent(new Event('pelbu:open-search'))}
+                aria-label="Quick search"
               >
-                All
+                <Command className="h-3.5 w-3.5" />
+                <span className="hidden xl:inline">Quick search</span>
+                <kbd className="ml-0.5 hidden rounded bg-muted px-1.5 py-0.5 text-[10px] xl:inline">
+                  ⌘K
+                </kbd>
               </Button>
-              {(currentUser as any)?.institution_id && (
-                <Button
-                  variant={selectedInstitution === 'mine' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setInstitutionFilter('mine')}
-                  className={
-                    selectedInstitution === 'mine' ? 'bg-bhutan-yellow hover:bg-bhutan-orange' : ''
-                  }
-                >
-                  My institution
-                </Button>
-              )}
-              {institutions.map((inst) => (
-                <Button
-                  key={inst.id}
-                  variant={selectedInstitution === inst.id ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setInstitutionFilter(inst.id)}
-                  className={
-                    selectedInstitution === inst.id
-                      ? 'bg-bhutan-yellow hover:bg-bhutan-orange'
-                      : ''
-                  }
-                >
-                  {institutionLabel(inst)}
-                </Button>
-              ))}
             </div>
-          )}
+
+            <div
+              className={`grid shrink-0 gap-2 sm:flex sm:flex-wrap sm:items-center ${
+                showInstitutionFilter ? 'grid-cols-3' : 'grid-cols-2'
+              }`}
+            >
+              <Select
+                value={selectedCategory}
+                onValueChange={(v) => v && setSelectedCategory(v)}
+              >
+                <SelectTrigger
+                  size="sm"
+                  className="h-9 w-full min-w-0 sm:w-[140px] lg:w-[148px]"
+                  aria-label="Category"
+                >
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  {categories.map((category: string) => (
+                    <SelectItem key={category} value={category}>
+                      {category === 'All' ? 'All categories' : category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={selectedLevel}
+                onValueChange={(v) => v && setSelectedLevel(v)}
+              >
+                <SelectTrigger
+                  size="sm"
+                  className="h-9 w-full min-w-0 sm:w-[120px] lg:w-[128px]"
+                  aria-label="Level"
+                >
+                  <SelectValue placeholder="Level" />
+                </SelectTrigger>
+                <SelectContent align="start">
+                  {levels.map((level: string) => (
+                    <SelectItem key={level} value={level}>
+                      {level === 'All' ? 'All levels' : level}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {showInstitutionFilter && (
+                <Select
+                  value={selectedInstitution}
+                  onValueChange={(v) => v && setInstitutionFilter(v)}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    className="h-9 w-full min-w-0 sm:w-[150px] lg:w-[158px]"
+                    aria-label="Institution"
+                  >
+                    <SelectValue placeholder="Institution" />
+                  </SelectTrigger>
+                  <SelectContent align="start">
+                    <SelectItem value="All">All institutions</SelectItem>
+                    {(currentUser as any)?.institution_id && (
+                      <SelectItem value="mine">My institution</SelectItem>
+                    )}
+                    {institutions.map((inst) => (
+                      <SelectItem key={inst.id} value={inst.id}>
+                        {institutionLabel(inst)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Results Count */}
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">
-            Showing {filteredCourses.length} of {courses.length} courses
-          </p>
-        </div>
+        <p className="text-xs text-muted-foreground sm:text-sm">
+          Showing {filteredCourses.length} of {courses.length} courses
+        </p>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
           {filteredCourses.map((course) => {
