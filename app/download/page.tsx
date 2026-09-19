@@ -56,12 +56,24 @@ export default async function DownloadAndroidPage() {
                 <Smartphone className="h-6 w-6" />
               </span>
               <div className="min-w-0 flex-1">
-                <h2 className="text-lg font-semibold">pelbu-lms.apk</h2>
+                <h2 className="text-lg font-semibold">
+                  {release.filename || 'pelbu-lms.apk'}
+                </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {release.available
-                    ? [release.version, size, published].filter(Boolean).join(' · ')
+                    ? [
+                        release.version ? `v${release.version}` : null,
+                        release.versionCode != null ? `code ${release.versionCode}` : null,
+                        size,
+                        published,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')
                     : release.message || 'The APK is not published yet.'}
                 </p>
+                {release.tag ? (
+                  <p className="mt-1 text-xs text-muted-foreground">Release tag {release.tag}</p>
+                ) : null}
               </div>
             </div>
 

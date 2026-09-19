@@ -1,16 +1,33 @@
 # Pelbu LMS Android app
 
-Native Android SDK app (`applicationId`: `bt.pelbu.lms`) that loads the Pelbu LMS site in a system WebView. It is a real APK built with the Android Gradle Plugin — not a Play Store listing, and not an auto-published release.
+Native Android SDK app (`applicationId`: `bt.pelbu.lms`) that loads the Pelbu LMS site in a system WebView.
 
-## What this is
+## Versioning
 
-- Kotlin + AndroidX + official Android WebView
-- `targetSdk` 36, HTTPS-only network config, Play Protect-safe permission set
-- Camera, photos, microphone, and notifications requested **once on first launch** (Android cannot grant dangerous permissions at install after API 23)
-- Google / Facebook / Apple sign-in opens Chrome Custom Tabs so Google will not block OAuth inside a WebView
-- APK is produced only when someone **manually** runs the GitHub Action
+Source of truth: [`version.properties`](./version.properties)
 
-Do **not** add SMS, contacts, call-log, or unused location permissions. Play Protect treats those as malware signals.
+| Field | Meaning |
+| --- | --- |
+| `VERSION_NAME` | User-facing semver (`1.2.3`) — GitHub tag `android-v1.2.3` |
+| `VERSION_CODE` | Monotonic integer — **must increase** for every installable update |
+
+Bump locally:
+
+```bash
+./scripts/bump-version.sh patch   # 1.0.0 → 1.0.1 (code +1)
+./scripts/bump-version.sh minor   # 1.0.1 → 1.1.0
+./scripts/bump-version.sh major   # 1.1.0 → 2.0.0
+./scripts/bump-version.sh set 1.4.0
+```
+
+Or run **Actions → Build Android APK** and choose `patch` / `minor` / `major` (or an explicit version). The workflow:
+
+1. Bumps `version.properties` and commits it
+2. Builds a signed release APK
+3. Publishes GitHub Release `android-vX.Y.Z` with `pelbu-lms-X.Y.Z.apk` (+ alias `pelbu-lms.apk`)
+4. Refreshes floating tag `android-latest` for older docs
+
+The website `/download` page always serves the **highest** `android-v*` release.
 
 ## Local debug build
 
@@ -19,20 +36,19 @@ cd android
 ./gradlew assembleDebug
 ```
 
-The debug APK is at `android/app/build/outputs/apk/debug/`.
+Debug APK: `android/app/build/outputs/apk/debug/`.
 
-## Signed release APK (manual)
+## Signed release (manual / CI)
 
 1. Create a keystore once: `android/scripts/create-release-keystore.sh`
-2. Add GitHub Actions secrets:
+2. GitHub → Settings → Secrets → Actions:
    - `ANDROID_KEYSTORE_BASE64`
    - `ANDROID_KEYSTORE_PASSWORD`
    - `ANDROID_KEY_ALIAS`
    - `ANDROID_KEY_PASSWORD`
-3. GitHub → Actions → **Build Android APK** → **Run workflow**
-4. The workflow uploads the APK as an artifact and, if you leave “Publish GitHub Release” on, attaches it to the `android-latest` GitHub Release
-5. The website download page (`/download`) serves that APK — there is **no** Google Play upload step
+3. Actions → **Build Android APK** → Run workflow
+4. `/download` picks up the new `android-v*` release automatically
 
 ## Digital Asset Links
 
-After the first signed build, copy the keystore SHA-256 into Vercel env `ANDROID_CERT_SHA256` so `https://pelbu.bt/.well-known/assetlinks.json` verifies the app. That lets Android open pelbu.bt links in the APK and keeps Play Protect/Chrome from treating it as an unverified wrapper.
+After the first signed build, put the keystore SHA-256 in Vercel env `ANDROID_CERT_SHA256` so `/.well-known/assetlinks.json` verifies the app.

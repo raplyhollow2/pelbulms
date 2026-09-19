@@ -70,7 +70,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Open pelbu.bt links in the native app (Digital Asset Links). -->
+            <!-- Open LMS links in the native app (Digital Asset Links). -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -80,6 +80,9 @@
                     android:scheme="https" />
                 <data
                     android:host="www.pelbu.bt"
+                    android:scheme="https" />
+                <data
+                    android:host="ulms.vercel.app"
                     android:scheme="https" />
             </intent-filter>
         </activity>

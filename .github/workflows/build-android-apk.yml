@@ -1,0 +1,207 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version bump (ignored if version_name is set)
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - none
+        default: patch
+      version_name:
+        description: Optional explicit version (e.g. 1.2.0). Leave empty to use bump.
+        required: false
+        type: string
+      lms_url:
+        description: LMS site URL baked into the APK
+        required: false
+        default: https://ulms.vercel.app
+        type: string
+      publish_release:
+        description: Create GitHub Release android-vX.Y.Z and attach the APK
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Version, sign, and publish
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Bump or set version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x scripts/bump-version.sh
+          if [[ -n "${{ inputs.version_name }}" ]]; then
+            eval "$(./scripts/bump-version.sh set '${{ inputs.version_name }}')"
+          else
+            eval "$(./scripts/bump-version.sh '${{ inputs.bump }}')"
+          fi
+          TAG="android-v${VERSION_NAME}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists. Bump again or choose a new version_name." >&2
+            exit 1
+          fi
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "apk_name=pelbu-lms-${VERSION_NAME}.apk" >> "$GITHUB_OUTPUT"
+          echo "Resolved Android $VERSION_NAME (code $VERSION_CODE) → $TAG"
+
+      - name: Decode release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for required in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [[ -z "${!required}" ]]; then
+              echo "Missing GitHub secret: $required" >&2
+              exit 1
+            fi
+          done
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > pelbu-release.jks
+          {
+            echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyPassword=$ANDROID_KEY_PASSWORD"
+            echo "keyAlias=$ANDROID_KEY_ALIAS"
+            echo "storeFile=pelbu-release.jks"
+          } > keystore.properties
+
+      - name: Resolve LMS host
+        id: lms
+        shell: bash
+        run: |
+          URL='${{ inputs.lms_url }}'
+          URL="${URL%/}"
+          HOST="$(echo "$URL" | sed -E 's#^https?://##; s#/.*##')"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "host=$HOST" >> "$GITHUB_OUTPUT"
+
+      - name: Build signed release APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew assembleRelease \
+            -PLMS_URL='${{ steps.lms.outputs.url }}' \
+            -PLMS_HOST='${{ steps.lms.outputs.host }}' \
+            --no-daemon --stacktrace
+
+      - name: Package APK artifact
+        id: apk
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC="$(find app/build/outputs/apk/release -name '*.apk' | head -n 1)"
+          if [[ -z "$SRC" ]]; then
+            echo "No release APK found" >&2
+            exit 1
+          fi
+          DEST="${{ github.workspace }}/${{ steps.version.outputs.apk_name }}"
+          cp "$SRC" "$DEST"
+          # Stable filename alias for /download clients that expect pelbu-lms.apk
+          cp "$DEST" "${{ github.workspace }}/pelbu-lms.apk"
+          echo "path=$DEST" >> "$GITHUB_OUTPUT"
+          echo "alias=${{ github.workspace }}/pelbu-lms.apk" >> "$GITHUB_OUTPUT"
+          ls -lh "$DEST"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pelbu-lms-android-${{ steps.version.outputs.version_name }}
+          path: |
+            ${{ steps.apk.outputs.path }}
+            ${{ steps.apk.outputs.alias }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Commit version.properties
+        if: ${{ inputs.bump != 'none' || inputs.version_name != '' }}
+        working-directory: .
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add android/version.properties
+          if git diff --cached --quiet; then
+            echo "version.properties unchanged"
+            exit 0
+          fi
+          git commit -m "chore(android): release v${{ steps.version.outputs.version_name }} (code ${{ steps.version.outputs.version_code }})"
+          git push
+
+      - name: Publish GitHub Release
+        if: ${{ inputs.publish_release }}
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG='${{ steps.version.outputs.tag }}'
+          NAME='${{ steps.version.outputs.version_name }}'
+          CODE='${{ steps.version.outputs.version_code }}'
+          NOTES="$(cat <<EOF
+          ## Pelbu LMS Android ${NAME}
+
+          - **versionName:** ${NAME}
+          - **versionCode:** ${CODE}
+          - **package:** \`bt.pelbu.lms\`
+          - **LMS URL:** ${{ steps.lms.outputs.url }}
+
+          Install the versioned APK (\`pelbu-lms-${NAME}.apk\`) or the stable alias \`pelbu-lms.apk\`.
+          EOF
+          )"
+          gh release create "$TAG" \
+            --title "Android ${NAME}" \
+            --notes "$NOTES" \
+            "${{ steps.apk.outputs.path }}" \
+            "${{ steps.apk.outputs.alias }}"
+
+          # Move floating android-latest pointer for older clients / docs
+          if gh release view android-latest >/dev/null 2>&1; then
+            gh release delete android-latest --yes || true
+            git push origin :refs/tags/android-latest || true
+          fi
+          gh release create android-latest \
+            --title "Android ${NAME} (latest)" \
+            --notes "Floating pointer to **${NAME}** (versionCode ${CODE}). Prefer tag \`${TAG}\` for permanent links." \
+            --latest=false \
+            "${{ steps.apk.outputs.path }}" \
+            "${{ steps.apk.outputs.alias }}"

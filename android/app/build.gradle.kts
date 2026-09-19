@@ -11,6 +11,24 @@ if (keystorePropertiesFile.exists()) {
     keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
 
+val versionPropertiesFile = rootProject.file("version.properties")
+val versionProperties = Properties()
+if (versionPropertiesFile.exists()) {
+    versionPropertiesFile.inputStream().use { versionProperties.load(it) }
+}
+
+fun resolveVersionName(): String {
+    val fromProp = project.findProperty("VERSION_NAME") as String?
+    if (!fromProp.isNullOrBlank()) return fromProp
+    return versionProperties.getProperty("VERSION_NAME") ?: "1.0.0"
+}
+
+fun resolveVersionCode(): Int {
+    val fromProp = (project.findProperty("VERSION_CODE") as String?)?.toIntOrNull()
+    if (fromProp != null) return fromProp
+    return versionProperties.getProperty("VERSION_CODE")?.toIntOrNull() ?: 1
+}
+
 android {
     namespace = "bt.pelbu.lms"
     compileSdk = 36
@@ -19,11 +37,13 @@ android {
         applicationId = "bt.pelbu.lms"
         minSdk = 24
         targetSdk = 36
-        versionCode = (project.findProperty("VERSION_CODE") as String?)?.toIntOrNull() ?: 1
-        versionName = (project.findProperty("VERSION_NAME") as String?) ?: "1.0.0"
+        versionCode = resolveVersionCode()
+        versionName = resolveVersionName()
 
-        buildConfigField("String", "LMS_URL", "\"${project.findProperty("LMS_URL") ?: "https://pelbu.bt"}\"")
-        buildConfigField("String", "LMS_HOST", "\"${project.findProperty("LMS_HOST") ?: "pelbu.bt"}\"")
+        buildConfigField("String", "LMS_URL", "\"${project.findProperty("LMS_URL") ?: "https://ulms.vercel.app"}\"")
+        buildConfigField("String", "LMS_HOST", "\"${project.findProperty("LMS_HOST") ?: "ulms.vercel.app"}\"")
+        buildConfigField("String", "VERSION_NAME_DISPLAY", "\"$versionName\"")
+        buildConfigField("int", "VERSION_CODE_DISPLAY", "$versionCode")
     }
 
     signingConfigs {
