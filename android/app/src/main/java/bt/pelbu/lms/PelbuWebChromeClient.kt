@@ -41,6 +41,7 @@ class PelbuWebChromeClient(
                 v: WebView,
                 request: android.webkit.WebResourceRequest,
             ): Boolean {
+                // Prefer main WebView so OAuth PKCE cookies stay in one jar.
                 activity.openExternalOrApp(request.url)
                 return true
             }

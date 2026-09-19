@@ -1,16 +1,17 @@
 package bt.pelbu.lms
 
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.browser.customtabs.CustomTabColorSchemeParams
-import androidx.browser.customtabs.CustomTabsIntent
-import androidx.core.content.ContextCompat
 
+/**
+ * Keeps LMS + OAuth (Google/Facebook/Apple) inside the same WebView so Supabase
+ * PKCE code-verifier cookies set on login stay available on /auth/callback.
+ * Custom Tabs use a separate cookie jar and break PKCE.
+ */
 class PelbuWebViewClient(
     private val activity: MainActivity,
 ) : WebViewClient() {
@@ -24,11 +25,6 @@ class PelbuWebViewClient(
 
         if (url.startsWith("mailto:") || url.startsWith("tel:") || url.startsWith("sms:")) {
             return launchExternal(uri)
-        }
-
-        if (isOAuthHost(uri.host)) {
-            openCustomTab(uri)
-            return true
         }
 
         if (isAllowedHost(uri.host)) {
@@ -58,35 +54,18 @@ class PelbuWebViewClient(
         val root = BuildConfig.LMS_HOST.removePrefix("www.")
         return host == root ||
             host == "www.$root" ||
+            host == "pelbu.bt" ||
+            host == "www.pelbu.bt" ||
             host.endsWith(".supabase.co") ||
-            host.endsWith(".cloudinary.com")
-    }
-
-    private fun isOAuthHost(host: String?): Boolean {
-        if (host.isNullOrBlank()) return false
-        return host == "accounts.google.com" ||
+            host.endsWith(".cloudinary.com") ||
+            // OAuth IdPs must stay in-WebView for PKCE cookie continuity
+            host == "accounts.google.com" ||
             (host.endsWith(".google.com") && host.contains("accounts")) ||
             host == "www.facebook.com" ||
             host == "m.facebook.com" ||
             host == "facebook.com" ||
+            host.endsWith(".facebook.com") ||
             host == "appleid.apple.com"
-    }
-
-    private fun openCustomTab(uri: Uri) {
-        val color = ContextCompat.getColor(activity, R.color.bhutan_yellow)
-        val scheme = CustomTabColorSchemeParams.Builder()
-            .setToolbarColor(color)
-            .build()
-        val tabs = CustomTabsIntent.Builder()
-            .setDefaultColorSchemeParams(scheme)
-            .setShareState(CustomTabsIntent.SHARE_STATE_OFF)
-            .setUrlBarHidingEnabled(true)
-            .build()
-        try {
-            tabs.launchUrl(activity, uri)
-        } catch (_: ActivityNotFoundException) {
-            launchExternal(uri)
-        }
     }
 
     private fun launchExternal(uri: Uri): Boolean {
