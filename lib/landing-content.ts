@@ -164,6 +164,11 @@ export const DEFAULT_LANDING_FAQ: LandingFaqItem[] = [
     answer:
       'Yes. When you complete a course, Pelbu automatically issues a PDF certificate with a unique code and a public verification page that anyone can use to confirm its authenticity.',
   },
+  {
+    question: 'Is there an Android app?',
+    answer:
+      'Yes. Download the official Pelbu LMS APK from the website. It is a native Android SDK app. Releases are built only when we run a GitHub Action by hand — they are not auto-published to Google Play.',
+  },
 ]
 
 export const DEFAULT_LANDING_SECTION_TITLES: LandingSectionTitles = {

@@ -452,6 +452,9 @@ export default async function Home() {
             © {new Date().getFullYear()} {siteName} · Empowering education in Bhutan.
           </p>
           <nav className="flex items-center gap-5">
+            <Link href="/download" className="transition-colors hover:text-foreground">
+              Android app
+            </Link>
             <Link href="/auth/login" className="transition-colors hover:text-foreground">
               Sign in
             </Link>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Pelbu LMS</string>
+    <string name="choose_file">Choose photo or file</string>
+    <string name="download_started">Download started</string>
+    <string name="offline_title">You are offline</string>
+    <string name="offline_body">Pelbu needs an internet connection to load your courses. Check your network and try again.</string>
+    <string name="retry">Try again</string>
+</resources>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bhutan_yellow">#FFC72C</color>
+    <color name="bhutan_orange">#FF6B35</color>
+    <color name="bhutan_red">#C41E3A</color>
+    <color name="bhutan_black">#1A1A1A</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="ic_launcher_background">#FFC72C</color>
+</resources>
