@@ -10,8 +10,11 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
-import type { PlatformSettings, VideoQualityPreference } from '@/lib/platform-settings'
-import { VIDEO_QUALITY_OPTIONS } from '@/lib/platform-settings'
+import type { PlatformSettings } from '@/lib/platform-settings'
+import {
+  VIDEO_QUALITY_OPTIONS,
+  type VideoQualityPreference,
+} from '@/lib/video-quality'
 import {
   DEFAULT_HERO_CTA_PRIMARY,
   DEFAULT_HERO_ROTATING_WORDS,

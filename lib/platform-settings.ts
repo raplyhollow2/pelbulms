@@ -16,23 +16,13 @@ import {
   type LandingStat,
   type LandingStep,
 } from '@/lib/landing-content'
+import {
+  parseVideoQuality,
+  type VideoQualityPreference,
+} from '@/lib/video-quality'
 
-export type VideoQualityPreference = 'auto' | 'high' | 'max'
-
-export const VIDEO_QUALITY_OPTIONS: {
-  value: VideoQualityPreference
-  label: string
-  hint: string
-}[] = [
-  { value: 'auto', label: 'Auto (save data)', hint: 'Smaller files; Cloudinary picks eco bitrate.' },
-  { value: 'high', label: 'High (recommended)', hint: 'HD up to 720p with good visual quality.' },
-  { value: 'max', label: 'Maximum', hint: 'Best quality up to 1080p; uses more bandwidth.' },
-]
-
-export function parseVideoQuality(value: unknown): VideoQualityPreference {
-  if (value === 'auto' || value === 'high' || value === 'max') return value
-  return 'high'
-}
+export type { VideoQualityPreference } from '@/lib/video-quality'
+export { VIDEO_QUALITY_OPTIONS, parseVideoQuality } from '@/lib/video-quality'
 
 export type PlatformSettings = {
   id: string

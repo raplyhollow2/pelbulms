@@ -1,4 +1,5 @@
 import { v2 as cloudinary } from 'cloudinary'
+import type { VideoQualityPreference } from '@/lib/video-quality'
 
 const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
 const apiKey = process.env.CLOUDINARY_API_KEY
@@ -30,9 +31,6 @@ export function isCloudinaryConfigured(): boolean {
 }
 
 export type MediaResourceType = 'image' | 'video'
-
-/** Platform preference for lesson / hero video delivery bitrate. */
-export type VideoQualityPreference = 'auto' | 'high' | 'max'
 
 /**
  * Cloudinary transformations by quality preference.
