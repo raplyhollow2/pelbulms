@@ -6,7 +6,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from '@/components/ui/select'
 import {
   ArrowLeft,
   Copy,
@@ -363,24 +368,48 @@ export default function TeachMediaLibraryPage() {
       {error && <p className="text-sm text-destructive">{error}</p>}
 
       <Card>
-        <CardHeader className="space-y-3">
-          <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
-            <CardTitle className="text-lg">Assets ({filtered.length})</CardTitle>
+        <CardHeader className="space-y-0 pb-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <CardTitle className="shrink-0 text-base sm:text-lg">
+              Assets ({filtered.length})
+            </CardTitle>
             <Input
               placeholder="Search by name or folder…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="sm:max-w-xs"
+              className="h-9 min-w-0 flex-1"
+              aria-label="Search assets"
             />
+            <Select
+              value={kindTab}
+              onValueChange={(v: any) => v && setKindTab(v)}
+            >
+              <SelectTrigger
+                size="sm"
+                className="h-9 w-full gap-1 sm:w-[150px]"
+                aria-label="Type filter"
+              >
+                <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
+                  <span className="shrink-0 text-muted-foreground">Type</span>
+                  <span className="truncate font-medium">
+                    {kindTab === 'all'
+                      ? 'All'
+                      : kindTab === 'video'
+                        ? 'Videos'
+                        : kindTab === 'image'
+                          ? 'Images'
+                          : 'Documents'}
+                  </span>
+                </span>
+              </SelectTrigger>
+              <SelectContent align="end">
+                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="video">Videos</SelectItem>
+                <SelectItem value="image">Images</SelectItem>
+                <SelectItem value="document">Documents</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <Tabs value={kindTab} onValueChange={(v: any) => setKindTab(v)}>
-            <TabsList>
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="video">Videos</TabsTrigger>
-              <TabsTrigger value="image">Images</TabsTrigger>
-              <TabsTrigger value="document">Documents</TabsTrigger>
-            </TabsList>
-          </Tabs>
         </CardHeader>
         <CardContent>
           {loading ? (

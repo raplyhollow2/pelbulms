@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { DesktopSidebar } from './desktop-sidebar'
 import { MobileNavigation } from './mobile-navigation'
 import { NotificationBell } from './notification-bell'
+import { APP_HEADER_PORTAL_ID } from './app-header-slot'
 
 interface ResponsiveLayoutProps {
   children: React.ReactNode
@@ -43,13 +44,11 @@ export function ResponsiveLayout({ children, user }: ResponsiveLayoutProps) {
 
   return (
     <div className="relative min-h-dvh overflow-x-clip bg-background">
-      {/* Ambient brand backdrop — subtle, premium, non-distracting */}
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(70rem_40rem_at_110%_-10%,rgba(255,199,44,0.10),transparent_60%),radial-gradient(60rem_38rem_at_-10%_10%,rgba(255,107,53,0.08),transparent_55%)] dark:bg-[radial-gradient(70rem_40rem_at_110%_-10%,rgba(255,199,44,0.06),transparent_60%),radial-gradient(60rem_38rem_at_-10%_10%,rgba(255,107,53,0.05),transparent_55%)]"
       />
 
-      {/* Tablet + desktop sidebar — phones use bottom nav */}
       <div className="hidden md:block">
         <DesktopSidebar user={user} />
       </div>
@@ -59,8 +58,7 @@ export function ResponsiveLayout({ children, user }: ResponsiveLayoutProps) {
           sidebarCollapsed ? 'md:pl-20' : 'md:pl-64'
         }`}
       >
-        {/* Top app bar */}
-        <header className="sticky top-0 z-40 flex shrink-0 items-center justify-between gap-3 border-b border-border/40 bg-background/85 px-3 py-2 backdrop-blur-xl safe-area-top sm:px-5 md:px-6 lg:px-8">
+        <header className="sticky top-0 z-40 flex shrink-0 items-center gap-2 border-b border-border/40 bg-background/85 px-3 py-2 backdrop-blur-xl safe-area-top sm:gap-3 sm:px-5 md:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-2 md:hidden">
             <Link
               href="/dashboard"
@@ -73,7 +71,13 @@ export function ResponsiveLayout({ children, user }: ResponsiveLayoutProps) {
             </Link>
           </div>
 
-          <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+          {/* Desktop page chrome (catalog toolbar, etc.) mounts here */}
+          <div
+            id={APP_HEADER_PORTAL_ID}
+            className="hidden min-w-0 flex-1 items-center md:flex"
+          />
+
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
             <Button
               type="button"
               variant="ghost"
@@ -88,7 +92,6 @@ export function ResponsiveLayout({ children, user }: ResponsiveLayoutProps) {
           </div>
         </header>
 
-        {/* Phone bottom-nav clearance only; key on route for enter animation */}
         <div
           key={pathname}
           className="page-shell page-enter flex-1 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0"
@@ -97,7 +100,6 @@ export function ResponsiveLayout({ children, user }: ResponsiveLayoutProps) {
         </div>
       </main>
 
-      {/* Phone bottom nav */}
       <div className="md:hidden">
         <MobileNavigation user={user} />
       </div>

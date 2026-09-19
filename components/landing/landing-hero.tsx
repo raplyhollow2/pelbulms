@@ -91,10 +91,12 @@ function HeroVideoBackground({
   videoUrl,
   startSeconds = 0,
   endSeconds = null,
+  preferredQuality = 'high',
 }: {
   videoUrl: string
   startSeconds?: number
   endSeconds?: number | null
+  preferredQuality?: 'auto' | 'high' | 'max'
 }) {
   const reducedMotion = usePrefersReducedMotion()
   const mountRef = useRef<HTMLDivElement>(null)
@@ -111,7 +113,7 @@ function HeroVideoBackground({
     [videoUrl]
   )
   const poster = videoId
-    ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+    ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
     : undefined
 
   // Always paint a visible base (poster or dark gradient) — never rely on iframe alone.
@@ -121,6 +123,13 @@ function HeroVideoBackground({
         backgroundImage:
           'linear-gradient(135deg, #1a1208 0%, #3d2314 45%, #0a0a0a 100%)',
       }
+
+  const ytQuality =
+    preferredQuality === 'max'
+      ? 'hd1080'
+      : preferredQuality === 'auto'
+        ? 'medium'
+        : 'hd720'
 
   useEffect(() => {
     if (!videoId || reducedMotion || !mountRef.current) return
@@ -134,6 +143,19 @@ function HeroVideoBackground({
         player.playVideo()
       } catch {
         /* ignore */
+      }
+    }
+
+    const applyQuality = (player: any) => {
+      try {
+        if (typeof player.setPlaybackQuality === 'function') {
+          player.setPlaybackQuality(ytQuality)
+        }
+        if (typeof player.setPlaybackQualityRange === 'function') {
+          player.setPlaybackQualityRange(ytQuality, preferredQuality === 'max' ? 'highres' : ytQuality)
+        }
+      } catch {
+        /* ignore — YouTube may ignore quality hints */
       }
     }
 
@@ -183,6 +205,7 @@ function HeroVideoBackground({
           onReady: (event: any) => {
             try {
               event.target.mute()
+              applyQuality(event.target)
               event.target.seekTo(start, true)
               event.target.playVideo()
             } catch {
@@ -192,6 +215,7 @@ function HeroVideoBackground({
           onStateChange: (event: any) => {
             // 0 = ENDED — restart clip (needed when end is set or start > 0)
             if (event.data === 0) restartClip(event.target)
+            if (event.data === 1) applyQuality(event.target)
           },
         },
       })
@@ -227,7 +251,7 @@ function HeroVideoBackground({
         playerRef.current = null
       }
     }
-  }, [videoId, reducedMotion, start, end])
+  }, [videoId, reducedMotion, start, end, ytQuality, preferredQuality])
 
   if (!videoId || reducedMotion) {
     return (
@@ -257,6 +281,7 @@ export function LandingHero({
   videoUrl,
   videoStartSeconds,
   videoEndSeconds,
+  videoQuality = 'high',
   rotatingWords,
   ctaLabel,
   requireIdentity = true,
@@ -268,6 +293,7 @@ export function LandingHero({
   videoUrl?: string | null
   videoStartSeconds?: number | null
   videoEndSeconds?: number | null
+  videoQuality?: 'auto' | 'high' | 'max'
   rotatingWords?: string[]
   ctaLabel?: string | null
   requireIdentity?: boolean
@@ -290,6 +316,7 @@ export function LandingHero({
         videoUrl={resolvedVideo}
         startSeconds={videoStartSeconds ?? 0}
         endSeconds={videoEndSeconds ?? null}
+        preferredQuality={videoQuality}
       />
 
       {/* Soft cinematic scrim — above video, below content */}

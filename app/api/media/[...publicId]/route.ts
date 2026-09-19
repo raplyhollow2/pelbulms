@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { isCloudinaryConfigured, signedUrl } from '@/lib/cloudinary'
+import { getPlatformSettings } from '@/lib/platform-settings'
 
 export const runtime = 'nodejs'
 // Never cache the proxy response at the edge; access is per-user authenticated.
@@ -45,7 +46,9 @@ export async function GET(
     return NextResponse.json({ error: 'Missing media id' }, { status: 400 })
   }
 
-  const upstreamUrl = signedUrl(id, { resourceType })
+  const videoQuality =
+    resourceType === 'video' ? (await getPlatformSettings()).video_quality : 'high'
+  const upstreamUrl = signedUrl(id, { resourceType, videoQuality })
 
   // Forward Range (for video seeking). Avoid forwarding browser Accept for images.
   const forwardHeaders: Record<string, string> = {}

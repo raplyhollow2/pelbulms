@@ -31,16 +31,46 @@ export function isCloudinaryConfigured(): boolean {
 
 export type MediaResourceType = 'image' | 'video'
 
+/** Platform preference for lesson / hero video delivery bitrate. */
+export type VideoQualityPreference = 'auto' | 'high' | 'max'
+
 /**
- * Default delivery transformations. These compress the asset heavily while
- * keeping it visually high quality (the same idea streaming platforms use):
- *   - video: q_auto lets Cloudinary pick the best codec/bitrate per request
- *   - image: f_auto + q_auto serves modern formats (AVIF/WebP) at auto quality
- * Cloudinary transcodes once and caches the derived asset on its CDN.
+ * Cloudinary transformations by quality preference.
+ *   - auto: smallest files (q_auto:eco)
+ *   - high: balanced HD default (q_auto:good)
+ *   - max: best visual quality (q_auto:best, prefer ≥720p)
  */
-function defaultTransformation(resourceType: MediaResourceType) {
+export function videoQualityTransformation(
+  quality: VideoQualityPreference = 'high'
+): Record<string, unknown>[] {
+  switch (quality) {
+    case 'auto':
+      return [{ quality: 'auto:eco', video_codec: 'auto' }]
+    case 'max':
+      return [
+        { quality: 'auto:best', video_codec: 'auto' },
+        { height: 1080, crop: 'limit' },
+      ]
+    case 'high':
+    default:
+      return [
+        { quality: 'auto:good', video_codec: 'auto' },
+        { height: 720, crop: 'limit' },
+      ]
+  }
+}
+
+/**
+ * Default delivery transformations.
+ *   - video: quality preference (defaults to high)
+ *   - image: f_auto + q_auto serves modern formats (AVIF/WebP)
+ */
+function defaultTransformation(
+  resourceType: MediaResourceType,
+  videoQuality: VideoQualityPreference = 'high'
+) {
   return resourceType === 'video'
-    ? [{ quality: 'auto', video_codec: 'auto' }]
+    ? videoQualityTransformation(videoQuality)
     : [{ fetch_format: 'auto', quality: 'auto' }]
 }
 
@@ -56,15 +86,17 @@ export function signedUrl(
   opts: {
     resourceType?: MediaResourceType
     transformation?: Record<string, unknown>[]
+    videoQuality?: VideoQualityPreference
   } = {}
 ): string {
-  const { resourceType = 'image', transformation } = opts
+  const { resourceType = 'image', transformation, videoQuality = 'high' } = opts
   return cloudinary.url(publicId, {
     resource_type: resourceType,
     type: 'authenticated',
     sign_url: true,
     secure: true,
-    transformation: transformation ?? defaultTransformation(resourceType),
+    transformation:
+      transformation ?? defaultTransformation(resourceType, videoQuality),
   })
 }
 

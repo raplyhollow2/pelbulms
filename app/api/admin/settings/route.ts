@@ -166,6 +166,16 @@ export async function PATCH(request: NextRequest) {
     updates[key] = n
   }
 
+  if (body.video_quality !== undefined) {
+    if (body.video_quality !== 'auto' && body.video_quality !== 'high' && body.video_quality !== 'max') {
+      return NextResponse.json(
+        { error: 'video_quality must be auto, high, or max' },
+        { status: 400 }
+      )
+    }
+    updates.video_quality = body.video_quality
+  }
+
   const nextStart =
     updates.hero_video_start_seconds !== undefined
       ? (updates.hero_video_start_seconds as number | null)

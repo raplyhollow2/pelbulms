@@ -442,84 +442,133 @@ export default function TeacherDashboard() {
       )}
 
       <Card className="glass-strong">
-        <CardHeader className="px-4 sm:px-6 space-y-4">
-          <div>
-            <CardTitle className="text-xl lg:text-2xl">
-              {isAdminView ? 'All course designs' : 'My Courses'}
-            </CardTitle>
-            <CardDescription>
-              Newest courses first by default. Use filters to change the view.
-            </CardDescription>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2">
-            <Input
-              placeholder="Search courses…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="xl:col-span-2"
-            />
-            <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All status</SelectItem>
-                <SelectItem value="published">Published</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All categories</SelectItem>
-                {categories.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={levelFilter} onValueChange={setLevelFilter}>
-              <SelectTrigger>
-                <SelectValue placeholder="Level" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All levels</SelectItem>
-                {levels.map((l) => (
-                  <SelectItem key={l} value={l}>
-                    {l}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={sortKey} onValueChange={(v: any) => setSortKey(v)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Sort" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="newest">Newest first</SelectItem>
-                <SelectItem value="oldest">Oldest first</SelectItem>
-                <SelectItem value="title">Title A–Z</SelectItem>
-                <SelectItem value="students">Most students</SelectItem>
-              </SelectContent>
-            </Select>
-            {isAdminView && (
-              <Select value={instructorFilter} onValueChange={setInstructorFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Instructor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All instructors</SelectItem>
-                  {instructors.map((i) => (
-                    <SelectItem key={i.id} value={i.id}>
-                      {i.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+        <CardHeader className="space-y-3 px-4 sm:px-6">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
+            <div className="min-w-0 shrink-0 lg:max-w-[200px]">
+              <CardTitle className="text-base sm:text-lg lg:text-xl">
+                {isAdminView ? 'All course designs' : 'My Courses'}
+              </CardTitle>
+              <CardDescription className="line-clamp-1 text-xs sm:text-sm">
+                Newest first by default — filter to change the view.
+              </CardDescription>
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col gap-2 lg:flex-row lg:items-center">
+              <Input
+                placeholder="Search courses…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-9 min-w-0 flex-1"
+                aria-label="Search courses"
+              />
+              <div
+                className={`grid gap-2 sm:flex sm:flex-wrap sm:items-center ${
+                  isAdminView ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-4'
+                }`}
+              >
+                <Select value={statusFilter} onValueChange={(v: any) => v && setStatusFilter(v)}>
+                  <SelectTrigger size="sm" className="h-9 w-full gap-1 sm:w-[130px]" aria-label="Status">
+                    <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
+                      <span className="shrink-0 text-muted-foreground">Status</span>
+                      <span className="truncate font-medium capitalize">
+                        {statusFilter === 'all' ? 'All' : statusFilter}
+                      </span>
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All status</SelectItem>
+                    <SelectItem value="published">Published</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={categoryFilter} onValueChange={(v) => v && setCategoryFilter(v)}>
+                  <SelectTrigger size="sm" className="h-9 w-full gap-1 sm:w-[140px]" aria-label="Category">
+                    <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
+                      <span className="shrink-0 text-muted-foreground">Category</span>
+                      <span className="truncate font-medium">
+                        {categoryFilter === 'all' ? 'All' : categoryFilter}
+                      </span>
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All categories</SelectItem>
+                    {categories.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={levelFilter} onValueChange={(v) => v && setLevelFilter(v)}>
+                  <SelectTrigger size="sm" className="h-9 w-full gap-1 sm:w-[120px]" aria-label="Level">
+                    <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
+                      <span className="shrink-0 text-muted-foreground">Level</span>
+                      <span className="truncate font-medium capitalize">
+                        {levelFilter === 'all' ? 'All' : levelFilter}
+                      </span>
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All levels</SelectItem>
+                    {levels.map((l) => (
+                      <SelectItem key={l} value={l}>
+                        {l}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={sortKey} onValueChange={(v: any) => v && setSortKey(v)}>
+                  <SelectTrigger size="sm" className="h-9 w-full gap-1 sm:w-[130px]" aria-label="Sort">
+                    <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
+                      <span className="shrink-0 text-muted-foreground">Sort</span>
+                      <span className="truncate font-medium">
+                        {sortKey === 'newest'
+                          ? 'Newest'
+                          : sortKey === 'oldest'
+                            ? 'Oldest'
+                            : sortKey === 'title'
+                              ? 'Title'
+                              : 'Students'}
+                      </span>
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">Newest first</SelectItem>
+                    <SelectItem value="oldest">Oldest first</SelectItem>
+                    <SelectItem value="title">Title A–Z</SelectItem>
+                    <SelectItem value="students">Most students</SelectItem>
+                  </SelectContent>
+                </Select>
+                {isAdminView && (
+                  <Select
+                    value={instructorFilter}
+                    onValueChange={(v) => v && setInstructorFilter(v)}
+                  >
+                    <SelectTrigger
+                      size="sm"
+                      className="h-9 w-full gap-1 sm:w-[150px]"
+                      aria-label="Instructor"
+                    >
+                      <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
+                        <span className="shrink-0 text-muted-foreground">Instructor</span>
+                        <span className="truncate font-medium">
+                          {instructorFilter === 'all'
+                            ? 'All'
+                            : instructors.find((i) => i.id === instructorFilter)?.name || 'All'}
+                        </span>
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All instructors</SelectItem>
+                      {instructors.map((i) => (
+                        <SelectItem key={i.id} value={i.id}>
+                          {i.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-3 lg:space-y-4 px-4 sm:px-6">

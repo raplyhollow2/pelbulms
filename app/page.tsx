@@ -259,6 +259,7 @@ export default async function Home() {
           videoUrl={settings.hero_video_url}
           videoStartSeconds={settings.hero_video_start_seconds}
           videoEndSeconds={settings.hero_video_end_seconds}
+          videoQuality={settings.video_quality}
           rotatingWords={settings.hero_rotating_words}
           ctaLabel={settings.hero_cta_primary_label}
           requireIdentity={requireIdentity}

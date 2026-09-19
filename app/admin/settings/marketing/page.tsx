@@ -10,7 +10,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
-import type { PlatformSettings } from '@/lib/platform-settings'
+import type { PlatformSettings, VideoQualityPreference } from '@/lib/platform-settings'
+import { VIDEO_QUALITY_OPTIONS } from '@/lib/platform-settings'
 import {
   DEFAULT_HERO_CTA_PRIMARY,
   DEFAULT_HERO_ROTATING_WORDS,
@@ -28,6 +29,13 @@ import {
   type LandingStep,
 } from '@/lib/landing-content'
 import { getYoutubeId } from '@/lib/video-url'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 type CourseOpt = { id: string; title: string; is_published: boolean }
 
@@ -39,6 +47,7 @@ type FormState = {
   hero_video_start_seconds: string
   /** Empty string = play to end of video */
   hero_video_end_seconds: string
+  video_quality: VideoQualityPreference
   hero_rotating_words: string
   hero_cta_primary_label: string
   landing_stats: LandingStat[]
@@ -71,6 +80,7 @@ function settingsToForm(s: PlatformSettings): FormState {
     hero_video_url: s.hero_video_url || DEFAULT_HERO_VIDEO_URL,
     hero_video_start_seconds: secondsToInput(s.hero_video_start_seconds),
     hero_video_end_seconds: secondsToInput(s.hero_video_end_seconds),
+    video_quality: s.video_quality || 'high',
     hero_rotating_words: (s.hero_rotating_words?.length
       ? s.hero_rotating_words
       : DEFAULT_HERO_ROTATING_WORDS
@@ -106,6 +116,7 @@ export default function AdminMarketingSettingsPage() {
       hero_video_url: DEFAULT_HERO_VIDEO_URL,
       hero_video_start_seconds: null,
       hero_video_end_seconds: null,
+      video_quality: 'high',
       hero_rotating_words: [...DEFAULT_HERO_ROTATING_WORDS],
       hero_cta_primary_label: DEFAULT_HERO_CTA_PRIMARY,
       landing_stats: [...DEFAULT_LANDING_STATS],
@@ -168,6 +179,7 @@ export default function AdminMarketingSettingsPage() {
           hero_video_url: form.hero_video_url || null,
           hero_video_start_seconds: startSec,
           hero_video_end_seconds: endSec,
+          video_quality: form.video_quality,
           hero_rotating_words: form.hero_rotating_words,
           hero_cta_primary_label: form.hero_cta_primary_label || null,
           landing_stats: form.landing_stats,
@@ -286,6 +298,35 @@ export default function AdminMarketingSettingsPage() {
         <p className="text-[11px] text-muted-foreground">
           Trim the background loop. Leave blank to use the full video. End must be greater than start.
         </p>
+        <div className="space-y-1.5">
+          <Label htmlFor="video_quality">Video quality</Label>
+          <Select
+            value={form.video_quality}
+            onValueChange={(v) =>
+              v &&
+              setForm((f) => ({
+                ...f,
+                video_quality: v as VideoQualityPreference,
+              }))
+            }
+          >
+            <SelectTrigger id="video_quality" className="w-full sm:max-w-md">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {VIDEO_QUALITY_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] text-muted-foreground">
+            {VIDEO_QUALITY_OPTIONS.find((o) => o.value === form.video_quality)?.hint}{' '}
+            Applies to lesson playback (Cloudinary) and prefers higher quality for the hero
+            background.
+          </p>
+        </div>
         <div className="space-y-1.5">
           <Label htmlFor="landing_headline">Headline</Label>
           <Input

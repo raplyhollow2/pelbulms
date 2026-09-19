@@ -14,7 +14,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from '@/components/ui/select'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
@@ -28,6 +27,7 @@ import {
   matchesInstitutionFilter,
   type InstitutionSummary,
 } from '@/lib/course-institution-access'
+import { AppHeaderPortal } from '@/components/layout/app-header-slot'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -415,27 +415,156 @@ export default function CoursesPage() {
   const showInstitutionFilter =
     institutions.length > 0 || !!(currentUser as any)?.institution_id
 
+  const categoryDisplay =
+    selectedCategory === 'All' ? 'All' : selectedCategory
+  const levelDisplay = selectedLevel === 'All' ? 'All' : selectedLevel
+  const institutionDisplay =
+    selectedInstitution === 'All'
+      ? 'All'
+      : selectedInstitution === 'mine'
+        ? 'Mine'
+        : institutionLabel(institutions.find((i) => i.id === selectedInstitution)) ||
+          'Institution'
+
+  const toolbar = (
+    <div className="flex w-full min-w-0 flex-col gap-2 lg:flex-row lg:items-center lg:gap-3">
+      <div className="min-w-0 shrink-0 lg:max-w-[200px] xl:max-w-[240px]">
+        <h1 className="truncate text-base font-semibold tracking-tight sm:text-lg">
+          Course catalog
+        </h1>
+        <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground sm:text-xs">
+          Discover courses across Bhutan. Request enrollment — the course creator approves access.
+        </p>
+      </div>
+
+      <div className="flex min-w-0 flex-1 flex-col gap-2 lg:flex-row lg:items-center lg:gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className="relative min-w-0 flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Search courses…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="h-9 pl-9 glass-strong"
+              aria-label="Search courses"
+            />
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 shrink-0 gap-1.5 rounded-full px-2.5 sm:px-3"
+            onClick={() => window.dispatchEvent(new Event('pelbu:open-search'))}
+            aria-label="Quick search"
+          >
+            <Command className="h-3.5 w-3.5" />
+            <kbd className="hidden rounded bg-muted px-1.5 py-0.5 text-[10px] sm:inline">⌘K</kbd>
+          </Button>
+        </div>
+
+        <div
+          className={`grid shrink-0 gap-2 sm:flex sm:flex-wrap sm:items-center ${
+            showInstitutionFilter ? 'grid-cols-3' : 'grid-cols-2'
+          }`}
+        >
+          <Select
+            value={selectedCategory}
+            onValueChange={(v) => v && setSelectedCategory(v)}
+          >
+            <SelectTrigger
+              size="sm"
+              className="h-9 w-full min-w-0 gap-1 sm:w-[148px] lg:w-[158px]"
+              aria-label="Category filter"
+            >
+              <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
+                <span className="shrink-0 text-muted-foreground">Category</span>
+                <span className="truncate font-medium">{categoryDisplay}</span>
+              </span>
+            </SelectTrigger>
+            <SelectContent align="start">
+              {categories.map((category: string) => (
+                <SelectItem key={category} value={category}>
+                  {category === 'All' ? 'All categories' : category}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={selectedLevel}
+            onValueChange={(v) => v && setSelectedLevel(v)}
+          >
+            <SelectTrigger
+              size="sm"
+              className="h-9 w-full min-w-0 gap-1 sm:w-[128px] lg:w-[136px]"
+              aria-label="Level filter"
+            >
+              <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
+                <span className="shrink-0 text-muted-foreground">Level</span>
+                <span className="truncate font-medium capitalize">{levelDisplay}</span>
+              </span>
+            </SelectTrigger>
+            <SelectContent align="start">
+              {levels.map((level: string) => (
+                <SelectItem key={level} value={level}>
+                  {level === 'All' ? 'All levels' : level}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {showInstitutionFilter && (
+            <Select
+              value={selectedInstitution}
+              onValueChange={(v) => v && setInstitutionFilter(v)}
+            >
+              <SelectTrigger
+                size="sm"
+                className="h-9 w-full min-w-0 gap-1 sm:w-[158px] lg:w-[168px]"
+                aria-label="Institution filter"
+              >
+                <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
+                  <span className="shrink-0 text-muted-foreground">Institution</span>
+                  <span className="truncate font-medium">{institutionDisplay}</span>
+                </span>
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectItem value="All">All institutions</SelectItem>
+                {(currentUser as any)?.institution_id && (
+                  <SelectItem value="mine">My institution</SelectItem>
+                )}
+                {institutions.map((inst) => (
+                  <SelectItem key={inst.id} value={inst.id}>
+                    {institutionLabel(inst)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+
   if (loading) {
     return (
-      <div className="container mx-auto max-w-7xl px-4 py-3 sm:px-5 sm:py-4 md:px-6 lg:px-8">
-        <div className="space-y-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <div className="shrink-0 space-y-1.5 lg:w-[220px]">
+      <div className="container mx-auto max-w-7xl px-4 py-3 sm:px-5 sm:py-4 md:px-6 md:pt-3 lg:px-8">
+        <div className="space-y-4 md:hidden">
+          <div className="flex flex-col gap-3">
+            <div className="shrink-0 space-y-1.5">
               <Skeleton className="h-7 w-40" />
               <Skeleton className="h-4 w-52" />
             </div>
-            <div className="flex min-w-0 flex-1 flex-col gap-2 lg:flex-row lg:items-center">
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <Skeleton className="h-9 flex-1" />
-                <Skeleton className="h-9 w-9 shrink-0 rounded-full" />
-              </div>
-              <div className="grid grid-cols-3 gap-2 sm:flex">
-                <Skeleton className="h-9 w-full sm:w-32" />
-                <Skeleton className="h-9 w-full sm:w-28" />
-                <Skeleton className="h-9 w-full sm:w-36" />
-              </div>
+            <Skeleton className="h-9 w-full" />
+            <div className="grid grid-cols-3 gap-2">
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-full" />
             </div>
           </div>
+        </div>
+        <div className="mt-3 space-y-4 md:mt-0">
           <Skeleton className="h-4 w-36" />
           <CourseGridSkeleton count={6} />
         </div>
@@ -444,189 +573,82 @@ export default function CoursesPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-7xl px-4 py-3 sm:px-5 sm:py-4 md:px-6 lg:px-8 lg:pb-6">
-      <div className="space-y-4">
-        {/* Compact catalog toolbar — title, search, dropdowns, quick search */}
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
-          <div className="min-w-0 shrink-0 lg:max-w-[220px] xl:max-w-[260px]">
-            <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Course catalog</h1>
-            <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground sm:text-sm">
-              Discover courses across Bhutan. Request enrollment — the course creator approves access.
-            </p>
+    <>
+      <AppHeaderPortal>{toolbar}</AppHeaderPortal>
+
+      <div className="container mx-auto max-w-7xl px-4 pb-6 pt-3 sm:px-5 md:px-6 md:pt-3 lg:px-8">
+        {/* Phones: toolbar lives in-page (header portal is desktop-only) */}
+        <div className="mb-3 md:hidden">{toolbar}</div>
+
+        <div className="space-y-4">
+          <p className="text-xs text-muted-foreground sm:text-sm">
+            Showing {filteredCourses.length} of {courses.length} courses
+          </p>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+            {filteredCourses.map((course) => {
+              const isEnrolled = enrolledCourseIds.has(course.id)
+              const enrollmentPending = pendingCourseIds.has(course.id)
+              const progress = (course as any).progress || 0
+
+              return (
+                <CourseCard
+                  key={course.id}
+                  course={course}
+                  isEnrolled={isEnrolled}
+                  enrollmentPending={enrollmentPending}
+                  requesting={requestingCourseId === course.id}
+                  onRequestEnrollment={handleEnroll}
+                  progress={progress}
+                />
+              )
+            })}
           </div>
 
-          <div className="flex min-w-0 flex-1 flex-col gap-2 lg:flex-row lg:items-center lg:gap-2">
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              <div className="relative min-w-0 flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  type="search"
-                  placeholder="Search courses…"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-9 pl-9 glass-strong"
-                  aria-label="Search courses"
-                />
-              </div>
+          {filteredCourses.length === 0 && (
+            <div className="text-center py-12">
+              <BookOpen className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold mb-2">
+                {selectedInstitution !== 'All' &&
+                !searchTerm &&
+                selectedCategory === 'All' &&
+                selectedLevel === 'All'
+                  ? 'No courses for this institution yet'
+                  : 'No courses found'}
+              </h3>
+              <p className="text-muted-foreground mb-4">
+                {selectedInstitution !== 'All' &&
+                !searchTerm &&
+                selectedCategory === 'All' &&
+                selectedLevel === 'All'
+                  ? 'Try All institutions, or check back when more courses are published for your organization.'
+                  : "Try adjusting your search or filters to find what you're looking for."}
+              </p>
               <Button
-                type="button"
                 variant="outline"
-                size="sm"
-                className="h-9 shrink-0 gap-1.5 rounded-full px-2.5 sm:px-3"
-                onClick={() => window.dispatchEvent(new Event('pelbu:open-search'))}
-                aria-label="Quick search"
+                onClick={() => {
+                  setSearchTerm('')
+                  setSelectedCategory('All')
+                  setSelectedLevel('All')
+                  setInstitutionFilter('All')
+                }}
               >
-                <Command className="h-3.5 w-3.5" />
-                <span className="hidden xl:inline">Quick search</span>
-                <kbd className="ml-0.5 hidden rounded bg-muted px-1.5 py-0.5 text-[10px] xl:inline">
-                  ⌘K
-                </kbd>
+                Clear Filters
               </Button>
             </div>
+          )}
 
-            <div
-              className={`grid shrink-0 gap-2 sm:flex sm:flex-wrap sm:items-center ${
-                showInstitutionFilter ? 'grid-cols-3' : 'grid-cols-2'
-              }`}
-            >
-              <Select
-                value={selectedCategory}
-                onValueChange={(v) => v && setSelectedCategory(v)}
-              >
-                <SelectTrigger
-                  size="sm"
-                  className="h-9 w-full min-w-0 sm:w-[140px] lg:w-[148px]"
-                  aria-label="Category"
-                >
-                  <SelectValue placeholder="Category" />
-                </SelectTrigger>
-                <SelectContent align="start">
-                  {categories.map((category: string) => (
-                    <SelectItem key={category} value={category}>
-                      {category === 'All' ? 'All categories' : category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <Select
-                value={selectedLevel}
-                onValueChange={(v) => v && setSelectedLevel(v)}
-              >
-                <SelectTrigger
-                  size="sm"
-                  className="h-9 w-full min-w-0 sm:w-[120px] lg:w-[128px]"
-                  aria-label="Level"
-                >
-                  <SelectValue placeholder="Level" />
-                </SelectTrigger>
-                <SelectContent align="start">
-                  {levels.map((level: string) => (
-                    <SelectItem key={level} value={level}>
-                      {level === 'All' ? 'All levels' : level}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {showInstitutionFilter && (
-                <Select
-                  value={selectedInstitution}
-                  onValueChange={(v) => v && setInstitutionFilter(v)}
-                >
-                  <SelectTrigger
-                    size="sm"
-                    className="h-9 w-full min-w-0 sm:w-[150px] lg:w-[158px]"
-                    aria-label="Institution"
-                  >
-                    <SelectValue placeholder="Institution" />
-                  </SelectTrigger>
-                  <SelectContent align="start">
-                    <SelectItem value="All">All institutions</SelectItem>
-                    {(currentUser as any)?.institution_id && (
-                      <SelectItem value="mine">My institution</SelectItem>
-                    )}
-                    {institutions.map((inst) => (
-                      <SelectItem key={inst.id} value={inst.id}>
-                        {institutionLabel(inst)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <p className="text-xs text-muted-foreground sm:text-sm">
-          Showing {filteredCourses.length} of {courses.length} courses
-        </p>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredCourses.map((course) => {
-            const isEnrolled = enrolledCourseIds.has(course.id)
-            const enrollmentPending = pendingCourseIds.has(course.id)
-            const progress = (course as any).progress || 0
-
-            return (
-              <CourseCard
-                key={course.id}
-                course={course}
-                isEnrolled={isEnrolled}
-                enrollmentPending={enrollmentPending}
-                requesting={requestingCourseId === course.id}
-                onRequestEnrollment={handleEnroll}
-                progress={progress}
+          {!loading && instructors.length > 0 && (
+            <div className="mt-12 pt-8 border-t border-border/50">
+              <InstructorShowcase
+                instructors={instructors}
+                layout="grid"
+                maxShow={6}
               />
-            )
-          })}
+            </div>
+          )}
         </div>
-
-        {/* Empty State */}
-        {filteredCourses.length === 0 && (
-          <div className="text-center py-12">
-            <BookOpen className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-            <h3 className="text-lg font-semibold mb-2">
-              {selectedInstitution !== 'All' &&
-              !searchTerm &&
-              selectedCategory === 'All' &&
-              selectedLevel === 'All'
-                ? 'No courses for this institution yet'
-                : 'No courses found'}
-            </h3>
-            <p className="text-muted-foreground mb-4">
-              {selectedInstitution !== 'All' &&
-              !searchTerm &&
-              selectedCategory === 'All' &&
-              selectedLevel === 'All'
-                ? 'Try All institutions, or check back when more courses are published for your organization.'
-                : "Try adjusting your search or filters to find what you're looking for."}
-            </p>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSearchTerm('')
-                setSelectedCategory('All')
-                setSelectedLevel('All')
-                setInstitutionFilter('All')
-              }}
-            >
-              Clear Filters
-            </Button>
-          </div>
-        )}
-
-        {/* Instructor Showcase */}
-        {!loading && instructors.length > 0 && (
-          <div className="mt-12 pt-8 border-t border-border/50">
-            <InstructorShowcase
-              instructors={instructors}
-              layout="grid"
-              maxShow={6}
-            />
-          </div>
-        )}
       </div>
-    </div>
+    </>
   )
 }

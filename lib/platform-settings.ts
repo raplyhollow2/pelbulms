@@ -17,6 +17,23 @@ import {
   type LandingStep,
 } from '@/lib/landing-content'
 
+export type VideoQualityPreference = 'auto' | 'high' | 'max'
+
+export const VIDEO_QUALITY_OPTIONS: {
+  value: VideoQualityPreference
+  label: string
+  hint: string
+}[] = [
+  { value: 'auto', label: 'Auto (save data)', hint: 'Smaller files; Cloudinary picks eco bitrate.' },
+  { value: 'high', label: 'High (recommended)', hint: 'HD up to 720p with good visual quality.' },
+  { value: 'max', label: 'Maximum', hint: 'Best quality up to 1080p; uses more bandwidth.' },
+]
+
+export function parseVideoQuality(value: unknown): VideoQualityPreference {
+  if (value === 'auto' || value === 'high' || value === 'max') return value
+  return 'high'
+}
+
 export type PlatformSettings = {
   id: string
   site_name: string
@@ -38,6 +55,11 @@ export type PlatformSettings = {
   hero_video_start_seconds: number | null
   /** Seconds where the hero loop ends and restarts; null = full video */
   hero_video_end_seconds: number | null
+  /**
+   * Lesson + marketing video delivery preference.
+   * auto = smaller files · high = HD default · max = best bitrate
+   */
+  video_quality: VideoQualityPreference
   hero_rotating_words: string[]
   hero_cta_primary_label: string | null
   landing_stats: LandingStat[]
@@ -77,6 +99,7 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   hero_video_url: DEFAULT_HERO_VIDEO_URL,
   hero_video_start_seconds: null,
   hero_video_end_seconds: null,
+  video_quality: 'high',
   hero_rotating_words: [...DEFAULT_HERO_ROTATING_WORDS],
   hero_cta_primary_label: DEFAULT_HERO_CTA_PRIMARY,
   landing_stats: [...DEFAULT_LANDING_STATS],
@@ -128,6 +151,7 @@ export function parsePlatformSettings(row: Record<string, unknown> | null | unde
     hero_video_url: heroUrl,
     hero_video_start_seconds: clip.start,
     hero_video_end_seconds: clip.end,
+    video_quality: parseVideoQuality(row.video_quality),
     hero_rotating_words: parseHeroRotatingWords(row.hero_rotating_words),
     hero_cta_primary_label: cta,
     landing_stats: parseLandingStats(row.landing_stats),
@@ -178,6 +202,7 @@ export function toPublicSite(settings: PlatformSettings) {
     hero_video_url: settings.hero_video_url,
     hero_video_start_seconds: settings.hero_video_start_seconds,
     hero_video_end_seconds: settings.hero_video_end_seconds,
+    video_quality: settings.video_quality,
     hero_rotating_words: settings.hero_rotating_words,
     hero_cta_primary_label: settings.hero_cta_primary_label,
     landing_stats: settings.landing_stats,

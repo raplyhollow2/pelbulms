@@ -24,7 +24,12 @@ import type { Database } from '@/types/database.types'
 import { DashboardCourseCard } from '@/components/dashboard/course-card'
 import { resolveMediaUrl } from '@/lib/media'
 import { resumeLearnPath } from '@/lib/resume-path'
-import { cn } from '@/lib/utils'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from '@/components/ui/select'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 
@@ -313,42 +318,51 @@ export default function DashboardPage() {
 
           {/* Course library — searchable + paginated */}
           <section className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold tracking-tight sm:text-base">My courses</h2>
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {filtered.length} of {enrollments.length}
-              </span>
-            </div>
-
             {enrollments.length > 0 ? (
               <>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                  <div className="flex min-w-0 shrink-0 items-baseline gap-2 sm:max-w-[140px]">
+                    <h2 className="text-sm font-semibold tracking-tight sm:text-base">My courses</h2>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {filtered.length}/{enrollments.length}
+                    </span>
+                  </div>
+                  <div className="relative min-w-0 flex-1">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                       placeholder="Search your courses…"
-                      className="h-10 pl-9"
+                      className="h-9 pl-9"
+                      aria-label="Search your courses"
                     />
                   </div>
-                  <div className="flex gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
-                    {filters.map((f) => (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => setStatusFilter(f.id)}
-                        className={cn(
-                          'shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
-                          statusFilter === f.id
-                            ? 'border-transparent bg-gradient-to-r from-bhutan-yellow to-bhutan-orange text-black'
-                            : 'border-border/60 bg-background/60 text-muted-foreground'
-                        )}
-                      >
-                        {f.label}
-                      </button>
-                    ))}
-                  </div>
+                  <Select
+                    value={statusFilter}
+                    onValueChange={(v) =>
+                      v && setStatusFilter(v as typeof statusFilter)
+                    }
+                  >
+                    <SelectTrigger
+                      size="sm"
+                      className="h-9 w-full gap-1 sm:w-[160px]"
+                      aria-label="Status filter"
+                    >
+                      <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
+                        <span className="shrink-0 text-muted-foreground">Status</span>
+                        <span className="truncate font-medium">
+                          {filters.find((f) => f.id === statusFilter)?.label || 'All'}
+                        </span>
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent align="end">
+                      {filters.map((f) => (
+                        <SelectItem key={f.id} value={f.id}>
+                          {f.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
