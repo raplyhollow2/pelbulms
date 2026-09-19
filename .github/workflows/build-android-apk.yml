@@ -200,11 +200,13 @@ jobs:
           # Move floating android-latest pointer for older clients / docs
           if gh release view android-latest >/dev/null 2>&1; then
             gh release delete android-latest --yes || true
-            git push origin :refs/tags/android-latest || true
           fi
+          git push origin :refs/tags/android-latest || true
+          git tag -d android-latest || true
           gh release create android-latest \
             --title "Android ${NAME} (latest)" \
             --notes "Floating pointer to **${NAME}** (versionCode ${CODE}). Prefer tag \`${TAG}\` for permanent links." \
+            --target "${GITHUB_SHA}" \
             --latest=false \
             "${{ steps.apk.outputs.path }}" \
             "${{ steps.apk.outputs.alias }}"
