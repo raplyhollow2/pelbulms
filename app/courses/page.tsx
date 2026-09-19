@@ -450,7 +450,7 @@ export default function CoursesPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 pb-4 lg:pb-8">
+    <div className="container mx-auto max-w-7xl px-4 py-5 sm:px-5 sm:py-7 md:px-6 md:py-8 lg:px-8 lg:pb-8">
       <div className="space-y-6 sm:space-y-8">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -462,7 +462,7 @@ export default function CoursesPage() {
           </div>
           <Button
             variant="outline"
-            className="gap-2 rounded-full"
+            className="w-full gap-2 rounded-full sm:w-auto"
             onClick={() => window.dispatchEvent(new Event('pelbu:open-search'))}
           >
             <Command className="h-4 w-4" />
@@ -491,7 +491,7 @@ export default function CoursesPage() {
             <Sheet>
               <SheetTrigger
                 render={
-                  <Button variant="outline" size="icon" className="lg:hidden h-12 w-12 shrink-0" />
+                  <Button variant="outline" size="icon" className="md:hidden h-12 w-12 shrink-0" />
                 }
               >
                 <Filter className="w-5 h-5" />
@@ -559,8 +559,8 @@ export default function CoursesPage() {
             </Sheet>
           </div>
 
-          {/* Mobile / tablet one-tap category chips */}
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 py-1 scrollbar-hide lg:hidden">
+          {/* Phone one-tap category chips */}
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 py-1 scrollbar-hide md:hidden">
             {categories.map((category: any) => (
               <button
                 key={category}
@@ -576,8 +576,8 @@ export default function CoursesPage() {
             ))}
           </div>
 
-          {/* Desktop Filters */}
-          <div className="hidden lg:flex flex-wrap gap-3">
+          {/* Tablet + desktop filters */}
+          <div className="hidden md:flex flex-wrap gap-3">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium">Category:</span>
@@ -595,7 +595,7 @@ export default function CoursesPage() {
             ))}
           </div>
 
-          <div className="hidden lg:flex flex-wrap gap-3">
+          <div className="hidden md:flex flex-wrap gap-3">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-muted-foreground" />
               <span className="text-sm font-medium">Level:</span>
@@ -614,7 +614,7 @@ export default function CoursesPage() {
           </div>
 
           {(institutions.length > 0 || (currentUser as any)?.institution_id) && (
-            <div className="hidden lg:flex flex-wrap gap-3">
+            <div className="hidden md:flex flex-wrap gap-3">
               <div className="flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm font-medium">Institution:</span>

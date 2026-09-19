@@ -166,7 +166,7 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
     try {
       const supabase = createClient()
       await supabase.auth.signOut()
-      window.location.href = '/auth/login'
+      window.location.href = '/'
     } catch (error) {
       console.error('Error logging out:', error)
     }
@@ -178,10 +178,10 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
   return (
     <>
       <nav
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 sm:px-4"
         aria-label="Mobile navigation"
       >
-        <div className="pointer-events-auto mx-auto flex max-w-md items-stretch justify-around gap-1 rounded-2xl border border-border/50 bg-background/80 p-1.5 shadow-floating backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
+        <div className="pointer-events-auto mx-auto flex w-full max-w-lg items-stretch justify-around gap-0.5 rounded-2xl border border-border/50 bg-background/80 p-1.5 shadow-floating backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 sm:gap-1">
           {mainNavigation.map((item) => {
             const active = isActive(item.href)
             return (
@@ -254,11 +254,11 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
 
       {menuOpen && (
         <div
-          className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm animate-in fade-in duration-200 lg:hidden"
+          className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm animate-in fade-in duration-200 md:hidden"
           onClick={() => setMenuOpen(false)}
         >
           <div
-            className="absolute bottom-0 inset-x-0 max-h-[85dvh] overflow-y-auto rounded-t-3xl border-t border-border/40 bg-background p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-overlay animate-in slide-in-from-bottom-8 duration-300"
+            className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-3xl border-t border-border/40 bg-background p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-overlay animate-in slide-in-from-bottom-8 duration-300 sm:mx-auto sm:max-w-lg sm:rounded-t-3xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted" />

@@ -298,14 +298,14 @@ export function LandingHero({
         className="pointer-events-none absolute inset-0 z-[1] bg-[linear-gradient(180deg,rgba(10,10,10,0.75)_0%,rgba(10,10,10,0.5)_42%,rgba(10,10,10,0.82)_100%),radial-gradient(60rem_36rem_at_80%_-10%,rgba(255,199,44,0.2),transparent_60%),radial-gradient(50rem_32rem_at_-5%_80%,rgba(255,107,53,0.18),transparent_55%)]"
       />
 
-      <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-5">
-        <Link href="/" className="flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-bhutan-yellow to-bhutan-orange shadow-brand">
+      <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-5 sm:py-5">
+        <Link href="/" className="flex min-w-0 items-center gap-2.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-bhutan-yellow to-bhutan-orange shadow-brand">
             <BookGlyph className="h-5 w-5 text-white" />
           </span>
-          <span className="text-lg font-semibold tracking-tight text-white">{siteName}</span>
+          <span className="truncate text-base font-semibold tracking-tight text-white sm:text-lg">{siteName}</span>
         </Link>
-        <nav className="flex items-center gap-1.5">
+        <nav className="flex shrink-0 items-center gap-1.5">
           <Button
             variant="ghost"
             size="sm"
@@ -318,7 +318,7 @@ export function LandingHero({
         </nav>
       </header>
 
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-5 pb-20 pt-10 md:pb-28 md:pt-16">
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-4 pb-16 pt-8 sm:px-5 sm:pb-20 sm:pt-10 md:pb-28 md:pt-16">
         <div className="max-w-2xl">
           {(tagline || requireIdentity) && (
             <p className="reveal reveal-1 text-sm font-medium tracking-wide text-white/70">
@@ -329,7 +329,7 @@ export function LandingHero({
             </p>
           )}
 
-          <h1 className="reveal reveal-2 mt-4 text-4xl font-semibold leading-[1.05] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
+          <h1 className="reveal reveal-2 mt-4 text-[2.125rem] font-semibold leading-[1.08] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
             {headline ? (
               headline
             ) : (
@@ -346,7 +346,7 @@ export function LandingHero({
           </h1>
 
           {headline && words.length > 0 ? (
-            <p className="reveal reveal-2 mt-3 text-2xl font-medium tracking-tight text-bhutan-yellow sm:text-3xl">
+            <p className="reveal reveal-2 mt-3 text-xl font-medium tracking-tight text-bhutan-yellow sm:text-2xl md:text-3xl">
               <span>{typed || '\u00A0'}</span>
               <span className="caret-blink ml-0.5 inline-block h-[0.85em] w-[3px] translate-y-[2px] rounded-full bg-bhutan-orange align-middle" />
             </p>
@@ -359,7 +359,7 @@ export function LandingHero({
           <div className="reveal reveal-4 mt-8">
             <Button
               size="lg"
-              className="group h-12 gap-2 rounded-full bg-gradient-to-r from-bhutan-yellow to-bhutan-orange px-7 text-sm font-semibold text-black shadow-brand hover:opacity-95"
+              className="group h-12 w-full gap-2 rounded-full bg-gradient-to-r from-bhutan-yellow to-bhutan-orange px-7 text-sm font-semibold text-black shadow-brand hover:opacity-95 sm:w-auto"
               render={<Link href="/auth/login" />}
             >
               {primaryCta}
@@ -388,11 +388,11 @@ export function LandingStatsStrip({
             {eyebrow}
           </p>
         ) : null}
-        <dl className="grid grid-cols-3 gap-6 md:gap-10">
+        <dl className="grid grid-cols-1 gap-6 sm:grid-cols-3 sm:gap-8 md:gap-10">
           {stats.map((s) => (
-            <div key={s.label}>
-              <dt className="text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">{s.value}</dt>
-              <dd className="mt-1 text-xs text-muted-foreground sm:text-sm">{s.label}</dd>
+            <div key={s.label} className="text-center sm:text-left">
+              <dt className="text-3xl font-semibold tracking-tight md:text-4xl">{s.value}</dt>
+              <dd className="mt-1 text-sm text-muted-foreground">{s.label}</dd>
             </div>
           ))}
         </dl>

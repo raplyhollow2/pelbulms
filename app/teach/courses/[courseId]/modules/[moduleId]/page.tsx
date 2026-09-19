@@ -427,7 +427,7 @@ export default function ModuleLessonsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6 max-w-5xl pb-28 lg:pb-6">
+    <div className="container mx-auto px-4 py-4 sm:px-6 sm:py-6 max-w-5xl pb-8 md:pb-6">
       <div className="space-y-4">
         {/* Sticky header with always-visible Save */}
         <div className="sticky top-0 z-30 -mx-4 border-b border-border/40 bg-background/85 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6">
@@ -599,7 +599,8 @@ export default function ModuleLessonsPage() {
                   <div>
                     <p className="text-sm font-medium">Progression lock (optional)</p>
                     <p className="text-xs text-muted-foreground">
-                      Off by default for all lessons. Enable only if you want gated progress in this module.
+                      Off by default. Sequential unlock applies to every lesson in this module
+                      (lesson-level toggles do not override it).
                     </p>
                   </div>
                   {(() => {

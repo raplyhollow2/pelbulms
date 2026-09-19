@@ -295,7 +295,7 @@ export default function CourseDetailPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 pb-28 lg:pb-8">
+    <div className="container mx-auto max-w-6xl px-4 py-5 sm:px-5 sm:py-7 md:px-6 md:py-8 lg:px-8 pb-8">
       <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-8">
         {/* Back Button */}

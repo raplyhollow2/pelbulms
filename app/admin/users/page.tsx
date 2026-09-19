@@ -552,7 +552,7 @@ export default function AdminUsersPage() {
   ).length
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-5 sm:px-6 sm:py-8 pb-[calc(8rem+env(safe-area-inset-bottom))] lg:pb-10">
+    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-5 sm:px-6 sm:py-8 md:pb-10">
       {/* Page header */}
       <header className="flex flex-col gap-4 border-b border-border/50 pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0 space-y-1">
@@ -783,7 +783,7 @@ export default function AdminUsersPage() {
             {/* Directory */}
             <section className="overflow-hidden rounded-xl border border-border/60 bg-card">
               {/* Desktop column headers */}
-              <div className="hidden border-b border-border/50 bg-muted/30 px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground lg:grid lg:grid-cols-[minmax(0,1.6fr)_9rem_minmax(11rem,auto)] lg:gap-4 lg:px-5">
+              <div className="hidden border-b border-border/50 bg-muted/30 px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground md:grid md:grid-cols-[minmax(0,1.6fr)_9rem_minmax(11rem,auto)] md:gap-4 md:px-5">
                 <span>User</span>
                 <span>Role</span>
                 <span className="text-right">Actions</span>
@@ -796,7 +796,7 @@ export default function AdminUsersPage() {
                   return (
                     <li
                       key={user.id}
-                      className="px-4 py-3.5 transition-colors hover:bg-muted/25 sm:px-5 lg:grid lg:grid-cols-[minmax(0,1.6fr)_9rem_minmax(11rem,auto)] lg:items-center lg:gap-4 lg:py-3"
+                      className="px-4 py-3.5 transition-colors hover:bg-muted/25 sm:px-5 md:grid md:grid-cols-[minmax(0,1.6fr)_9rem_minmax(11rem,auto)] md:items-center md:gap-4 md:py-3"
                     >
                       {/* Identity */}
                       <div className="flex min-w-0 items-start gap-3">
@@ -811,7 +811,7 @@ export default function AdminUsersPage() {
                             <p className="truncate text-sm font-medium leading-snug">
                               {user.full_name || 'Unnamed user'}
                             </p>
-                            <span className="lg:hidden">
+                            <span className="md:hidden">
                               <RoleBadge role={user.role || 'student'} />
                             </span>
                           </div>
@@ -834,13 +834,13 @@ export default function AdminUsersPage() {
                         </div>
                       </div>
 
-                      {/* Role (desktop) */}
-                      <div className="hidden lg:block">
+                      {/* Role (tablet+) */}
+                      <div className="hidden md:block">
                         <RoleBadge role={user.role || 'student'} />
                       </div>
 
                       {/* Actions */}
-                      <div className="mt-3 flex items-center gap-2 lg:mt-0 lg:justify-end">
+                      <div className="mt-3 flex items-center gap-2 md:mt-0 md:justify-end">
                         <Select
                           value={user.role}
                           onValueChange={(value) => handleUpdateRole(user.id, value as Role)}
@@ -851,7 +851,7 @@ export default function AdminUsersPage() {
                           }
                         >
                           <SelectTrigger
-                            className="h-9 flex-1 text-xs lg:w-[9.5rem] lg:flex-none"
+                            className="h-9 flex-1 text-xs md:w-[9.5rem] md:flex-none"
                             aria-label={`Change role for ${user.full_name || email}`}
                           >
                             <SelectValue />

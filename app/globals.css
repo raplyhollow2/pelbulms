@@ -370,7 +370,33 @@
 .page-shell {
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+/* Shared content gutters used across LMS pages inside the app shell */
+.page-gutter {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: 1rem;
+  padding-block: 1.25rem;
+}
+@media (min-width: 640px) {
+  .page-gutter {
+    padding-inline: 1.25rem;
+    padding-block: 1.5rem;
+  }
+}
+@media (min-width: 768px) {
+  .page-gutter {
+    padding-inline: 1.5rem;
+    padding-block: 1.75rem;
+  }
+}
+@media (min-width: 1024px) {
+  .page-gutter {
+    padding-inline: 2rem;
+    padding-block: 2rem;
+  }
 }
 
 .scrollbar-hide {

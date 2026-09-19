@@ -107,15 +107,52 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
     ...(showAi ? [{ name: 'AI', href: '/admin/ai', icon: Sparkles } as NavItem] : []),
   ]
 
-  // Restore persisted collapse state and notify the layout on mount.
+  // Sync collapse with layout events (e.g. tablet auto-rail).
   useEffect(() => {
-    const stored = typeof window !== 'undefined' && localStorage.getItem(STORAGE_KEY) === 'true'
-    if (stored) {
-      setCollapsed(true)
-      window.dispatchEvent(
-        new CustomEvent('pelbu:sidebar-collapse', { detail: { collapsed: true } })
-      )
+    const onToggle = (event: Event) => {
+      const custom = event as CustomEvent<{ collapsed: boolean }>
+      if (typeof custom.detail?.collapsed === 'boolean') {
+        setCollapsed(custom.detail.collapsed)
+      }
     }
+    window.addEventListener('pelbu:sidebar-collapse', onToggle as EventListener)
+    return () => {
+      window.removeEventListener('pelbu:sidebar-collapse', onToggle as EventListener)
+    }
+  }, [])
+
+  // Restore preference on mount; default to icon rail on tablet widths.
+  useEffect(() => {
+    const width = window.innerWidth
+    const isTablet = width >= 768 && width < 1024
+    const stored = localStorage.getItem(STORAGE_KEY) === 'true'
+    const next = isTablet ? true : stored
+    setCollapsed(next)
+    window.dispatchEvent(
+      new CustomEvent('pelbu:sidebar-collapse', { detail: { collapsed: next } })
+    )
+
+    const tabletMq = window.matchMedia('(min-width: 768px) and (max-width: 1023px)')
+    const onBreakpoint = () => {
+      if (tabletMq.matches) {
+        setCollapsed(true)
+        window.dispatchEvent(
+          new CustomEvent('pelbu:sidebar-collapse', { detail: { collapsed: true } })
+        )
+        return
+      }
+      if (window.innerWidth >= 1024) {
+        const preferCollapsed = localStorage.getItem(STORAGE_KEY) === 'true'
+        setCollapsed(preferCollapsed)
+        window.dispatchEvent(
+          new CustomEvent('pelbu:sidebar-collapse', {
+            detail: { collapsed: preferCollapsed },
+          })
+        )
+      }
+    }
+    tabletMq.addEventListener('change', onBreakpoint)
+    return () => tabletMq.removeEventListener('change', onBreakpoint)
   }, [])
 
   useEffect(() => {
@@ -191,7 +228,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
     try {
       const supabase = createClient()
       await supabase.auth.signOut()
-      window.location.href = '/auth/login'
+      window.location.href = '/'
     } catch (error) {
       console.error('Error logging out:', error)
     }

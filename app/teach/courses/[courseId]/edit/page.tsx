@@ -567,7 +567,7 @@ export default function EditCoursePage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8 max-w-4xl pb-28 lg:pb-8">
+    <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8 max-w-4xl pb-8 md:pb-8">
       <div className="space-y-4">
         {/* Sticky header with always-visible Save */}
         <div className="sticky top-0 z-30 -mx-4 border-b border-border/40 bg-background/85 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6">

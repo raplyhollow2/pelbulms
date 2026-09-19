@@ -52,6 +52,12 @@ export function readGateSettings(raw: unknown): Partial<ProgressionGateSettings>
   return out
 }
 
+/**
+ * Resolve effective gates for a lesson.
+ * Sequential unlock is module-scoped only — leftover lesson.metadata.sequentialUnlock
+ * must not override the module toggle (that caused locks after the feature was turned off).
+ * Other gates still allow lesson overrides.
+ */
 export function mergeGateSettings(
   moduleMeta: unknown,
   lessonMeta: unknown
@@ -67,10 +73,7 @@ export function mergeGateSettings(
       les.gateNextUntilActivitiesDone ??
       mod.gateNextUntilActivitiesDone ??
       DEFAULT_GATE_SETTINGS.gateNextUntilActivitiesDone,
-    sequentialUnlock:
-      les.sequentialUnlock ??
-      mod.sequentialUnlock ??
-      DEFAULT_GATE_SETTINGS.sequentialUnlock,
+    sequentialUnlock: mod.sequentialUnlock ?? DEFAULT_GATE_SETTINGS.sequentialUnlock,
     completionMode:
       les.completionMode ?? mod.completionMode ?? DEFAULT_GATE_SETTINGS.completionMode,
   }
@@ -94,7 +97,7 @@ export type LessonProgressLite = {
 
 /**
  * Can the student open this lesson (by course-wide ordered list)?
- * First lesson always open. With sequentialUnlock, each prior lesson must be
+ * First lesson always open. With module sequentialUnlock, each prior lesson must be
  * completed, and if that prior lesson gates next-on-activities, activities too.
  */
 export function isLessonUnlocked(args: {
@@ -108,11 +111,13 @@ export function isLessonUnlocked(args: {
   const idx = orderedLessonIds.indexOf(targetLessonId)
   if (idx <= 0) return true
 
+  const targetSettings = settingsForLesson(targetLessonId)
+
   for (let i = 0; i < idx; i++) {
     const prevId = orderedLessonIds[i]
     const settings = settingsForLesson(prevId)
-    const chain =
-      settings.sequentialUnlock || settingsForLesson(targetLessonId).sequentialUnlock
+    // sequentialUnlock is module-scoped; either side being in a gated module enforces order
+    const chain = settings.sequentialUnlock || targetSettings.sequentialUnlock
     if (!chain && !settings.gateNextUntilActivitiesDone) {
       continue
     }

@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
+import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { BookOpen, Loader2, AlertCircle, Fingerprint } from 'lucide-react'
+import { BookOpen, Loader2, AlertCircle, Fingerprint, Home } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/client'
@@ -96,12 +97,15 @@ function LoginPage() {
       <div className="w-full max-w-md space-y-8">
         {/* Logo & Brand */}
         <div className="text-center space-y-4">
-          <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full glass-strong">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-3 px-6 py-3 rounded-full glass-strong transition-opacity hover:opacity-90"
+          >
             <BookOpen className="w-8 h-8 text-bhutan-yellow" />
             <span className="text-2xl font-bold bg-gradient-to-r from-bhutan-yellow to-bhutan-orange bg-clip-text text-transparent">
               Pelbu LMS
             </span>
-          </div>
+          </Link>
           <h1 className="text-3xl font-bold">Welcome to Pelbu LMS</h1>
           <p className="text-muted-foreground">
             Sign in securely with biometrics or security keys
@@ -194,6 +198,15 @@ function LoginPage() {
             <span className="w-2 h-2 rounded-full bg-green-500"></span>
             <span>Secure authentication powered by Supabase Auth</span>
           </div>
+          <p className="pt-1">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-xs underline underline-offset-4 transition-colors hover:text-foreground"
+            >
+              <Home className="h-3.5 w-3.5" />
+              Back to homepage
+            </Link>
+          </p>
         </div>
       </div>
     </div>

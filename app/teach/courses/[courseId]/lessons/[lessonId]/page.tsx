@@ -457,27 +457,10 @@ export default function LessonEditPage() {
                         />
                       </div>
                     </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <Label htmlFor="gate-seq" className="text-sm">
-                          Sequential unlock
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Optional. When on, students must finish earlier lessons before opening later ones
-                        </p>
-                      </div>
-                      <Switch
-                        id="gate-seq"
-                        checked={Boolean(gates.sequentialUnlock)}
-                        onCheckedChange={(checked) =>
-                          updateLesson({
-                            metadata: withGateSettings((lesson as any).metadata, {
-                              sequentialUnlock: checked,
-                            }),
-                          } as any)
-                        }
-                      />
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Sequential unlock is controlled on the module settings page for all lessons in
+                      that module.
+                    </p>
                   </>
                 )
               })()}

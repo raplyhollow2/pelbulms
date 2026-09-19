@@ -97,7 +97,7 @@ export function CourseLearningTabs({
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BookOpen },
-    { id: 'discussion', label: 'Q&A', icon: MessagesSquare },
+    { id: 'discussion', label: 'Forum', icon: MessagesSquare },
     { id: 'notes', label: 'Notes', icon: StickyNote },
     { id: 'announcements', label: 'Announcements', icon: Bell },
     { id: 'reviews', label: 'Reviews', icon: Star },

@@ -52,7 +52,7 @@ export default function AdminPermissionsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-5 sm:px-6 sm:py-8 pb-[calc(8rem+env(safe-area-inset-bottom))] lg:pb-10">
+    <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-5 sm:px-6 sm:py-8 md:pb-10">
       <header className="space-y-1 border-b border-border/50 pb-5">
         <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
           Administration

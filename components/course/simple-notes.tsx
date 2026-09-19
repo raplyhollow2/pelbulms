@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Save, Trash2, Edit, Plus, X, Loader2 } from 'lucide-react'
-import { haptic } from '@/lib/utils'
+import { toast } from 'sonner'
 
 interface SimpleNote {
   id: string
@@ -28,9 +28,9 @@ export function SimpleNotes({ lessonId, courseId }: SimpleNotesProps) {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  // Fetch notes on mount and when lessonId changes
   useEffect(() => {
     fetchNotes()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessonId])
 
   const fetchNotes = async () => {
@@ -38,19 +38,24 @@ export function SimpleNotes({ lessonId, courseId }: SimpleNotesProps) {
       setLoading(true)
       const response = await fetch(`/api/notes?lessonId=${lessonId}`)
       const data = await response.json()
-      if (response.ok) {
-        setNotes(data.notes || [])
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to load notes')
       }
+      setNotes(data.notes || [])
     } catch (error) {
       console.error('Error fetching notes:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to load notes')
     } finally {
       setLoading(false)
     }
   }
 
-  // Save new note
   const handleSaveNote = async () => {
     if (!newNote.trim()) return
+    if (!courseId || !lessonId) {
+      toast.error('Missing course or lesson context')
+      return
+    }
 
     setSaving(true)
 
@@ -62,36 +67,36 @@ export function SimpleNotes({ lessonId, courseId }: SimpleNotesProps) {
           lessonId,
           courseId,
           content: newNote.trim(),
-          timestamp: 0 // Simplified - no timestamp
-          // No userId - will be handled by backend or database
-        })
+          timestamp: 0,
+        }),
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        setNotes([data, ...notes])
-        setNewNote('')
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save note')
       }
+
+      setNotes((prev) => [data, ...prev])
+      setNewNote('')
+      toast.success('Note saved')
     } catch (error) {
       console.error('Error saving note:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to save note')
     } finally {
       setSaving(false)
     }
   }
 
-  // Start editing
   const handleStartEdit = (note: SimpleNote) => {
     setEditingNote(note.id)
     setEditContent(note.content)
   }
 
-  // Cancel editing
   const handleCancelEdit = () => {
     setEditingNote(null)
     setEditContent('')
   }
 
-  // Save edit
   const handleSaveEdit = async (noteId: string) => {
     if (!editContent.trim()) return
 
@@ -102,33 +107,41 @@ export function SimpleNotes({ lessonId, courseId }: SimpleNotesProps) {
         body: JSON.stringify({
           noteId,
           content: editContent.trim(),
-          timestamp: 0
-        })
+          timestamp: 0,
+        }),
       })
 
-      if (response.ok) {
-        const data = await response.json()
-        setNotes(notes.map(note => note.id === noteId ? data : note))
-        setEditingNote(null)
-        setEditContent('')
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to update note')
       }
+
+      setNotes((prev) => prev.map((note) => (note.id === noteId ? data : note)))
+      setEditingNote(null)
+      setEditContent('')
+      toast.success('Note updated')
     } catch (error) {
       console.error('Error updating note:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to update note')
     }
   }
 
-  // Delete note
   const handleDeleteNote = async (noteId: string) => {
     try {
       const response = await fetch(`/api/notes?noteId=${noteId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
       })
 
-      if (response.ok) {
-        setNotes(notes.filter(note => note.id !== noteId))
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete note')
       }
+
+      setNotes((prev) => prev.filter((note) => note.id !== noteId))
+      toast.success('Note deleted')
     } catch (error) {
       console.error('Error deleting note:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to delete note')
     }
   }
 
@@ -137,7 +150,7 @@ export function SimpleNotes({ lessonId, courseId }: SimpleNotesProps) {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     })
   }
 
@@ -150,7 +163,6 @@ export function SimpleNotes({ lessonId, courseId }: SimpleNotesProps) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* New Note Input */}
         <div className="space-y-3">
           <Textarea
             placeholder="Take notes here..."
@@ -188,7 +200,6 @@ export function SimpleNotes({ lessonId, courseId }: SimpleNotesProps) {
           </div>
         </div>
 
-        {/* Notes List */}
         {loading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -205,7 +216,7 @@ export function SimpleNotes({ lessonId, courseId }: SimpleNotesProps) {
                 {notes.map((note) => (
                   <div
                     key={note.id}
-                    className="p-3 bg-secondary/50 rounded-lg border border-border/50 hover:border-bhutan-yellow/30 transition-colors"
+                    className="rounded-lg border border-border/50 bg-secondary/50 p-3 transition-colors hover:border-bhutan-yellow/30"
                   >
                     {editingNote === note.id ? (
                       <div className="space-y-2">
@@ -217,18 +228,14 @@ export function SimpleNotes({ lessonId, courseId }: SimpleNotesProps) {
                           autoFocus
                         />
                         <div className="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleCancelEdit}
-                          >
+                          <Button variant="outline" size="sm" onClick={handleCancelEdit}>
                             Cancel
                           </Button>
                           <Button
                             size="sm"
                             onClick={() => handleSaveEdit(note.id)}
                             disabled={!editContent.trim()}
-                            className="bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+                            className="bg-bhutan-yellow text-black hover:bg-bhutan-orange"
                           >
                             Save
                           </Button>
@@ -239,7 +246,7 @@ export function SimpleNotes({ lessonId, courseId }: SimpleNotesProps) {
                         <p className="text-sm leading-relaxed whitespace-pre-wrap">
                           {note.content}
                         </p>
-                        <div className="flex items-center justify-between mt-2">
+                        <div className="mt-2 flex items-center justify-between">
                           <span className="text-xs text-muted-foreground">
                             {formatDate(note.created_at)}
                           </span>

@@ -371,7 +371,7 @@ export default function RegisterPage() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
-    router.push('/auth/login')
+    router.push('/')
   }
 
   if (loading) {

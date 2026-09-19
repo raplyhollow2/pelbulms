@@ -203,7 +203,7 @@ export default function DashboardPage() {
   const continuePct = Math.round(continueCourse?.progress_percentage || 0)
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-5 sm:py-7 pb-[calc(2rem+env(safe-area-inset-bottom))] lg:pb-8">
+    <div className="container mx-auto max-w-6xl px-4 py-5 sm:px-5 sm:py-7 md:px-6 md:py-7 lg:px-8 lg:pb-8">
       {/* Compact header */}
       <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
@@ -226,7 +226,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Dense stats strip */}
-      <div className="mb-5 grid grid-cols-4 gap-2 sm:mb-6 sm:gap-3">
+      <div className="mb-5 grid grid-cols-2 gap-2 sm:mb-6 sm:grid-cols-4 sm:gap-3">
         {[
           { label: 'Courses', value: stats.activeCourses, icon: BookOpen },
           { label: 'Lessons', value: stats.completedLessons, icon: TrendingUp },
@@ -250,7 +250,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_280px] lg:gap-6">
+      <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_240px] md:gap-5 lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-6">
         <div className="min-w-0 space-y-5">
           {/* Continue learning — one featured slot */}
           {continueCourse?.courses && (
@@ -351,7 +351,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
                   {pageItems.map((enrollment) => {
                     const course = enrollment.courses
                     if (!course) return null
@@ -428,8 +428,8 @@ export default function DashboardPage() {
           </section>
         </div>
 
-        {/* Desktop side rail */}
-        <aside className="hidden space-y-4 lg:block">
+        {/* Tablet + desktop side rail */}
+        <aside className="hidden space-y-4 md:block">
           <div className="rounded-2xl border border-border/50 bg-card/70 p-4">
             <h3 className="text-sm font-semibold">Quick actions</h3>
             <div className="mt-3 space-y-2">
