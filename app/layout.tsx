@@ -6,26 +6,40 @@ import { Toaster } from "@/components/ui/sonner";
 // import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { getPlatformSettings } from "@/lib/platform-settings";
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
-export const metadata: Metadata = {
-  title: "Pelbu LMS - Advanced Learning Platform",
-  description: "Empowering education in Bhutan with modern learning management",
-  manifest: "/manifest.json",
-  icons: {
-    icon: [
-      { url: "/icon.svg", type: "image/svg+xml" },
-      { url: "/icon.svg", sizes: "any" },
-    ],
-    shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/apple-icon" }],
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Pelbu LMS",
-  },
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getPlatformSettings()
+  const siteName = settings.site_name || 'Pelbu LMS'
+  const description =
+    settings.tagline ||
+    settings.landing_description ||
+    'Empowering education in Bhutan with modern learning management'
+
+  return {
+    title: {
+      default: `${siteName} - Advanced Learning Platform`,
+      template: `%s · ${siteName}`,
+    },
+    description,
+    applicationName: siteName,
+    manifest: "/manifest.json",
+    icons: {
+      icon: [
+        { url: "/icon.svg", type: "image/svg+xml" },
+        { url: "/icon.svg", sizes: "any" },
+      ],
+      shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
+      apple: [{ url: "/apple-icon" }],
+    },
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "default",
+      title: siteName,
+    },
+  }
 }
 
 export const viewport = {

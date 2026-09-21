@@ -307,8 +307,8 @@ export function LandingHero({
   const resolvedDescription =
     description ||
     (requireIdentity
-      ? "Pelbu LMS is Bhutan's private learning platform — identity-verified access, world-class courses, progress tracking, and recognised certificates. Built for students, teachers and institutions shaping the nation's future."
-      : "Pelbu LMS is Bhutan's learning platform — world-class courses, progress tracking, and recognised certificates. Built for students, teachers and institutions shaping the nation's future.")
+      ? `${siteName} is Bhutan's private learning platform — identity-verified access, world-class courses, progress tracking, and recognised certificates. Built for students, teachers and institutions shaping the nation's future.`
+      : `${siteName} is Bhutan's learning platform — world-class courses, progress tracking, and recognised certificates. Built for students, teachers and institutions shaping the nation's future.`)
 
   return (
     <section className="relative isolate flex min-h-[100svh] flex-col overflow-hidden bg-[#0a0a0a] text-white">

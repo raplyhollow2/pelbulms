@@ -1,6 +1,8 @@
 // @ts-nocheck
 import { NextResponse } from 'next/server'
 import { getPlatformSettings, toPublicSite } from '@/lib/platform-settings'
+
+export const dynamic = 'force-dynamic'
 import { tryCreateServiceClient, createSupabaseServerClient } from '@/lib/supabase/server'
 import { filterOpenToAllCourseIds } from '@/lib/course-institution-access'
 

@@ -42,6 +42,17 @@
         android:name="android.hardware.microphone"
         android:required="false" />
 
+    <queries>
+        <package android:name="com.google.android.gms" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.support.customtabs.action.CustomTabsService" />
+        </intent>
+    </queries>
+
     <application
         android:name=".PelbuApp"
         android:allowBackup="true"
@@ -83,6 +94,24 @@
                     android:scheme="https" />
                 <data
                     android:host="pelbulms.vercel.app"
+                    android:scheme="https" />
+            </intent-filter>
+            <!-- OAuth return from Chrome Auth Tab / Custom Tabs. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="pelbu.bt"
+                    android:pathPrefix="/auth/callback"
+                    android:scheme="https" />
+                <data
+                    android:host="www.pelbu.bt"
+                    android:pathPrefix="/auth/callback"
+                    android:scheme="https" />
+                <data
+                    android:host="pelbulms.vercel.app"
+                    android:pathPrefix="/auth/callback"
                     android:scheme="https" />
             </intent-filter>
         </activity>

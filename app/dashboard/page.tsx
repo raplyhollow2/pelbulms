@@ -365,7 +365,7 @@ export default function DashboardPage() {
                   </Select>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
                   {pageItems.map((enrollment) => {
                     const course = enrollment.courses
                     if (!course) return null

@@ -23,6 +23,7 @@ import { cn, haptic, warning as hapticWarning, tap as hapticTap } from '@/lib/ut
 
 interface DesktopSidebarProps {
   user?: any
+  siteName?: string
 }
 
 interface NavItem {
@@ -33,7 +34,7 @@ interface NavItem {
 
 const STORAGE_KEY = 'pelbu:sidebar-collapsed'
 
-export function DesktopSidebar({ user }: DesktopSidebarProps) {
+export function DesktopSidebar({ user, siteName = 'Pelbu LMS' }: DesktopSidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
   const [userRole, setUserRole] = useState<
@@ -319,7 +320,7 @@ export function DesktopSidebar({ user }: DesktopSidebarProps) {
                 <BookOpen className="h-5 w-5 text-bhutan-orange" />
               </div>
               <span className="truncate bg-gradient-to-r from-bhutan-yellow to-bhutan-orange bg-clip-text text-base font-bold text-transparent">
-                Pelbu LMS
+                {siteName}
               </span>
             </Link>
           ) : (

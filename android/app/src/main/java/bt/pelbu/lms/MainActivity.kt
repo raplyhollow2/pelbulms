@@ -17,16 +17,25 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.browser.auth.AuthTabIntent
+import androidx.browser.customtabs.CustomTabsIntent
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.lifecycleScope
 import bt.pelbu.lms.databinding.ActivityMainBinding
+import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var chromeClient: PelbuWebChromeClient
     private lateinit var pelbuWebViewClient: PelbuWebViewClient
+    private lateinit var googleSignInHelper: GoogleSignInHelper
     private var pendingStartUrl: String = BuildConfig.LMS_URL
+    @Volatile private var pendingGoogleToken: String? = null
+    private var lastOAuthUrl: String? = null
 
     val fileChooserLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -44,6 +53,10 @@ class MainActivity : AppCompatActivity() {
         startWebSession()
     }
 
+    private val authTabLauncher = AuthTabIntent.registerActivityResultLauncher(this) { result ->
+        handleAuthResult(result)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, true)
@@ -51,6 +64,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         pendingStartUrl = resolveLaunchUrl()
+        googleSignInHelper = GoogleSignInHelper(this)
         configureWebView()
         binding.retryButton.setOnClickListener { reload() }
         binding.swipeRefresh.setColorSchemeResources(R.color.bhutan_orange, R.color.bhutan_yellow)
@@ -114,6 +128,113 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Google: native account picker (device Google accounts).
+     * Facebook / Apple: Chrome Auth Tab with the user's Chrome session.
+     */
+    fun openOAuth(url: String) {
+        lastOAuthUrl = url
+        if (isGoogleAuthUrl(url)) {
+            startNativeGoogleSignIn()
+            return
+        }
+        openAuthTab(url)
+    }
+
+    fun startNativeGoogleSignIn() {
+        lifecycleScope.launch {
+            try {
+                val idToken = googleSignInHelper.requestIdToken()
+                completeGoogleSignIn(idToken)
+            } catch (_: GetCredentialCancellationException) {
+                // User closed the account picker.
+            } catch (_: Exception) {
+                val fallback = lastOAuthUrl
+                if (!fallback.isNullOrBlank() && isGoogleAuthUrl(fallback)) {
+                    Toast.makeText(this@MainActivity, R.string.google_signin_fallback, Toast.LENGTH_SHORT).show()
+                    openAuthTab(fallback)
+                } else {
+                    Toast.makeText(this@MainActivity, R.string.google_signin_failed, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    fun pendingGoogleIdToken(): String? = pendingGoogleToken
+
+    private fun completeGoogleSignIn(idToken: String) {
+        pendingGoogleToken = idToken
+        val tokenJs = JSONObject.quote(idToken)
+        val script = """
+            (function() {
+              var token = $tokenJs;
+              if (typeof window.__pelbuCompleteNativeGoogle === 'function') {
+                window.__pelbuCompleteNativeGoogle(token);
+                return 'ok';
+              }
+              window.location.href = '/auth/native-google';
+              return 'redirect';
+            })();
+        """.trimIndent()
+        binding.webView.evaluateJavascript(script, null)
+    }
+
+    private fun openAuthTab(url: String) {
+        val uri = Uri.parse(url)
+        val redirectHost = currentLmsHost()
+        try {
+            val builder = AuthTabIntent.Builder()
+            try {
+                val method = builder.javaClass.getMethod(
+                    "setEphemeralBrowsingEnabled",
+                    Boolean::class.javaPrimitiveType,
+                )
+                method.invoke(builder, false)
+            } catch (_: Exception) {
+                // Older browser lib — skip.
+            }
+            builder.build().launch(
+                authTabLauncher,
+                uri,
+                redirectHost,
+                AUTH_CALLBACK_PATH,
+            )
+        } catch (_: Exception) {
+            CustomTabsIntent.Builder()
+                .setShowTitle(true)
+                .setShareState(CustomTabsIntent.SHARE_STATE_OFF)
+                .setShareIdentityEnabled(true)
+                .build()
+                .launchUrl(this, uri)
+        }
+    }
+
+    private fun isGoogleAuthUrl(url: String): Boolean {
+        val uri = Uri.parse(url)
+        val host = uri.host.orEmpty()
+        if (host == "accounts.google.com" || (host.endsWith(".google.com") && host.contains("accounts"))) {
+            return true
+        }
+        val path = uri.path.orEmpty()
+        if (host.endsWith(".supabase.co") && path.contains("/auth/v1/authorize")) {
+            val provider = uri.getQueryParameter("provider").orEmpty()
+            return provider == "google" || url.contains("provider=google")
+        }
+        return false
+    }
+
+    private fun currentLmsHost(): String {
+        binding.webView.url?.let { Uri.parse(it).host }?.takeIf { it.isNotBlank() }?.let { return it }
+        return Uri.parse(BuildConfig.LMS_URL).host ?: BuildConfig.LMS_HOST.removePrefix("www.")
+    }
+
+    private fun handleAuthResult(result: AuthTabIntent.AuthResult) {
+        if (result.resultCode == AuthTabIntent.RESULT_OK) {
+            val callback = result.resultUri ?: return
+            binding.webView.loadUrl(callback.toString())
+        }
+    }
+
     private fun requestInstallPermissionsThenLoad() {
         val missing = AppPermissions.required.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
@@ -159,6 +280,7 @@ class MainActivity : AppCompatActivity() {
         pelbuWebViewClient = PelbuWebViewClient(this)
         binding.webView.webViewClient = pelbuWebViewClient
         binding.webView.webChromeClient = chromeClient
+        binding.webView.addJavascriptInterface(PelbuNativeAuthBridge(this), "PelbuNativeAuth")
 
         binding.webView.settings.apply {
             javaScriptEnabled = true
@@ -212,5 +334,9 @@ class MainActivity : AppCompatActivity() {
         val manager = getSystemService(DOWNLOAD_SERVICE) as DownloadManager
         manager.enqueue(request)
         Toast.makeText(this, R.string.download_started, Toast.LENGTH_SHORT).show()
+    }
+
+    companion object {
+        private const val AUTH_CALLBACK_PATH = "/auth/callback"
     }
 }

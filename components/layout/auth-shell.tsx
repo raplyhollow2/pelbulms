@@ -22,7 +22,17 @@ export function AuthShell({
   const pathname = usePathname()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [siteName, setSiteName] = useState('Pelbu LMS')
   const [maintenance, setMaintenance] = useState<{ siteName: string } | null>(null)
+
+  useEffect(() => {
+    const onIdentity = (event: Event) => {
+      const name = (event as CustomEvent<{ siteName?: string }>).detail?.siteName
+      if (typeof name === 'string' && name.trim()) setSiteName(name.trim())
+    }
+    window.addEventListener('pelbu:platform-identity', onIdentity)
+    return () => window.removeEventListener('pelbu:platform-identity', onIdentity)
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -48,17 +58,25 @@ export function AuthShell({
           supabase.from('profiles').select('role').eq('id', session.user.id).maybeSingle(),
         ])
 
+        const resolvedName =
+          typeof (settings as any)?.site_name === 'string' && (settings as any).site_name.trim()
+            ? (settings as any).site_name.trim()
+            : 'Pelbu LMS'
         const role = (profile as { role?: string } | null)?.role
         const staff = role === 'admin' || role === 'superadmin'
         if ((settings as any)?.maintenance_mode && !staff) {
           if (mounted) {
-            setMaintenance({ siteName: (settings as any)?.site_name || 'Pelbu LMS' })
+            setSiteName(resolvedName)
+            setMaintenance({ siteName: resolvedName })
             setUser(session.user)
           }
           return
         }
 
-        if (mounted) setUser(session.user)
+        if (mounted) {
+          setSiteName(resolvedName)
+          setUser(session.user)
+        }
       } catch (error) {
         console.error('Error checking user:', error)
         router.push('/auth/login')
@@ -101,7 +119,7 @@ export function AuthShell({
   }
 
   return (
-    <ResponsiveLayout user={user}>
+    <ResponsiveLayout user={user} siteName={siteName}>
       {children}
     </ResponsiveLayout>
   )

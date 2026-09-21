@@ -6,4 +6,6 @@
     <string name="offline_title">You are offline</string>
     <string name="offline_body">Pelbu needs an internet connection to load your courses. Check your network and try again.</string>
     <string name="retry">Try again</string>
+    <string name="google_signin_fallback">Opening Google in Chrome so you can pick an account</string>
+    <string name="google_signin_failed">Could not open the Google account picker. Try again, or update Google Play services.</string>
 </resources>

@@ -20,8 +20,14 @@ function previewUrlFromCourse(course: Course): string {
   return fromMeta || String((course as { preview_video_url?: string | null }).preview_video_url || '').trim()
 }
 
+function studentCount(course: Course & { students_count?: number }) {
+  if (typeof course.students_count === 'number') return course.students_count
+  if (typeof course.enrollment_count === 'number') return course.enrollment_count
+  return 0
+}
+
 interface CourseActionDeckProps {
-  course: Course
+  course: Course & { students_count?: number }
   isEnrolled?: boolean
   enrollmentPending?: boolean
   onEnroll: () => void
@@ -161,7 +167,7 @@ export function CourseActionDeck({
             <span className="flex items-center gap-2 text-muted-foreground">
               <Users className="h-4 w-4" /> Students
             </span>
-            <span className="font-medium">{(course as any).enrollment_count || (course as any).students_count || 0}</span>
+            <span className="font-medium">{studentCount(course).toLocaleString()}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-2 text-muted-foreground">

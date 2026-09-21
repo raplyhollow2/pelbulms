@@ -13,9 +13,10 @@ import { APP_HEADER_PORTAL_ID } from './app-header-slot'
 interface ResponsiveLayoutProps {
   children: React.ReactNode
   user?: any
+  siteName?: string
 }
 
-export function ResponsiveLayout({ children, user }: ResponsiveLayoutProps) {
+export function ResponsiveLayout({ children, user, siteName = 'Pelbu LMS' }: ResponsiveLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const pathname = usePathname()
   const isLearnPlayer = /^\/learn\/[^/]+\/lesson\//.test(pathname || '')
@@ -50,7 +51,7 @@ export function ResponsiveLayout({ children, user }: ResponsiveLayoutProps) {
       />
 
       <div className="hidden md:block">
-        <DesktopSidebar user={user} />
+        <DesktopSidebar user={user} siteName={siteName} />
       </div>
 
       <main
@@ -67,7 +68,7 @@ export function ResponsiveLayout({ children, user }: ResponsiveLayoutProps) {
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-bhutan-yellow/15">
                 <BookOpen className="h-4 w-4 text-bhutan-orange" />
               </span>
-              <span className="truncate text-sm font-semibold tracking-tight">Pelbu LMS</span>
+              <span className="truncate text-sm font-semibold tracking-tight">{siteName}</span>
             </Link>
           </div>
 

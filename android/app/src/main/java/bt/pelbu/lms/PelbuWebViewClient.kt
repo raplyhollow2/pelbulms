@@ -8,15 +8,16 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 
 /**
- * Keeps LMS + OAuth (Google/Facebook/Apple) inside the same WebView so Supabase
- * PKCE code-verifier cookies set on login stay available on /auth/callback.
- * Custom Tabs use a separate cookie jar and break PKCE.
+ * LMS pages stay in the WebView. Google sign-in uses the Android account
+ * picker. Facebook / Apple open in Chrome Auth Tab. `/auth/callback` is
+ * loaded back in this WebView so the session cookies stay put.
  */
 class PelbuWebViewClient(
     private val activity: MainActivity,
 ) : WebViewClient() {
 
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+        if (!request.isForMainFrame) return false
         return handleUri(request.url)
     }
 
@@ -25,6 +26,11 @@ class PelbuWebViewClient(
 
         if (url.startsWith("mailto:") || url.startsWith("tel:") || url.startsWith("sms:")) {
             return launchExternal(uri)
+        }
+
+        if (isOAuthAuthorization(uri)) {
+            activity.openOAuth(url)
+            return true
         }
 
         if (isAllowedHost(uri.host)) {
@@ -49,6 +55,18 @@ class PelbuWebViewClient(
         activity.setRefreshing(false)
     }
 
+    private fun isOAuthAuthorization(uri: Uri): Boolean {
+        val host = uri.host ?: return false
+        if (host == "accounts.google.com") return true
+        if (host.endsWith(".google.com") && host.contains("accounts")) return true
+        if (host == "appleid.apple.com") return true
+        if (host == "facebook.com" || host == "www.facebook.com" || host == "m.facebook.com" || host.endsWith(".facebook.com")) {
+            return true
+        }
+        val path = uri.path.orEmpty()
+        return host.endsWith(".supabase.co") && path.contains("/auth/v1/authorize")
+    }
+
     private fun isAllowedHost(host: String?): Boolean {
         if (host.isNullOrBlank()) return false
         val root = BuildConfig.LMS_HOST.removePrefix("www.")
@@ -57,15 +75,7 @@ class PelbuWebViewClient(
             host == "pelbu.bt" ||
             host == "www.pelbu.bt" ||
             host.endsWith(".supabase.co") ||
-            host.endsWith(".cloudinary.com") ||
-            // OAuth IdPs must stay in-WebView for PKCE cookie continuity
-            host == "accounts.google.com" ||
-            (host.endsWith(".google.com") && host.contains("accounts")) ||
-            host == "www.facebook.com" ||
-            host == "m.facebook.com" ||
-            host == "facebook.com" ||
-            host.endsWith(".facebook.com") ||
-            host == "appleid.apple.com"
+            host.endsWith(".cloudinary.com")
     }
 
     private fun launchExternal(uri: Uri): Boolean {

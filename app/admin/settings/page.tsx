@@ -55,6 +55,12 @@ export default function AdminSiteSettingsPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Save failed')
+      const savedName = data.settings?.site_name
+      if (typeof savedName === 'string' && savedName.trim()) {
+        window.dispatchEvent(
+          new CustomEvent('pelbu:platform-identity', { detail: { siteName: savedName.trim() } })
+        )
+      }
       toast.success('Site settings saved')
     } catch (e: any) {
       toast.error(e.message || 'Save failed')

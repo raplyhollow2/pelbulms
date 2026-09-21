@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+
+export const dynamic = 'force-dynamic'
 import { ArrowRight, BookOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { LandingHero, LandingStatsStrip } from '@/components/landing/landing-hero'

@@ -1,5 +1,6 @@
 // @ts-nocheck - platform_settings not in generated Database types
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { checkRBAC, checkCapability, CAP } from '@/lib/rbac'
 import { ADMIN_ROLES } from '@/lib/roles'
 import { getAdminDb } from '@/lib/supabase/server'
@@ -22,6 +23,14 @@ function denied(rbac: { error?: string }) {
     { error: rbac.error || 'Access denied' },
     { status: rbac.error?.includes('Unauthorized') ? 401 : 403 }
   )
+}
+
+function bustPublicSiteCache() {
+  revalidatePath('/', 'layout')
+  revalidatePath('/')
+  revalidatePath('/auth/login')
+  revalidatePath('/auth/register')
+  revalidatePath('/api/public/site')
 }
 
 async function requireSettings(request: NextRequest, write: boolean) {
@@ -284,6 +293,7 @@ export async function PATCH(request: NextRequest) {
       .select('*')
       .single()
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    bustPublicSiteCache()
     return NextResponse.json({ settings: parsePlatformSettings(data as Record<string, unknown>) })
   }
 
@@ -296,6 +306,7 @@ export async function PATCH(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
+  bustPublicSiteCache()
   return NextResponse.json({
     settings: parsePlatformSettings(data as Record<string, unknown>) as PlatformSettings,
   })

@@ -24,12 +24,30 @@ import { canAccessTeaching } from '@/lib/roles'
 type Course = Database['public']['Tables']['courses']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row']
 
+async function fetchLiveStudentCount(courseId: string): Promise<number | null> {
+  try {
+    const res = await fetch('/api/courses/catalog-stats', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseIds: [courseId] }),
+    })
+    if (!res.ok) return null
+    const json = (await res.json()) as {
+      stats?: Record<string, { students?: number }>
+    }
+    const students = json.stats?.[courseId]?.students
+    return typeof students === 'number' ? students : null
+  } catch {
+    return null
+  }
+}
+
 export default function CourseDetailPage() {
   const params = useParams()
   const router = useRouter()
   const courseId = params.id as string
 
-  const [course, setCourse] = useState<Course | null>(null)
+  const [course, setCourse] = useState<(Course & { students_count?: number }) | null>(null)
   const [facilitators, setFacilitators] = useState<
     Array<Pick<Profile, 'id' | 'full_name' | 'avatar_url' | 'bio'> & { staffRole?: string }>
   >([])
@@ -139,8 +157,6 @@ export default function CourseDetailPage() {
         return
       }
 
-      setCourse(courseData as any)
-
       try {
         const { data: staffRows } = await (supabase as any)
           .from('course_instructors')
@@ -186,13 +202,25 @@ export default function CourseDetailPage() {
         )
       }
 
-      const { data: modulesData } = await supabase
-        .from('modules')
-        .select('*')
-        .eq('course_id', courseId)
-        .order('order_index', { ascending: true })
+      const [{ data: modulesData }, liveStudentCount] = await Promise.all([
+        supabase
+          .from('modules')
+          .select('*')
+          .eq('course_id', courseId)
+          .order('order_index', { ascending: true }),
+        fetchLiveStudentCount(courseId),
+      ])
 
       setModules(modulesData || [])
+      setCourse({
+        ...(courseData as any),
+        students_count:
+          typeof liveStudentCount === 'number'
+            ? liveStudentCount
+            : typeof (courseData as any).enrollment_count === 'number'
+              ? (courseData as any).enrollment_count
+              : 0,
+      })
     } catch (error) {
       console.error('Error fetching course details:', error)
       setAccessDenied({ names: [] })
