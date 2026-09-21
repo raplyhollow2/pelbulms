@@ -3,6 +3,7 @@ import "./globals.css";
 import { CommandPalette } from "@/components/search/command-palette";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { CapabilitiesProvider } from "@/components/auth/capabilities-provider";
 // import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
@@ -63,9 +64,11 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          {children}
-          <CommandPalette />
-          <Toaster richColors position="top-center" />
+          <CapabilitiesProvider>
+            {children}
+            <CommandPalette />
+            <Toaster richColors position="top-center" />
+          </CapabilitiesProvider>
         </ThemeProvider>
         {/* <ServiceWorkerRegistration /> */}
       </body>

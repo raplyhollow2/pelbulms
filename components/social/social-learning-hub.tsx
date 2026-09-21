@@ -33,6 +33,7 @@ import {
   Lock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { RoleBadge } from '@/components/auth/role-badge'
 
 interface ForumPost {
   id: string
@@ -218,14 +219,6 @@ export function SocialLearningHub() {
     return 'Just now'
   }
 
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'instructor': return 'bg-purple-600'
-      case 'admin': return 'bg-red-600'
-      default: return 'bg-blue-600'
-    }
-  }
-
   const filteredPosts = forumPosts.filter(post =>
     post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -298,9 +291,7 @@ export function SocialLearningHub() {
                           </div>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                             <span>{post.author.full_name}</span>
-                            <Badge className={getRoleColor(post.author.role)} variant="outline">
-                              {post.author.role}
-                            </Badge>
+                            <RoleBadge role={post.author.role} size="sm" />
                             <span>•</span>
                             <span>{formatDate(post.created_at)}</span>
                           </div>

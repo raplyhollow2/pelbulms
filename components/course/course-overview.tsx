@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Check, Clock, Calendar, Globe, Award, BookOpen, ChevronDown, ChevronUp } from 'lucide-react'
 import { resolveMediaUrl } from '@/lib/media'
+import { LinkedInProfileLink } from '@/components/profile/linkedin-profile-link'
+import { linkedinFromProfile } from '@/lib/social-links'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
@@ -15,6 +17,7 @@ export type InstructorInfo = {
   full_name?: string | null
   avatar_url?: string | null
   bio?: string | null
+  social_links?: unknown
 }
 
 interface CourseOverviewProps {
@@ -56,6 +59,7 @@ export function CourseOverview({ course, instructor, moduleDescription }: Course
     .join('')
     .slice(0, 2)
     .toUpperCase()
+  const instructorLinkedIn = linkedinFromProfile(instructor)
   const avatarUrl = resolveMediaUrl(instructor?.avatar_url)
 
   return (
@@ -232,6 +236,11 @@ export function CourseOverview({ course, instructor, moduleDescription }: Course
                 <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{instructor.bio}</p>
               ) : (
                 <p className="text-sm text-muted-foreground mt-1">Course instructor</p>
+              )}
+              {instructorLinkedIn && (
+                <div className="mt-2">
+                  <LinkedInProfileLink url={instructorLinkedIn} />
+                </div>
               )}
             </div>
           </div>

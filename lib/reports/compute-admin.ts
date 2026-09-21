@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ReportBlock } from '@/lib/reports/types'
+import { computePresenceSnapshot } from '@/lib/admin/presence'
 
 type Db = SupabaseClient<any>
 
@@ -22,7 +23,7 @@ export async function computeApprovalsReports(
   let regQuery = db
     .from('student_registrations')
     .select(
-      'id, user_id, institution_id, registration_status, submitted_at, reviewed_at, reviewed_by, rejection_reason, created_at'
+      'id, user_id, institution_id, registration_status, submitted_at, reviewed_at, reviewed_by, rejection_reason'
     )
     .order('submitted_at', { ascending: false })
     .limit(2000)
@@ -162,7 +163,7 @@ export async function computeApprovalsReports(
         { key: 'ageHours', label: 'Age (h)' },
       ],
       rows: pending.slice(0, 40).map((r) => {
-        const submitted = r.submitted_at || r.created_at
+        const submitted = r.submitted_at
         const age = submitted
           ? Math.round((Date.now() - new Date(submitted).getTime()) / (1000 * 60 * 60))
           : 0
@@ -615,6 +616,46 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
 }
 
 export async function computePlatformCommandReports(db: Db): Promise<ReportBlock[]> {
+  let livePresence: ReportBlock | null = null
+  try {
+    const snap = await computePresenceSnapshot(db)
+    livePresence = {
+      id: 'live-presence',
+      title: 'Live presence',
+      description: 'Heartbeat sessions. The roster on this page updates in real time.',
+      metrics: [
+        { key: 'now', label: 'Active now', value: snap.counts.now },
+        { key: 'today', label: 'Active today', value: snap.counts.today },
+        {
+          key: 'nowRoles',
+          label: 'Now by role',
+          value:
+            Object.entries(snap.counts.nowByRole)
+              .map(([role, n]) => `${role}:${n}`)
+              .join(', ') || '—',
+        },
+      ],
+      columns: [
+        { key: 'name', label: 'Name' },
+        { key: 'role', label: 'Role' },
+        { key: 'where', label: 'Location' },
+        { key: 'state', label: 'State' },
+      ],
+      rows: snap.activeToday.slice(0, 40).map((p) => ({
+        id: p.userId,
+        cells: {
+          name: p.fullName,
+          role: p.role,
+          where: p.pathLabel,
+          state: p.live ? 'Active now' : 'Earlier today',
+        },
+      })),
+      emptyMessage: 'No presence heartbeats yet today.',
+    }
+  } catch {
+    livePresence = null
+  }
+
   const [
     { data: institutions },
     { data: profiles },
@@ -710,6 +751,7 @@ export async function computePlatformCommandReports(db: Db): Promise<ReportBlock
   }
 
   return [
+    ...(livePresence ? [livePresence] : []),
     {
       id: 'cross-tenant',
       title: 'Cross-tenant comparison',

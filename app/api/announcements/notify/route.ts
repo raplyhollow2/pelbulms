@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRBAC } from '@/lib/rbac'
+import { enforceCapability, CAP } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
 import { notifyEnrolledStudents } from '@/lib/notify-enrolled'
 
 export async function POST(request: NextRequest) {
-  const rbac = await checkRBAC(request, ['instructor', 'admin', 'resource_person', 'superadmin'])
+  const rbac = await enforceCapability(
+    request,
+    CAP.MODULE_ANNOUNCEMENTS_CONFIGURE,
+    ['instructor', 'admin', 'resource_person', 'superadmin']
+  )
   if (!rbac.hasAccess) {
     return NextResponse.json(
       { error: rbac.error || 'Access denied' },

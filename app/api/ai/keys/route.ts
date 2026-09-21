@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRBAC } from '@/lib/rbac'
+import { checkRBAC, enforceCapability, CAP } from '@/lib/rbac'
 import {
   deleteAiKey,
   getAiKeyStatus,
@@ -35,8 +35,18 @@ export async function POST(request: NextRequest) {
   }
   const secret = String(body.secret || '').trim()
   const isPlatform = Boolean(body.platform)
-  if (isPlatform && rbac.userRole !== 'superadmin') {
-    return NextResponse.json({ error: 'Only superadmin can set a platform key' }, { status: 403 })
+  if (isPlatform) {
+    const platformCap = await enforceCapability(
+      request,
+      [CAP.MODULE_PLATFORM_AI_CONFIGURE, CAP.AI_CONFIGURE],
+      ['superadmin']
+    )
+    if (!platformCap.hasAccess) {
+      return NextResponse.json(
+        { error: platformCap.error || 'Only permitted roles can set a platform key' },
+        { status: 403 }
+      )
+    }
   }
 
   const meta: AiKeyMeta = {

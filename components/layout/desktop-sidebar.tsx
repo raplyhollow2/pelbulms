@@ -4,9 +4,8 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  Home, BookOpen, GraduationCap, Settings, User,
-  ChevronLeft, ChevronRight, LogOut, Search, TrendingUp, Users,
-  Bell, HardDrive, Sparkles, Building2, BarChart3, Shield,
+  BookOpen,
+  ChevronLeft, ChevronRight, LogOut, Search,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -18,8 +17,13 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { createClient } from '@/lib/supabase/client'
+import { leavePresenceAndSignOut } from '@/components/presence/presence-tracker'
 import { resolveMediaUrl } from '@/lib/media'
 import { cn, haptic, warning as hapticWarning, tap as hapticTap } from '@/lib/utils'
+import { useCapabilities } from '@/components/auth/capabilities-provider'
+import { defaultKeysForRole, hasCap } from '@/lib/capability-catalog'
+import { buildAccessNav } from '@/lib/nav-access'
+import { coerceUserRole } from '@/lib/roles'
 
 interface DesktopSidebarProps {
   user?: any
@@ -37,76 +41,21 @@ const STORAGE_KEY = 'pelbu:sidebar-collapsed'
 export function DesktopSidebar({ user, siteName = 'Pelbu LMS' }: DesktopSidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const { loaded: capsLoaded, has: hasCapKey, role: capRole } = useCapabilities()
   const [userRole, setUserRole] = useState<
     'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
   >('student')
   const [profile, setProfile] = useState<{ full_name?: string; avatar_url?: string } | null>(null)
   const [canApprove, setCanApprove] = useState(false)
-  const [caps, setCaps] = useState<{
-    canUsers?: boolean
-    canReports?: boolean
-    canInstitutions?: boolean
-    canSettings?: boolean
-    canPermissions?: boolean
-    canAi?: boolean
-    canApprovals?: boolean
-  }>({})
 
-  const canTeach =
-    userRole === 'instructor' ||
-    userRole === 'admin' ||
-    userRole === 'resource_person' ||
-    userRole === 'superadmin'
-  const canAdmin = userRole === 'admin' || userRole === 'superadmin'
-  const isSuper = userRole === 'superadmin'
-  const isResourcePerson = userRole === 'resource_person'
-  // Always show Approvals for superadmin + resource_person; also assigned reviewers
-  const showApprovals = isSuper || isResourcePerson || canApprove || caps.canApprovals
-
-  // Ordered by everyday priority for a learner.
-  const navigation: NavItem[] = [
-    { name: 'Dashboard', href: '/dashboard', icon: Home },
-    { name: 'Courses', href: '/courses', icon: BookOpen },
-    { name: 'Reports', href: '/learn/reports', icon: TrendingUp },
-    { name: 'Announcements', href: '/announcements', icon: Bell },
-    { name: 'Profile', href: '/profile', icon: User },
-    { name: 'Settings', href: '/settings', icon: Settings },
-  ]
-
-  const teacherNavigation: NavItem[] = [
-    { name: 'Teacher Dashboard', href: '/teach/dashboard', icon: GraduationCap },
-    { name: 'New Course', href: '/teach/create', icon: BookOpen },
-    { name: 'Media Library', href: '/teach/media', icon: HardDrive },
-    { name: 'Reports', href: '/teach/reports', icon: BarChart3 },
-    { name: 'Announcements', href: '/teach/announcements', icon: Bell },
-    ...(showApprovals && !canAdmin
-      ? [{ name: 'Users', href: '/admin/users?tab=approvals', icon: Users } as NavItem]
-      : []),
-  ]
-
-  const showUsers = canAdmin || caps.canUsers
-  const showReports = canAdmin || caps.canReports
-  const showInstitutions = canAdmin || caps.canInstitutions
-  const showSettings = canAdmin || caps.canSettings
-  const showPermissions = isSuper || caps.canPermissions
-  const showAi = isSuper || caps.canAi
-
-  const adminNavigation: NavItem[] = [
-    ...(showUsers ? [{ name: 'Users', href: '/admin/users', icon: Users } as NavItem] : []),
-    ...(showReports
-      ? [{ name: 'Reports', href: '/admin/reports', icon: BarChart3 } as NavItem]
-      : []),
-    ...(showInstitutions
-      ? [{ name: 'Institutions', href: '/admin/settings/institutions', icon: Building2 } as NavItem]
-      : []),
-    ...(showSettings
-      ? [{ name: 'Site admin', href: '/admin/settings', icon: Settings } as NavItem]
-      : []),
-    ...(showPermissions
-      ? [{ name: 'Permissions', href: '/admin/permissions', icon: Shield } as NavItem]
-      : []),
-    ...(showAi ? [{ name: 'AI', href: '/admin/ai', icon: Sparkles } as NavItem] : []),
-  ]
+  const roleForNav = capsLoaded ? capRole : userRole
+  const has = (key: string) =>
+    capsLoaded ? hasCapKey(key) : hasCap(defaultKeysForRole(roleForNav), key)
+  const { learn: navigation, teach: teacherNavigation, admin: adminNavigation } =
+    buildAccessNav(has, {
+      showApprovalsShortcut: canApprove || has('admin.approvals.view'),
+    })
+  const canTeach = teacherNavigation.length > 0
 
   // Sync collapse with layout events (e.g. tablet auto-rail).
   useEffect(() => {
@@ -169,15 +118,9 @@ export function DesktopSidebar({ user, siteName = 'Pelbu LMS' }: DesktopSidebarP
         .eq('id', user.id)
         .single()
 
-      const metaRole =
-        user?.app_metadata?.role || user?.user_metadata?.role || null
-      const profileRole = (data as any)?.role || null
-      const role =
-        profileRole === 'superadmin' || metaRole === 'superadmin'
-          ? 'superadmin'
-          : profileRole === 'resource_person' || metaRole === 'resource_person'
-            ? 'resource_person'
-            : profileRole || metaRole || 'student'
+      const role = coerceUserRole(
+        (data as any)?.role || user?.app_metadata?.role
+      )
 
       setUserRole(role)
       if (data) {
@@ -195,26 +138,6 @@ export function DesktopSidebar({ user, siteName = 'Pelbu LMS' }: DesktopSidebarP
           .limit(1)
         setCanApprove(!!(reviewerRows && reviewerRows.length > 0))
       }
-
-      try {
-        const capRes = await fetch('/api/admin/capabilities/me')
-        if (capRes.ok) {
-          const capJson = await capRes.json()
-          const list: string[] = capJson.capabilities || []
-          const has = (key: string) => list.includes('*') || list.includes(key)
-          setCaps({
-            canUsers: has('admin.users.view'),
-            canReports: has('admin.reports.view'),
-            canInstitutions: has('admin.institutions.view'),
-            canSettings: has('admin.settings.view'),
-            canPermissions: has('admin.permissions.view') || role === 'superadmin',
-            canAi: has('admin.ai.view') || role === 'superadmin',
-            canApprovals: has('admin.approvals.view') || !!capJson.canApprovals,
-          })
-        }
-      } catch {
-        // capability endpoint optional until migration is applied
-      }
     } catch (error) {
       console.error('Error fetching profile:', error)
     }
@@ -227,8 +150,7 @@ export function DesktopSidebar({ user, siteName = 'Pelbu LMS' }: DesktopSidebarP
   const handleLogout = async () => {
     hapticWarning()
     try {
-      const supabase = createClient()
-      await supabase.auth.signOut()
+      await leavePresenceAndSignOut()
       window.location.href = '/'
     } catch (error) {
       console.error('Error logging out:', error)
@@ -252,10 +174,13 @@ export function DesktopSidebar({ user, siteName = 'Pelbu LMS' }: DesktopSidebarP
 
   const renderNav = (items: NavItem[]) =>
     items.map((item) => {
-      const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+      const isActive =
+        item.href === '/admin'
+          ? pathname === '/admin'
+          : pathname === item.href || pathname.startsWith(`${item.href}/`)
       const link = (
         <Link
-          key={item.name}
+          key={item.href}
           href={item.href}
           onClick={() => haptic()}
           aria-current={isActive ? 'page' : undefined}
@@ -284,7 +209,7 @@ export function DesktopSidebar({ user, siteName = 'Pelbu LMS' }: DesktopSidebarP
 
       if (collapsed) {
         return (
-          <Tooltip key={item.name}>
+          <Tooltip key={item.href}>
             <TooltipTrigger render={link} />
             <TooltipContent side="right">{item.name}</TooltipContent>
           </Tooltip>
@@ -413,7 +338,7 @@ export function DesktopSidebar({ user, siteName = 'Pelbu LMS' }: DesktopSidebarP
             </>
           )}
 
-          {(canAdmin || adminNavigation.length > 0) && (
+          {adminNavigation.length > 0 && (
             <>
               {sectionLabel('Administration', 'Admin')}
               {renderNav(adminNavigation)}

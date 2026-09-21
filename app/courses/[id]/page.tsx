@@ -20,6 +20,8 @@ import {
   institutionLabel,
 } from '@/lib/course-institution-access'
 import { canAccessTeaching } from '@/lib/roles'
+import { LinkedInProfileLink } from '@/components/profile/linkedin-profile-link'
+import { linkedinFromProfile } from '@/lib/social-links'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -49,7 +51,12 @@ export default function CourseDetailPage() {
 
   const [course, setCourse] = useState<(Course & { students_count?: number }) | null>(null)
   const [facilitators, setFacilitators] = useState<
-    Array<Pick<Profile, 'id' | 'full_name' | 'avatar_url' | 'bio'> & { staffRole?: string }>
+    Array<
+      Pick<Profile, 'id' | 'full_name' | 'avatar_url' | 'bio'> & {
+        staffRole?: string
+        social_links?: unknown
+      }
+    >
   >([])
   const [modules, setModules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -93,7 +100,8 @@ export default function CourseDetailPage() {
             id,
             full_name,
             avatar_url,
-            bio
+            bio,
+            social_links
           )
         `)
         .eq('id', courseId)
@@ -172,7 +180,7 @@ export default function CourseDetailPage() {
         if (ids.size > 0) {
           const { data: profiles } = await supabase
             .from('profiles')
-            .select('id, full_name, avatar_url, bio')
+            .select('id, full_name, avatar_url, bio, social_links')
             .in('id', Array.from(ids))
 
           const roleByUser = new Map(staffList.map((r) => [r.user_id, r.role]))
@@ -392,38 +400,43 @@ export default function CourseDetailPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {facilitators.map((person) => (
-                <a
+              {facilitators.map((person) => {
+                const linkedin = linkedinFromProfile(person)
+                return (
+                <div
                   key={person.id}
-                  href={`/instructors/${person.id}`}
-                  className="flex items-start gap-4 group"
+                  className="flex items-start gap-4"
                 >
-                  {(person.avatar_url || person.full_name) && (
-                    <div className="w-16 h-16 rounded-full overflow-hidden bg-bhutan-yellow/30 flex items-center justify-center shrink-0">
-                      {person.avatar_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={person.avatar_url}
-                          alt={person.full_name || 'Instructor'}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="font-bold text-lg">
-                          {(person.full_name || 'IN')
-                            .split(/\s+/)
-                            .map((n) => n[0])
-                            .join('')
-                            .slice(0, 2)
-                            .toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  <a
+                    href={`/instructors/${person.id}`}
+                    className="w-16 h-16 rounded-full overflow-hidden bg-bhutan-yellow/30 flex items-center justify-center shrink-0"
+                  >
+                    {person.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={person.avatar_url}
+                        alt={person.full_name || 'Instructor'}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="font-bold text-lg">
+                        {(person.full_name || 'IN')
+                          .split(/\s+/)
+                          .map((n) => n[0])
+                          .join('')
+                          .slice(0, 2)
+                          .toUpperCase()}
+                      </span>
+                    )}
+                  </a>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="font-semibold text-lg group-hover:text-bhutan-orange transition-colors">
+                      <a
+                        href={`/instructors/${person.id}`}
+                        className="font-semibold text-lg hover:text-bhutan-orange transition-colors"
+                      >
                         {person.full_name}
-                      </h3>
+                      </a>
                       {person.staffRole && person.staffRole !== 'owner' && (
                         <Badge variant="outline" className="text-[10px] capitalize">
                           {String(person.staffRole).replace(/_/g, ' ')}
@@ -445,10 +458,21 @@ export default function CourseDetailPage() {
                         {person.bio}
                       </p>
                     )}
-                    <p className="text-xs text-bhutan-yellow mt-2">View full profile →</p>
+                    {linkedin && (
+                      <div className="mt-2">
+                        <LinkedInProfileLink url={linkedin} />
+                      </div>
+                    )}
+                    <a
+                      href={`/instructors/${person.id}`}
+                      className="text-xs text-bhutan-yellow mt-2 inline-block"
+                    >
+                      View full profile →
+                    </a>
                   </div>
-                </a>
-              ))}
+                </div>
+                )
+              })}
             </CardContent>
           </Card>
         )}

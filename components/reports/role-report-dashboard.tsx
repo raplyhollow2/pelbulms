@@ -15,8 +15,13 @@ import { AiBriefingPanel } from '@/components/reports/ai-briefing-panel'
 import { ExportPackBar } from '@/components/reports/export-pack-bar'
 import { FrictionMapPanel } from '@/components/reports/friction-map-panel'
 import { ReportBlockCard, ReportHubHeader, ReportSectionTabs } from '@/components/reports/report-ui'
-import type { ReportRange, ReportSnapshot, SnapshotAudience } from '@/lib/reports/types'
-import { audienceAllowsAiBrief } from '@/lib/reports/types'
+import {
+  audienceAllowsAiBrief,
+  type ReportRange,
+  type ReportSnapshot,
+  type SnapshotAudience,
+} from '@/lib/reports/types'
+import { LiveUsersPanel } from '@/components/admin/live-users-panel'
 import { cn } from '@/lib/utils'
 import { AlertTriangle, ArrowRight, CheckCircle2 } from 'lucide-react'
 
@@ -109,6 +114,8 @@ export function RoleReportDashboard({
           {headerExtra}
         </div>
       </div>
+
+      {(audience === 'superadmin' || audience === 'admin') && <LiveUsersPanel />}
 
       <SparkKpis kpis={snapshot.kpis} />
 

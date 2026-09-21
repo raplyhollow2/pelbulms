@@ -29,6 +29,8 @@ import {
 import { GeminiCoursePanel } from '@/components/teach/gemini-course-panel'
 import { CourseStaffPanel } from '@/components/teach/course-staff-panel'
 import { InstitutionAudienceFields } from '@/components/teach/institution-audience-fields'
+import { useCapabilities } from '@/components/auth/capabilities-provider'
+import { CAP } from '@/lib/capability-keys'
 import {
   loadCourseInstitutions,
   syncCourseInstitutions,
@@ -42,6 +44,7 @@ export default function EditCoursePage() {
   const router = useRouter()
   const params = useParams()
   const courseId = params.courseId as string
+  const { has } = useCapabilities()
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -1168,6 +1171,7 @@ export default function EditCoursePage() {
                     </button>
                   </div>
                 </div>
+                {has(CAP.MODULE_FORUMS_CONFIGURE) && (
                 <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
                   <div className="min-w-0">
                     <Label htmlFor="course-discussion" className="font-medium">
@@ -1184,31 +1188,38 @@ export default function EditCoursePage() {
                     onCheckedChange={(checked) => void toggleCourseDiscussion(checked)}
                   />
                 </div>
+                )}
+                {(has(CAP.MODULE_FLASHCARDS_CONFIGURE) || has(CAP.MODULE_CERTIFICATES_CONFIGURE)) && (
                 <div className="rounded-lg border p-4 space-y-3">
+                  {has(CAP.MODULE_FLASHCARDS_CONFIGURE) && (
                   <div>
                     <Label className="font-medium">Flashcards</Label>
                     <p className="text-xs text-muted-foreground">
                       Add a deck students can review in Learning Tools
                     </p>
-                  </div>
-                  <Button
+                    <Button
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="mt-3"
                     onClick={() => router.push(`/teach/courses/${courseId}/flashcards`)}
                   >
                     Manage flashcards
                   </Button>
+                  </div>
+                  )}
+                  {has(CAP.MODULE_CERTIFICATES_CONFIGURE) && (
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="ml-2"
                     onClick={() => router.push(`/teach/courses/${courseId}/certificate`)}
                   >
                     Certificate design
                   </Button>
+                  )}
                 </div>
+                )}
                 <GeminiCoursePanel courseId={courseId} />
               </CardContent>
             </Card>

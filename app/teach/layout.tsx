@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { ResponsiveLayout } from '@/components/layout/responsive-layout'
+import { PresenceTracker } from '@/components/presence/presence-tracker'
 import { createClient } from '@/lib/supabase/client'
 
 export default function TeachLayout({
@@ -38,12 +39,27 @@ export default function TeachLayout({
         .single()
 
       const role = (profile as { role?: string } | null)?.role
-      const canTeach =
+      let allowed =
         role === 'instructor' ||
         role === 'admin' ||
         role === 'resource_person' ||
         role === 'superadmin'
-      if (!profile || !canTeach) {
+
+      try {
+        const capRes = await fetch('/api/admin/capabilities/me')
+        if (capRes.ok) {
+          const capJson = await capRes.json()
+          const list: string[] = capJson.capabilities || []
+          const hasTeach =
+            list.includes('*') || list.some((k: string) => k.startsWith('menu.teach.'))
+          if (hasTeach) allowed = true
+          else if (list.length > 0) allowed = false
+        }
+      } catch {
+        // keep coarse role fallback
+      }
+
+      if (!profile || !allowed) {
         router.push('/dashboard')
         return
       }
@@ -68,5 +84,10 @@ export default function TeachLayout({
     )
   }
 
-  return <ResponsiveLayout user={user}>{children}</ResponsiveLayout>
+  return (
+    <ResponsiveLayout user={user}>
+      <PresenceTracker />
+      {children}
+    </ResponsiveLayout>
+  )
 }

@@ -10,8 +10,13 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { BookOpen, Home, User, Settings, GraduationCap, Users, Bell, TrendingUp, Loader2, Building2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useCapabilities } from '@/components/auth/capabilities-provider'
+import { MENU_LINKS } from '@/lib/capability-catalog'
+import {
+  BookOpen,
+  Loader2,
+} from 'lucide-react'
 
 interface CourseHit {
   id: string
@@ -24,6 +29,7 @@ export const OPEN_SEARCH_EVENT = 'pelbu:open-search'
 
 export function CommandPalette() {
   const router = useRouter()
+  const { has } = useCapabilities()
   const [open, setOpen] = useState(false)
   const [courses, setCourses] = useState<CourseHit[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -102,7 +108,7 @@ export function CommandPalette() {
                 )}
               </CommandEmpty>
 
-              {courses.length > 0 && (
+              {has('menu.learn.courses.view') && courses.length > 0 && (
                 <CommandGroup heading="Courses">
                   {courses.map((c) => (
                     <CommandItem
@@ -121,49 +127,15 @@ export function CommandPalette() {
               )}
 
               <CommandGroup heading="Navigation">
-                <CommandItem value="dashboard home" onSelect={() => runCommand('/dashboard')}>
-                  <Home className="mr-2 h-4 w-4" />
-                  <span>Dashboard</span>
-                </CommandItem>
-                <CommandItem value="courses catalog browse" onSelect={() => runCommand('/courses')}>
-                  <BookOpen className="mr-2 h-4 w-4" />
-                  <span>Browse courses</span>
-                </CommandItem>
-                <CommandItem value="progress learning" onSelect={() => runCommand('/learn/progress')}>
-                  <TrendingUp className="mr-2 h-4 w-4" />
-                  <span>My Progress</span>
-                </CommandItem>
-                <CommandItem value="announcements news" onSelect={() => runCommand('/announcements')}>
-                  <Bell className="mr-2 h-4 w-4" />
-                  <span>Announcements</span>
-                </CommandItem>
-                <CommandItem value="profile account" onSelect={() => runCommand('/profile')}>
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Profile</span>
-                </CommandItem>
-                <CommandItem value="settings preferences" onSelect={() => runCommand('/settings')}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Settings</span>
-                </CommandItem>
-              </CommandGroup>
-
-              <CommandGroup heading="Teaching & Admin">
-                <CommandItem value="teacher dashboard" onSelect={() => runCommand('/teach/dashboard')}>
-                  <GraduationCap className="mr-2 h-4 w-4" />
-                  <span>Teacher Dashboard</span>
-                </CommandItem>
-                <CommandItem value="user management admin" onSelect={() => runCommand('/admin/users')}>
-                  <Users className="mr-2 h-4 w-4" />
-                  <span>User Management</span>
-                </CommandItem>
-                <CommandItem value="site administration settings" onSelect={() => runCommand('/admin/settings')}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Site administration</span>
-                </CommandItem>
-                <CommandItem value="institutions dessung pelsung" onSelect={() => runCommand('/admin/settings/institutions')}>
-                  <Building2 className="mr-2 h-4 w-4" />
-                  <span>Institutions</span>
-                </CommandItem>
+                {MENU_LINKS.filter((link) => has(link.cap)).map((link) => (
+                  <CommandItem
+                    key={link.href}
+                    value={`${link.name} ${link.href} ${link.section} ${link.keywords ?? ''}`}
+                    onSelect={() => runCommand(link.href)}
+                  >
+                    <span className="truncate">{link.name}</span>
+                  </CommandItem>
+                ))}
               </CommandGroup>
             </CommandList>
           </Command>

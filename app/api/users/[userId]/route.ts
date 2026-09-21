@@ -1,9 +1,8 @@
 // @ts-nocheck - roles / role_id not yet in generated Database types
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRBAC } from '@/lib/rbac'
 import {
   CAP,
-  checkCapability,
+  enforceCapability,
   institutionAllowed,
 } from '@/lib/capabilities'
 import { createServiceClient } from '@/lib/supabase/server'
@@ -21,11 +20,7 @@ function denied(rbac: { error?: string }) {
 }
 
 async function requireUsersCap(request: NextRequest, caps: string[]) {
-  const cap = await checkCapability(request, caps)
-  if (cap.hasAccess) return cap
-  const rbac = await checkRBAC(request, ['admin', 'superadmin'])
-  if (rbac.hasAccess) return { ...rbac, capabilities: cap.capabilities }
-  return cap
+  return enforceCapability(request, caps, ['admin', 'superadmin'])
 }
 
 export async function GET(

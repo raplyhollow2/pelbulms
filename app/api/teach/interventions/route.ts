@@ -1,13 +1,17 @@
 // @ts-nocheck - expansion tables not fully in generated Database types
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRBAC } from '@/lib/rbac'
+import { enforceCapability, CAP } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
 import { userCanManageCourse } from '@/lib/course-access'
 
 const TEACHER_ROLES = ['instructor', 'admin', 'resource_person', 'superadmin'] as const
 
 export async function GET(request: NextRequest) {
-  const rbac = await checkRBAC(request, [...TEACHER_ROLES])
+  const rbac = await enforceCapability(
+    request,
+    [CAP.MODULE_INTERVENTIONS_VIEW, CAP.MODULE_INTERVENTIONS_CONFIGURE],
+    [...TEACHER_ROLES]
+  )
   if (!rbac.hasAccess) {
     return NextResponse.json({ error: rbac.error || 'Access denied' }, { status: 403 })
   }
@@ -92,7 +96,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const rbac = await checkRBAC(request, [...TEACHER_ROLES])
+  const rbac = await enforceCapability(
+    request,
+    [CAP.MODULE_INTERVENTIONS_VIEW, CAP.MODULE_INTERVENTIONS_CONFIGURE],
+    [...TEACHER_ROLES]
+  )
   if (!rbac.hasAccess) {
     return NextResponse.json({ error: rbac.error || 'Access denied' }, { status: 403 })
   }

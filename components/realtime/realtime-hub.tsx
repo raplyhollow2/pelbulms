@@ -31,6 +31,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
+import { RoleBadge } from '@/components/auth/role-badge'
 
 interface RealtimeUser {
   id: string
@@ -284,14 +285,6 @@ export function RealtimeHub() {
     }
   }
 
-  const getRoleColor = (role: RealtimeUser['role']) => {
-    switch (role) {
-      case 'instructor': return 'bg-purple-600'
-      case 'admin': return 'bg-red-600'
-      default: return 'bg-blue-600'
-    }
-  }
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
     const now = new Date()
@@ -515,11 +508,7 @@ export function RealtimeHub() {
                           {message.is_pinned && (
                             <Pin className="w-3 h-3 text-bhutan-yellow" />
                           )}
-                          {message.user.role === 'instructor' && (
-                            <Badge className={`${getRoleColor(message.user.role)} text-xs`} variant="outline">
-                              Instructor
-                            </Badge>
-                          )}
+                          <RoleBadge role={message.user.role} size="sm" />
                           <span className="text-xs text-muted-foreground">
                             {formatDate(message.created_at)}
                           </span>
@@ -613,9 +602,7 @@ export function RealtimeHub() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <h4 className="font-semibold">{user.full_name}</h4>
-                        <Badge className={`${getRoleColor(user.role)} text-xs`} variant="outline">
-                          {user.role}
-                        </Badge>
+                        <RoleBadge role={user.role} size="sm" />
                       </div>
                       {user.current_activity && (
                         <p className="text-sm text-muted-foreground">

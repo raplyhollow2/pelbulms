@@ -29,6 +29,8 @@ import {
   type ActivityDefinition,
 } from '@/lib/lesson-activities'
 import { QuizCreator } from '@/components/quiz/quiz-creator'
+import { useCapabilities } from '@/components/auth/capabilities-provider'
+import { ACTIVITY_MODULE_CAP } from '@/lib/capability-catalog'
 
 type Props = {
   open: boolean
@@ -73,6 +75,7 @@ export function AddLessonActivityModal({
   lessonId,
   onAdd,
 }: Props) {
+  const { has } = useCapabilities()
   const [selected, setSelected] = useState<LessonActivityType | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm())
   const [required, setRequired] = useState(true)
@@ -89,8 +92,12 @@ export function AddLessonActivityModal({
   )
 
   const filtered = useMemo(
-    () => filterActivityTypes(category, search),
-    [category, search]
+    () =>
+      filterActivityTypes(category, search).filter((def) => {
+        const cap = ACTIVITY_MODULE_CAP[def.type]
+        return cap ? has(cap) : true
+      }),
+    [category, search, has]
   )
 
   useEffect(() => {

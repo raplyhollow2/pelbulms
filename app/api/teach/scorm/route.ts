@@ -1,6 +1,6 @@
 // @ts-nocheck - expansion tables not fully in generated Database types
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRBAC } from '@/lib/rbac'
+import { enforceCapability, CAP } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
 import { userCanManageCourse } from '@/lib/course-access'
 
@@ -52,7 +52,11 @@ function zipStore(files: Array<{ name: string; data: string }>): Uint8Array {
 }
 
 export async function GET(request: NextRequest) {
-  const rbac = await checkRBAC(request, [...TEACHER_ROLES])
+  const rbac = await enforceCapability(
+    request,
+    CAP.MODULE_SCORM_CONFIGURE,
+    [...TEACHER_ROLES]
+  )
   if (!rbac.hasAccess) {
     return NextResponse.json({ error: rbac.error || 'Access denied' }, { status: 403 })
   }

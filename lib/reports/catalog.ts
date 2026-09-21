@@ -246,6 +246,14 @@ export const REPORT_CATALOG: ReportDefinition[] = [
     phase: 'P1',
   },
   {
+    id: 'live-presence',
+    section: 'platform-command',
+    title: 'Live presence',
+    description: 'Concurrent users in the LMS versus unique sessions since midnight (Bhutan time).',
+    audiences: ['superadmin'],
+    phase: 'P0',
+  },
+  {
     id: 'cross-tenant',
     section: 'platform-command',
     title: 'Cross-tenant comparison',

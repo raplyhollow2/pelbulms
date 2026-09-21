@@ -52,6 +52,7 @@ export type ReportId =
   | 'role-audit'
   | 'feature-adoption'
   | 'intervention-effectiveness'
+  | 'live-presence'
   // Developer / System Pulse
   | 'data-quality'
   | 'enrollment-state-machine'

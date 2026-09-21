@@ -16,13 +16,20 @@ on:
         description: Optional explicit version (e.g. 1.2.0). Leave empty to use bump.
         required: false
         type: string
+      build_type:
+        description: Gradle build type. Only release APKs can be published.
+        type: choice
+        options:
+          - release
+          - debug
+        default: release
       lms_url:
         description: LMS site URL baked into the APK
-        required: false
+        required: true
         default: https://pelbulms.vercel.app
         type: string
       publish_release:
-        description: Create GitHub Release android-vX.Y.Z and attach the APK
+        description: Create GitHub Release android-vX.Y.Z and attach the APK (release builds only)
         type: boolean
         default: true
 
@@ -83,6 +90,7 @@ jobs:
           echo "Resolved Android $VERSION_NAME (code $VERSION_CODE) → $TAG"
 
       - name: Decode release keystore
+        if: ${{ inputs.build_type == 'release' }}
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -109,18 +117,28 @@ jobs:
         id: lms
         shell: bash
         run: |
+          set -euo pipefail
           URL='${{ inputs.lms_url }}'
           URL="${URL%/}"
+          if [[ ! "$URL" =~ ^https?:// ]]; then
+            echo "lms_url must start with http:// or https:// (got: $URL)" >&2
+            exit 1
+          fi
           HOST="$(echo "$URL" | sed -E 's#^https?://##; s#/.*##')"
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "host=$HOST" >> "$GITHUB_OUTPUT"
+          echo "APK will target $URL (host $HOST)"
 
-      - name: Build signed release APK
+      - name: Build APK
         shell: bash
         run: |
           set -euo pipefail
           chmod +x gradlew
-          ./gradlew assembleRelease \
+          TASK="assembleRelease"
+          if [ "${{ inputs.build_type }}" = "debug" ]; then
+            TASK="assembleDebug"
+          fi
+          ./gradlew "$TASK" \
             -PLMS_URL='${{ steps.lms.outputs.url }}' \
             -PLMS_HOST='${{ steps.lms.outputs.host }}' \
             --no-daemon --stacktrace
@@ -130,9 +148,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          SRC="$(find app/build/outputs/apk/release -name '*.apk' | head -n 1)"
-          if [[ -z "$SRC" ]]; then
-            echo "No release APK found" >&2
+          if [ "${{ inputs.build_type }}" = "debug" ]; then
+            APK_DIR="app/build/outputs/apk/debug"
+          else
+            APK_DIR="app/build/outputs/apk/release"
+          fi
+          SRC="$(find "$APK_DIR" -name '*.apk' -type f | head -n 1 || true)"
+          if [[ -z "$SRC" || ! -f "$SRC" ]]; then
+            echo "No APK found in $APK_DIR" >&2
+            ls -la "$APK_DIR" >&2 || true
             exit 1
           fi
           DEST="${{ github.workspace }}/${{ steps.version.outputs.apk_name }}"
@@ -169,8 +193,15 @@ jobs:
           git commit -m "chore(android): release v${{ steps.version.outputs.version_name }} (code ${{ steps.version.outputs.version_code }})"
           git push
 
+      - name: Skip GitHub Release for debug builds
+        if: ${{ inputs.publish_release && inputs.build_type != 'release' }}
+        working-directory: .
+        shell: bash
+        run: |
+          echo "Skipping GitHub Release because build_type is ${{ inputs.build_type }} (only release APKs are published)."
+
       - name: Publish GitHub Release
-        if: ${{ inputs.publish_release }}
+        if: ${{ inputs.publish_release && inputs.build_type == 'release' }}
         working-directory: .
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

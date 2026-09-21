@@ -1,17 +1,16 @@
 // @ts-nocheck - registration_reviewers not in generated Database types
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRBAC, checkCapability, CAP } from '@/lib/rbac'
+import { enforceCapability, CAP } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
 
 async function requireReviewers(request: NextRequest, write: boolean) {
-  const cap = await checkCapability(
+  return enforceCapability(
     request,
     write
       ? [CAP.REVIEWERS_ADD, CAP.REVIEWERS_EDIT, CAP.REVIEWERS_DELETE]
-      : CAP.REVIEWERS_VIEW
+      : CAP.REVIEWERS_VIEW,
+    ['superadmin']
   )
-  if (cap.hasAccess) return cap
-  return checkRBAC(request, ['superadmin'])
 }
 
 /**

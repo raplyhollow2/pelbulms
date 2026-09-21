@@ -1,6 +1,6 @@
 // @ts-nocheck - quiz tables not fully in generated Database types
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRBAC } from '@/lib/rbac'
+import { enforceCapability, CAP } from '@/lib/rbac'
 import { getDbClient } from '@/lib/db'
 import { authorizeLessonManage } from '@/lib/authoring'
 import { courseIdByLesson } from '@/lib/course-access'
@@ -13,7 +13,11 @@ const TEACHER_ROLES = ['instructor', 'admin', 'resource_person', 'superadmin'] a
  */
 export async function GET(request: NextRequest) {
   try {
-    const rbac = await checkRBAC(request, [...TEACHER_ROLES])
+    const rbac = await enforceCapability(
+      request,
+      [CAP.MODULE_QUIZZES_VIEW, CAP.MODULE_QUIZZES_CONFIGURE],
+      [...TEACHER_ROLES]
+    )
     if (!rbac.hasAccess) {
       return NextResponse.json(
         { error: rbac.error || 'Access denied' },
@@ -46,7 +50,11 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const rbac = await checkRBAC(request, [...TEACHER_ROLES])
+    const rbac = await enforceCapability(
+      request,
+      CAP.MODULE_QUIZZES_CONFIGURE,
+      [...TEACHER_ROLES]
+    )
     if (!rbac.hasAccess) {
       return NextResponse.json(
         { error: rbac.error || 'Access denied' },

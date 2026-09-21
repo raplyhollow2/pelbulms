@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
-import { checkRBAC } from '@/lib/rbac'
+import { enforceCapability, CAP } from '@/lib/rbac'
 
 export async function GET(request: NextRequest) {
   try {
@@ -60,7 +60,11 @@ export async function GET(request: NextRequest) {
  * Body: { courseId, lessonId?, title?, cards: [{ front, back }] }
  */
 export async function POST(request: NextRequest) {
-  const rbac = await checkRBAC(request, ['instructor', 'admin', 'resource_person', 'superadmin'])
+  const rbac = await enforceCapability(
+    request,
+    CAP.MODULE_FLASHCARDS_CONFIGURE,
+    ['instructor', 'admin', 'resource_person', 'superadmin']
+  )
   if (!rbac.hasAccess) {
     return NextResponse.json({ error: rbac.error || 'Access denied' }, { status: 403 })
   }

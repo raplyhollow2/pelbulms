@@ -41,7 +41,19 @@ export default function AdminReportsPage() {
 
       const isAdmin = canAccessAdmin(userRole)
       const isRp = userRole === 'resource_person'
-      if (!isAdmin && !isRp) {
+      let allowed = isAdmin || isRp
+      try {
+        const capRes = await fetch('/api/admin/capabilities/me')
+        if (capRes.ok) {
+          const capJson = await capRes.json()
+          const list: string[] = capJson.capabilities || []
+          if (list.includes('*') || list.includes('admin.reports.view')) allowed = true
+          else if (list.length > 0) allowed = false
+        }
+      } catch {
+        // coarse role
+      }
+      if (!allowed) {
         router.push('/dashboard')
         return
       }

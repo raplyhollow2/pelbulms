@@ -1,7 +1,7 @@
 // @ts-nocheck - platform_settings not in generated Database types
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
-import { checkRBAC, checkCapability, CAP } from '@/lib/rbac'
+import { enforceCapability, CAP } from '@/lib/rbac'
 import { ADMIN_ROLES } from '@/lib/roles'
 import { getAdminDb } from '@/lib/supabase/server'
 import {
@@ -34,12 +34,11 @@ function bustPublicSiteCache() {
 }
 
 async function requireSettings(request: NextRequest, write: boolean) {
-  const cap = await checkCapability(
+  return enforceCapability(
     request,
-    write ? CAP.SETTINGS_EDIT : CAP.SETTINGS_VIEW
+    write ? CAP.SETTINGS_EDIT : CAP.SETTINGS_VIEW,
+    ADMIN_ROLES
   )
-  if (cap.hasAccess) return cap
-  return checkRBAC(request, ADMIN_ROLES)
 }
 
 const BOOLEAN_KEYS = [

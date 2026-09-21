@@ -1,9 +1,8 @@
 // @ts-nocheck - roles join / role_id not yet in generated Database types
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRBAC } from '@/lib/rbac'
 import {
   CAP,
-  checkCapability,
+  enforceCapability,
   filterByInstitutionScope,
   institutionAllowed,
 } from '@/lib/capabilities'
@@ -19,14 +18,7 @@ async function requireUsersCap(
   caps: string[],
   fallbackRoles: Role[] = ['admin', 'superadmin']
 ) {
-  const cap = await checkCapability(request, caps)
-  if (cap.hasAccess) return cap
-  // Pre-seed / migration fallback
-  const rbac = await checkRBAC(request, fallbackRoles)
-  if (rbac.hasAccess) {
-    return { ...rbac, capabilities: cap.capabilities }
-  }
-  return cap
+  return enforceCapability(request, caps, fallbackRoles)
 }
 
 /**

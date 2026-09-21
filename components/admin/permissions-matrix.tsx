@@ -195,6 +195,7 @@ export function PermissionsMatrix() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Save failed')
       await load()
+      window.dispatchEvent(new Event('pelbu:capabilities-changed'))
     } catch (e: any) {
       setError(e?.message || 'Save failed')
     } finally {
@@ -390,6 +391,16 @@ export function PermissionsMatrix() {
                       </tr>
                     </thead>
                     <tbody>
+                      {menuRows.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan={MENU_ACTIONS.length + 2}
+                            className="px-3 py-6 text-center text-sm text-muted-foreground"
+                          >
+                            No menu capabilities in the catalog yet.
+                          </td>
+                        </tr>
+                      )}
                       {menuRows.map((row) => {
                         const available = MENU_ACTIONS.filter((a) => capForAction(row.caps, a))
                         const allOn =
@@ -463,6 +474,16 @@ export function PermissionsMatrix() {
                       </tr>
                     </thead>
                     <tbody>
+                      {moduleRows.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan={MODULE_ACTIONS.length + 2}
+                            className="px-3 py-6 text-center text-sm text-muted-foreground"
+                          >
+                            No module capabilities in the catalog yet.
+                          </td>
+                        </tr>
+                      )}
                       {moduleRows.map((row) => {
                         const allOn = row.caps.every((c) => dirtyCaps.has(c.id))
                         return (

@@ -8,8 +8,10 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import type { PlatformSettings } from '@/lib/platform-settings'
+import { SuperadminGate } from '@/components/admin/superadmin-gate'
+import { CAP } from '@/lib/capability-keys'
 
-export default function AdminSiteSettingsPage() {
+function AdminSiteSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
@@ -133,5 +135,13 @@ export default function AdminSiteSettingsPage() {
         {saving ? 'Saving…' : 'Save site settings'}
       </Button>
     </div>
+  )
+}
+
+export default function GatedAdminSiteSettingsPage() {
+  return (
+    <SuperadminGate anyOf={[CAP.SETTINGS_VIEW]}>
+      <AdminSiteSettingsPage />
+    </SuperadminGate>
   )
 }

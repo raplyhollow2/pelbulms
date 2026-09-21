@@ -123,6 +123,7 @@ export interface Profile {
   bio: string | null
   location: string | null
   website: string | null
+  social_links?: Record<string, string> | null
   metadata: any
   account_status: 'pending' | 'active' | 'suspended' | 'rejected' | null
   enrollment_date: string | null

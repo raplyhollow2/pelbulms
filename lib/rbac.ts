@@ -150,5 +150,7 @@ export {
   capabilityDenied,
   resolveUserCapabilities,
   hasCapability,
+  enforceCapability,
+  catalogGrantsActive,
   CAP,
 } from '@/lib/capabilities'

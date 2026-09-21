@@ -52,6 +52,7 @@ export default function LessonViewPage() {
     full_name?: string | null
     avatar_url?: string | null
     bio?: string | null
+    social_links?: unknown
   } | null>(null)
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -277,7 +278,7 @@ export default function LessonViewPage() {
         if (instructorId) {
           const { data: instructorProfile } = await supabase
             .from('profiles')
-            .select('id, full_name, avatar_url, bio')
+            .select('id, full_name, avatar_url, bio, social_links')
             .eq('id', instructorId)
             .maybeSingle()
           if (instructorProfile) setInstructor(instructorProfile as any)

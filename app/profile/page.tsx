@@ -9,7 +9,10 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { RoleBadge } from '@/components/auth/role-badge'
 import { Separator } from '@/components/ui/separator'
+import { canAccessTeaching } from '@/lib/roles'
+import { linkedinFromProfile, mergeSocialLinks, normalizeLinkedInUrl } from '@/lib/social-links'
 import {
   User,
   Mail,
@@ -45,6 +48,7 @@ export default function ProfilePage() {
     headline: '',
     location: '',
     website: '',
+    linkedin: '',
   })
 
   const [stats, setStats] = useState({
@@ -85,6 +89,7 @@ export default function ProfilePage() {
             headline: safeProfile.headline || '',
             location: safeProfile.location || '',
             website: safeProfile.website || '',
+            linkedin: linkedinFromProfile(safeProfile) || '',
           })
         }
 
@@ -159,11 +164,27 @@ export default function ProfilePage() {
     }
   }
 
+  const canShowLinkedIn = canAccessTeaching(profile?.role)
+  const linkedinError =
+    canShowLinkedIn && formData.linkedin.trim() && !normalizeLinkedInUrl(formData.linkedin)
+      ? 'Enter a LinkedIn profile URL, such as https://www.linkedin.com/in/your-name'
+      : ''
+
   const handleSubmit = async () => {
     setSaving(true)
     setSuccess(false)
+    setError('')
 
     try {
+      if (linkedinError) {
+        setError(linkedinError)
+        return
+      }
+
+      const nextSocial = canShowLinkedIn
+        ? mergeSocialLinks(profile?.social_links, { linkedin: formData.linkedin })
+        : undefined
+
       const { error } = await supabase
         .from('profiles')
         // @ts-ignore - Supabase types not properly defined
@@ -174,16 +195,24 @@ export default function ProfilePage() {
           headline: formData.headline,
           location: formData.location,
           website: formData.website,
+          ...(canShowLinkedIn ? { social_links: nextSocial } : {}),
           updated_at: new Date().toISOString()
         } as any)
         .eq('id', user.id)
 
       if (error) throw error
 
+      if (canShowLinkedIn) {
+        setProfile((prev: any) => ({ ...prev, social_links: nextSocial }))
+        const saved = normalizeLinkedInUrl(formData.linkedin) || ''
+        setFormData((prev) => ({ ...prev, linkedin: saved }))
+      }
+
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
     } catch (error) {
       console.error('Error updating profile:', error)
+      setError('Failed to save profile')
     } finally {
       setSaving(false)
     }
@@ -196,16 +225,6 @@ export default function ProfilePage() {
       .join('')
       .toUpperCase()
       .slice(0, 2)
-  }
-
-  const getRoleBadge = (role: string) => {
-    const roleConfig = {
-      student: { label: 'Student', color: 'bg-blue-600' },
-      instructor: { label: 'Instructor', color: 'bg-purple-600' },
-      admin: { label: 'Admin', color: 'bg-red-600' }
-    }
-    const config = roleConfig[role as keyof typeof roleConfig] || roleConfig.student
-    return <Badge className={config.color}>{config.label}</Badge>
   }
 
   if (loading) {
@@ -338,6 +357,25 @@ export default function ProfilePage() {
                   />
                 </div>
               </div>
+              {canShowLinkedIn && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">LinkedIn profile</label>
+                  <Input
+                    className="min-h-11"
+                    inputMode="url"
+                    autoComplete="url"
+                    placeholder="https://www.linkedin.com/in/your-name"
+                    value={formData.linkedin}
+                    onChange={(e) => setFormData({ ...formData, linkedin: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Shown on your public profile and course pages for learners.
+                  </p>
+                  {linkedinError && (
+                    <p className="text-xs text-destructive">{linkedinError}</p>
+                  )}
+                </div>
+              )}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Bio</label>
                 <Textarea
@@ -361,14 +399,14 @@ export default function ProfilePage() {
                 <p className="text-sm font-medium">Role</p>
                 <p className="text-xs text-muted-foreground">Your account role</p>
               </div>
-              {profile && getRoleBadge(profile.role)}
+              {profile && <RoleBadge role={profile.role} size="lg" />}
             </div>
 
             {/* Action Buttons */}
             <div className="flex items-center gap-3">
               <Button
                 onClick={handleSubmit}
-                disabled={saving}
+                disabled={saving || Boolean(linkedinError)}
                 className="bg-bhutan-yellow hover:bg-bhutan-orange text-black"
               >
                 {saving ? (

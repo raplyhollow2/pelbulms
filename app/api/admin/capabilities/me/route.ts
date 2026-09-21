@@ -32,11 +32,18 @@ export async function GET(_request: NextRequest) {
         ? ['*']
         : Array.from(resolved.capabilityKeys),
       canAdminNav:
+        hasCapability(resolved, CAP.DASHBOARD_VIEW) ||
         hasCapability(resolved, CAP.USERS_VIEW) ||
         hasCapability(resolved, CAP.REPORTS_VIEW) ||
         hasCapability(resolved, CAP.SETTINGS_VIEW) ||
         hasCapability(resolved, CAP.PERMISSIONS_VIEW) ||
         hasCapability(resolved, CAP.AI_VIEW),
+      canTeachNav:
+        hasCapability(resolved, CAP.TEACH_DASHBOARD_VIEW) ||
+        hasCapability(resolved, CAP.TEACH_CREATE_VIEW) ||
+        hasCapability(resolved, CAP.TEACH_MEDIA_VIEW) ||
+        hasCapability(resolved, CAP.TEACH_REPORTS_VIEW) ||
+        hasCapability(resolved, CAP.TEACH_ANNOUNCEMENTS_VIEW),
       canApprovals: hasCapability(resolved, CAP.APPROVALS_VIEW),
       canPermissions: hasCapability(resolved, CAP.PERMISSIONS_VIEW),
       canAi: hasCapability(resolved, CAP.AI_VIEW),

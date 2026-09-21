@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRBAC, checkCapability, CAP } from '@/lib/rbac'
+import { enforceCapability, CAP } from '@/lib/rbac'
 import { ADMIN_ROLES } from '@/lib/roles'
 import { getAdminDb } from '@/lib/supabase/server'
 import { uniqueInstitutionSlug } from '@/lib/institution-slug'
@@ -13,9 +13,7 @@ function denied(rbac: { error?: string }) {
 }
 
 async function requireInstitutionsEdit(request: NextRequest) {
-  const cap = await checkCapability(request, CAP.INSTITUTIONS_EDIT)
-  if (cap.hasAccess) return cap
-  return checkRBAC(request, ADMIN_ROLES)
+  return enforceCapability(request, CAP.INSTITUTIONS_EDIT, ADMIN_ROLES)
 }
 
 function parseDomains(value: unknown): string[] | null {
@@ -114,7 +112,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const rbac = await checkRBAC(request, ADMIN_ROLES)
+  const rbac = await enforceCapability(request, CAP.INSTITUTIONS_DELETE, ADMIN_ROLES)
   if (!rbac.hasAccess) return denied(rbac)
 
   const { id } = await params

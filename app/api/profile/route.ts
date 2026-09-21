@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { parseSocialLinks } from '@/lib/social-links'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -54,6 +55,7 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json()
     const { full_name, avatar_url, bio, headline, location, website, social_links } = body
+    const normalizedSocial = social_links === undefined ? undefined : parseSocialLinks(social_links)
 
     const { data: profile, error } = await supabase
       .from('profiles')
@@ -64,7 +66,7 @@ export async function PUT(request: NextRequest) {
         headline,
         location,
         website,
-        social_links: social_links || undefined,
+        ...(normalizedSocial ? { social_links: normalizedSocial } : {}),
         updated_at: new Date().toISOString()
       } as any)
       .eq('id', user.id)

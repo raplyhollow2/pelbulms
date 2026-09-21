@@ -10,6 +10,9 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, BookOpen, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { resolveMediaUrl } from '@/lib/media'
+import { LinkedInProfileLink } from '@/components/profile/linkedin-profile-link'
+import { canAccessTeaching } from '@/lib/roles'
+import { linkedinFromProfile } from '@/lib/social-links'
 
 export default function PublicStudentProfilePage() {
   const params = useParams()
@@ -85,6 +88,9 @@ export default function PublicStudentProfilePage() {
             {profile.headline && <p className="text-muted-foreground">{profile.headline}</p>}
             {profile.location && <p className="text-sm text-muted-foreground">{profile.location}</p>}
             {profile.bio && <p className="text-sm whitespace-pre-wrap">{profile.bio}</p>}
+            {canAccessTeaching(profile.role) && (
+              <LinkedInProfileLink url={linkedinFromProfile(profile)} />
+            )}
           </div>
         </CardContent>
       </Card>

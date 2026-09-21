@@ -13,14 +13,13 @@ import {
   TrendingUp,
   Calendar,
   MapPin,
-  Link as LinkIcon,
   GitBranch,
   Globe,
   ChevronRight,
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { resolveMediaUrl } from '@/lib/media'
 import Link from 'next/link'
+import { LinkedInProfileLink } from '@/components/profile/linkedin-profile-link'
 
 interface Instructor {
   id: string
@@ -77,13 +76,12 @@ export function InstructorShowcase({
     platform,
     url,
   }: {
-    platform: 'linkedin' | 'github' | 'website'
+    platform: 'github' | 'website'
     url?: string
   }) => {
     if (!url) return null
 
     const icons = {
-      linkedin: <LinkIcon className="w-4 h-4" />,
       github: <GitBranch className="w-4 h-4" />,
       website: <Globe className="w-4 h-4" />,
     }
@@ -123,7 +121,10 @@ export function InstructorShowcase({
 
                   {/* Social Links */}
                   <div className="flex items-center gap-2 mb-4">
-                    <SocialLink platform="linkedin" url={featuredInstructor.social_links?.linkedin} />
+                    <LinkedInProfileLink
+                      url={featuredInstructor.social_links?.linkedin}
+                      compact
+                    />
                     <SocialLink platform="github" url={featuredInstructor.social_links?.github} />
                     <SocialLink platform="website" url={featuredInstructor.website} />
                   </div>

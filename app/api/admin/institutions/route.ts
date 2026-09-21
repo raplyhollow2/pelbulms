@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRBAC, checkCapability, CAP } from '@/lib/rbac'
+import { enforceCapability, CAP } from '@/lib/rbac'
 import { ADMIN_ROLES } from '@/lib/roles'
 import { getAdminDb } from '@/lib/supabase/server'
 import { uniqueInstitutionSlug } from '@/lib/institution-slug'
@@ -21,9 +21,7 @@ async function requireInstitutions(request: NextRequest, action: 'view' | 'add' 
         : action === 'edit'
           ? CAP.INSTITUTIONS_EDIT
           : CAP.INSTITUTIONS_DELETE
-  const cap = await checkCapability(request, key)
-  if (cap.hasAccess) return cap
-  return checkRBAC(request, ADMIN_ROLES)
+  return enforceCapability(request, key, ADMIN_ROLES)
 }
 
 function parseDomains(value: unknown): string[] | null {

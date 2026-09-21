@@ -298,6 +298,7 @@ export default function CoursesPage() {
                 full_name: instructor.full_name,
                 avatar_url: instructor.avatar_url,
                 bio: instructor.bio,
+                social_links: instructor.social_links,
                 metadata: instructor.metadata || {},
                 courses: courseList,
                 studentsCount,

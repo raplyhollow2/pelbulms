@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { ResponsiveLayout } from '@/components/layout/responsive-layout'
+import { PresenceTracker } from '@/components/presence/presence-tracker'
 import { createClient } from '@/lib/supabase/client'
 
 interface AuthShellProps {
@@ -120,6 +121,7 @@ export function AuthShell({
 
   return (
     <ResponsiveLayout user={user} siteName={siteName}>
+      <PresenceTracker />
       {children}
     </ResponsiveLayout>
   )

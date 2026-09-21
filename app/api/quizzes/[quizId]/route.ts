@@ -1,6 +1,6 @@
 // @ts-nocheck - quiz tables not fully in generated Database types
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRBAC } from '@/lib/rbac'
+import { enforceCapability, CAP } from '@/lib/rbac'
 import { getDbClient } from '@/lib/db'
 import { authorizeQuizManage } from '@/lib/authoring'
 import { courseIdByQuiz } from '@/lib/authoring'
@@ -9,7 +9,7 @@ import { notifyEnrolledStudents } from '@/lib/notify-enrolled'
 const TEACHER_ROLES = ['instructor', 'admin', 'resource_person', 'superadmin'] as const
 
 async function authorize(request: NextRequest, quizId: string) {
-  const rbac = await checkRBAC(request, [...TEACHER_ROLES])
+  const rbac = await enforceCapability(request, CAP.MODULE_QUIZZES_CONFIGURE, [...TEACHER_ROLES])
   if (!rbac.hasAccess) {
     return {
       ok: false as const,

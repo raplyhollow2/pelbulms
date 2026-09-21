@@ -52,9 +52,11 @@ import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 import { cn, success as hapticSuccess, warning as hapticWarning } from '@/lib/utils'
 import { resolveMediaUrl } from '@/lib/media'
+import { coerceUserRole } from '@/lib/roles'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PendingApprovalsPanel } from '@/components/admin/pending-approvals-panel'
 import { ReviewersPanel } from '@/components/admin/reviewers-panel'
+import { RoleBadge } from '@/components/auth/role-badge'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 type Role = 'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
@@ -87,53 +89,6 @@ function getInitials(name?: string | null) {
     .slice(0, 2)
     .join('')
     .toUpperCase()
-}
-
-function roleBadgeClass(role: string) {
-  switch (role) {
-    case 'superadmin':
-      return 'border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300'
-    case 'admin':
-      return 'border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300'
-    case 'resource_person':
-      return 'border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-300'
-    case 'instructor':
-      return 'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300'
-    case 'student':
-      return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-    default:
-      return 'border-border bg-muted text-muted-foreground'
-  }
-}
-
-function roleLabel(role: string) {
-  switch (role) {
-    case 'superadmin':
-      return 'Super admin'
-    case 'admin':
-      return 'Admin'
-    case 'resource_person':
-      return 'Resource person'
-    case 'instructor':
-      return 'Instructor'
-    case 'student':
-      return 'Student'
-    default:
-      return role
-  }
-}
-
-function RoleBadge({ role }: { role: string }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex h-5 items-center rounded-md border px-1.5 text-[10px] font-medium capitalize tracking-wide',
-        roleBadgeClass(role)
-      )}
-    >
-      {roleLabel(role)}
-    </span>
-  )
 }
 
 function roleSelectOptions(
@@ -255,23 +210,33 @@ export default function AdminUsersPage() {
         .eq('id', session.user.id)
         .single()
 
-      const metaRole =
-        session.user.app_metadata?.role || session.user.user_metadata?.role || null
-      const profileRole = (profile as { role?: string } | null)?.role || null
-      const role = (
-        profileRole === 'superadmin' || metaRole === 'superadmin'
-          ? 'superadmin'
-          : profileRole === 'resource_person' || metaRole === 'resource_person'
-            ? 'resource_person'
-            : profileRole || metaRole || 'student'
+      const role = coerceUserRole(
+        (profile as { role?: string } | null)?.role ||
+          (session.user.app_metadata?.role as string | undefined)
       ) as Role
 
-      const manage = role === 'admin' || role === 'superadmin'
-      // Admins and superadmins always manage the approval queue; RPs and assigned reviewers too.
+      let manage = role === 'admin' || role === 'superadmin'
       let approve =
         role === 'superadmin' ||
         role === 'admin' ||
         role === 'resource_person'
+      let canReviewers = role === 'superadmin'
+
+      try {
+        const capRes = await fetch('/api/admin/capabilities/me')
+        if (capRes.ok) {
+          const capJson = await capRes.json()
+          const list: string[] = capJson.capabilities || []
+          const has = (key: string) => list.includes('*') || list.includes(key)
+          if (list.length > 0) {
+            manage = has('admin.users.view')
+            approve = has('admin.approvals.view')
+            canReviewers = has('admin.reviewers.view')
+          }
+        }
+      } catch {
+        // coarse role fallback
+      }
 
       if (!approve) {
         const { data: reviewerRows } = await supabase
@@ -283,7 +248,7 @@ export default function AdminUsersPage() {
         approve = !!(reviewerRows && reviewerRows.length > 0)
       }
 
-      if (!manage && !approve) {
+      if (!manage && !approve && !canReviewers) {
         router.push('/dashboard')
         return
       }
@@ -297,7 +262,7 @@ export default function AdminUsersPage() {
           ? new URLSearchParams(window.location.search).get('tab')
           : null
 
-      if (requested === 'reviewers' && role === 'superadmin') {
+      if (requested === 'reviewers' && canReviewers) {
         setActiveTab('reviewers')
       } else if (requested === 'approvals' && approve) {
         setActiveTab('approvals')
@@ -305,7 +270,7 @@ export default function AdminUsersPage() {
         setActiveTab(
           requested === 'approvals' && approve
             ? 'approvals'
-            : requested === 'reviewers' && role === 'superadmin'
+            : requested === 'reviewers' && canReviewers
               ? 'reviewers'
               : 'users'
         )
@@ -812,7 +777,7 @@ export default function AdminUsersPage() {
                               {user.full_name || 'Unnamed user'}
                             </p>
                             <span className="md:hidden">
-                              <RoleBadge role={user.role || 'student'} />
+                              <RoleBadge role={user.role || 'student'} size="sm" />
                             </span>
                           </div>
                           <p className="mt-0.5 truncate text-xs text-muted-foreground">{email}</p>
@@ -836,7 +801,7 @@ export default function AdminUsersPage() {
 
                       {/* Role (tablet+) */}
                       <div className="hidden md:block">
-                        <RoleBadge role={user.role || 'student'} />
+                        <RoleBadge role={user.role || 'student'} size="sm" />
                       </div>
 
                       {/* Actions */}

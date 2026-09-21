@@ -2,6 +2,8 @@
  * Build instructor showcase fields from live course / enrollment / certificate data.
  */
 
+import { parseSocialLinks, type SocialLinks } from '@/lib/social-links'
+
 export type InstructorStatsInput = {
   id: string
   full_name?: string | null
@@ -10,6 +12,7 @@ export type InstructorStatsInput = {
   headline?: string | null
   location?: string | null
   website?: string | null
+  social_links?: unknown
   metadata?: Record<string, unknown> | null
   courses: Array<{
     id: string
@@ -43,11 +46,7 @@ export type InstructorShowcaseData = {
   location?: string
   website?: string
   years_experience?: number
-  social_links?: {
-    linkedin?: string
-    github?: string
-    website?: string
-  }
+  social_links?: SocialLinks
 }
 
 function uniqueStrings(values: Array<string | null | undefined>, limit = 8): string[] {
@@ -149,6 +148,24 @@ export function deriveAchievements(input: InstructorStatsInput): string[] {
   return achievements
 }
 
+function resolveSocialLinks(input: InstructorStatsInput): SocialLinks | undefined {
+  const meta = (input.metadata || {}) as Record<string, unknown>
+  const fromColumn = parseSocialLinks(input.social_links)
+  const fromMeta = parseSocialLinks(meta.social_links)
+  const merged: SocialLinks = {
+    ...(fromMeta.linkedin || fromColumn.linkedin
+      ? { linkedin: fromColumn.linkedin || fromMeta.linkedin }
+      : {}),
+    ...(fromMeta.github || fromColumn.github
+      ? { github: fromColumn.github || fromMeta.github }
+      : {}),
+    ...(fromMeta.website || fromColumn.website
+      ? { website: fromColumn.website || fromMeta.website }
+      : {}),
+  }
+  return merged.linkedin || merged.github || merged.website ? merged : undefined
+}
+
 export function buildInstructorShowcaseData(input: InstructorStatsInput): InstructorShowcaseData {
   const meta = (input.metadata || {}) as Record<string, any>
   const published = input.courses.filter((c) => c.is_published !== false)
@@ -171,8 +188,6 @@ export function buildInstructorShowcaseData(input: InstructorStatsInput): Instru
     website: input.website || (typeof meta.website === 'string' ? meta.website : undefined),
     years_experience:
       typeof meta.years_experience === 'number' ? meta.years_experience : undefined,
-    social_links: meta.social_links && typeof meta.social_links === 'object'
-      ? meta.social_links
-      : undefined,
+    social_links: resolveSocialLinks(input),
   }
 }

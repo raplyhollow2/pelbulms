@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { resolveMediaUrl } from '@/lib/media'
+import { LinkedInProfileLink } from '@/components/profile/linkedin-profile-link'
 import {
   buildInstructorShowcaseData,
   type InstructorShowcaseData,
@@ -101,6 +102,7 @@ export default function InstructorProfilePage() {
           headline: (profile as any).headline,
           location: (profile as any).location,
           website: (profile as any).website,
+          social_links: (profile as any).social_links,
           metadata: (profile as any).metadata || {},
           courses: courseList,
           studentsCount,
@@ -170,6 +172,9 @@ export default function InstructorProfilePage() {
               </div>
               {instructor.bio && (
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">{instructor.bio}</p>
+              )}
+              {instructor.social_links?.linkedin && (
+                <LinkedInProfileLink url={instructor.social_links.linkedin} />
               )}
               <div className="flex flex-wrap gap-2">
                 {instructor.expertise

@@ -412,6 +412,10 @@ export interface Database {
           email?: string | null
           role?: 'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
           bio?: string | null
+          headline?: string | null
+          location?: string | null
+          website?: string | null
+          social_links?: unknown
           institution_id?: string | null
           created_at?: string
           updated_at?: string

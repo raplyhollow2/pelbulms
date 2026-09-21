@@ -4,14 +4,17 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  Home, BookOpen, GraduationCap, User,
-  Menu, X, LogOut, Settings, Search,
-  Bell, TrendingUp, Users, Plus, HardDrive, Sparkles, Building2, BarChart3, Shield
+  Menu, X, LogOut, Search,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { createClient } from '@/lib/supabase/client'
+import { leavePresenceAndSignOut } from '@/components/presence/presence-tracker'
 import { cn, haptic, warning as hapticWarning } from '@/lib/utils'
+import { useCapabilities } from '@/components/auth/capabilities-provider'
+import { defaultKeysForRole, hasCap } from '@/lib/capability-catalog'
+import { buildAccessNav } from '@/lib/nav-access'
+import { coerceUserRole } from '@/lib/roles'
 
 interface MobileNavigationProps {
   user?: any
@@ -20,72 +23,25 @@ interface MobileNavigationProps {
 export function MobileNavigation({ user }: MobileNavigationProps) {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
+  const { loaded: capsLoaded, has: hasCapKey, role: capRole } = useCapabilities()
   const [userRole, setUserRole] = useState<
     'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
   >('student')
   const [canApprove, setCanApprove] = useState(false)
-  const [caps, setCaps] = useState<{
-    canUsers?: boolean
-    canReports?: boolean
-    canInstitutions?: boolean
-    canSettings?: boolean
-    canPermissions?: boolean
-    canAi?: boolean
-    canApprovals?: boolean
-  }>({})
 
-  const canTeach =
-    userRole === 'instructor' ||
-    userRole === 'admin' ||
-    userRole === 'resource_person' ||
-    userRole === 'superadmin'
-  const canAdmin = userRole === 'admin' || userRole === 'superadmin'
-  const isSuper = userRole === 'superadmin'
-  const isResourcePerson = userRole === 'resource_person'
-  const showApprovals = isSuper || isResourcePerson || canApprove || caps.canApprovals
-
-  const mainNavigation = [
-    { name: 'Home', href: '/dashboard', icon: Home },
-    { name: 'Courses', href: '/courses', icon: BookOpen },
-    { name: 'Reports', href: '/learn/reports', icon: TrendingUp },
-    { name: 'Profile', href: '/profile', icon: User },
-  ]
-
-  const secondaryNavigation = [
-    { name: 'Announcements', href: '/announcements', icon: Bell },
-    { name: 'Settings', href: '/settings', icon: Settings },
-  ]
-
-  const teacherNavigation = [
-    { name: 'Teacher Hub', href: '/teach/dashboard', icon: GraduationCap },
-    { name: 'New Course', href: '/teach/create', icon: Plus },
-    { name: 'Media Library', href: '/teach/media', icon: HardDrive },
-    { name: 'Reports', href: '/teach/reports', icon: BarChart3 },
-    { name: 'Announcements', href: '/teach/announcements', icon: Bell },
-    ...(showApprovals && !canAdmin
-      ? [{ name: 'Users', href: '/admin/users?tab=approvals', icon: Users }]
-      : []),
-  ]
-
-  const showUsers = canAdmin || caps.canUsers
-  const showReports = canAdmin || caps.canReports
-  const showInstitutions = canAdmin || caps.canInstitutions
-  const showSettings = canAdmin || caps.canSettings
-  const showPermissions = isSuper || caps.canPermissions
-  const showAi = isSuper || caps.canAi
-
-  const adminNavigation = [
-    ...(showUsers ? [{ name: 'Users', href: '/admin/users', icon: Users }] : []),
-    ...(showReports ? [{ name: 'Reports', href: '/admin/reports', icon: BarChart3 }] : []),
-    ...(showInstitutions
-      ? [{ name: 'Institutions', href: '/admin/settings/institutions', icon: Building2 }]
-      : []),
-    ...(showSettings ? [{ name: 'Site admin', href: '/admin/settings', icon: Settings }] : []),
-    ...(showPermissions
-      ? [{ name: 'Permissions', href: '/admin/permissions', icon: Shield }]
-      : []),
-    ...(showAi ? [{ name: 'AI', href: '/admin/ai', icon: Sparkles }] : []),
-  ]
+  const roleForNav = capsLoaded ? capRole : userRole
+  const has = (key: string) =>
+    capsLoaded ? hasCapKey(key) : hasCap(defaultKeysForRole(roleForNav), key)
+  const { learn, teach: teacherNavigation, admin: adminNavigation } = buildAccessNav(has, {
+    showApprovalsShortcut: canApprove || has('admin.approvals.view'),
+  })
+  const mainNavigation = learn.filter((item) =>
+    ['/dashboard', '/courses', '/learn/reports', '/profile'].includes(item.href)
+  )
+  const secondaryNavigation = learn.filter((item) =>
+    ['/learn/progress', '/announcements', '/settings'].includes(item.href)
+  )
+  const canTeach = teacherNavigation.length > 0
 
   useEffect(() => {
     if (user) fetchUserRole()
@@ -113,15 +69,9 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
         .eq('id', user.id)
         .single()
 
-      const metaRole =
-        user?.app_metadata?.role || user?.user_metadata?.role || null
-      const profileRole = (profile as any)?.role || null
-      const role =
-        profileRole === 'superadmin' || metaRole === 'superadmin'
-          ? 'superadmin'
-          : profileRole === 'resource_person' || metaRole === 'resource_person'
-            ? 'resource_person'
-            : profileRole || metaRole || 'student'
+      const role = coerceUserRole(
+        (profile as any)?.role || user?.app_metadata?.role
+      )
 
       setUserRole(role)
 
@@ -136,26 +86,6 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
           .limit(1)
         setCanApprove(!!(reviewerRows && reviewerRows.length > 0))
       }
-
-      try {
-        const capRes = await fetch('/api/admin/capabilities/me')
-        if (capRes.ok) {
-          const capJson = await capRes.json()
-          const list: string[] = capJson.capabilities || []
-          const has = (key: string) => list.includes('*') || list.includes(key)
-          setCaps({
-            canUsers: has('admin.users.view'),
-            canReports: has('admin.reports.view'),
-            canInstitutions: has('admin.institutions.view'),
-            canSettings: has('admin.settings.view'),
-            canPermissions: has('admin.permissions.view') || role === 'superadmin',
-            canAi: has('admin.ai.view') || role === 'superadmin',
-            canApprovals: has('admin.approvals.view') || !!capJson.canApprovals,
-          })
-        }
-      } catch {
-        // optional until migration applied
-      }
     } catch (error) {
       console.error('Error fetching user role:', error)
     }
@@ -164,8 +94,7 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
   const handleLogout = async () => {
     hapticWarning()
     try {
-      const supabase = createClient()
-      await supabase.auth.signOut()
+      await leavePresenceAndSignOut()
       window.location.href = '/'
     } catch (error) {
       console.error('Error logging out:', error)
@@ -173,7 +102,9 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
   }
 
   const isActive = (href: string) =>
-    pathname === href || pathname.startsWith(`${href}/`)
+    href === '/admin'
+      ? pathname === '/admin'
+      : pathname === href || pathname.startsWith(`${href}/`)
 
   return (
     <>
@@ -326,7 +257,7 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
               </div>
             )}
 
-            {(canAdmin || adminNavigation.length > 0) && (
+            {adminNavigation.length > 0 && (
               <div className="mb-4">
                 <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Admin

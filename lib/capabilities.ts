@@ -10,6 +10,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, tryCreateServiceClient } from '@/lib/supabase/server'
 import type { UserRole } from '@/lib/roles'
+import { CAP, type CapabilityKey } from '@/lib/capability-keys'
+
+export { CAP, type CapabilityKey, type CapabilityAction, type CapabilityGroup } from '@/lib/capability-keys'
 
 /** Avoid importing rbac.ts here (circular: rbac re-exports this module). */
 const SUPERADMIN_ROLE: UserRole = 'superadmin'
@@ -20,44 +23,6 @@ type RBACCheck = {
   userId?: string
   error?: string
 }
-
-export type CapabilityKey = string
-
-export type CapabilityAction =
-  | 'view'
-  | 'add'
-  | 'edit'
-  | 'delete'
-  | 'configure'
-  | 'uninstall'
-
-export type CapabilityGroup = 'menu' | 'module'
-
-/** Stable keys used by APIs and the permissions UI. */
-export const CAP = {
-  DASHBOARD_VIEW: 'admin.dashboard.view',
-  USERS_VIEW: 'admin.users.view',
-  USERS_ADD: 'admin.users.add',
-  USERS_EDIT: 'admin.users.edit',
-  USERS_DELETE: 'admin.users.delete',
-  APPROVALS_VIEW: 'admin.approvals.view',
-  APPROVALS_EDIT: 'admin.approvals.edit',
-  REVIEWERS_VIEW: 'admin.reviewers.view',
-  REVIEWERS_ADD: 'admin.reviewers.add',
-  REVIEWERS_EDIT: 'admin.reviewers.edit',
-  REVIEWERS_DELETE: 'admin.reviewers.delete',
-  REPORTS_VIEW: 'admin.reports.view',
-  INSTITUTIONS_VIEW: 'admin.institutions.view',
-  INSTITUTIONS_ADD: 'admin.institutions.add',
-  INSTITUTIONS_EDIT: 'admin.institutions.edit',
-  INSTITUTIONS_DELETE: 'admin.institutions.delete',
-  SETTINGS_VIEW: 'admin.settings.view',
-  SETTINGS_EDIT: 'admin.settings.edit',
-  PERMISSIONS_VIEW: 'admin.permissions.view',
-  PERMISSIONS_EDIT: 'admin.permissions.edit',
-  AI_VIEW: 'admin.ai.view',
-  AI_CONFIGURE: 'admin.ai.configure',
-} as const
 
 export type ResolvedCapabilities = {
   userId: string
@@ -190,6 +155,46 @@ export async function resolveUserCapabilities(
 
 function coarseFallback(userId: string, userRole: UserRole): ResolvedCapabilities {
   const keys = new Set<string>()
+  const add = (list: string[]) => list.forEach((k) => keys.add(k))
+
+  add([
+    CAP.LEARN_DASHBOARD_VIEW,
+    CAP.LEARN_COURSES_VIEW,
+    CAP.LEARN_PROGRESS_VIEW,
+    CAP.LEARN_REPORTS_VIEW,
+    CAP.LEARN_ANNOUNCEMENTS_VIEW,
+    CAP.LEARN_PROFILE_VIEW,
+    CAP.LEARN_SETTINGS_VIEW,
+  ])
+
+  if (userRole === 'resource_person') {
+    keys.add(CAP.APPROVALS_VIEW)
+    keys.add(CAP.APPROVALS_EDIT)
+    keys.add(CAP.MODULE_REGISTRATION_KYC_VIEW)
+  } else if (userRole === 'instructor' || userRole === 'admin') {
+    add([
+      CAP.TEACH_DASHBOARD_VIEW,
+      CAP.TEACH_CREATE_VIEW,
+      CAP.TEACH_MEDIA_VIEW,
+      CAP.TEACH_REPORTS_VIEW,
+      CAP.TEACH_ANNOUNCEMENTS_VIEW,
+      CAP.MODULE_QUIZZES_VIEW,
+      CAP.MODULE_QUIZZES_CONFIGURE,
+      CAP.MODULE_FORUMS_VIEW,
+      CAP.MODULE_FORUMS_CONFIGURE,
+      CAP.MODULE_FLASHCARDS_VIEW,
+      CAP.MODULE_FLASHCARDS_CONFIGURE,
+      CAP.MODULE_CERTIFICATES_VIEW,
+      CAP.MODULE_CERTIFICATES_CONFIGURE,
+      CAP.MODULE_SCORM_VIEW,
+      CAP.MODULE_SCORM_CONFIGURE,
+      CAP.MODULE_INTERVENTIONS_VIEW,
+      CAP.MODULE_INTERVENTIONS_CONFIGURE,
+      CAP.MODULE_ANNOUNCEMENTS_VIEW,
+      CAP.MODULE_ANNOUNCEMENTS_CONFIGURE,
+    ])
+  }
+
   if (userRole === 'admin') {
     ;[
       CAP.DASHBOARD_VIEW,
@@ -207,9 +212,15 @@ function coarseFallback(userId: string, userRole: UserRole): ResolvedCapabilitie
       CAP.SETTINGS_VIEW,
       CAP.SETTINGS_EDIT,
     ].forEach((k) => keys.add(k))
-  } else if (userRole === 'resource_person') {
-    keys.add(CAP.APPROVALS_VIEW)
-    keys.add(CAP.APPROVALS_EDIT)
+  } else if (userRole === 'student') {
+    add([
+      CAP.MODULE_CERTIFICATES_VIEW,
+      CAP.MODULE_FORUMS_VIEW,
+      CAP.MODULE_QUIZZES_VIEW,
+      CAP.MODULE_FLASHCARDS_VIEW,
+      CAP.MODULE_SCORM_VIEW,
+      CAP.MODULE_ANNOUNCEMENTS_VIEW,
+    ])
   }
 
   return {
@@ -298,6 +309,38 @@ export function capabilityDenied(check: CapabilityCheck) {
     { error: check.error || 'Access denied' },
     { status: check.error?.includes('Unauthorized') ? 401 : 403 }
   )
+}
+
+/** True when the role actually has catalog grants (so coarse role fallback must not win). */
+export function catalogGrantsActive(resolved?: ResolvedCapabilities) {
+  if (!resolved) return false
+  if (resolved.capabilityKeys.has('*')) return true
+  return resolved.capabilityKeys.size > 0
+}
+
+/**
+ * Capability check that only falls back to coarse roles when the catalog
+ * has no grants for this user (pre-seed / empty matrix).
+ */
+export async function enforceCapability(
+  request: NextRequest,
+  capabilityKey: CapabilityKey | CapabilityKey[],
+  coarseFallbackRoles?: UserRole[]
+): Promise<CapabilityCheck> {
+  const cap = await checkCapability(request, capabilityKey)
+  if (cap.hasAccess) return cap
+  if (catalogGrantsActive(cap.capabilities) || !coarseFallbackRoles?.length) {
+    return cap
+  }
+  const { checkRBAC } = await import('@/lib/rbac')
+  const rbac = await checkRBAC(request, coarseFallbackRoles)
+  if (!rbac.hasAccess) return cap
+  return {
+    ...cap,
+    hasAccess: true,
+    userRole: rbac.userRole,
+    userId: rbac.userId,
+  }
 }
 
 /** Filter a list of rows by institution_id when the role is scoped. */
