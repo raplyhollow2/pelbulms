@@ -36,15 +36,15 @@ export function PresenceTracker() {
 
     const beat = async (force = false) => {
       if (stopped || (typeof window !== 'undefined' && (window as any).__pelbuLeaving)) return
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      if (!session || stopped) return
-
-      const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden'
-      const stale = Date.now() - lastInteractionRef.current >= PRESENCE_IDLE_MS
-      const idle = hidden || stale
       try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        if (!session || stopped) return
+
+        const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden'
+        const stale = Date.now() - lastInteractionRef.current >= PRESENCE_IDLE_MS
+        const idle = hidden || stale
         await sendPresenceHeartbeat({
           supabase,
           status: idle ? 'idle' : 'online',
@@ -53,7 +53,7 @@ export function PresenceTracker() {
           force,
         })
       } catch {
-        /* non-fatal */
+        /* session lookup and heartbeat are best-effort */
       }
     }
 

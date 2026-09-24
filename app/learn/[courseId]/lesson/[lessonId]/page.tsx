@@ -1186,7 +1186,9 @@ export default function LessonViewPage() {
     void (async () => {
       const result = await issueCertificate(Boolean(opts?.force))
       if (!result.url) {
-        certAutoRequestedRef.current = false
+        // A grading hold is stable until the lesson remounts. Clearing the lock
+        // here lets the completion effect issue the same request on every update.
+        if (!result.pending) certAutoRequestedRef.current = false
         return
       }
       if (congratsShownRef.current && !opts?.force) {
