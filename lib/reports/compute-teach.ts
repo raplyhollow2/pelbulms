@@ -24,7 +24,7 @@ function median(arr: number[]) {
   return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2)
 }
 
-async function courseIdsForTeacher(db: Db, userId: string): Promise<string[]> {
+async function courseIdsOwnedOrStaff(db: Db, userId: string): Promise<string[]> {
   const [{ data: owned }, { data: staff }] = await Promise.all([
     db.from('courses').select('id').eq('instructor_id', userId),
     db.from('course_instructors').select('course_id').eq('user_id', userId),
@@ -33,6 +33,19 @@ async function courseIdsForTeacher(db: Db, userId: string): Promise<string[]> {
   for (const c of owned || []) ids.add((c as any).id)
   for (const s of staff || []) ids.add((s as any).course_id)
   return [...ids]
+}
+
+export async function courseIdsForTeacher(
+  db: Db,
+  userId: string,
+  opts?: { allCourses?: boolean; instructorId?: string | null }
+): Promise<string[]> {
+  if (opts?.instructorId) return courseIdsOwnedOrStaff(db, opts.instructorId)
+  if (opts?.allCourses) {
+    const { data } = await db.from('courses').select('id')
+    return ((data || []) as any[]).map((c) => c.id)
+  }
+  return courseIdsOwnedOrStaff(db, userId)
 }
 
 function pickFrictionType(signals: {
@@ -80,9 +93,9 @@ const EMPTY_FRICTION: FrictionMapPayload = {
 export async function computeTeachReports(
   db: Db,
   userId: string,
-  opts?: { range?: ReportRange }
+  opts?: { range?: ReportRange; allCourses?: boolean; instructorId?: string | null }
 ): Promise<TeachReportsResult> {
-  const courseIds = await courseIdsForTeacher(db, userId)
+  const courseIds = await courseIdsForTeacher(db, userId, opts)
   if (courseIds.length === 0) {
     return {
       blocks: [
@@ -236,6 +249,34 @@ export async function computeTeachReports(
     submittedActivities.length > 0
       ? Math.round((gradedActivities.length / submittedActivities.length) * 100)
       : 0
+
+  const gradingByCourse: Record<string, { submitted: number; pending: number; graded: number }> = {}
+  for (const row of submittedActivities) {
+    const lesson = lessonById.get(row.lesson_id)
+    const mod = lesson ? moduleById.get(lesson.module_id) : null
+    const courseId = mod?.course_id as string | undefined
+    if (!courseId) continue
+    if (!gradingByCourse[courseId]) {
+      gradingByCourse[courseId] = { submitted: 0, pending: 0, graded: 0 }
+    }
+    gradingByCourse[courseId].submitted += 1
+    if (row.status === 'graded' || row.status === 'returned') gradingByCourse[courseId].graded += 1
+    else gradingByCourse[courseId].pending += 1
+  }
+  const gradingRows = Object.entries(gradingByCourse)
+    .map(([courseId, stats]) => ({
+      id: courseId,
+      href: `/teach/courses/${courseId}/grading`,
+      cells: {
+        course: courseTitle.get(courseId) || courseId,
+        submitted: stats.submitted,
+        pending: stats.pending,
+        graded: stats.graded,
+        gradedRate:
+          stats.submitted > 0 ? `${Math.round((stats.graded / stats.submitted) * 100)}%` : '—',
+      },
+    }))
+    .sort((a, b) => Number(b.cells.pending) - Number(a.cells.pending))
 
   // Quiz fail rate by lesson
   const quizIdsByLesson: Record<string, string[]> = {}
@@ -542,6 +583,27 @@ export async function computeTeachReports(
         },
       })),
       emptyMessage: 'No quiz attempts or activity submissions for your courses yet.',
+    },
+    {
+      id: 'grading-queue',
+      title: 'Grading queue',
+      description: 'Submitted work waiting for a grade. Open a course to grade it.',
+      metrics: [
+        { key: 'submitted', label: 'Submitted', value: submittedActivities.length },
+        { key: 'pending', label: 'Pending', value: pendingActivities.length },
+        { key: 'graded', label: 'Graded', value: gradedActivities.length },
+        { key: 'gradedRate', label: 'Graded rate', value: `${gradedRate}%` },
+      ],
+      split: { pending: pendingActivities.length, graded: gradedActivities.length },
+      columns: [
+        { key: 'course', label: 'Course' },
+        { key: 'submitted', label: 'Submitted' },
+        { key: 'pending', label: 'Pending' },
+        { key: 'graded', label: 'Graded' },
+        { key: 'gradedRate', label: 'Graded rate' },
+      ],
+      rows: gradingRows,
+      emptyMessage: 'Nothing is waiting to be graded.',
     },
     {
       id: 'roster-ops',

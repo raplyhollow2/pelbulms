@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Plus, Trash2, Pencil } from 'lucide-react'
@@ -122,6 +123,47 @@ export function LessonActivitiesPanel({
                         Mandatory for progression
                       </Label>
                     </div>
+                    {item.activity === 'assignment' ? (
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <Label htmlFor={`pass-${item.id}`} className="text-xs text-muted-foreground">
+                          Grade to pass
+                        </Label>
+                        <Input
+                          id={`pass-${item.id}`}
+                          type="number"
+                          min={0}
+                          max={item.maxGrade}
+                          className="h-8 w-24"
+                          defaultValue={item.passGrade ?? ''}
+                          placeholder="Any"
+                          key={`${item.id}-${item.passGrade ?? 'any'}`}
+                          onBlur={(e) => {
+                            const raw = e.target.value.trim()
+                            const passGrade = raw === '' ? undefined : Number(raw)
+                            if (passGrade != null && Number.isNaN(passGrade)) return
+                            if (
+                              passGrade != null &&
+                              item.maxGrade != null &&
+                              passGrade > item.maxGrade
+                            ) {
+                              e.currentTarget.value =
+                                item.passGrade != null ? String(item.passGrade) : ''
+                              return
+                            }
+                            if ((item.passGrade ?? undefined) === passGrade) return
+                            void onChange(
+                              items.map((a) =>
+                                a.id === item.id ? { ...a, passGrade } : a
+                              )
+                            )
+                          }}
+                        />
+                        <span className="text-[11px] text-muted-foreground">
+                          {item.maxGrade != null ? `out of ${item.maxGrade}. ` : ''}
+                          Empty accepts any recorded grade.
+                        </span>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">

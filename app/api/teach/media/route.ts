@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRBAC } from '@/lib/rbac'
-import { cloudinary, isCloudinaryConfigured } from '@/lib/cloudinary'
+import { cloudinaryClient, getCloudinaryAccount } from '@/lib/cloudinary'
 import { createServiceClient } from '@/lib/supabase/server'
 import { makeMediaRef } from '@/lib/media'
 
@@ -35,7 +35,9 @@ export async function GET(request: NextRequest) {
   const assets: MediaAsset[] = []
 
   try {
-    if (isCloudinaryConfigured()) {
+    const account = await getCloudinaryAccount()
+    if (account) {
+      const cloudinary = cloudinaryClient(account)
       const types: Array<'video' | 'image'> = kindFilter === 'video'
         ? ['video']
         : kindFilter === 'image'
@@ -133,7 +135,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       assets,
-      cloudinaryConfigured: isCloudinaryConfigured(),
+      cloudinaryConfigured: Boolean(account),
     })
   } catch (error: any) {
     return NextResponse.json(
@@ -163,7 +165,9 @@ export async function DELETE(request: NextRequest) {
     const path = body.path as string | undefined
     const kind = (body.kind as string) || 'video'
 
-    if (source === 'cloudinary' && publicId && isCloudinaryConfigured()) {
+    const account = await getCloudinaryAccount()
+    if (source === 'cloudinary' && publicId && account) {
+      const cloudinary = cloudinaryClient(account)
       await cloudinary.uploader.destroy(publicId, {
         resource_type: kind === 'image' ? 'image' : 'video',
         type: 'authenticated',

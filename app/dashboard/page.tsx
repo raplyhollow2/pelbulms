@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,6 +25,7 @@ import type { Database } from '@/types/database.types'
 import { DashboardCourseCard } from '@/components/dashboard/course-card'
 import { resolveMediaUrl } from '@/lib/media'
 import { resumeLearnPath } from '@/lib/resume-path'
+import { homePathForRole } from '@/lib/roles'
 import {
   Select,
   SelectContent,
@@ -51,10 +53,12 @@ type EnrollmentRow = {
 }
 
 export default function DashboardPage() {
+  const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [enrollments, setEnrollments] = useState<EnrollmentRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [redirecting, setRedirecting] = useState(false)
   const [stats, setStats] = useState({
     activeCourses: 0,
     completedLessons: 0,
@@ -84,11 +88,8 @@ export default function DashboardPage() {
         data: { session },
       } = await supabase.auth.getSession()
       if (!session?.user) {
-        setLoading(false)
         return
       }
-
-      setUser(session.user)
 
       const { data: profileData } = await supabase
         .from('profiles')
@@ -96,6 +97,14 @@ export default function DashboardPage() {
         .eq('id', session.user.id)
         .single()
 
+      const home = homePathForRole((profileData as any)?.role)
+      if (home === '/admin/reports' || home === '/teach/dashboard') {
+        setRedirecting(true)
+        router.replace(home)
+        return
+      }
+
+      setUser(session.user)
       setProfile(profileData)
 
       const { data: enrollmentsData } = await supabase
@@ -181,6 +190,14 @@ export default function DashboardPage() {
       })
     return sortable[0] || null
   }, [enrollments])
+
+  if (redirecting) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-sm text-muted-foreground">
+        Opening your dashboard…
+      </div>
+    )
+  }
 
   if (loading) {
     return (

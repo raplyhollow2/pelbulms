@@ -26,6 +26,10 @@ import {
   isLessonUnlocked,
   type LessonProgressLite,
 } from '@/lib/progression-gates'
+import {
+  describeCompletionBlockers,
+  type CompletionBlocker,
+} from '@/lib/activity-responses'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Module = Database['public']['Tables']['modules']['Row']
@@ -64,6 +68,8 @@ export default function LessonViewPage() {
   const [activityCompleted, setActivityCompleted] = useState(false)
   const [mandatoryTotal, setMandatoryTotal] = useState(0)
   const [mandatoryCompleted, setMandatoryCompleted] = useState(0)
+  const [activityBlockers, setActivityBlockers] = useState<CompletionBlocker[]>([])
+  const [completionHold, setCompletionHold] = useState<string | null>(null)
   const [activityProgressById, setActivityProgressById] = useState<
     Record<string, { id: string; completed?: boolean; source?: string | null }>
   >({})
@@ -543,19 +549,85 @@ export default function LessonViewPage() {
     setActivityProgressById(map)
     setMandatoryTotal(Number(data.mandatoryTotal) || 0)
     setMandatoryCompleted(Number(data.mandatoryCompleted) || 0)
+    const blockers = (data.blockers || []) as CompletionBlocker[]
+    setActivityBlockers(blockers)
     const done = Boolean(data.activityCompleted)
     setActivityCompleted(done)
+    const lessonDone =
+      typeof data.lessonCompleted === 'boolean' ? data.lessonCompleted : undefined
+    if (lessonDone === true) setIsCompleted(true)
+    if (lessonDone === false) setIsCompleted(false)
     setProgressByLesson((prev) => {
       const next = new Map(prev)
       const cur = next.get(lessonId)
       next.set(lessonId, {
         lesson_id: lessonId,
-        // Never wipe a known completed flag when activity sync lands first
-        completed: Boolean(cur?.completed) || completedLessonIds.has(lessonId),
+        completed:
+          lessonDone ??
+          (Boolean(cur?.completed) || completedLessonIds.has(lessonId)),
         activity_completed: done,
       })
       return next
     })
+    if (lessonDone === false) {
+      setCompletedLessonIds((prev) => {
+        const next = new Set(prev)
+        next.delete(lessonId)
+        return next
+      })
+    } else if (lessonDone === true) {
+      setCompletedLessonIds((prev) => {
+        const next = new Set(prev)
+        next.add(lessonId)
+        return next
+      })
+    }
+    if ((data.courseBlockers || []).length > 0 || lessonDone === false) {
+      const requestedLessonId = lessonId
+      const requestedCourseId = courseId
+      void (async () => {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        if (!user || activeLessonIdRef.current !== requestedLessonId) return
+        const { data: courseProgress } = await supabase
+          .from('lesson_progress')
+          .select('lesson_id, completed, activity_completed')
+          .eq('user_id', user.id)
+          .eq('course_id', requestedCourseId)
+        if (activeLessonIdRef.current !== requestedLessonId) return
+        if (courseProgress) {
+          const map = new Map<string, LessonProgressLite>()
+          for (const row of courseProgress as any[]) {
+            map.set(row.lesson_id, {
+              lesson_id: row.lesson_id,
+              completed: Boolean(row.completed),
+              activity_completed: Boolean(row.activity_completed),
+            })
+          }
+          setProgressByLesson(map)
+          setCompletedLessonIds(
+            new Set(
+              (courseProgress as any[])
+                .filter((row) => row.completed)
+                .map((row) => row.lesson_id as string)
+            )
+          )
+          const current = (courseProgress as any[]).find(
+            (row) => row.lesson_id === requestedLessonId
+          )
+          if (current) setIsCompleted(Boolean(current.completed))
+        }
+        const { data: updatedEnrollment } = await supabase
+          .from('enrollments')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('course_id', requestedCourseId)
+          .maybeSingle()
+        if (activeLessonIdRef.current !== requestedLessonId) return
+        if (updatedEnrollment) setEnrollment(updatedEnrollment)
+      })()
+    }
   }
 
   const refreshActivityProgress = async (opts?: {
@@ -827,14 +899,21 @@ export default function LessonViewPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, enrollment?.progress_percentage, completedLessonIds, allLessons.length])
 
+  const activityHoldMessage = () => {
+    if (activityCompleted || mandatoryTotal === 0) return null
+    return (
+      describeCompletionBlockers(activityBlockers) ||
+      'Finish mandatory activities for this lesson before continuing.'
+    )
+  }
+
   const toggleLessonComplete = () => {
     if (!isCompleted) {
-      const settings = mergeGateSettings(
-        (module as any)?.metadata,
-        (lesson as any)?.metadata
-      )
-      if (settings.gateNextUntilActivitiesDone && !activityCompleted && mandatoryTotal > 0) {
-        alert('Finish mandatory activities for this lesson before marking it complete.')
+      if (!activityCompleted && mandatoryTotal > 0) {
+        alert(
+          activityHoldMessage() ||
+            'Finish mandatory activities for this lesson before marking it complete.'
+        )
         return
       }
     }
@@ -979,6 +1058,7 @@ export default function LessonViewPage() {
     savingProgress,
     setLessonCompletedState,
     router,
+    holdMessage: activityHoldMessage(),
   })
   videoEndRuntimeRef.current = {
     lessonId,
@@ -993,6 +1073,7 @@ export default function LessonViewPage() {
     savingProgress,
     setLessonCompletedState,
     router,
+    holdMessage: activityHoldMessage(),
   }
 
   const handleVideoEnded = useCallback(() => {
@@ -1021,7 +1102,8 @@ export default function LessonViewPage() {
       if (!activitiesDone && ctx.mandatoryTotal > 0) {
         setFocusLearningTab('resources')
         setAutoAdvanceNotice(
-          'Video finished — complete the required activities below, then continue.'
+          ctx.holdMessage ||
+            'Video finished — complete the required activities below, then continue.'
         )
         requestAnimationFrame(() => {
           document
@@ -1039,7 +1121,8 @@ export default function LessonViewPage() {
       if (!allowed) {
         if (settings.gateNextUntilActivitiesDone || settings.sequentialUnlock) {
           setAutoAdvanceNotice(
-            'Mark this lesson complete (and finish required activities) before the next lecture unlocks.'
+            ctx.holdMessage ||
+              'Mark this lesson complete (and finish required activities) before the next lecture unlocks.'
           )
         }
         return
@@ -1058,8 +1141,9 @@ export default function LessonViewPage() {
     })()
   }, [])
 
-  // Issue (or fetch existing) certificate; returns the PDF URL if available
-  const issueCertificate = async (force = false): Promise<string | null> => {
+  const issueCertificate = async (
+    force = false
+  ): Promise<{ url: string | null; pending: boolean; error?: string }> => {
     try {
       setIssuingCert(true)
       const res = await fetch('/api/certificates/issue', {
@@ -1068,12 +1152,24 @@ export default function LessonViewPage() {
         body: JSON.stringify({ courseId, force }),
       })
       const json = await res.json().catch(() => ({}))
+      if (!res.ok || json.completionPending) {
+        const message =
+          json.error || 'Course completion is waiting on a passing grade.'
+        if (json.code === 'grading_required' || json.completionPending) {
+          setCompletionHold(message)
+          setShowCompletionDialog(false)
+        }
+        return { url: null, pending: true, error: message }
+      }
       const url = json?.certificate?.certificate_url || null
-      if (url) setCertificateUrl(url)
-      return url
+      if (url) {
+        setCertificateUrl(url)
+        setCompletionHold(null)
+      }
+      return { url, pending: false }
     } catch (e) {
       console.log('Certificate issuance request failed:', e)
-      return null
+      return { url: null, pending: false }
     } finally {
       setIssuingCert(false)
     }
@@ -1083,21 +1179,33 @@ export default function LessonViewPage() {
     if (typeof window !== 'undefined') {
       const key = `pelbu-cert-congrats-${courseId}`
       if (!opts?.force && sessionStorage.getItem(key) === '1') return
-      sessionStorage.setItem(key, '1')
     }
     if (congratsShownRef.current && !opts?.force) return
-    congratsShownRef.current = true
-    clearAutoAdvance()
-    setShowCompletionDialog(true)
-    if (!certAutoRequestedRef.current) {
-      certAutoRequestedRef.current = true
-      void issueCertificate(true)
-    }
+    if (certAutoRequestedRef.current && !opts?.force) return
+    certAutoRequestedRef.current = true
+    void (async () => {
+      const result = await issueCertificate(Boolean(opts?.force))
+      if (!result.url) {
+        certAutoRequestedRef.current = false
+        return
+      }
+      if (congratsShownRef.current && !opts?.force) {
+        certAutoRequestedRef.current = false
+        return
+      }
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(`pelbu-cert-congrats-${courseId}`, '1')
+      }
+      congratsShownRef.current = true
+      clearAutoAdvance()
+      setShowCompletionDialog(true)
+    })()
   }
 
   const handleGetCertificate = async () => {
-    const url = (await issueCertificate(true)) || certificateUrl
-    if (url) {
+    const result = await issueCertificate(true)
+    const url = result.url || certificateUrl
+    if (url && !result.pending) {
       const bust = url.includes('?') ? `${url}&t=${Date.now()}` : `${url}?t=${Date.now()}`
       window.open(bust, '_blank')
     }
@@ -1115,8 +1223,11 @@ export default function LessonViewPage() {
       activityCompleted: activityCompleted || mandatoryTotal === 0,
     })
     if (!allowed) {
+      const hold = activityHoldMessage()
       if (settings.gateNextUntilActivitiesDone && !activityCompleted && mandatoryTotal > 0) {
-        alert('Finish mandatory activities for this lesson before continuing.')
+        alert(hold || 'Finish mandatory activities for this lesson before continuing.')
+      } else if (hold && (settings.gateNextUntilActivitiesDone || settings.sequentialUnlock)) {
+        alert(hold)
       } else {
         alert('Complete this lesson before continuing to the next one.')
       }
@@ -1332,18 +1443,10 @@ export default function LessonViewPage() {
         progressPercent={progressPercent}
         isCompleted={isCompleted}
         savingProgress={savingProgress}
-        completeDisabled={
-          !isCompleted &&
-          currentGateSettings.gateNextUntilActivitiesDone &&
-          !activityCompleted
-        }
+        completeDisabled={!isCompleted && !activityCompleted && mandatoryTotal > 0}
         completeHint={
-          !isCompleted &&
-          currentGateSettings.gateNextUntilActivitiesDone &&
-          !activityCompleted
-            ? mandatoryTotal > 0
-              ? `Complete mandatory activities (${mandatoryCompleted}/${mandatoryTotal}) before marking this lesson complete.`
-              : 'Finish mandatory activities before marking this lesson complete.'
+          !isCompleted && !activityCompleted && mandatoryTotal > 0
+            ? activityHoldMessage()
             : null
         }
         onBack={goBackToModules}
@@ -1374,6 +1477,11 @@ export default function LessonViewPage() {
             onSubmitResponse={(id, response) => void submitActivityResponse(id, response)}
             markingActivityId={markingActivityId}
           />
+          {completionHold ? (
+            <div className="border-b border-amber-600/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-900 dark:text-amber-200">
+              {completionHold}
+            </div>
+          ) : null}
           {autoAdvanceNotice ? (
             <div className="border-b border-bhutan-yellow/40 bg-bhutan-yellow/15 px-4 py-2 text-center text-sm font-medium">
               {autoAdvanceNotice}

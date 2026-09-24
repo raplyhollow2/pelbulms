@@ -1,4 +1,5 @@
 import { isKycExemptRole } from '@/lib/kyc'
+import { homePathForRole } from '@/lib/roles'
 
 type ProfileRow = {
   account_status?: string | null
@@ -26,7 +27,7 @@ export function destinationPathForAccount(opts: {
   }
 
   if (isKycExemptRole(role) || status === 'active') {
-    return '/dashboard'
+    return homePathForRole(role)
   }
 
   // pending (and any unknown status for new users)
@@ -37,7 +38,7 @@ export function destinationPathForAccount(opts: {
     return '/auth/register'
   }
   if (opts.registrationStatus === 'approved') {
-    return '/dashboard'
+    return homePathForRole(role)
   }
   return '/auth/pending-approval'
 }

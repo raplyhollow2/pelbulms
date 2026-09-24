@@ -164,6 +164,18 @@ export function AddLessonActivityModal({
       }
     }
 
+    if (show('passGrade') && form.passGrade) {
+      const pass = Number(form.passGrade)
+      if (Number.isNaN(pass) || pass < 0) {
+        setError(selected === 'quiz' ? 'Pass grade must be 0 or higher' : 'Grade to pass must be 0 or higher')
+        return
+      }
+      if (show('maxGrade') && form.maxGrade && pass > Number(form.maxGrade)) {
+        setError('Grade to pass cannot be higher than the maximum grade')
+        return
+      }
+    }
+
     setSaving(true)
     try {
       const activity: LessonActivity = {
@@ -210,32 +222,34 @@ export function AddLessonActivityModal({
         type="button"
         onClick={() => {
           setSelected(item.type)
-          setForm(emptyForm())
+          const next = emptyForm()
+          if (!item.fields.includes('passGrade')) next.passGrade = ''
+          setForm(next)
           setRequired(defaultActivityRequired(item.type))
           setError('')
         }}
         className={cn(
-          'flex flex-col items-start gap-2 rounded-lg border p-3 text-left transition-colors hover:border-bhutan-yellow/60 hover:bg-bhutan-yellow/5',
+          'flex min-w-0 flex-col items-start gap-2 overflow-hidden rounded-lg border p-3 text-left transition-colors hover:border-bhutan-yellow/60 hover:bg-bhutan-yellow/5',
           selected === item.type && 'border-bhutan-yellow bg-bhutan-yellow/10'
         )}
       >
-        <div className="flex w-full items-start justify-between gap-2">
-          <Icon className="h-5 w-5 shrink-0 text-bhutan-orange" />
-          <Badge
-            variant="outline"
-            className={cn(
-              'shrink-0 text-[10px] font-normal',
-              item.maturity === 'working' && 'border-green-600/40 text-green-700',
-              item.maturity === 'partial' && 'border-amber-600/40 text-amber-700',
-              item.maturity === 'stub' && 'border-muted-foreground/30 text-muted-foreground'
-            )}
-          >
-            {maturityLabel}
-          </Badge>
-        </div>
-        <div>
-          <p className="text-sm font-medium">{item.label}</p>
-          <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
+        <div className="flex w-full min-w-0 items-start gap-2">
+          <Icon className="mt-0.5 h-5 w-5 shrink-0 text-bhutan-orange" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium leading-snug">{item.label}</p>
+            <Badge
+              variant="outline"
+              className={cn(
+                'mt-1 h-auto max-w-full whitespace-normal text-[10px] font-normal',
+                item.maturity === 'working' && 'border-green-600/40 text-green-700',
+                item.maturity === 'partial' && 'border-amber-600/40 text-amber-700',
+                item.maturity === 'stub' && 'border-muted-foreground/30 text-muted-foreground'
+              )}
+            >
+              {maturityLabel}
+            </Badge>
+            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
+          </div>
         </div>
       </button>
     )
@@ -296,7 +310,7 @@ export function AddLessonActivityModal({
                     No activities match your search.
                   </p>
                 ) : (
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {filtered.map((item) => (
                       <TypeCard key={item.type} item={item} />
                     ))}
@@ -475,15 +489,24 @@ export function AddLessonActivityModal({
 
             {show('passGrade') && (
               <div className="space-y-1.5">
-                <Label htmlFor="act-pass">Pass grade (%)</Label>
+                <Label htmlFor="act-pass">
+                  {show('maxGrade') ? 'Grade to pass' : 'Pass grade (%)'}
+                </Label>
                 <Input
                   id="act-pass"
                   type="number"
                   min={0}
-                  max={100}
+                  max={show('maxGrade') ? undefined : 100}
                   value={form.passGrade}
                   onChange={(e) => setForm({ ...form, passGrade: e.target.value })}
+                  placeholder={show('maxGrade') ? 'Any recorded grade' : '60'}
                 />
+                {show('maxGrade') ? (
+                  <p className="text-xs text-muted-foreground">
+                    Minimum score required to pass. Used for activity completion, the next
+                    lesson, and the certificate. Leave empty to accept any recorded grade.
+                  </p>
+                ) : null}
               </div>
             )}
 

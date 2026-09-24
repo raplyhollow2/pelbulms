@@ -82,7 +82,9 @@ export default function CertificateClaimPage() {
             body: JSON.stringify({ courseId, force: true }),
           })
           const json = await res.json().catch(() => ({}))
-          if (res.ok && json.certificate) {
+          if (!res.ok || json.completionPending) {
+            setError(json.error || 'Course completion is waiting on a passing grade.')
+          } else if (json.certificate) {
             setCertificate(json.certificate as CertificateRow)
           }
         }
@@ -97,7 +99,7 @@ export default function CertificateClaimPage() {
           body: JSON.stringify({ courseId, force: true }),
         })
         const json = await res.json().catch(() => ({}))
-        if (!res.ok) {
+        if (!res.ok || json.completionPending) {
           setError(json.error || 'Could not issue certificate yet.')
         } else if (json.certificate) {
           setCertificate(json.certificate as CertificateRow)

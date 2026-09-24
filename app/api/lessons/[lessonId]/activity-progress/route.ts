@@ -9,12 +9,15 @@ import {
   type LessonActivity,
 } from '@/lib/lesson-activities'
 import {
+  activitySatisfiesCompletion,
   isAssessableActivity,
   requiresLearnerInput,
   submissionStatusForActivity,
   validateActivityResponse,
   type ActivityResponsePayload,
 } from '@/lib/activity-responses'
+import { reconcileLessonCourseCompletion, mandatoryBlockersForLesson } from '@/lib/lesson-completion-sync'
+import { notifyStaffOfSubmission } from '@/lib/notify-teachers'
 
 async function getSession() {
   const session = await createSupabaseServerClient()
@@ -55,47 +58,6 @@ async function assertLessonLearnerAccess(
 async function loadLessonActivities(db: any, lessonId: string): Promise<LessonActivity[]> {
   const { data: lesson } = await db.from('lessons').select('resources').eq('id', lessonId).maybeSingle()
   return parseLessonActivities(lesson?.resources)
-}
-
-async function syncLessonActivityCompleted(
-  db: any,
-  userId: string,
-  lessonId: string,
-  activities: LessonActivity[],
-  completedIds: Set<string>
-) {
-  const mandatory = activities.filter(isActivityRequired)
-  const allDone =
-    mandatory.length === 0 || mandatory.every((a) => completedIds.has(a.id))
-
-  const { data: existing } = await db
-    .from('lesson_progress')
-    .select('id, activity_completed')
-    .eq('user_id', userId)
-    .eq('lesson_id', lessonId)
-    .maybeSingle()
-
-  if (existing) {
-    if (Boolean(existing.activity_completed) === allDone) return allDone
-    await db
-      .from('lesson_progress')
-      .update({
-        activity_completed: allDone,
-        activity_completed_at: allDone ? new Date().toISOString() : null,
-      })
-      .eq('id', existing.id)
-  } else if (allDone) {
-    const courseId = await courseIdByLesson(db, lessonId)
-    await db.from('lesson_progress').insert({
-      user_id: userId,
-      lesson_id: lessonId,
-      course_id: courseId,
-      activity_completed: true,
-      activity_completed_at: new Date().toISOString(),
-      completed: false,
-    })
-  }
-  return allDone
 }
 
 async function syncQuizPasses(
@@ -210,20 +172,46 @@ async function buildProgressPayload(
       (choiceTalliesByActivity[row.activity_id][key] || 0) + 1
   }
 
-  const completedIds = new Set(
-    Object.entries(progressById)
-      .filter(([, v]) => v.completed)
-      .map(([id]) => id)
-  )
   const mandatory = getMandatoryActivities(activities)
-  const completedMandatory = mandatory.filter((a) => completedIds.has(a.id)).length
-  const activityCompleted = await syncLessonActivityCompleted(
-    db,
-    userId,
-    lessonId,
-    activities,
-    completedIds
+  const satisfiedIds = new Set(
+    activities
+      .filter((activity) =>
+        activitySatisfiesCompletion(activity, progressById[activity.id] || null)
+      )
+      .map((activity) => activity.id)
   )
+  const completedMandatory = mandatory.filter((a) => satisfiedIds.has(a.id)).length
+  const lessonBlockers = mandatoryBlockersForLesson(
+    { id: lessonId, title: 'Lesson' },
+    activities,
+    new Map(
+      activities.flatMap((activity) => {
+        const row = progressById[activity.id]
+        if (!row) return []
+        return [
+          [
+            activity.id,
+            {
+              completed: Boolean(row.completed),
+              status: row.status ?? null,
+              grade: row.grade ?? null,
+              source: row.source ?? null,
+            },
+          ] as const,
+        ]
+      })
+    )
+  )
+  const activityCompleted = lessonBlockers.length === 0
+
+  const { blockers } = await reconcileLessonCourseCompletion(db, userId, lessonId)
+
+  const { data: lessonProgress } = await db
+    .from('lesson_progress')
+    .select('completed')
+    .eq('user_id', userId)
+    .eq('lesson_id', lessonId)
+    .maybeSingle()
 
   return {
     activities: activities.map((a) => ({
@@ -246,12 +234,16 @@ async function buildProgressPayload(
       return_url: progressById[a.id]?.return_url || null,
       graded_at: progressById[a.id]?.graded_at || null,
       submitted_at: progressById[a.id]?.submitted_at || null,
+      satisfied: satisfiedIds.has(a.id),
       chatMessages: chatMessagesByActivity[a.id] || [],
       choiceTallies: choiceTalliesByActivity[a.id] || null,
     })),
     mandatoryTotal: mandatory.length,
     mandatoryCompleted: completedMandatory,
     activityCompleted,
+    lessonCompleted: Boolean(lessonProgress?.completed),
+    blockers: lessonBlockers,
+    courseBlockers: blockers,
   }
 }
 
@@ -347,6 +339,17 @@ export async function POST(
         const now = new Date()
         const nowIso = now.toISOString()
         const assessable = isAssessableActivity(activity)
+        let resubmission = false
+        if (assessable) {
+          const { data: prior } = await db
+            .from('lesson_activity_progress')
+            .select('id, status, completed')
+            .eq('user_id', user.id)
+            .eq('lesson_id', lessonId)
+            .eq('activity_id', activityId)
+            .maybeSingle()
+          resubmission = Boolean(prior && ((prior as any).completed || (prior as any).status))
+        }
         const status = assessable
           ? submissionStatusForActivity(activity, now)
           : 'submitted'
@@ -379,6 +382,20 @@ export async function POST(
           { onConflict: 'user_id,lesson_id,activity_id' }
         )
         if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+        if (assessable) {
+          try {
+            await notifyStaffOfSubmission(db, {
+              courseId: access.courseId,
+              lessonId,
+              activityId,
+              activityTitle: activity.title || 'Activity',
+              studentId: user.id,
+              resubmission,
+            })
+          } catch (notifyError) {
+            console.error('[activity-progress] grading alert failed:', notifyError)
+          }
+        }
       } else {
         // Plain ack for link/file/page style activities
         if (requiresLearnerInput(activity.activity)) {

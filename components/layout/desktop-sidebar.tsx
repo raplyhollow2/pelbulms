@@ -174,10 +174,11 @@ export function DesktopSidebar({ user, siteName = 'Pelbu LMS' }: DesktopSidebarP
 
   const renderNav = (items: NavItem[]) =>
     items.map((item) => {
+      const itemPath = item.href.split('?')[0]
       const isActive =
-        item.href === '/admin'
+        itemPath === '/admin'
           ? pathname === '/admin'
-          : pathname === item.href || pathname.startsWith(`${item.href}/`)
+          : pathname === itemPath || pathname.startsWith(`${itemPath}/`)
       const link = (
         <Link
           key={item.href}
@@ -334,7 +335,20 @@ export function DesktopSidebar({ user, siteName = 'Pelbu LMS' }: DesktopSidebarP
           {canTeach && (
             <>
               {sectionLabel('Teacher Tools', 'Teach')}
-              {renderNav(teacherNavigation)}
+              {teacherNavigation.some((item) => item.group === 'Course management') && (
+                <>
+                  <p
+                    className={cn(
+                      'px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60',
+                      collapsed && 'sr-only'
+                    )}
+                  >
+                    Course management
+                  </p>
+                  {renderNav(teacherNavigation.filter((item) => item.group === 'Course management'))}
+                </>
+              )}
+              {renderNav(teacherNavigation.filter((item) => item.group !== 'Course management'))}
             </>
           )}
 

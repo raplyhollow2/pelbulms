@@ -25,6 +25,8 @@ export type MenuLink = {
     | 'Shield'
     | 'Sparkles'
   keywords?: string
+  /** Command palette and sidebar subgroup, e.g. Course management. */
+  group?: string
 }
 
 /** Sidebar / command-palette rows keyed to capability catalog keys. */
@@ -37,13 +39,13 @@ export const MENU_LINKS: MenuLink[] = [
   { cap: CAP.LEARN_PROFILE_VIEW, name: 'Profile', href: '/profile', section: 'learn', icon: 'User' },
   { cap: CAP.LEARN_SETTINGS_VIEW, name: 'Settings', href: '/settings', section: 'learn', icon: 'Settings' },
 
-  { cap: CAP.TEACH_DASHBOARD_VIEW, name: 'Teacher Dashboard', href: '/teach/dashboard', section: 'teach', icon: 'GraduationCap' },
-  { cap: CAP.TEACH_CREATE_VIEW, name: 'New Course', href: '/teach/create', section: 'teach', icon: 'BookOpen' },
-  { cap: CAP.TEACH_MEDIA_VIEW, name: 'Media Library', href: '/teach/media', section: 'teach', icon: 'HardDrive' },
+  { cap: CAP.TEACH_DASHBOARD_VIEW, name: 'Teacher Dashboard', href: '/teach/dashboard', section: 'teach', icon: 'GraduationCap', group: 'Course management' },
+  { cap: CAP.TEACH_CREATE_VIEW, name: 'New Course', href: '/teach/create', section: 'teach', icon: 'BookOpen', group: 'Course management' },
+  { cap: CAP.TEACH_MEDIA_VIEW, name: 'Media Library', href: '/teach/media', section: 'teach', icon: 'HardDrive', group: 'Course management' },
   { cap: CAP.TEACH_REPORTS_VIEW, name: 'Reports', href: '/teach/reports', section: 'teach', icon: 'BarChart3' },
   { cap: CAP.TEACH_ANNOUNCEMENTS_VIEW, name: 'Announcements', href: '/teach/announcements', section: 'teach', icon: 'Bell' },
 
-  { cap: CAP.DASHBOARD_VIEW, name: 'Overview', href: '/admin', section: 'admin', icon: 'LayoutDashboard' },
+  { cap: CAP.DASHBOARD_VIEW, name: 'Overview', href: '/admin?overview=1', section: 'admin', icon: 'LayoutDashboard' },
   { cap: CAP.USERS_VIEW, name: 'Users', href: '/admin/users', section: 'admin', icon: 'Users' },
   { cap: CAP.REPORTS_VIEW, name: 'Reports', href: '/admin/reports', section: 'admin', icon: 'BarChart3' },
   { cap: CAP.INSTITUTIONS_VIEW, name: 'Institutions', href: '/admin/settings/institutions', section: 'admin', icon: 'Building2' },

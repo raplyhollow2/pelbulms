@@ -17,7 +17,7 @@ export default function AdminSettingsLayout({
             </p>
             <h1 className="text-2xl font-semibold tracking-tight">Site administration</h1>
             <p className="max-w-2xl text-sm text-muted-foreground">
-              Configure the LMS, registration requirements, institutions, and public marketing.
+              Configure the LMS, registration requirements, institutions, marketing, and Cloudinary.
             </p>
           </div>
           <AdminSettingsNav />

@@ -42,6 +42,7 @@ export type AccessNavItem = {
   href: string
   icon: LucideIcon
   section: NavSection
+  group?: string
 }
 
 export function buildAccessNav(
@@ -53,6 +54,7 @@ export function buildAccessNav(
     href: link.href,
     icon: ICONS[link.icon],
     section: link.section,
+    group: link.group,
   }))
 
   const learn = items.filter((i) => i.section === 'learn')
@@ -65,6 +67,7 @@ export function buildAccessNav(
       href: '/admin/users?tab=approvals',
       icon: Users,
       section: 'teach',
+      group: undefined,
     })
   }
 

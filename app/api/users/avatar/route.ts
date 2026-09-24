@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRBAC } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
-import { cloudinary, isCloudinaryConfigured } from '@/lib/cloudinary'
+import { cloudinaryClient, getCloudinaryAccount } from '@/lib/cloudinary'
 import { makeMediaRef } from '@/lib/media'
 
 const BUCKET = 'avatars'
@@ -71,7 +71,9 @@ export async function POST(request: NextRequest) {
     // Fallback: public Supabase Storage bucket (when Cloudinary isn't set up).
     let storedRef: string
 
-    if (isCloudinaryConfigured()) {
+    const account = await getCloudinaryAccount()
+    if (account) {
+      const cloudinary = cloudinaryClient(account)
       const uploaded: any = await new Promise((resolve, reject) => {
         cloudinary.uploader
           .upload_stream(

@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { Bell, CheckCheck, ClipboardCheck, Loader2, UserPlus, GraduationCap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { useCapabilities } from '@/components/auth/capabilities-provider'
+import { canAccessTeaching } from '@/lib/roles'
 
 type Notification = {
   id: string
@@ -38,7 +40,10 @@ export function NotificationBell({
   const [loading, setLoading] = useState(false)
   const [items, setItems] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
+  const [gradingUnread, setGradingUnread] = useState(0)
   const rootRef = useRef<HTMLDivElement>(null)
+  const { role } = useCapabilities()
+  const staff = canAccessTeaching(role)
 
   const load = useCallback(async () => {
     try {
@@ -48,6 +53,7 @@ export function NotificationBell({
       const data = await res.json()
       setItems(data.notifications || [])
       setUnreadCount(data.unreadCount || 0)
+      setGradingUnread(data.gradingUnread || 0)
     } catch {
       // silent
     } finally {
@@ -57,9 +63,14 @@ export function NotificationBell({
 
   useEffect(() => {
     load()
-    const id = window.setInterval(load, 45000)
-    return () => window.clearInterval(id)
-  }, [load])
+    const id = window.setInterval(load, staff ? 15000 : 45000)
+    const onFocus = () => load()
+    window.addEventListener('focus', onFocus)
+    return () => {
+      window.clearInterval(id)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [load, staff])
 
   useEffect(() => {
     if (open) load()
@@ -82,6 +93,7 @@ export function NotificationBell({
     })
     setItems((prev) => prev.map((n) => ({ ...n, is_read: true })))
     setUnreadCount(0)
+    setGradingUnread(0)
   }
 
   const markOne = async (n: Notification) => {
@@ -119,7 +131,12 @@ export function NotificationBell({
         <Bell className="h-5 w-5" />
         {!compact && <span className="hidden xl:inline">Alerts</span>}
         {unreadCount > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-bhutan-orange px-1 text-[10px] font-bold text-white">
+          <span
+            className={cn(
+              'absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-bhutan-orange px-1 text-[10px] font-bold text-white',
+              gradingUnread > 0 && 'animate-pulse'
+            )}
+          >
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -169,6 +186,8 @@ export function NotificationBell({
                             ? 'bg-bhutan-orange/15 text-bhutan-orange'
                             : n.type === 'enrollment_request'
                               ? 'bg-amber-500/15 text-amber-700'
+                              : n.type === 'submission_pending'
+                                ? 'bg-amber-500/15 text-amber-700'
                               : n.type === 'student_enrolled'
                               ? 'bg-blue-500/15 text-blue-600'
                               : n.type === 'student_completed'
@@ -176,7 +195,9 @@ export function NotificationBell({
                                 : 'bg-muted text-muted-foreground'
                         )}
                       >
-                        {n.type === 'enrollment_request' ? (
+                        {n.type === 'submission_pending' ? (
+                          <ClipboardCheck className="h-4 w-4" />
+                        ) : n.type === 'enrollment_request' ? (
                           <UserPlus className="h-4 w-4" />
                         ) : n.type === 'student_enrolled' ? (
                           <UserPlus className="h-4 w-4" />

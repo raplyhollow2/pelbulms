@@ -4,7 +4,7 @@ import { checkRBAC } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
 import { courseIdByLesson, userCanManageCourse } from '@/lib/course-access'
 import { geminiImagePng } from '@/lib/gemini'
-import { isCloudinaryConfigured, cloudinary } from '@/lib/cloudinary'
+import { cloudinaryClient, getCloudinaryAccount } from '@/lib/cloudinary'
 import { parseLessonBlocks, newBlockId } from '@/lib/lesson-blocks'
 
 const TEACHER_ROLES = ['instructor', 'admin', 'resource_person', 'superadmin'] as const
@@ -36,7 +36,9 @@ export async function POST(request: NextRequest) {
       )
     }
     let url: string | null = null
-    if (isCloudinaryConfigured()) {
+    const account = await getCloudinaryAccount()
+    if (account) {
+      const cloudinary = cloudinaryClient(account)
       const uploaded: any = await new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
           { folder: 'pelbu/ai-images', resource_type: 'image' },

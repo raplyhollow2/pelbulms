@@ -28,20 +28,27 @@ export async function resolveSnapshotForUser(
     /** Prefer this audience when the user qualifies for multiple (e.g. RP on teach vs approvals). */
     prefer?: SnapshotAudience
     institutionId?: string | null
+    instructorId?: string | null
   }
 ): Promise<ReportSnapshot> {
   const prefer = opts.prefer
   const role = opts.role
 
   if (prefer === 'instructor' || (role === 'instructor' && !prefer)) {
-    return buildTeachSnapshot(db, { userId: opts.userId, range: opts.range })
+    const allCourses = role === 'superadmin' && !opts.instructorId
+    return buildTeachSnapshot(db, {
+      userId: opts.userId,
+      range: opts.range,
+      allCourses,
+      instructorId: role === 'superadmin' ? opts.instructorId : null,
+    })
   }
 
   if (prefer === 'student' || role === 'student') {
     return buildStudentSnapshot(db, { userId: opts.userId, range: opts.range })
   }
 
-  if (prefer === 'resource_person' || (role === 'resource_person' && prefer !== 'instructor')) {
+  if (prefer === 'resource_person' || role === 'resource_person') {
     const scope = await getApprovalScope(db, opts.userId, role, opts.institutionId)
     return buildApprovalsSnapshot(db, {
       range: opts.range,

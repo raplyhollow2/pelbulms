@@ -78,6 +78,132 @@ export function requiresLearnerInput(type: LessonActivityType): boolean {
 
 export type ActivityGradeStatus = 'draft' | 'submitted' | 'graded' | 'returned' | 'late'
 
+export type ActivityCompletionSnapshot = {
+  completed?: boolean | null
+  status?: string | null
+  grade?: number | null
+  source?: string | null
+}
+
+export type ActivityGateState = 'satisfied' | 'awaiting_grade' | 'below_pass' | 'incomplete'
+
+export type CompletionBlocker = {
+  lessonId?: string
+  lessonTitle?: string
+  activityId: string
+  title: string
+  state: Exclude<ActivityGateState, 'satisfied'>
+  grade?: number | null
+  passGrade?: number | null
+  maxGrade?: number | null
+}
+
+function numericGrade(value: unknown): number | null {
+  if (typeof value === 'number' && !Number.isNaN(value)) return value
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value)
+    if (!Number.isNaN(parsed)) return parsed
+  }
+  return null
+}
+
+/** A recorded grade meets the pass mark. An empty pass mark accepts any recorded grade. */
+export function gradeMeetsPass(
+  grade: number | null | undefined,
+  passGrade: number | null | undefined
+): boolean {
+  const score = numericGrade(grade)
+  if (score == null) return false
+  const pass = numericGrade(passGrade)
+  if (pass == null) return true
+  return score >= pass
+}
+
+/**
+ * Whether this activity counts toward lesson unlock, course completion, and the certificate.
+ * Submitted work is not enough for graded activities.
+ */
+export function activitySatisfiesCompletion(
+  activity: LessonActivity,
+  progress: ActivityCompletionSnapshot | null | undefined
+): boolean {
+  if (activity.activity === 'quiz') {
+    return Boolean(progress?.completed) && progress?.source === 'quiz_pass'
+  }
+
+  if (isAssessableActivity(activity)) {
+    const status = progress?.status
+    if (status !== 'graded' && status !== 'returned') return false
+    return gradeMeetsPass(progress?.grade, activity.passGrade)
+  }
+
+  return Boolean(progress?.completed)
+}
+
+/** Learner-facing state for a mandatory or graded activity. */
+export function activityGateState(
+  activity: LessonActivity,
+  progress: ActivityCompletionSnapshot | null | undefined
+): ActivityGateState {
+  if (activitySatisfiesCompletion(activity, progress)) return 'satisfied'
+
+  if (activity.activity !== 'quiz' && isAssessableActivity(activity)) {
+    const status = progress?.status
+    const handedIn =
+      Boolean(progress?.completed) ||
+      status === 'submitted' ||
+      status === 'late' ||
+      status === 'graded' ||
+      status === 'returned'
+    if (
+      (status === 'graded' || status === 'returned') &&
+      numericGrade(activity.passGrade) != null &&
+      !gradeMeetsPass(progress?.grade, activity.passGrade)
+    ) {
+      return 'below_pass'
+    }
+    if (handedIn) return 'awaiting_grade'
+  }
+
+  return 'incomplete'
+}
+
+export function describeCompletionBlockers(
+  blockers: Pick<CompletionBlocker, 'title' | 'state' | 'grade' | 'passGrade' | 'maxGrade'>[]
+): string {
+  if (blockers.length === 0) return ''
+  const parts: string[] = []
+  const waiting = blockers.filter((b) => b.state === 'awaiting_grade')
+  const failed = blockers.filter((b) => b.state === 'below_pass')
+  const incomplete = blockers.filter(
+    (b) => b.state !== 'awaiting_grade' && b.state !== 'below_pass'
+  )
+
+  if (waiting.length > 0) {
+    const names = waiting.map((b) => b.title).join(', ')
+    parts.push(
+      `${names} ${waiting.length === 1 ? 'is' : 'are'} awaiting a grade`
+    )
+  }
+  if (failed.length > 0) {
+    const names = failed
+      .map((b) => {
+        const scored = b.grade != null ? `scored ${b.grade}` : 'did not pass'
+        const need =
+          b.passGrade != null
+            ? ` (need ${b.passGrade}${b.maxGrade != null ? ` / ${b.maxGrade}` : ''})`
+            : ''
+        return `${b.title} ${scored}${need}`
+      })
+      .join(', ')
+    parts.push(names)
+  }
+  if (incomplete.length > 0) {
+    parts.push(`Finish ${incomplete.map((b) => b.title).join(', ')}`)
+  }
+  return `${parts.join('. ')}.`
+}
+
 /** Activities that appear in staff grading queues and assessed-results reports. */
 export function isAssessableActivity(activity: LessonActivity): boolean {
   const mode = activityInputMode(activity.activity)

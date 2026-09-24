@@ -241,18 +241,42 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
                 <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Teacher
                 </p>
+                {teacherNavigation.some((item) => item.group === 'Course management') && (
+                  <>
+                    <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+                      Course management
+                    </p>
+                    <div className="mb-3 grid grid-cols-2 gap-2">
+                      {teacherNavigation
+                        .filter((item) => item.group === 'Course management')
+                        .map((item) => (
+                          <Link
+                            key={item.name}
+                            href={item.href}
+                            onClick={() => setMenuOpen(false)}
+                            className="flex flex-col items-center justify-center gap-2 rounded-xl bg-bhutan-yellow/10 p-4 transition-colors active:bg-bhutan-yellow/20"
+                          >
+                            <item.icon className="h-5 w-5 text-bhutan-yellow" />
+                            <span className="text-center text-xs font-medium">{item.name}</span>
+                          </Link>
+                        ))}
+                    </div>
+                  </>
+                )}
                 <div className="grid grid-cols-2 gap-2">
-                  {teacherNavigation.map((item) => (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      onClick={() => setMenuOpen(false)}
-                      className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-bhutan-yellow/10 active:bg-bhutan-yellow/20 transition-colors"
-                    >
-                      <item.icon className="w-5 h-5 text-bhutan-yellow" />
-                      <span className="text-xs font-medium text-center">{item.name}</span>
-                    </Link>
-                  ))}
+                  {teacherNavigation
+                    .filter((item) => item.group !== 'Course management')
+                    .map((item) => (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        onClick={() => setMenuOpen(false)}
+                        className="flex flex-col items-center justify-center gap-2 rounded-xl bg-bhutan-yellow/10 p-4 transition-colors active:bg-bhutan-yellow/20"
+                      >
+                        <item.icon className="h-5 w-5 text-bhutan-yellow" />
+                        <span className="text-center text-xs font-medium">{item.name}</span>
+                      </Link>
+                    ))}
                 </div>
               </div>
             )}

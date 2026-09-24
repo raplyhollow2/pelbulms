@@ -1,6 +1,6 @@
 import { createHash } from 'crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { computeTeachReports } from '@/lib/reports/compute-teach'
+import { computeTeachReports, courseIdsForTeacher } from '@/lib/reports/compute-teach'
 import { computeStudentReports } from '@/lib/reports/compute-student'
 import { computeApprovalsReports } from '@/lib/reports/compute-admin'
 import { REPORT_SECTIONS } from '@/lib/reports/catalog'
@@ -62,28 +62,19 @@ function hashSnapshot(payload: Omit<ReportSnapshot, 'hash'>): string {
   return createHash('sha256').update(raw).digest('hex').slice(0, 16)
 }
 
-async function courseIdsForTeacher(db: Db, userId: string): Promise<string[]> {
-  const [{ data: owned }, { data: staff }] = await Promise.all([
-    db.from('courses').select('id').eq('instructor_id', userId),
-    db.from('course_instructors').select('course_id').eq('user_id', userId),
-  ])
-  const ids = new Set<string>()
-  for (const c of owned || []) ids.add((c as any).id)
-  for (const s of staff || []) ids.add((s as any).course_id)
-  return [...ids]
-}
-
 export async function buildTeachSnapshot(
   db: Db,
-  opts: { userId: string; range: ReportRange }
+  opts: { userId: string; range: ReportRange; allCourses?: boolean; instructorId?: string | null }
 ): Promise<ReportSnapshot> {
   const days = rangeToDays(opts.range)
   const since = daysAgoIso(days)
   const since14 = daysAgoIso(14)
+  const scope = { allCourses: opts.allCourses, instructorId: opts.instructorId }
   const { blocks, frictionMap } = await computeTeachReports(db, opts.userId, {
     range: opts.range,
+    ...scope,
   })
-  const courseIds = await courseIdsForTeacher(db, opts.userId)
+  const courseIds = await courseIdsForTeacher(db, opts.userId, scope)
 
   const sections: ReportSectionPayload[] = [
     {
@@ -135,6 +126,11 @@ export async function buildTeachSnapshot(
       key: 'engagement',
       label: 'Engagement (14d)',
       value: engagement?.metrics?.find((m) => m.key === 'rate')?.value ?? '—',
+    },
+    {
+      key: 'pendingGrades',
+      label: 'Pending grades',
+      value: blocks.find((b) => b.id === 'grading-queue')?.metrics?.find((m) => m.key === 'pending')?.value ?? 0,
     },
   ]
 
@@ -248,6 +244,32 @@ export async function buildTeachSnapshot(
           ? `${topDropOff} lessons with ≥20% drop-off — fix top 3 first`
           : `${frictionCount} hotspots (stuck/dwell/assessment) need review`,
       href: frictionHref,
+    })
+  }
+  const gradingBlock = blocks.find((b) => b.id === 'grading-queue')
+  const gradingRows = [...(gradingBlock?.rows || [])].sort(
+    (a, b) => Number(b.cells.pending) - Number(a.cells.pending)
+  )
+  const topGrade = gradingRows[0]
+  const pendingGrades = Number(topGrade?.cells.pending || 0)
+  const pendingTotal = Number(
+    gradingBlock?.metrics?.find((m) => m.key === 'pending')?.value || 0
+  )
+  if (pendingTotal > 0 && topGrade) {
+    const gradeHref = topGrade.href || `/teach/courses/${topGrade.id}/grading`
+    alerts.push({
+      id: 'grading-backlog',
+      severity: 'watch',
+      title: `${pendingTotal} submissions waiting`,
+      detail: `${topGrade.cells.course} has the largest grading backlog.`,
+      href: gradeHref,
+    })
+    actions.push({
+      id: 'act-grade',
+      priority: prio++,
+      title: `Grade ${topGrade.cells.course}`,
+      reason: `${pendingGrades} submissions waiting in the largest queue`,
+      href: gradeHref,
     })
   }
   if (actions.length === 0) {

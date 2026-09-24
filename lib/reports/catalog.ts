@@ -102,6 +102,14 @@ export const REPORT_CATALOG: ReportDefinition[] = [
     phase: 'P1',
   },
   {
+    id: 'grading-queue',
+    section: 'course-insights',
+    title: 'Grading queue',
+    description: 'Courses with submitted work, pending grades, and graded rate.',
+    audiences: ['instructor'],
+    phase: 'P1',
+  },
+  {
     id: 'roster-ops',
     section: 'course-insights',
     title: 'Roster ops',

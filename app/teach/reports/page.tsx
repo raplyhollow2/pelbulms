@@ -24,6 +24,8 @@ export default function TeachReportsPage() {
   const [approvalsSnap, setApprovalsSnap] = useState<ReportSnapshot | null>(null)
   const [mode, setMode] = useState<'courses' | 'approvals'>('courses')
   const [deepDive, setDeepDive] = useState('')
+  const [instructorFilter, setInstructorFilter] = useState('all')
+  const [instructors, setInstructors] = useState<{ id: string; name: string }[]>([])
 
   const load = useCallback(async () => {
     try {
@@ -49,8 +51,26 @@ export default function TeachReportsPage() {
       }
       setRole(userRole)
 
+      if (userRole === 'superadmin') {
+        const { data: people } = await supabase
+          .from('profiles')
+          .select('id, full_name, role')
+          .in('role', ['instructor', 'admin', 'resource_person', 'superadmin'])
+          .order('full_name')
+        setInstructors(
+          ((people || []) as any[]).map((p) => ({
+            id: p.id,
+            name: p.full_name || 'Instructor',
+          }))
+        )
+      }
+
+      const instructorQuery =
+        userRole === 'superadmin' && instructorFilter !== 'all'
+          ? `&instructorId=${encodeURIComponent(instructorFilter)}`
+          : ''
       const teachRes = await fetch(
-        `/api/reports/snapshot?range=${range}&audience=instructor`
+        `/api/reports/snapshot?range=${range}&audience=instructor${instructorQuery}`
       )
       const teachJson = await teachRes.json()
       if (!teachRes.ok) throw new Error(teachJson.error || 'Failed to load reports')
@@ -72,7 +92,7 @@ export default function TeachReportsPage() {
     } finally {
       setLoading(false)
     }
-  }, [range, router])
+  }, [range, router, instructorFilter])
 
   useEffect(() => {
     load()
@@ -114,6 +134,26 @@ export default function TeachReportsPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {role === 'superadmin' && mode === 'courses' ? (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <label className="text-sm text-muted-foreground" htmlFor="instructor-filter">
+            Instructor
+          </label>
+          <select
+            id="instructor-filter"
+            value={instructorFilter}
+            onChange={(e) => setInstructorFilter(e.target.value)}
+            className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+          >
+            <option value="all">All instructors</option>
+            {instructors.map((person) => (
+              <option key={person.id} value={person.id}>
+                {person.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
       {approvalsSnap ? (
         <div className="mb-4 flex gap-2">
           <button

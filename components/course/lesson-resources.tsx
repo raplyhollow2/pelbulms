@@ -24,9 +24,12 @@ import {
   type LessonActivity,
 } from '@/lib/lesson-activities'
 import {
+  activityGateState,
   activityInputMode,
+  isAssessableActivity,
   requiresLearnerInput,
   summarizeResponse,
+  type ActivityGateState,
   type ActivityResponsePayload,
 } from '@/lib/activity-responses'
 import { cn } from '@/lib/utils'
@@ -127,7 +130,11 @@ export function LessonResources({
           const isQuiz = item.activity === 'quiz' && item.quizId
           const required = item.trackable && isActivityRequired(item)
           const progress = progressById?.[item.id]
-          const done = Boolean(progress?.completed)
+          const gate = item.trackable ? activityGateState(item, progress) : 'incomplete'
+          const done = gate === 'satisfied'
+          const formLocked =
+            gate === 'awaiting_grade' ||
+            (Boolean(progress?.completed) && gate !== 'below_pass')
           const marking = markingActivityId === item.id
           const mode = activityInputMode(item.activity)
           const needsInput = item.trackable && requiresLearnerInput(item.activity)
@@ -159,21 +166,23 @@ export function LessonResources({
                           Optional
                         </Badge>
                       )}
-                      {item.trackable && done && (
+                      {item.trackable && gate === 'satisfied' && (
                         <Badge
                           variant="outline"
                           className="gap-1 border-green-600/40 text-[10px] text-green-700"
                         >
                           <CheckCircle className="h-3 w-3" />
-                          {isQuiz
-                            ? 'Passed'
-                            : progress?.status === 'graded'
-                              ? 'Graded'
-                              : progress?.status === 'late'
-                                ? 'Late'
-                                : progress?.status === 'returned'
-                                  ? 'Returned'
-                                  : 'Done'}
+                          {isQuiz || isAssessableActivity(item) ? 'Passed' : 'Done'}
+                        </Badge>
+                      )}
+                      {item.trackable && gate === 'awaiting_grade' && (
+                        <Badge className="bg-amber-600 text-[10px] hover:bg-amber-600">
+                          Awaiting grade
+                        </Badge>
+                      )}
+                      {item.trackable && gate === 'below_pass' && (
+                        <Badge className="bg-red-600 text-[10px] hover:bg-red-600">
+                          Below pass
                         </Badge>
                       )}
                     </div>
@@ -187,7 +196,7 @@ export function LessonResources({
                         {item.content}
                       </p>
                     )}
-                    {done && progress?.response ? (
+                    {progress?.response ? (
                       <div className="mt-1 space-y-1">
                         <p className="text-xs text-green-700 dark:text-green-400">
                           {summarizeResponse(item.activity, progress.response)}
@@ -303,7 +312,8 @@ export function LessonResources({
                   <ActivityInputForm
                     item={item}
                     lessonId={lessonId}
-                    done={done}
+                    done={formLocked}
+                    gate={gate}
                     marking={marking}
                     progress={progress}
                     onSubmit={(response) => onSubmitResponse(item.id, response)}
@@ -322,6 +332,7 @@ function ActivityInputForm({
   item,
   lessonId,
   done,
+  gate,
   marking,
   progress,
   onSubmit,
@@ -329,6 +340,7 @@ function ActivityInputForm({
   item: LessonActivity
   lessonId?: string
   done: boolean
+  gate: ActivityGateState
   marking: boolean
   progress?: ActivityProgressItem
   onSubmit: (response: ActivityResponsePayload) => void | Promise<void>
@@ -475,24 +487,48 @@ function ActivityInputForm({
     const allowFiles = item.allowSubmissions !== false
     return (
       <div className="space-y-3">
-        {item.dueDate || item.maxGrade != null ? (
+        {item.dueDate || item.maxGrade != null || item.passGrade != null ? (
           <p className="text-xs text-muted-foreground">
             {item.dueDate ? `Due ${new Date(item.dueDate).toLocaleString()}` : null}
             {item.dueDate && item.maxGrade != null ? ' · ' : null}
             {item.maxGrade != null ? `Max grade: ${item.maxGrade}` : null}
+            {item.passGrade != null
+              ? `${item.dueDate || item.maxGrade != null ? ' · ' : ''}Grade to pass: ${item.passGrade}`
+              : null}
             {progress?.status === 'late' ? ' · Submitted late' : ''}
           </p>
+        ) : null}
+        {progress?.status === 'submitted' || progress?.status === 'late' ? (
+          <div className="rounded-md border border-amber-600/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+            Submitted. Awaiting a grade
+            {item.passGrade != null ? ` of at least ${item.passGrade}` : ''}. This activity
+            does not count as complete until it is graded
+            {item.passGrade != null ? ' and meets the grade to pass' : ''}.
+          </div>
         ) : null}
         {(progress?.status === 'graded' || progress?.status === 'returned') &&
         (progress.grade != null ||
           progress.feedback ||
           progress.return_file_url ||
           progress.return_url) ? (
-          <div className="rounded-md border border-green-600/30 bg-green-500/10 px-3 py-2 text-xs space-y-1.5">
+          <div
+            className={
+              item.passGrade != null &&
+              progress.grade != null &&
+              progress.grade < item.passGrade
+                ? 'space-y-1.5 rounded-md border border-red-600/40 bg-red-500/10 px-3 py-2 text-xs'
+                : 'space-y-1.5 rounded-md border border-green-600/30 bg-green-500/10 px-3 py-2 text-xs'
+            }
+          >
             {progress.grade != null ? (
               <p className="font-medium">
                 Grade: {progress.grade}
                 {progress.max_grade != null ? ` / ${progress.max_grade}` : ''}
+                {item.passGrade != null && progress.grade < item.passGrade
+                  ? ` — need ${item.passGrade} to pass. You can resubmit.`
+                  : item.passGrade != null
+                    ? ' — passed'
+                    : ''}
               </p>
             ) : null}
             {progress.feedback ? (
@@ -645,7 +681,9 @@ function ActivityInputForm({
             }
           >
             {marking ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
-            Submit assignment
+            {gate === 'below_pass' || progress?.completed
+              ? 'Resubmit assignment'
+              : 'Submit assignment'}
           </Button>
         ) : null}
       </div>

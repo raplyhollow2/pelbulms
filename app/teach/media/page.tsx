@@ -278,10 +278,8 @@ export default function TeachMediaLibraryPage() {
       {!cloudinaryConfigured && (
         <Card className="border-amber-500/40">
           <CardContent className="py-3 text-sm text-amber-800 dark:text-amber-300">
-            Cloudinary is not configured. Large video uploads need{' '}
-            <code className="text-xs">NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME</code>,{' '}
-            <code className="text-xs">CLOUDINARY_API_KEY</code>, and{' '}
-            <code className="text-xs">CLOUDINARY_API_SECRET</code>.
+            Cloudinary is not connected. A superadmin can connect an account under Site
+            administration → Cloudinary.
           </CardContent>
         </Card>
       )}

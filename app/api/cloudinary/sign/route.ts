@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRBAC } from '@/lib/rbac'
-import { isCloudinaryConfigured, signUploadParams, cloudName, apiKey } from '@/lib/cloudinary'
+import { getCloudinaryAccount, signUploadParams } from '@/lib/cloudinary'
 import { VIDEO_EAGER_TRANSFORM } from '@/lib/video-url'
 
 /**
@@ -23,9 +23,10 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  if (!isCloudinaryConfigured()) {
+  const account = await getCloudinaryAccount()
+  if (!account) {
     return NextResponse.json(
-      { error: 'Cloudinary is not configured. Set CLOUDINARY_* env vars.' },
+      { error: 'Cloudinary is not configured. Connect it in Site administration.' },
       { status: 503 }
     )
   }
@@ -63,13 +64,13 @@ export async function POST(request: NextRequest) {
     paramsToSign.eager_async = eagerAsync ? 'true' : 'false'
   }
 
-  const signature = signUploadParams(paramsToSign)
+  const signature = signUploadParams(paramsToSign, account)
 
   return NextResponse.json({
     signature,
     timestamp,
-    apiKey,
-    cloudName,
+    apiKey: account.apiKey,
+    cloudName: account.cloudName,
     folder,
     resourceType,
     type: accessType,

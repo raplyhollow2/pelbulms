@@ -27,6 +27,7 @@ export type ReportId =
   | 'engagement'
   | 'at-risk'
   | 'assessment-quality'
+  | 'grading-queue'
   | 'roster-ops'
   | 'outcomes'
   | 'lesson-friction'
@@ -80,6 +81,7 @@ export interface ReportMetric {
 export interface ReportRow {
   id: string
   cells: Record<string, string | number | boolean | null>
+  href?: string
 }
 
 export interface ReportBlock {
@@ -90,6 +92,8 @@ export interface ReportBlock {
   columns?: { key: string; label: string }[]
   rows?: ReportRow[]
   emptyMessage?: string
+  /** Pending vs graded bar used by the grading queue infographic. */
+  split?: { pending: number; graded: number }
 }
 
 export interface ReportSectionPayload {

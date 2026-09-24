@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   Award,
@@ -15,6 +16,7 @@ import {
   Users,
 } from 'lucide-react'
 import { SuperadminGate } from '@/components/admin/superadmin-gate'
+import { useCapabilities } from '@/components/auth/capabilities-provider'
 import { CAP } from '@/lib/capability-keys'
 import { LiveUsersPanel } from '@/components/admin/live-users-panel'
 import { Button } from '@/components/ui/button'
@@ -94,11 +96,20 @@ function freshnessLabel(iso: string, now: number) {
 }
 
 function AdminOverviewBody() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { role, loaded } = useCapabilities()
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<PlatformStats | null>(null)
   const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (loaded && role === 'superadmin' && searchParams.get('overview') !== '1') {
+      router.replace('/admin/reports')
+    }
+  }, [loaded, role, searchParams, router])
 
   const load = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
     if (mode === 'refresh') setRefreshing(true)

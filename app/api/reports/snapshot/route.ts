@@ -51,6 +51,7 @@ export async function GET(request: NextRequest) {
 
     const range = parseRange(request.nextUrl.searchParams.get('range'))
     const prefer = parsePrefer(request.nextUrl.searchParams.get('audience'))
+    const instructorId = request.nextUrl.searchParams.get('instructorId')
 
     const snapshot = await resolveSnapshotForUser(service as any, {
       userId: user.id,
@@ -58,6 +59,7 @@ export async function GET(request: NextRequest) {
       range,
       prefer,
       institutionId: (profile as any).institution_id,
+      instructorId: role === 'superadmin' ? instructorId : null,
     })
 
     return NextResponse.json(

@@ -216,6 +216,96 @@ export async function notifyTeacherOfCompletion(
   })
 }
 
+/**
+ * Alert the course creator and every superadmin when a student submits
+ * gradable work. Resubmits alert again.
+ */
+export async function notifyStaffOfSubmission(
+  service: any,
+  input: {
+    courseId: string
+    lessonId: string
+    activityId: string
+    activityTitle: string
+    studentId: string
+    resubmission: boolean
+  }
+): Promise<boolean> {
+  const { data: course } = await service
+    .from('courses')
+    .select('instructor_id, title')
+    .eq('id', input.courseId)
+    .maybeSingle()
+
+  const courseTitle = (course as any)?.title || 'a course'
+  const ids = new Set<string>()
+  const creatorId = (course as any)?.instructor_id as string | null
+  if (creatorId && creatorId !== input.studentId) ids.add(creatorId)
+
+  const { data: supers } = await service.from('profiles').select('id').eq('role', 'superadmin')
+  for (const row of supers || []) {
+    const id = (row as any).id as string | undefined
+    if (id && id !== input.studentId) ids.add(id)
+  }
+
+  const recipientIds = [...ids]
+  if (recipientIds.length === 0) return false
+
+  const studentName = await resolveStudentName(service, input.studentId)
+  const verb = input.resubmission ? 'resubmitted' : 'submitted'
+  const title = input.resubmission ? 'Work resubmitted' : 'Work to grade'
+  const activityTitle = input.activityTitle || 'an activity'
+  const message = `${studentName} ${verb} “${activityTitle}” in “${courseTitle}”.`
+  const actionUrl = `/teach/courses/${input.courseId}/grading?lessonId=${encodeURIComponent(input.lessonId)}&activityId=${encodeURIComponent(input.activityId)}`
+  const metadata = {
+    course_id: input.courseId,
+    lesson_id: input.lessonId,
+    activity_id: input.activityId,
+    student_id: input.studentId,
+    student_name: studentName,
+    course_title: courseTitle,
+    activity_title: activityTitle,
+    event: input.resubmission ? 'resubmission' : 'submission',
+  }
+
+  const inserted = await insertNotifications(
+    service,
+    recipientIds.map((user_id) => ({
+      user_id,
+      type: 'submission_pending',
+      title,
+      message,
+      action_url: actionUrl,
+      metadata,
+    }))
+  )
+
+  const { data: recipients } = await service
+    .from('profiles')
+    .select('id, email')
+    .in('id', recipientIds)
+
+  const gradeUrl = `${publicAppUrl()}${actionUrl}`
+  const text = [message, '', `Grade it: ${gradeUrl}`].join('\n')
+  const html = `<p>${escapeHtml(message)}</p><p><a href="${gradeUrl}">Grade now</a></p>`
+
+  for (const r of recipients || []) {
+    const email = (r as any).email as string | null
+    if (!email) continue
+    const result = await sendEmail({
+      to: email,
+      subject: `${title}: ${activityTitle}`,
+      text,
+      html,
+    })
+    if (!result.sent && result.error) {
+      console.error('[notify-teachers] submission email failed:', result.error)
+    }
+  }
+
+  return inserted
+}
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, '&amp;')

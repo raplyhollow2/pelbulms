@@ -131,7 +131,7 @@ export const LESSON_ACTIVITY_TYPES: ActivityDefinition[] = [
     description: 'Collect student work with a due date and grade',
     category: 'assessment',
     icon: ClipboardList,
-    fields: ['title', 'description', 'dueDate', 'maxGrade', 'allowSubmissions', 'file'],
+    fields: ['title', 'description', 'dueDate', 'maxGrade', 'passGrade', 'allowSubmissions', 'file'],
     maturity: 'working',
   },
   {

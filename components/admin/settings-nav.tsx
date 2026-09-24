@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, ClipboardList, Globe, Megaphone, Shield } from 'lucide-react'
+import { Building2, ClipboardList, Cloud, Globe, Megaphone, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useCapabilities } from '@/components/auth/capabilities-provider'
 import { CAP } from '@/lib/capability-keys'
@@ -12,6 +12,7 @@ const ITEMS = [
   { href: '/admin/settings/registration', label: 'Registration', icon: ClipboardList, cap: CAP.SETTINGS_VIEW },
   { href: '/admin/settings/institutions', label: 'Institutions', icon: Building2, cap: CAP.INSTITUTIONS_VIEW },
   { href: '/admin/settings/marketing', label: 'Marketing', icon: Megaphone, cap: CAP.SETTINGS_VIEW },
+  { href: '/admin/settings/cloudinary', label: 'Cloudinary', icon: Cloud, cap: CAP.SETTINGS_VIEW },
   { href: '/admin/permissions', label: 'Permissions', icon: Shield, cap: CAP.PERMISSIONS_VIEW },
 ]
 

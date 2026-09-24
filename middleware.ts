@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { homePathForRole } from '@/lib/roles'
 
 export async function middleware(req: NextRequest) {
   // This response is rebuilt inside setAll so refreshed auth cookies are
@@ -114,14 +115,14 @@ export async function middleware(req: NextRequest) {
       if (accountStatus === 'pending') {
         return redirectTo('/auth/register')
       }
-      return redirectTo('/dashboard')
+      return redirectTo(homePathForRole(typeof user.app_metadata?.role === 'string' ? user.app_metadata.role : null))
     }
 
     // Account status gate. Undefined status is treated as legacy (pre-KYC
     // default) and allowed through. New users are pending until KYC approval.
     if (isProtectedPath && user) {
       const accountStatus = user.app_metadata?.account_status
-      const userRole = user.app_metadata?.role
+      const userRole = typeof user.app_metadata?.role === 'string' ? user.app_metadata.role : null
 
       if (accountStatus === 'rejected' || accountStatus === 'suspended') {
         return redirectTo('/auth/access-denied')
@@ -129,6 +130,22 @@ export async function middleware(req: NextRequest) {
 
       if (accountStatus === 'pending') {
         return redirectTo('/auth/register')
+      }
+
+      const home = homePathForRole(userRole)
+      if (
+        user &&
+        (pathname === '/dashboard' || pathname === '/dashboard/') &&
+        home !== '/dashboard'
+      ) {
+        return redirectTo(home)
+      }
+      if (
+        userRole === 'superadmin' &&
+        (pathname === '/admin' || pathname === '/admin/') &&
+        req.nextUrl.searchParams.get('overview') !== '1'
+      ) {
+        return redirectTo('/admin/reports')
       }
 
       // Role-based access control — only enforced when a role is present in

@@ -29,6 +29,7 @@ type ActivitySummary = {
   activityType: string
   dueDate: string | null
   maxGrade: number | null
+  passGrade: number | null
   pendingCount: number
   gradedCount: number
   submittedCount: number
@@ -386,6 +387,7 @@ export default function CourseGradingPage() {
                 ? `${selected.moduleTitle} · ${selected.lessonTitle}`
                 : 'Choose an activity to grade'}
               {selected?.maxGrade != null ? ` · Max ${selected.maxGrade}` : ''}
+              {selected?.passGrade != null ? ` · Grade to pass ${selected.passGrade}` : ''}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -396,7 +398,7 @@ export default function CourseGradingPage() {
               </div>
             ) : queue.length === 0 ? (
               <p className="py-8 text-sm text-muted-foreground">
-                No student submissions for this activity yet.
+                No student submissions yet. Nothing is waiting to be graded.
               </p>
             ) : (
               queue.map((row) => {
@@ -404,10 +406,25 @@ export default function CourseGradingPage() {
                 const fileHref = row.fileUrl
                   ? resolveMediaUrl(row.fileUrl) || row.fileUrl
                   : null
+                const draftGrade =
+                  draft?.grade != null && draft.grade !== '' ? Number(draft.grade) : null
+                const passGrade = selected?.passGrade ?? null
+                const passState =
+                  draftGrade != null && !Number.isNaN(draftGrade) && passGrade != null
+                    ? draftGrade >= passGrade
+                      ? 'pass'
+                      : 'fail'
+                    : null
                 return (
                   <div
                     key={row.progressId || row.userId}
-                    className="space-y-3 rounded-lg border p-4"
+                    className={`space-y-3 rounded-lg border p-4 ${
+                      passState === 'pass'
+                        ? 'border-green-600/50'
+                        : passState === 'fail'
+                          ? 'border-red-600/50'
+                          : ''
+                    }`}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div>
@@ -432,6 +449,16 @@ export default function CourseGradingPage() {
                             <span className="text-xs text-muted-foreground">
                               {new Date(row.submittedAt).toLocaleString()}
                             </span>
+                          ) : null}
+                          {passState === 'pass' ? (
+                            <Badge className="bg-green-600 text-[10px] hover:bg-green-600">
+                              Pass
+                            </Badge>
+                          ) : null}
+                          {passState === 'fail' ? (
+                            <Badge className="bg-red-600 text-[10px] hover:bg-red-600">
+                              Fail
+                            </Badge>
                           ) : null}
                         </div>
                       </div>
@@ -476,6 +503,23 @@ export default function CourseGradingPage() {
                                 }))
                               }
                             />
+                            {passGrade != null ? (
+                              <p
+                                className={`text-[11px] ${
+                                  passState === 'fail'
+                                    ? 'text-red-600'
+                                    : passState === 'pass'
+                                      ? 'text-green-700'
+                                      : 'text-muted-foreground'
+                                }`}
+                              >
+                                Grade to pass: {passGrade}
+                              </p>
+                            ) : (
+                              <p className="text-[11px] text-muted-foreground">
+                                Any recorded grade completes this activity
+                              </p>
+                            )}
                           </div>
                           <div className="space-y-1">
                             <Label htmlFor={`fb-${row.progressId}`}>Feedback</Label>

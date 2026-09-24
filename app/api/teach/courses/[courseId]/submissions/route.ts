@@ -204,6 +204,7 @@ export async function GET(
         activityType: meta.activity.activity,
         dueDate: meta.activity.dueDate || null,
         maxGrade: meta.activity.maxGrade ?? null,
+        passGrade: meta.activity.passGrade ?? null,
         pendingCount: pending,
         gradedCount: graded,
         submittedCount: submitted.length,

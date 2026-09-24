@@ -48,9 +48,17 @@ export async function GET(request: Request) {
       .eq('user_id', user.id)
       .eq('is_read', false)
 
+    const { count: gradingCount } = await supabase
+      .from('notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('is_read', false)
+      .eq('type', 'submission_pending')
+
     return NextResponse.json({
       notifications: data || [],
       unreadCount: typeof count === 'number' ? count : unreadCount,
+      gradingUnread: typeof gradingCount === 'number' ? gradingCount : 0,
     })
   } catch (e) {
     console.error('[notifications] GET error:', e)

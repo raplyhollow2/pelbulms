@@ -397,6 +397,13 @@ export async function buildReportSnapshot(
       href: '/admin/reports',
     })
   }
+  actions.push({
+    id: 'act-course-insights',
+    priority: prio++,
+    title: 'Open course insights',
+    reason: 'Grading queues and course health for every teacher.',
+    href: '/teach/reports',
+  })
 
   const tables = [
     {

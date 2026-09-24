@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRBAC } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
-import { cloudinary, isCloudinaryConfigured } from '@/lib/cloudinary'
+import { cloudinaryClient, getCloudinaryAccount } from '@/lib/cloudinary'
 import { makeMediaRef } from '@/lib/media'
 
 const BUCKET = 'course-media'
@@ -81,7 +81,9 @@ export async function POST(request: NextRequest) {
 
     // Videos (and images) are stored privately in Cloudinary when configured so
     // they are only ever delivered through the authenticated /api/media proxy.
-    if (isCloudinaryConfigured()) {
+    const account = await getCloudinaryAccount()
+    if (account) {
+      const cloudinary = cloudinaryClient(account)
       // Course covers (images) are stored as public Cloudinary uploads so catalog
       // cards can use the HTTPS URL directly. Videos stay private (authenticated)
       // and are only delivered through /api/media.

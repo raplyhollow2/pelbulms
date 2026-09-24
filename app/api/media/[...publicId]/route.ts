@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
-import { isCloudinaryConfigured, signedUrl } from '@/lib/cloudinary'
+import { getCloudinaryAccount, signedUrl } from '@/lib/cloudinary'
 import { getPlatformSettings } from '@/lib/platform-settings'
 
 export const runtime = 'nodejs'
@@ -38,7 +38,8 @@ export async function GET(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  if (!isCloudinaryConfigured()) {
+  const account = await getCloudinaryAccount()
+  if (!account) {
     return NextResponse.json({ error: 'Media backend not configured' }, { status: 503 })
   }
 
@@ -48,7 +49,7 @@ export async function GET(
 
   const videoQuality =
     resourceType === 'video' ? (await getPlatformSettings()).video_quality : 'high'
-  const upstreamUrl = signedUrl(id, { resourceType, videoQuality })
+  const upstreamUrl = signedUrl(id, account, { resourceType, videoQuality })
 
   // Forward Range (for video seeking). Avoid forwarding browser Accept for images.
   const forwardHeaders: Record<string, string> = {}

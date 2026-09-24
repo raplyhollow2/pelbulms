@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Download } from 'lucide-react'
+import Link from 'next/link'
 import { downloadCsv, rowsToCsv } from '@/lib/reports/csv'
 import type { ReportBlock } from '@/lib/reports/types'
 import { cn } from '@/lib/utils'
@@ -23,6 +24,33 @@ export function ReportMetrics({ block }: { block: ReportBlock }) {
   )
 }
 
+export function ReportSplitBar({ block }: { block: ReportBlock }) {
+  if (!block.split) return null
+  const pending = block.split.pending
+  const graded = block.split.graded
+  const total = pending + graded
+  const gradedPct = total > 0 ? Math.round((graded / total) * 100) : 0
+  const pendingPct = total > 0 ? 100 - gradedPct : 0
+  return (
+    <div className="space-y-2">
+      <div className="flex h-3 overflow-hidden rounded-full bg-muted">
+        <div className="h-full bg-[#f59e0b]" style={{ width: `${pendingPct}%` }} />
+        <div className="h-full bg-[#ea580c]" style={{ width: `${gradedPct}%` }} />
+      </div>
+      <div className="flex gap-4 text-xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-[#f59e0b]" />
+          Pending {pending}
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-[#ea580c]" />
+          Graded {graded}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export function ReportTable({ block }: { block: ReportBlock }) {
   if (!block.columns?.length) return null
   const rows = block.rows || []
@@ -31,6 +59,7 @@ export function ReportTable({ block }: { block: ReportBlock }) {
       <p className="text-sm text-muted-foreground">{block.emptyMessage || 'No rows.'}</p>
     )
   }
+  const linkable = rows.some((row) => row.href)
   return (
     <div className="overflow-x-auto rounded-lg border border-border/50">
       <table className="w-full min-w-[480px] text-left text-sm">
@@ -41,6 +70,7 @@ export function ReportTable({ block }: { block: ReportBlock }) {
                 {c.label}
               </th>
             ))}
+            {linkable ? <th className="px-3 py-2 font-medium"> </th> : null}
           </tr>
         </thead>
         <tbody>
@@ -48,9 +78,26 @@ export function ReportTable({ block }: { block: ReportBlock }) {
             <tr key={row.id} className="border-t border-border/40">
               {block.columns!.map((c) => (
                 <td key={c.key} className="px-3 py-2 align-top">
-                  {row.cells[c.key] == null ? '—' : String(row.cells[c.key])}
+                  {row.href && c.key === block.columns![0]?.key ? (
+                    <Link href={row.href} className="font-medium text-bhutan-orange hover:underline">
+                      {row.cells[c.key] == null ? '—' : String(row.cells[c.key])}
+                    </Link>
+                  ) : row.cells[c.key] == null ? (
+                    '—'
+                  ) : (
+                    String(row.cells[c.key])
+                  )}
                 </td>
               ))}
+              {linkable ? (
+                <td className="px-3 py-2 align-top">
+                  {row.href ? (
+                    <Link href={row.href} className="font-medium text-bhutan-orange hover:underline">
+                      Open
+                    </Link>
+                  ) : null}
+                </td>
+              ) : null}
             </tr>
           ))}
         </tbody>
@@ -102,6 +149,7 @@ export function ReportBlockCard({
       </CardHeader>
       <CardContent className="space-y-4">
         <ReportMetrics block={block} />
+        <ReportSplitBar block={block} />
         <ReportTable block={block} />
         {!block.metrics?.length && !block.columns?.length && block.emptyMessage ? (
           <p className="text-sm text-muted-foreground">{block.emptyMessage}</p>

@@ -13,11 +13,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, BookOpen, Users, Loader2, Edit, BarChart3, Award, HardDrive, Check, X } from 'lucide-react'
+import { Plus, BookOpen, Users, Loader2, Edit, Award, HardDrive, Check, X, ClipboardCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 import { resolveMediaUrl } from '@/lib/media'
 import { canAccessAdmin, canAccessTeaching } from '@/lib/roles'
+import { GradingAlertBanner } from '@/components/teach/grading-alert-banner'
 
 type Course = Database['public']['Tables']['courses']['Row'] & {
   instructor_name?: string
@@ -44,6 +45,15 @@ export default function TeacherDashboard() {
   const [avgProgress, setAvgProgress] = useState<number | null>(null)
   const [activeQuizzes, setActiveQuizzes] = useState<number | null>(null)
   const [pendingRequests, setPendingRequests] = useState<EnrollmentRequest[]>([])
+  const [gradeCounts, setGradeCounts] = useState<Record<string, number>>({})
+  const [gradeBacklog, setGradeBacklog] = useState<
+    { courseId: string; title: string; pendingCount: number }[]
+  >([])
+  const [insights, setInsights] = useState<{
+    pending: string | number
+    completions: string | number
+    engagement: string | number
+  } | null>(null)
   const [decidingId, setDecidingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -172,6 +182,25 @@ export default function TeacherDashboard() {
         setPendingRequests(reqData.requests)
       } else {
         setPendingRequests([])
+      }
+
+      const gradeRes = await fetch('/api/teach/grading-summary')
+      const gradeData = await gradeRes.json().catch(() => ({}))
+      if (gradeRes.ok) {
+        setGradeCounts(gradeData.counts || {})
+        setGradeBacklog(Array.isArray(gradeData.backlog) ? gradeData.backlog : [])
+      }
+
+      const snapRes = await fetch('/api/reports/snapshot?range=30d&audience=instructor')
+      const snapJson = await snapRes.json().catch(() => ({}))
+      if (snapRes.ok && snapJson.snapshot?.kpis) {
+        const kpis = snapJson.snapshot.kpis as { key: string; value: string | number }[]
+        const valueOf = (key: string) => kpis.find((k) => k.key === key)?.value ?? '—'
+        setInsights({
+          pending: valueOf('pendingGrades'),
+          completions: valueOf('completions'),
+          engagement: valueOf('engagement'),
+        })
       }
     } catch (error) {
       console.error('Error fetching teacher data:', error)
@@ -314,15 +343,6 @@ export default function TeacherDashboard() {
             <span className="ml-1 sm:ml-0">Media</span>
           </Button>
           <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 sm:flex-initial"
-            onClick={() => router.push('/teach/analytics')}
-          >
-            <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-2" />
-            <span className="ml-1 sm:ml-0">Analytics</span>
-          </Button>
-          <Button
             onClick={() => router.push('/teach/create')}
             className="flex-1 sm:flex-initial bg-bhutan-yellow hover:bg-bhutan-orange"
             size="sm"
@@ -387,6 +407,69 @@ export default function TeacherDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <GradingAlertBanner />
+
+      {insights && (
+        <Card className="glass">
+          <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 pb-2">
+            <div>
+              <CardTitle className="text-base">Course insights</CardTitle>
+              <CardDescription>Pending grades, completions, and 14-day engagement.</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => router.push('/teach/reports')}>
+              View report
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <p className="text-xs text-muted-foreground">Pending grades</p>
+                <p className="text-2xl font-semibold text-amber-600">{insights.pending}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Completions</p>
+                <p className="text-2xl font-semibold">{insights.completions}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Engagement (14d)</p>
+                <p className="text-2xl font-semibold">{insights.engagement}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {gradeBacklog.length > 0 && (
+        <Card className="glass-strong border-amber-500/30">
+          <CardHeader>
+            <CardTitle className="text-xl lg:text-2xl">Needs grading</CardTitle>
+            <CardDescription>Courses with submitted work waiting for a grade.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {gradeBacklog.map((item) => (
+              <div
+                key={item.courseId}
+                className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg border p-3"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{item.title}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {item.pendingCount} waiting
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  className="shrink-0 bg-amber-500 text-black hover:bg-amber-400"
+                  onClick={() => router.push(`/teach/courses/${item.courseId}/grading`)}
+                >
+                  Open queue
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {pendingRequests.length > 0 && (
         <Card className="glass-strong border-amber-500/30">
@@ -635,6 +718,20 @@ export default function TeacherDashboard() {
                     {pendingByCourse[course.id] > 0 && (
                       <Badge className="ml-1.5 bg-amber-500 text-black hover:bg-amber-500">
                         {pendingByCourse[course.id]}
+                      </Badge>
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => router.push(`/teach/courses/${course.id}/grading`)}
+                    className="flex-1 sm:flex-initial"
+                  >
+                    <ClipboardCheck className="w-4 h-4 mr-1" />
+                    Grade
+                    {(gradeCounts[course.id] || 0) > 0 && (
+                      <Badge className="ml-1.5 bg-amber-500 text-black hover:bg-amber-500">
+                        {gradeCounts[course.id]}
                       </Badge>
                     )}
                   </Button>

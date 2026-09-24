@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
 import { generateCertificatePdf } from '@/lib/certificate-pdf'
+import { describeCompletionBlockers } from '@/lib/activity-responses'
+import { reconcileCourseCompletion } from '@/lib/lesson-completion-sync'
 
 export const runtime = 'nodejs'
 
@@ -36,7 +38,16 @@ export async function POST(request: NextRequest) {
 
     const service = await createServiceClient()
 
-    // Server-side completion check
+    const { data: existing } = await service
+      .from('certificates')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('course_id', courseId)
+      .maybeSingle()
+
+    // Drop lesson completion that was awarded on submission alone, then re-check.
+    const { blockers } = await reconcileCourseCompletion(service, user.id, courseId)
+
     const { data: enrollment } = await service
       .from('enrollments')
       .select('*')
@@ -53,6 +64,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Enrollment is not active' }, { status: 403 })
     }
 
+    const force = Boolean(body?.force)
+    const hasCertificate = Boolean(existing && (existing as any).certificate_url)
+
+    if (blockers.length > 0) {
+      const waitingOnGrade = blockers.some(
+        (blocker) => blocker.state === 'awaiting_grade' || blocker.state === 'below_pass'
+      )
+      const hold = waitingOnGrade
+        ? `Course completion is waiting on grading. ${describeCompletionBlockers(blockers)}`
+        : `Course completion is waiting on required activities. ${describeCompletionBlockers(blockers)}`
+      if (hasCertificate) {
+        return NextResponse.json(
+          {
+            certificate: existing,
+            alreadyIssued: true,
+            completionPending: true,
+            error: hold,
+            blockers,
+          },
+          { status: 400 }
+        )
+      }
+      return NextResponse.json(
+        { error: hold, code: 'grading_required', blockers },
+        { status: 400 }
+      )
+    }
+
     if (((enrollment as any).progress_percentage ?? 0) < 100) {
       return NextResponse.json(
         { error: 'Course is not fully completed yet' },
@@ -60,16 +99,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Return existing certificate if already issued (unless force regenerate)
-    const force = Boolean(body?.force)
-    const { data: existing } = await service
-      .from('certificates')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('course_id', courseId)
-      .maybeSingle()
-
-    if (!force && existing && (existing as any).certificate_url) {
+    if (!force && hasCertificate) {
       return NextResponse.json({ certificate: existing, alreadyIssued: true })
     }
 

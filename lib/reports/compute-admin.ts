@@ -448,6 +448,7 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
   const assessedCourseRows = Object.keys(submittedByCourse)
     .map((courseId) => ({
       id: courseId,
+      href: `/teach/courses/${courseId}/grading`,
       cells: {
         course: courseTitleMap.get(courseId) || courseId,
         submitted: submittedByCourse[courseId] || 0,
@@ -539,6 +540,7 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
         { key: 'graded', label: 'Graded', value: totalActivityGraded },
         { key: 'gradedRate', label: 'Graded rate', value: `${platformGradedRate}%` },
       ],
+      split: { pending: totalActivityPending, graded: totalActivityGraded },
       columns: [
         { key: 'course', label: 'Course' },
         { key: 'submitted', label: 'Submitted' },

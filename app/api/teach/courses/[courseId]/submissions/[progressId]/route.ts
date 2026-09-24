@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
 import { userCanManageCourse, courseIdByLesson } from '@/lib/course-access'
+import { reconcileLessonCourseCompletion } from '@/lib/lesson-completion-sync'
 
 /**
  * PATCH /api/teach/courses/[courseId]/submissions/[progressId]
@@ -165,7 +166,25 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    return NextResponse.json({ submission: updated })
+    let lessonCompleted: boolean | null = null
+    try {
+      await reconcileLessonCourseCompletion(
+        service,
+        (updated as any).user_id,
+        (updated as any).lesson_id
+      )
+      const { data: lessonProgress } = await service
+        .from('lesson_progress')
+        .select('completed')
+        .eq('user_id', (updated as any).user_id)
+        .eq('lesson_id', (updated as any).lesson_id)
+        .maybeSingle()
+      lessonCompleted = Boolean((lessonProgress as any)?.completed)
+    } catch (syncError) {
+      console.error('[grading] completion sync failed:', syncError)
+    }
+
+    return NextResponse.json({ submission: updated, lessonCompleted })
   } catch (e: any) {
     return NextResponse.json(
       { error: e?.message || 'Failed to grade submission' },

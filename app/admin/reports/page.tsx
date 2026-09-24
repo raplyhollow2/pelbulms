@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { RoleReportDashboard } from '@/components/reports/role-report-dashboard'
+import { GradingAlertBanner } from '@/components/teach/grading-alert-banner'
 import { ReportBlockCard, ReportHubHeader, ReportSectionTabs } from '@/components/reports/report-ui'
 import type { ReportRange, ReportSectionPayload, ReportSnapshot } from '@/lib/reports/types'
 import { canAccessAdmin } from '@/lib/roles'
@@ -131,7 +132,8 @@ export default function AdminReportsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto space-y-6 px-4 py-8">
+      <GradingAlertBanner />
       <RoleReportDashboard
         snapshot={snapshot}
         range={range}
