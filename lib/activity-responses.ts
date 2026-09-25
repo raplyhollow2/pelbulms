@@ -1,4 +1,8 @@
-import type { LessonActivity, LessonActivityType } from '@/lib/lesson-activities'
+import {
+  parseLessonActivities,
+  type LessonActivity,
+  type LessonActivityType,
+} from '@/lib/lesson-activities'
 
 export type ActivityResponsePayload = {
   /** Selected choice option text */
@@ -202,6 +206,20 @@ export function describeCompletionBlockers(
     parts.push(`Finish ${incomplete.map((b) => b.title).join(', ')}`)
   }
   return `${parts.join('. ')}.`
+}
+
+/** Lesson activities that still require a grade, based on the current lesson definition. */
+export function currentAssessableActivityKeys(
+  lessons: { id: string; resources?: unknown }[]
+): Set<string> {
+  const keys = new Set<string>()
+  for (const lesson of lessons) {
+    for (const activity of parseLessonActivities(lesson.resources)) {
+      if (!isAssessableActivity(activity)) continue
+      keys.add(`${lesson.id}:${activity.id}`)
+    }
+  }
+  return keys
 }
 
 /** Activities that appear in staff grading queues and assessed-results reports. */

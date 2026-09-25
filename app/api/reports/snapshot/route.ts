@@ -3,6 +3,7 @@ import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/
 import { resolveEffectiveRole } from '@/lib/approvals-access'
 import { resolveSnapshotForUser, roleToSnapshotAudience } from '@/lib/reports/resolve-snapshot'
 import type { ReportRange, SnapshotAudience } from '@/lib/reports/types'
+import { getRequestUser } from '@/lib/request-user'
 
 function parseRange(raw: string | null): ReportRange {
   if (raw === '7d' || raw === '90d' || raw === '30d') return raw
@@ -26,9 +27,7 @@ function parsePrefer(raw: string | null): SnapshotAudience | undefined {
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getRequestUser(request)
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

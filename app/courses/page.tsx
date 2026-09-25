@@ -464,11 +464,7 @@ export default function CoursesPage() {
           </Button>
         </div>
 
-        <div
-          className={`grid shrink-0 gap-2 sm:flex sm:flex-wrap sm:items-center ${
-            showInstitutionFilter ? 'grid-cols-3' : 'grid-cols-2'
-          }`}
-        >
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <Select
             value={selectedCategory}
             onValueChange={(v) => v && setSelectedCategory(v)}
@@ -558,7 +554,7 @@ export default function CoursesPage() {
               <Skeleton className="h-4 w-52" />
             </div>
             <Skeleton className="h-9 w-full" />
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 gap-2">
               <Skeleton className="h-9 w-full" />
               <Skeleton className="h-9 w-full" />
               <Skeleton className="h-9 w-full" />

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkRBAC } from '@/lib/rbac'
 import { createSupabaseServerClient, tryCreateServiceClient } from '@/lib/supabase/server'
 import { courseIdByLesson, userCanManageCourse } from '@/lib/course-access'
+import { getRequestUser } from '@/lib/request-user'
 
 const TEACHER_ROLES = ['instructor', 'admin', 'resource_person', 'superadmin'] as const
 
@@ -19,9 +20,7 @@ export async function GET(request: NextRequest) {
     const supabase = service || (await createSupabaseServerClient())
 
     if (!service) {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const user = await getRequestUser(request)
       if (!user) {
         return NextResponse.json({ scenarios: [] })
       }

@@ -4,6 +4,7 @@ import {
   CAP,
   capabilityDenied,
   checkCapability,
+  invalidateCapabilityCache,
   listCapabilities,
   listRoles,
   slugifyRoleName,
@@ -188,6 +189,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    invalidateCapabilityCache()
     return NextResponse.json({ role }, { status: 201 })
   } catch (error: any) {
     return NextResponse.json(

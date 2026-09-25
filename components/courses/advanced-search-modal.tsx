@@ -155,7 +155,7 @@ export function AdvancedSearchModal({
         </DialogTrigger>
       )}
 
-      <DialogContent className="max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">

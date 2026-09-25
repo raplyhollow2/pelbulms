@@ -392,7 +392,7 @@ export function CourseComparison({
         </Button>
       )}
 
-      <DialogContent className="max-w-[98vw] w-full max-h-[92vh] overflow-hidden flex flex-col">
+      <DialogContent className="flex max-h-[92vh] w-full flex-col overflow-hidden sm:max-w-[98vw]">
         <DialogHeader className="px-8 pt-8 pb-6 border-b">
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">

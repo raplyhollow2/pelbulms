@@ -276,7 +276,7 @@ export function CommandPalette() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="p-0 max-w-2xl">
+      <DialogContent className="p-0 sm:max-w-2xl">
         <div className="flex flex-col">
           {/* Search Input */}
           <div className="flex items-center gap-3 p-4 border-b">

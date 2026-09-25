@@ -625,7 +625,7 @@ export default function EditCoursePage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full justify-start gap-1 overflow-x-auto scrollbar-hide [&>*]:flex-none [&>*]:px-3.5">
+          <TabsList className="h-auto min-h-9 w-full flex-wrap justify-start gap-1 py-1 group-data-horizontal/tabs:h-auto [&>*]:flex-none [&>*]:px-3.5">
             <TabsTrigger value="details" className="gap-1.5">
               <Info className="w-4 h-4" /> Details
             </TabsTrigger>

@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { getRequestUser } from '@/lib/request-user'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getRequestUser(request)
     if (!user) {
       return NextResponse.json({ ok: true, skipped: true })
     }

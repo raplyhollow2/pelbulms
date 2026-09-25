@@ -120,37 +120,58 @@ export function CurriculumTimeline({
       )}
 
       {/* Timeline */}
-      <div className="relative">
-        {/* Vertical Line */}
-        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border/50" />
-
+      <div>
         {modules.map((module, moduleIndex) => {
           const isExpanded = expandedModules.has(module.id)
           const moduleProgress = getModuleProgress(module)
           const duration = getTotalDuration(module)
+          const isLast = moduleIndex === modules.length - 1
+          const showLessons = isExpanded && !module.is_locked && !!module.lessons?.length
+          const railClass = cn(
+            "w-0.5",
+            module.is_locked
+              ? "bg-border"
+              : moduleProgress === 100
+                ? "bg-green-500/45"
+                : "bg-bhutan-yellow/55"
+          )
 
           return (
-            <div key={module.id} className="relative mb-6">
-              {/* Module Header */}
+            <div key={module.id} className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-3">
+              <div className="relative flex items-center justify-center">
+                {moduleIndex > 0 && (
+                  <div aria-hidden className={cn("absolute left-1/2 top-0 h-1/2 -translate-x-1/2", railClass)} />
+                )}
+                {!isLast && (
+                  <div aria-hidden className={cn("absolute left-1/2 top-1/2 bottom-0 -translate-x-1/2", railClass)} />
+                )}
+                <div className={cn(
+                  "relative z-10 flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold shadow-sm",
+                  module.is_locked
+                    ? "bg-muted text-muted-foreground"
+                    : moduleProgress === 100
+                      ? "bg-green-600 text-white"
+                      : "bg-bhutan-yellow text-black"
+                )}>
+                  {moduleProgress === 100 ? (
+                    <CheckCircle className="h-4 w-4" />
+                  ) : (
+                    moduleIndex + 1
+                  )}
+                </div>
+              </div>
+
+              <div className="min-w-0">
               <div
                 className={cn(
-                  "relative flex items-start gap-4 p-4 rounded-lg border transition-all duration-200 cursor-pointer",
+                  "flex items-start gap-4 rounded-lg border p-4 transition-all duration-200 cursor-pointer",
                   "hover:border-bhutan-yellow/50 hover:shadow-lg",
                   module.is_locked && "opacity-60 cursor-not-allowed hover:border-border",
-                  isExpanded && "border-bhutan-yellow/30 shadow-md"
+                  isExpanded && "border-bhutan-yellow/30 shadow-md",
+                  moduleProgress === 100 && "border-green-500/30"
                 )}
                 onClick={() => !module.is_locked && toggleModule(module.id)}
               >
-                {/* Module Number Circle */}
-                <div className={cn(
-                  "relative z-10 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
-                  module.is_locked
-                    ? "bg-muted text-muted-foreground"
-                    : "bg-bhutan-yellow text-black font-bold"
-                )}>
-                  {moduleIndex + 1}
-                </div>
-
                 {/* Module Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -194,11 +215,16 @@ export function CurriculumTimeline({
                   </div>
                 )}
               </div>
+              </div>
 
-              {/* Lessons (Expanded) */}
-              {isExpanded && !module.is_locked && module.lessons && module.lessons.length > 0 && (
-                <div className="ml-8 mt-3 space-y-2">
-                  {module.lessons.map((lesson, lessonIndex) => {
+              {showLessons && (
+                <div className="flex justify-center self-stretch">
+                  {!isLast && <div aria-hidden className={cn("h-full", railClass)} />}
+                </div>
+              )}
+              {showLessons && (
+                <div className="mt-3 space-y-2">
+                  {module.lessons?.map((lesson) => {
                     const isCurrent = lesson.id === currentLessonId
                     const isLocked = lesson.is_locked
 
@@ -214,18 +240,6 @@ export function CurriculumTimeline({
                         )}
                         onClick={() => !isLocked && onLessonClick?.(lesson.id)}
                       >
-                        {/* Timeline Dot */}
-                        <div className="absolute -left-4 top-1/2 -translate-y-1/2">
-                          <div className={cn(
-                            "w-2 h-2 rounded-full border-2 border-background",
-                            isCurrent
-                              ? "bg-bhutan-yellow"
-                              : lesson.is_completed
-                                ? "bg-green-600"
-                                : "bg-muted"
-                          )} />
-                        </div>
-
                         {/* Icon */}
                         <div className="flex-shrink-0">
                           {getLessonIcon(lesson)}
@@ -273,6 +287,11 @@ export function CurriculumTimeline({
                   })}
                 </div>
               )}
+              {!isLast && (
+                <div className="flex h-4 justify-center">
+                  <div aria-hidden className={cn("h-full", railClass)} />
+                </div>
+              )}
             </div>
           )
         })}
@@ -281,7 +300,7 @@ export function CurriculumTimeline({
       {/* Legend */}
       <Card className="glass-strong">
         <CardContent className="p-4">
-          <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-green-600" />
               <span>Completed</span>

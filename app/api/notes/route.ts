@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { getRequestUser } from '@/lib/request-user'
 
-async function requireUser() {
+async function requireUser(request: NextRequest) {
   const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
-
-  if (error || !user) {
+  const user = await getRequestUser(request)
+  if (!user) {
     return { supabase, user: null as null, unauthorized: true as const }
   }
   return { supabase, user, unauthorized: false as const }
@@ -16,7 +13,7 @@ async function requireUser() {
 
 export async function GET(request: NextRequest) {
   try {
-    const { supabase, user, unauthorized } = await requireUser()
+    const { supabase, user, unauthorized } = await requireUser(request)
     if (unauthorized || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -48,7 +45,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { supabase, user, unauthorized } = await requireUser()
+    const { supabase, user, unauthorized } = await requireUser(request)
     if (unauthorized || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -97,7 +94,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { supabase, user, unauthorized } = await requireUser()
+    const { supabase, user, unauthorized } = await requireUser(request)
     if (unauthorized || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -136,7 +133,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const { supabase, user, unauthorized } = await requireUser()
+    const { supabase, user, unauthorized } = await requireUser(request)
     if (unauthorized || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

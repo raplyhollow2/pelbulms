@@ -336,14 +336,6 @@ export function LandingHero({
           <Button
             variant="ghost"
             size="sm"
-            className="rounded-full text-white/90 hover:bg-white/10 hover:text-white"
-            render={<Link href="/download" />}
-          >
-            Android app
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
             className="gap-1.5 rounded-full text-white/90 hover:bg-white/10 hover:text-white"
             render={<Link href="/auth/login" />}
           >

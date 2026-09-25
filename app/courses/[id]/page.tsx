@@ -331,7 +331,7 @@ export default function CourseDetailPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-5 sm:px-5 sm:py-7 md:px-6 md:py-8 lg:px-8 pb-8">
+    <div className="container mx-auto max-w-6xl px-4 py-5 pb-28 sm:px-5 sm:py-7 md:px-6 md:py-8 md:pb-24 lg:px-8 lg:pb-8">
       <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 space-y-8">
         {/* Back Button */}
@@ -373,7 +373,7 @@ export default function CourseDetailPage() {
           </div>
 
           {/* Course Stats */}
-          <div className="flex items-center gap-6 text-sm">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-muted-foreground" />
               <span>{course.duration_minutes ? `${Math.floor(course.duration_minutes / 60)}h ${course.duration_minutes % 60}m` : 'Self-paced'}</span>

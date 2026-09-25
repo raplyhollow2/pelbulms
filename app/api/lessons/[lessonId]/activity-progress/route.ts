@@ -18,12 +18,11 @@ import {
 } from '@/lib/activity-responses'
 import { reconcileLessonCourseCompletion, mandatoryBlockersForLesson } from '@/lib/lesson-completion-sync'
 import { notifyStaffOfSubmission } from '@/lib/notify-teachers'
+import { getRequestUser } from '@/lib/request-user'
 
-async function getSession() {
+async function getSession(request: NextRequest) {
   const session = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await session.auth.getUser()
+  const user = await getRequestUser(request)
   return { session, user }
 }
 
@@ -252,12 +251,12 @@ async function buildProgressPayload(
  * POST { activityId, action?: 'ack' | 'sync' | 'submit', response?: object }
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ lessonId: string }> }
 ) {
   try {
     const { lessonId } = await params
-    const { session, user } = await getSession()
+    const { session, user } = await getSession(request)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const admin = await tryCreateServiceClient()
@@ -282,7 +281,7 @@ export async function POST(
 ) {
   try {
     const { lessonId } = await params
-    const { session, user } = await getSession()
+    const { session, user } = await getSession(request)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const admin = await tryCreateServiceClient()

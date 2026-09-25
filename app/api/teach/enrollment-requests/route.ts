@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
 import { canAccessAdmin, canAccessTeaching } from '@/lib/roles'
+import { getRequestUser } from '@/lib/request-user'
 
 export type EnrollmentRequestRow = {
   enrollmentId: string
@@ -16,12 +17,10 @@ export type EnrollmentRequestRow = {
  * Pending enrollment queue for the Teach dashboard.
  * Creators see their courses; admin/superadmin see all.
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const auth = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await auth.auth.getUser()
+    const user = await getRequestUser(request)
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

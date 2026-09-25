@@ -12,6 +12,15 @@ export const MAX_IMAGE_UPLOAD_LABEL = '25MB'
 /** Must match signed upload params sent to Cloudinary (compress + cap 1080p). */
 export const VIDEO_EAGER_TRANSFORM = 'q_auto,vc_auto,w_1920,h_1080,c_limit'
 
+/** Same derivative Cloudinary builds at upload time. Playback must request this exact set. */
+export const VIDEO_EAGER_TRANSFORMATION = {
+  quality: 'auto',
+  video_codec: 'auto',
+  width: 1920,
+  height: 1080,
+  crop: 'limit',
+} as const
+
 export function getYoutubeId(url: string): string | null {
   if (!url) return null
   const patterns = [

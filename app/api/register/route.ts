@@ -4,6 +4,7 @@ import { createSupabaseServerClient, tryCreateServiceClient } from '@/lib/supaba
 import { getPlatformSettings, toRegistrationPolicy } from '@/lib/platform-settings'
 import { autoActivateStudentAccount } from '@/lib/approve-registration'
 import { isTeachingRequestRole } from '@/lib/kyc'
+import { getRequestUser } from '@/lib/request-user'
 
 const PHONE_RE = /^\+975[0-9]{8}$/
 const CID_RE = /^[0-9]{11}$/
@@ -21,9 +22,9 @@ function shortLabel(i: { name?: string; slug?: string; display_name?: string | n
  * GET /api/register
  * Returns institutions (active only), registration policy, and caller status.
  */
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser(request)
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -72,7 +73,7 @@ export async function GET() {
     .maybeSingle()
 
   return NextResponse.json({
-    user: { id: user.id, email: user.email, full_name: user.user_metadata?.full_name || '' },
+    user: { id: user.id, email: user.email, full_name: profile?.full_name || '' },
     institutions: institutionsForUi,
     registration: registration || null,
     account_status: profile?.account_status || 'pending',
@@ -87,7 +88,7 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser(request)
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

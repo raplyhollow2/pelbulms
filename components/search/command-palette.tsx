@@ -126,11 +126,8 @@ export function CommandPalette() {
                 </CommandGroup>
               )}
 
-              {(() => {
-                const links = MENU_LINKS.filter((link) => has(link.cap))
-                const courseLinks = links.filter((link) => link.group === 'Course management')
-                const otherLinks = links.filter((link) => link.group !== 'Course management')
-                const renderLink = (link: (typeof MENU_LINKS)[number]) => (
+              <CommandGroup heading="Navigation">
+                {MENU_LINKS.filter((link) => has(link.cap)).map((link) => (
                   <CommandItem
                     key={link.href}
                     value={`${link.name} ${link.href} ${link.section} ${link.group ?? ''} ${link.keywords ?? ''}`}
@@ -138,18 +135,8 @@ export function CommandPalette() {
                   >
                     <span className="truncate">{link.name}</span>
                   </CommandItem>
-                )
-                return (
-                  <>
-                    {courseLinks.length > 0 && (
-                      <CommandGroup heading="Course management">
-                        {courseLinks.map(renderLink)}
-                      </CommandGroup>
-                    )}
-                    <CommandGroup heading="Navigation">{otherLinks.map(renderLink)}</CommandGroup>
-                  </>
-                )
-              })()}
+                ))}
+              </CommandGroup>
             </CommandList>
           </Command>
         </div>

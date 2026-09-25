@@ -13,13 +13,28 @@ export function ReportMetrics({ block }: { block: ReportBlock }) {
   if (!block.metrics?.length) return null
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-      {block.metrics.map((m) => (
-        <div key={m.key} className="rounded-lg border border-border/50 bg-muted/30 p-3">
-          <p className="text-xs text-muted-foreground">{m.label}</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-bhutan-orange">{m.value}</p>
-          {m.hint ? <p className="mt-1 text-[11px] text-muted-foreground">{m.hint}</p> : null}
-        </div>
-      ))}
+      {block.metrics.map((m) => {
+        const className = cn(
+          'rounded-lg border border-border/50 bg-muted/30 p-3',
+          m.href && 'transition-colors hover:border-bhutan-orange/40 hover:bg-bhutan-yellow/10'
+        )
+        const body = (
+          <>
+            <p className="text-xs text-muted-foreground">{m.label}</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums text-bhutan-orange">{m.value}</p>
+            {m.hint ? <p className="mt-1 text-[11px] text-muted-foreground">{m.hint}</p> : null}
+          </>
+        )
+        return m.href ? (
+          <Link key={m.key} href={m.href} className={className}>
+            {body}
+          </Link>
+        ) : (
+          <div key={m.key} className={className}>
+            {body}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -70,7 +85,7 @@ export function ReportTable({ block }: { block: ReportBlock }) {
                 {c.label}
               </th>
             ))}
-            {linkable ? <th className="px-3 py-2 font-medium"> </th> : null}
+            {linkable ? <th className="px-3 py-2 font-medium">Action</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -93,7 +108,7 @@ export function ReportTable({ block }: { block: ReportBlock }) {
                 <td className="px-3 py-2 align-top">
                   {row.href ? (
                     <Link href={row.href} className="font-medium text-bhutan-orange hover:underline">
-                      Open
+                      {row.actionLabel || 'Open'}
                     </Link>
                   ) : null}
                 </td>

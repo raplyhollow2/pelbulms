@@ -1,5 +1,6 @@
 import { createSupabaseServerClient, tryCreateServiceClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { getRequestUser } from '@/lib/request-user'
 
 export type UserRole =
   | 'student'
@@ -37,11 +38,7 @@ export async function checkRBAC(
   allowedRoles: UserRole[]
 ): Promise<RBACCheck> {
   try {
-    const supabase = await createSupabaseServerClient()
-
-    // Authenticate the request against the Supabase Auth server (secure).
-    const { data: { user } } = await supabase.auth.getUser()
-
+    const user = await getRequestUser(request)
     if (!user) {
       return {
         hasAccess: false,
@@ -49,35 +46,26 @@ export async function checkRBAC(
       }
     }
 
-    // Prefer service client so RLS can never hide the caller's profile.
-    // Fall back to the session client when service_role isn't configured
-    // (common in local/dev after `vercel env pull` of Sensitive secrets).
-    let profile: { role?: string } | null = null
-    const service = await tryCreateServiceClient()
-    if (service) {
-      const { data } = await service
+    let userRole = user.role
+    if (!userRole) {
+      // Legacy accounts have no role in auth metadata. profiles is the source.
+      const supabase = await createSupabaseServerClient()
+      const service = await tryCreateServiceClient()
+      const db = service || supabase
+      const { data } = await db
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .single()
-      profile = data as any
-    } else {
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-      profile = data as any
+      userRole = ((data as { role?: string } | null)?.role || null) as UserRole | null
     }
 
-    if (!profile) {
+    if (!userRole) {
       return {
         hasAccess: false,
         error: 'User profile not found'
       }
     }
-
-    const userRole = (profile as any).role as UserRole
 
     // Superadmin has top-level access and satisfies every requirement.
     const hasAccess =

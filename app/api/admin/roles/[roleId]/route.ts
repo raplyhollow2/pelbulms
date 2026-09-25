@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
-import { CAP, capabilityDenied, checkCapability } from '@/lib/capabilities'
+import { CAP, capabilityDenied, checkCapability, invalidateCapabilityCache } from '@/lib/capabilities'
 import { createServiceClient } from '@/lib/supabase/server'
 
 type RouteContext = { params: Promise<{ roleId: string }> }
@@ -101,6 +101,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       .select('institution_id')
       .eq('role_id', roleId)
 
+    invalidateCapabilityCache()
     return NextResponse.json({
       role,
       capability_ids: (grants || []).map((g: any) => g.capability_id),
@@ -164,6 +165,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
+    invalidateCapabilityCache()
     return NextResponse.json({ success: true })
   } catch (error: any) {
     return NextResponse.json(

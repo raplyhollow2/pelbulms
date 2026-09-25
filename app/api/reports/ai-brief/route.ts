@@ -5,6 +5,7 @@ import { generateExecutiveBrief, isAiGatewayConfigured } from '@/lib/reports/ai-
 import { resolveSnapshotForUser } from '@/lib/reports/resolve-snapshot'
 import { audienceAllowsAiBrief } from '@/lib/reports/types'
 import type { ReportRange, SnapshotAudience } from '@/lib/reports/types'
+import { getRequestUser } from '@/lib/request-user'
 
 const rateBuckets = new Map<string, { count: number; resetAt: number }>()
 
@@ -44,9 +45,7 @@ const AI_ROLES = new Set(['admin', 'superadmin', 'instructor', 'resource_person'
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getRequestUser(request)
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -158,9 +157,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getRequestUser(request)
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

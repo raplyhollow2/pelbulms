@@ -69,6 +69,23 @@ export default function TeacherDashboard() {
 
   useEffect(() => {
     fetchTeacherData()
+    const refreshGrades = () => {
+      if (document.visibilityState === 'hidden') return
+      void fetch('/api/teach/grading-summary')
+        .then(async (gradeRes) => {
+          const gradeData = await gradeRes.json().catch(() => ({}))
+          if (!gradeRes.ok) return
+          setGradeCounts(gradeData.counts || {})
+          setGradeBacklog(Array.isArray(gradeData.backlog) ? gradeData.backlog : [])
+        })
+        .catch(() => {})
+    }
+    window.addEventListener('focus', refreshGrades)
+    document.addEventListener('visibilitychange', refreshGrades)
+    return () => {
+      window.removeEventListener('focus', refreshGrades)
+      document.removeEventListener('visibilitychange', refreshGrades)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -543,11 +560,7 @@ export default function TeacherDashboard() {
                 className="h-9 min-w-0 flex-1"
                 aria-label="Search courses"
               />
-              <div
-                className={`grid gap-2 sm:flex sm:flex-wrap sm:items-center ${
-                  isAdminView ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-4'
-                }`}
-              >
+              <div className="grid min-w-0 grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
                 <Select value={statusFilter} onValueChange={(v: any) => v && setStatusFilter(v)}>
                   <SelectTrigger size="sm" className="h-9 w-full gap-1 sm:w-[130px]" aria-label="Status">
                     <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
@@ -706,12 +719,12 @@ export default function TeacherDashboard() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+                <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => router.push(`/teach/courses/${course.id}/students`)}
-                    className="flex-1 sm:flex-initial"
+                    className="w-full sm:w-auto"
                   >
                     <Users className="w-4 h-4 mr-1" />
                     Students
@@ -725,7 +738,7 @@ export default function TeacherDashboard() {
                     size="sm"
                     variant="outline"
                     onClick={() => router.push(`/teach/courses/${course.id}/grading`)}
-                    className="flex-1 sm:flex-initial"
+                    className="w-full sm:w-auto"
                   >
                     <ClipboardCheck className="w-4 h-4 mr-1" />
                     Grade
@@ -739,7 +752,7 @@ export default function TeacherDashboard() {
                     size="sm"
                     variant="outline"
                     onClick={() => router.push(`/teach/courses/${course.id}/certificate`)}
-                    className="flex-1 sm:flex-initial"
+                    className="w-full sm:w-auto"
                   >
                     <Award className="w-4 h-4 mr-1" />
                     Certificate
@@ -747,7 +760,7 @@ export default function TeacherDashboard() {
                   <Button
                     size="sm"
                     onClick={() => router.push(`/teach/courses/${course.id}/edit`)}
-                    className="flex-1 sm:flex-initial"
+                    className="w-full sm:w-auto"
                   >
                     <Edit className="w-4 h-4 mr-1" />
                     Edit

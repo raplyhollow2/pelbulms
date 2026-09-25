@@ -10,14 +10,13 @@ import { REPORT_SECTIONS } from '@/lib/reports/catalog'
 import type { ReportSectionPayload } from '@/lib/reports/types'
 import type { UserRole as AppRole } from '@/lib/roles'
 import { CAP, hasCapability, resolveUserCapabilities } from '@/lib/capabilities'
+import { getRequestUser } from '@/lib/request-user'
 
 /** GET /api/reports/admin — Institution ops + approvals (+ platform for superadmin) */
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getRequestUser(request)
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

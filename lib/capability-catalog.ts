@@ -25,7 +25,7 @@ export type MenuLink = {
     | 'Shield'
     | 'Sparkles'
   keywords?: string
-  /** Command palette and sidebar subgroup, e.g. Course management. */
+  /** Optional command-palette subgroup. */
   group?: string
 }
 
@@ -39,9 +39,8 @@ export const MENU_LINKS: MenuLink[] = [
   { cap: CAP.LEARN_PROFILE_VIEW, name: 'Profile', href: '/profile', section: 'learn', icon: 'User' },
   { cap: CAP.LEARN_SETTINGS_VIEW, name: 'Settings', href: '/settings', section: 'learn', icon: 'Settings' },
 
-  { cap: CAP.TEACH_DASHBOARD_VIEW, name: 'Teacher Dashboard', href: '/teach/dashboard', section: 'teach', icon: 'GraduationCap', group: 'Course management' },
-  { cap: CAP.TEACH_CREATE_VIEW, name: 'New Course', href: '/teach/create', section: 'teach', icon: 'BookOpen', group: 'Course management' },
-  { cap: CAP.TEACH_MEDIA_VIEW, name: 'Media Library', href: '/teach/media', section: 'teach', icon: 'HardDrive', group: 'Course management' },
+  { cap: CAP.TEACH_DASHBOARD_VIEW, name: 'Teacher Dashboard', href: '/teach/dashboard', section: 'teach', icon: 'GraduationCap' },
+  { cap: CAP.TEACH_MEDIA_VIEW, name: 'Media Library', href: '/teach/media', section: 'teach', icon: 'HardDrive' },
   { cap: CAP.TEACH_REPORTS_VIEW, name: 'Reports', href: '/teach/reports', section: 'teach', icon: 'BarChart3' },
   { cap: CAP.TEACH_ANNOUNCEMENTS_VIEW, name: 'Announcements', href: '/teach/announcements', section: 'teach', icon: 'Bell' },
 

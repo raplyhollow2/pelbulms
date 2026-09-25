@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { ResponsiveLayout } from '@/components/layout/responsive-layout'
 import { PresenceTracker } from '@/components/presence/presence-tracker'
@@ -20,8 +20,12 @@ export function AuthShell({
   loadingLabel = 'Loading...',
 }: AuthShellProps) {
   const router = useRouter()
-  const pathname = usePathname()
   const [user, setUser] = useState<any>(null)
+  const [profile, setProfile] = useState<{
+    role?: string | null
+    full_name?: string | null
+    avatar_url?: string | null
+  } | null>(null)
   const [loading, setLoading] = useState(true)
   const [siteName, setSiteName] = useState('Pelbu LMS')
   const [maintenance, setMaintenance] = useState<{ siteName: string } | null>(null)
@@ -56,7 +60,11 @@ export function AuthShell({
             .select('maintenance_mode, site_name')
             .eq('id', 'default')
             .maybeSingle(),
-          supabase.from('profiles').select('role').eq('id', session.user.id).maybeSingle(),
+          supabase
+            .from('profiles')
+            .select('role, full_name, avatar_url')
+            .eq('id', session.user.id)
+            .maybeSingle(),
         ])
 
         const resolvedName =
@@ -77,6 +85,7 @@ export function AuthShell({
         if (mounted) {
           setSiteName(resolvedName)
           setUser(session.user)
+          setProfile((profile as { role?: string | null; full_name?: string | null; avatar_url?: string | null } | null) || null)
         }
       } catch (error) {
         console.error('Error checking user:', error)
@@ -90,7 +99,9 @@ export function AuthShell({
     return () => {
       mounted = false
     }
-  }, [router, pathname])
+    // Once per session. Middleware still gates every navigation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router])
 
   if (loading) {
     return (
@@ -120,7 +131,7 @@ export function AuthShell({
   }
 
   return (
-    <ResponsiveLayout user={user} siteName={siteName}>
+    <ResponsiveLayout user={user} siteName={siteName} profile={profile}>
       <PresenceTracker />
       {children}
     </ResponsiveLayout>

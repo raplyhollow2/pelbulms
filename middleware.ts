@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { homePathForRole } from '@/lib/roles'
+import { applyRequestUserHeaders, stripRequestUserHeaders } from '@/lib/request-user'
 
 export async function middleware(req: NextRequest) {
   // This response is rebuilt inside setAll so refreshed auth cookies are
@@ -59,7 +60,11 @@ export async function middleware(req: NextRequest) {
   // refreshes it when needed, writing the new cookies via setAll above.
   // When Auth is unreachable (timeout / offline), NEVER throw — that surfaces
   // in the browser as TypeError: Failed to fetch on every /learn and /api call.
-  let user: { id: string; app_metadata?: Record<string, unknown> } | null = null
+  let user: {
+    id: string
+    email?: string | null
+    app_metadata?: Record<string, unknown>
+  } | null = null
   try {
     const { data, error } = await supabase.auth.getUser()
     if (error) {
@@ -74,9 +79,23 @@ export async function middleware(req: NextRequest) {
     user = null
   }
 
+  const forward = async () => {
+    const requestHeaders = new Headers(req.headers)
+    stripRequestUserHeaders(requestHeaders)
+    const cookie = req.cookies
+      .getAll()
+      .map((c) => `${c.name}=${c.value}`)
+      .join('; ')
+    if (cookie) requestHeaders.set('cookie', cookie)
+    if (user) await applyRequestUserHeaders(requestHeaders, user)
+    const next = NextResponse.next({ request: { headers: requestHeaders } })
+    res.cookies.getAll().forEach((c) => next.cookies.set(c))
+    return next
+  }
+
   // API routes only need cookie refresh above — do not apply page redirects.
   if (pathname.startsWith('/api/')) {
-    return res
+    return forward()
   }
 
   try {
@@ -102,7 +121,7 @@ export async function middleware(req: NextRequest) {
       const hasAuthCookie = req.cookies
         .getAll()
         .some((c) => c.name.includes('auth-token'))
-      if (hasAuthCookie) return res
+      if (hasAuthCookie) return forward()
       return redirectTo('/auth/login')
     }
 
@@ -132,14 +151,6 @@ export async function middleware(req: NextRequest) {
         return redirectTo('/auth/register')
       }
 
-      const home = homePathForRole(userRole)
-      if (
-        user &&
-        (pathname === '/dashboard' || pathname === '/dashboard/') &&
-        home !== '/dashboard'
-      ) {
-        return redirectTo(home)
-      }
       if (
         userRole === 'superadmin' &&
         (pathname === '/admin' || pathname === '/admin/') &&
@@ -175,10 +186,10 @@ export async function middleware(req: NextRequest) {
       }
     }
 
-    return res
+    return forward()
   } catch (err) {
     console.warn('[middleware] unexpected failure; allowing request:', err)
-    return res
+    return forward()
   }
 }
 

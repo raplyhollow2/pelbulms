@@ -12,13 +12,16 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import Link from 'next/link'
 import type {
   FrictionHotspot,
   FrictionType,
   FunnelStep,
   InstitutionScoreRow,
+  ReportMetric,
   ReportSeries,
 } from '@/lib/reports/types'
+import { cn } from '@/lib/utils'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 const ORANGE = '#ea580c'
@@ -176,25 +179,31 @@ export function InstitutionScoreChart({ rows }: { rows: InstitutionScoreRow[] })
   )
 }
 
-export function SparkKpis({
-  kpis,
-}: {
-  kpis: { key: string; label: string; value: string | number; hint?: string }[]
-}) {
+export function SparkKpis({ kpis }: { kpis: ReportMetric[] }) {
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-      {kpis.map((k) => (
-        <div
-          key={k.key}
-          className="rounded-xl border border-bhutan-orange/20 bg-gradient-to-br from-bhutan-yellow/15 to-transparent p-4"
-        >
-          <p className="text-xs text-muted-foreground">{k.label}</p>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-bhutan-orange">
-            {k.value}
-          </p>
-          {k.hint ? <p className="mt-1 text-[11px] text-muted-foreground">{k.hint}</p> : null}
-        </div>
-      ))}
+      {kpis.map((k) => {
+        const className = cn(
+          'rounded-xl border border-bhutan-orange/20 bg-gradient-to-br from-bhutan-yellow/15 to-transparent p-4',
+          k.href && 'transition-colors hover:border-bhutan-orange/50'
+        )
+        const body = (
+          <>
+            <p className="text-xs text-muted-foreground">{k.label}</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums text-bhutan-orange">{k.value}</p>
+            {k.hint ? <p className="mt-1 text-[11px] text-muted-foreground">{k.hint}</p> : null}
+          </>
+        )
+        return k.href ? (
+          <Link key={k.key} href={k.href} className={className}>
+            {body}
+          </Link>
+        ) : (
+          <div key={k.key} className={className}>
+            {body}
+          </div>
+        )
+      })}
     </div>
   )
 }

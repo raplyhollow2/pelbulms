@@ -17,6 +17,7 @@ import { CourseLearningTabs } from '@/components/course/course-learning-tabs'
 import { LessonBlocks } from '@/components/course/lesson-blocks'
 import { LessonContentStage } from '@/components/learning/lesson-content-stage'
 import { CourseCompletionDialog } from '@/components/learning/course-completion-dialog'
+import { VIDEO_COMPLETE_PERCENT } from '@/lib/lesson-completion-sync'
 import { type VideoProgressData } from '@/components/learning/tracked-video-player'
 import { parseLessonBlocks, readCourseAiMetadata } from '@/lib/lesson-blocks'
 import {
@@ -92,6 +93,7 @@ export default function LessonViewPage() {
   const completingLessonRef = useRef(false)
   const activeLessonIdRef = useRef(lessonId)
   const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const congratsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   activeLessonIdRef.current = lessonId
 
   // Notes state
@@ -131,11 +133,16 @@ export default function LessonViewPage() {
     lessonProgressIdRef.current = null
     completingLessonRef.current = false
     clearAutoAdvance()
+    if (congratsTimerRef.current) {
+      clearTimeout(congratsTimerRef.current)
+      congratsTimerRef.current = null
+    }
   }, [lessonId])
 
   useEffect(() => {
     return () => {
       if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current)
+      if (congratsTimerRef.current) clearTimeout(congratsTimerRef.current)
     }
   }, [])
 
@@ -219,25 +226,53 @@ export default function LessonViewPage() {
 
       setEnrollment(enrollmentData)
 
-      try {
-        await (supabase as any)
-          .from('enrollments')
-          .update({
-            last_lesson_id: lessonId,
-            last_accessed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', (enrollmentData as any).id)
-      } catch {
-        /* non-fatal */
-      }
+      void (supabase as any)
+        .from('enrollments')
+        .update({
+          last_lesson_id: lessonId,
+          last_accessed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', (enrollmentData as any).id)
+        .then(() => undefined, () => undefined)
 
-      // Fetch lesson details
-      const { data: lessonData, error: lessonError } = await supabase
-        .from('lessons')
-        .select('*')
-        .eq('id', lessonId)
-        .single()
+      const [
+        lessonResult,
+        modulesResult,
+        courseResult,
+        progressResult,
+        courseProgressResult,
+        notesResult,
+        quizResult,
+        activityRes,
+      ] = await Promise.all([
+        supabase.from('lessons').select('*').eq('id', lessonId).single(),
+        supabase.from('modules').select('*').eq('course_id', courseId).order('order_index', { ascending: true }),
+        supabase.from('courses').select('*').eq('id', courseId).single(),
+        supabase.from('lesson_progress').select('*').eq('user_id', user.id).eq('lesson_id', lessonId).maybeSingle(),
+        supabase
+          .from('lesson_progress')
+          .select('lesson_id, completed, activity_completed')
+          .eq('user_id', user.id)
+          .eq('course_id', courseId),
+        supabase
+          .from('notes')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('lesson_id', lessonId)
+          .eq('is_deleted', false)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('quizzes')
+          .select('*')
+          .eq('lesson_id', lessonId)
+          .eq('is_published', true)
+          .limit(1)
+          .maybeSingle(),
+        fetch(`/api/lessons/${lessonId}/activity-progress`).catch(() => null),
+      ])
+
+      const { data: lessonData, error: lessonError } = lessonResult
 
       if (lessonError) throw lessonError
       if (!lessonData) {
@@ -245,63 +280,54 @@ export default function LessonViewPage() {
         return
       }
 
-      setLesson(lessonData as Lesson)
+      const lessonRow = lessonData as Lesson
+      setLesson(lessonRow)
       setIsCompleted(false)
-      setVideoWatchSatisfied(!(lessonData as Lesson).video_url)
+      setVideoWatchSatisfied(!lessonRow.video_url)
 
-      // Fetch all modules for this course
-      const { data: modulesData } = await supabase
-        .from('modules')
-        .select('*')
-        .eq('course_id', courseId)
-        .order('order_index', { ascending: true })
-
+      const modulesData = modulesResult.data
       if (modulesData) {
         setAllModules(modulesData as Module[])
+        const moduleData = (modulesData as Module[]).find((m) => m.id === lessonRow.module_id)
+        if (moduleData) setModule(moduleData)
       }
 
-      // Fetch module for this lesson
-      const { data: moduleData } = await supabase
-        .from('modules')
-        .select('*')
-        .eq('id', (lessonData as Lesson).module_id)
-        .single()
+      const courseData = courseResult.data
+      const quizData = quizResult.data
+      const progressData = progressResult.data
 
-      if (moduleData) {
-        setModule(moduleData)
-      }
-
-      // Fetch course details + instructor
-      const { data: courseData } = await supabase
-        .from('courses')
-        .select('*')
-        .eq('id', courseId)
-        .single()
-
-      if (courseData) {
-        setCourse(courseData)
-        const instructorId = (courseData as any).instructor_id
-        if (instructorId) {
-          const { data: instructorProfile } = await supabase
-            .from('profiles')
-            .select('id, full_name, avatar_url, bio, social_links')
-            .eq('id', instructorId)
-            .maybeSingle()
-          if (instructorProfile) setInstructor(instructorProfile as any)
-        }
-      }
-
-      // Course-wide ordered lessons (modules by order, then lessons by order)
+      const instructorId = (courseData as any)?.instructor_id as string | undefined
       const moduleList = (modulesData || []) as Module[]
-      if (moduleList.length > 0) {
-        const moduleIds = moduleList.map((m) => m.id)
-        const { data: courseLessons } = await supabase
-          .from('lessons')
-          .select('*')
-          .in('module_id', moduleIds)
-          .eq('is_published', true)
-          .order('order_index', { ascending: true })
+      const [instructorResult, courseLessonsResult, questionsResult] = await Promise.all([
+        instructorId
+          ? supabase
+              .from('profiles')
+              .select('id, full_name, avatar_url, bio, social_links')
+              .eq('id', instructorId)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+        moduleList.length > 0
+          ? supabase
+              .from('lessons')
+              .select('*')
+              .in('module_id', moduleList.map((m) => m.id))
+              .eq('is_published', true)
+              .order('order_index', { ascending: true })
+          : Promise.resolve({ data: [] as Lesson[] }),
+        quizData
+          ? supabase
+              .from('quiz_questions')
+              .select('*')
+              .eq('quiz_id', (quizData as any).id)
+              .order('order_index', { ascending: true })
+          : Promise.resolve({ data: [] }),
+      ])
 
+      if (courseData) setCourse(courseData)
+      if (instructorResult.data) setInstructor(instructorResult.data as any)
+
+      const courseLessons = (courseLessonsResult.data || []) as Lesson[]
+      if (moduleList.length > 0) {
         const byModule = new Map<string, Lesson[]>()
         for (const l of (courseLessons || []) as Lesson[]) {
           const list = byModule.get(l.module_id) || []
@@ -322,16 +348,8 @@ export default function LessonViewPage() {
         setCurrentLessonIndex(0)
       }
 
-      // Fetch lesson progress for THIS lesson
       let thisLessonCompleted = false
       try {
-        const { data: progressData } = await supabase
-          .from('lesson_progress')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('lesson_id', lessonId)
-          .maybeSingle()
-
         if (progressData) {
           const pd = progressData as any
           thisLessonCompleted = Boolean(pd.completed)
@@ -341,7 +359,7 @@ export default function LessonViewPage() {
           lessonProgressIdRef.current = pd.id
           timeSpentBaseRef.current = pd.time_spent_seconds || 0
           setVideoWatchSatisfied(
-            !(lessonData as Lesson).video_url || (pd.progress_percentage || 0) >= 90
+            !lessonRow.video_url || (pd.progress_percentage || 0) >= VIDEO_COMPLETE_PERCENT
           )
           if (thisLessonCompleted) {
             setCompletedLessonIds((prev) => {
@@ -355,19 +373,15 @@ export default function LessonViewPage() {
           timeSpentBaseRef.current = 0
           setIsCompleted(false)
           setActivityCompleted(false)
-          setVideoWatchSatisfied(!(lessonData as Lesson).video_url)
+          setVideoWatchSatisfied(!lessonRow.video_url)
         }
       } catch (progressError) {
         console.log('Lesson progress fetch error (continuing anyway):', progressError)
       }
 
-      // Fetch completed-lesson ids across the whole course (for checkmarks/progress)
       try {
-        const { data: courseProgress, error: courseProgressError } = await supabase
-          .from('lesson_progress')
-          .select('lesson_id, completed, activity_completed')
-          .eq('user_id', user.id)
-          .eq('course_id', courseId)
+        const courseProgress = courseProgressResult.data
+        const courseProgressError = courseProgressResult.error
 
         if (courseProgressError) {
           // Fallback without activity_completed for older DBs
@@ -433,66 +447,23 @@ export default function LessonViewPage() {
         console.log('Course progress fetch error (continuing anyway):', e)
       }
 
-      // Fetch notes for this lesson
-      try {
-        console.log('Fetching notes...')
-        const { data: notesData } = await supabase
-          .from('notes')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('lesson_id', lessonId)
-          .eq('is_deleted', false)
-          .order('created_at', { ascending: false })
+      if (notesResult.data) setNotes(notesResult.data)
 
-        if (notesData) {
-          setNotes(notesData)
-        }
-        console.log('Notes fetched successfully')
-      } catch (notesError) {
-        console.log('Notes fetch error (continuing anyway):', notesError)
+      if (quizResult.error) {
+        console.log('Quiz fetch error:', quizResult.error)
       }
-
-      // Fetch quiz for this lesson (get first published quiz)
-      console.log('Fetching quiz for lesson:', lessonId)
-      const { data: quizData, error: quizError } = await supabase
-        .from('quizzes')
-        .select('*')
-        .eq('lesson_id', lessonId)
-        .eq('is_published', true)
-        .limit(1)
-        .maybeSingle()
-
-      console.log('Quiz fetch result:', { quizData, quizError })
-
-      if (quizError) {
-        console.log('Quiz fetch error:', quizError)
-      }
-
       if (quizData) {
         setQuiz(quizData as any)
-        try {
-          const { data: questionsData } = await supabase
-            .from('quiz_questions')
-            .select('*')
-            .eq('quiz_id', (quizData as any).id)
-            .order('order_index', { ascending: true })
-
-          if (questionsData && questionsData.length > 0) {
-            setQuizQuestions(questionsData)
-          }
-        } catch (questionsError) {
-          console.log('Error fetching quiz questions (continuing anyway):', questionsError)
-        }
+        const questionsData = questionsResult.data
+        if (questionsData && questionsData.length > 0) setQuizQuestions(questionsData)
       } else {
         setQuiz(null)
         setQuizQuestions([])
       }
 
-      // Per-activity mandatory progress (syncs quiz passes + activity_completed)
       try {
-        const res = await fetch(`/api/lessons/${lessonId}/activity-progress`)
-        if (res.ok) {
-          const data = await res.json()
+        if (activityRes && activityRes.ok) {
+          const data = await activityRes.json()
           applyActivityProgressPayload(data)
         }
       } catch (e) {
@@ -723,7 +694,7 @@ export default function LessonViewPage() {
   // Persist watch progress (throttled by the player). Never un-completes.
   const persistWatchProgress = async (data: VideoProgressData) => {
     if (!currentUser || !lesson) return
-    if (data.percent >= 90 && activeLessonIdRef.current === lessonId) {
+    if (data.percent >= VIDEO_COMPLETE_PERCENT && activeLessonIdRef.current === lessonId) {
       setVideoWatchSatisfied(true)
     }
     const payload: any = {
@@ -1181,27 +1152,38 @@ export default function LessonViewPage() {
       if (!opts?.force && sessionStorage.getItem(key) === '1') return
     }
     if (congratsShownRef.current && !opts?.force) return
-    if (certAutoRequestedRef.current && !opts?.force) return
+    if ((certAutoRequestedRef.current || congratsTimerRef.current) && !opts?.force) return
+    if (opts?.force && congratsTimerRef.current) {
+      clearTimeout(congratsTimerRef.current)
+      congratsTimerRef.current = null
+    }
+
     certAutoRequestedRef.current = true
-    void (async () => {
-      const result = await issueCertificate(Boolean(opts?.force))
-      if (!result.url) {
-        // A grading hold is stable until the lesson remounts. Clearing the lock
-        // here lets the completion effect issue the same request on every update.
-        if (!result.pending) certAutoRequestedRef.current = false
-        return
-      }
+    congratsTimerRef.current = setTimeout(() => {
+      congratsTimerRef.current = null
       if (congratsShownRef.current && !opts?.force) {
-        certAutoRequestedRef.current = false
         return
       }
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem(`pelbu-cert-congrats-${courseId}`, '1')
-      }
-      congratsShownRef.current = true
-      clearAutoAdvance()
-      setShowCompletionDialog(true)
-    })()
+      void (async () => {
+        const result = await issueCertificate(Boolean(opts?.force))
+        if (!result.url) {
+          // A grading hold is stable until the lesson remounts. Clearing the lock
+          // here lets the completion effect issue the same request on every update.
+          if (!result.pending) certAutoRequestedRef.current = false
+          return
+        }
+        if (congratsShownRef.current && !opts?.force) {
+          certAutoRequestedRef.current = false
+          return
+        }
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(`pelbu-cert-congrats-${courseId}`, '1')
+        }
+        congratsShownRef.current = true
+        clearAutoAdvance()
+        setShowCompletionDialog(true)
+      })()
+    }, 4000)
   }
 
   const handleGetCertificate = async () => {
@@ -1378,7 +1360,12 @@ export default function LessonViewPage() {
       {parseLessonBlocks(lesson.content).every((b) => b.type !== 'scenario') && (
         <ScenarioPlayer lessonId={lessonId} />
       )}
-      {(enrollment?.progress_percentage || 0) >= 100 && (
+    </>
+  )
+
+  const certificateSection =
+    progressPercent >= 100 ? (
+      <div className="px-4 py-3">
         <Card className="glass border-green-600/30">
           <CardContent className="space-y-3 py-6 text-center">
             <CheckCircle className="mx-auto h-8 w-8 text-green-600" />
@@ -1387,34 +1374,16 @@ export default function LessonViewPage() {
               You have earned your certificate of completion.
             </p>
             <Button
-              onClick={handleGetCertificate}
-              disabled={issuingCert}
               className="w-full bg-bhutan-yellow text-black hover:bg-bhutan-orange"
-            >
-              {issuingCert ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Preparing...
-                </>
-              ) : (
-                <>
-                  <Award className="mr-2 h-4 w-4" />
-                  {certificateUrl ? 'Download certificate' : 'Get certificate'}
-                </>
-              )}
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full"
               onClick={() => router.push(`/certificates/${courseId}`)}
             >
-              Open certificate claim page
+              <Award className="mr-2 h-4 w-4" />
+              Open Certificate Claim Page
             </Button>
           </CardContent>
         </Card>
-      )}
-    </>
-  )
+      </div>
+    ) : null
 
   return (
     <div
@@ -1489,6 +1458,7 @@ export default function LessonViewPage() {
               {autoAdvanceNotice}
             </div>
           ) : null}
+          {certificateSection}
           <div className="px-3 py-2 lg:hidden">
             <LessonNextBar
               currentIndex={currentLessonIndex}

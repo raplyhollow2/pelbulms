@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useTheme } from 'next-themes'
-import Link from 'next/link'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -29,7 +28,6 @@ import {
   Moon,
   Sun,
   Monitor,
-  Smartphone,
 } from 'lucide-react'
 
 export default function SettingsPage() {
@@ -156,27 +154,6 @@ export default function SettingsPage() {
             Manage your account preferences and configuration
           </p>
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Smartphone className="w-5 h-5" />
-              Android app
-            </CardTitle>
-            <CardDescription>
-              Install the official Pelbu LMS APK from this website
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              variant="outline"
-              className="h-11 rounded-full"
-              render={<Link href="/download" />}
-            >
-              Download Android APK
-            </Button>
-          </CardContent>
-        </Card>
 
         {/* Notification Settings */}
         <Card>

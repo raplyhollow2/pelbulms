@@ -174,8 +174,16 @@ export function CommandCenter({
                   ) : (
                     <ul className="space-y-1 text-sm">
                       {t.rows.slice(0, 5).map((r) => (
-                        <li key={r.id} className="truncate text-muted-foreground">
-                          {String(r.cells.course || r.cells.name || r.id)}
+                        <li key={r.id} className="truncate">
+                          {r.href ? (
+                            <Link href={r.href} className="text-bhutan-orange hover:underline">
+                              {String(r.cells.course || r.cells.name || r.id)}
+                            </Link>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {String(r.cells.course || r.cells.name || r.id)}
+                            </span>
+                          )}
                         </li>
                       ))}
                     </ul>

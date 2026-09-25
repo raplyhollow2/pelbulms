@@ -6,17 +6,16 @@ import {
   resolveUserCapabilities,
 } from '@/lib/capabilities'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { getRequestUser } from '@/lib/request-user'
 
 /**
  * GET /api/admin/capabilities/me
  * Returns the current user's resolved capability keys for nav gating.
  */
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getRequestUser(request)
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

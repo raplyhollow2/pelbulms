@@ -1,17 +1,16 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, tryCreateServiceClient } from '@/lib/supabase/server'
+import { getRequestUser } from '@/lib/request-user'
 
 /**
  * GET /api/institutions
  * Active institutions for catalog filters and course audience targeting.
  * Requires authentication.
  */
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getRequestUser(request)
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

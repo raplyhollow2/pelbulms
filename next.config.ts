@@ -1,6 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      {
+        source: '/download',
+        destination: '/',
+        permanent: true,
+      },
+    ]
+  },
   // Temporary: unblock deploy while Supabase/UI type mismatches are cleaned up.
   // Prefer fixing types over long-term use of this flag.
   typescript: {

@@ -15,6 +15,7 @@ import type {
   ReportSectionPayload,
 } from '@/lib/reports/types'
 import { rangeToDays } from '@/lib/reports/types'
+import { lessonHref } from '@/lib/reports/action-links'
 
 type Db = SupabaseClient<any>
 
@@ -207,8 +208,10 @@ export async function buildTeachSnapshot(
     ? `/teach/courses/${topAtRiskCourseId}/students`
     : '/teach/reports?focus=at-risk'
 
-  // Friction map lives in the detailed reports section on this page
-  const frictionHref = '/teach/reports?focus=lesson-friction'
+  const topHotspot = frictionMap.hotspots[0]
+  const frictionHref = topHotspot
+    ? lessonHref(topHotspot.courseId, topHotspot.lessonId)
+    : '/teach/reports?focus=lesson-friction'
   const atRiskFocusHref = atRiskHref
 
   if (atRiskCount > 0) {
@@ -271,7 +274,11 @@ export async function buildTeachSnapshot(
       reason: `${pendingGrades} submissions waiting in the largest queue`,
       href: gradeHref,
     })
+    const pendingKpi = kpis.find((k) => k.key === 'pendingGrades')
+    if (pendingKpi) pendingKpi.href = gradeHref
   }
+  const atRiskKpi = kpis.find((k) => k.key === 'atRisk')
+  if (atRiskKpi && atRiskCount > 0) atRiskKpi.href = atRiskHref
   if (actions.length === 0) {
     actions.push({
       id: 'act-ok',

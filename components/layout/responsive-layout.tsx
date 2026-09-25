@@ -14,9 +14,14 @@ interface ResponsiveLayoutProps {
   children: React.ReactNode
   user?: any
   siteName?: string
+  profile?: {
+    role?: string | null
+    full_name?: string | null
+    avatar_url?: string | null
+  } | null
 }
 
-export function ResponsiveLayout({ children, user, siteName = 'Pelbu LMS' }: ResponsiveLayoutProps) {
+export function ResponsiveLayout({ children, user, siteName = 'Pelbu LMS', profile = null }: ResponsiveLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const pathname = usePathname()
   const isLearnPlayer = /^\/learn\/[^/]+\/lesson\//.test(pathname || '')
@@ -51,7 +56,7 @@ export function ResponsiveLayout({ children, user, siteName = 'Pelbu LMS' }: Res
       />
 
       <div className="hidden md:block">
-        <DesktopSidebar user={user} siteName={siteName} />
+        <DesktopSidebar user={user} siteName={siteName} profile={profile} />
       </div>
 
       <main
@@ -102,7 +107,7 @@ export function ResponsiveLayout({ children, user, siteName = 'Pelbu LMS' }: Res
       </main>
 
       <div className="md:hidden">
-        <MobileNavigation user={user} />
+        <MobileNavigation user={user} profile={profile} />
       </div>
     </div>
   )

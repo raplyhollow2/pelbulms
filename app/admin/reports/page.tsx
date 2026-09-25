@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { RoleReportDashboard } from '@/components/reports/role-report-dashboard'
 import { GradingAlertBanner } from '@/components/teach/grading-alert-banner'
@@ -10,8 +10,14 @@ import type { ReportRange, ReportSectionPayload, ReportSnapshot } from '@/lib/re
 import { canAccessAdmin } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/client'
 
+function sectionForBlock(snapshot: ReportSnapshot, blockId: string) {
+  return snapshot.sections.find((s) => s.blocks.some((b) => b.id === blockId))?.section
+}
+
 export default function AdminReportsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const focusBlockId = searchParams.get('focus')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [role, setRole] = useState<string>('admin')
@@ -85,6 +91,12 @@ export default function AdminReportsPage() {
     load()
   }, [load])
 
+  useEffect(() => {
+    if (!focusBlockId || !snapshot) return
+    const section = sectionForBlock(snapshot, focusBlockId)
+    if (section) setDeepDive(section)
+  }, [focusBlockId, snapshot])
+
   if (loading) {
     return (
       <div className="container mx-auto flex items-center gap-2 px-4 py-16 text-muted-foreground">
@@ -148,6 +160,7 @@ export default function AdminReportsPage() {
         showDeepDive
         deepDiveSection={deepDive}
         onDeepDiveChange={setDeepDive}
+        focusBlockId={focusBlockId}
       />
     </div>
   )

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import type { FrictionHotspot, FrictionMapPayload, FrictionType } from '@/lib/reports/types'
+import { courseRosterHref, lessonHref } from '@/lib/reports/action-links'
 import { ChevronDown, ChevronRight, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -163,13 +164,13 @@ function HotspotRow({ hotspot: h, rank }: { hotspot: FrictionHotspot; rank: numb
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
         <Link
-          href={`/teach/courses/${h.courseId}/edit`}
+          href={lessonHref(h.courseId, h.lessonId)}
           className="inline-flex items-center text-xs text-bhutan-orange hover:underline"
         >
-          Edit <ExternalLink className="ml-1 h-3 w-3" />
+          Edit lesson <ExternalLink className="ml-1 h-3 w-3" />
         </Link>
         <Link
-          href={`/teach/courses/${h.courseId}/students`}
+          href={courseRosterHref(h.courseId)}
           className="inline-flex items-center text-xs text-bhutan-orange hover:underline"
         >
           Students <ExternalLink className="ml-1 h-3 w-3" />

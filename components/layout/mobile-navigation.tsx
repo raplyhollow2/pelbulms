@@ -18,9 +18,10 @@ import { coerceUserRole } from '@/lib/roles'
 
 interface MobileNavigationProps {
   user?: any
+  profile?: { role?: string | null } | null
 }
 
-export function MobileNavigation({ user }: MobileNavigationProps) {
+export function MobileNavigation({ user, profile = null }: MobileNavigationProps) {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
   const { loaded: capsLoaded, has: hasCapKey, role: capRole } = useCapabilities()
@@ -45,7 +46,7 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
 
   useEffect(() => {
     if (user) fetchUserRole()
-  }, [user])
+  }, [user, profile])
 
   useEffect(() => {
     setMenuOpen(false)
@@ -63,15 +64,17 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
   const fetchUserRole = async () => {
     try {
       const supabase = createClient()
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-      const role = coerceUserRole(
-        (profile as any)?.role || user?.app_metadata?.role
-      )
+      let role = profile?.role
+        ? coerceUserRole(profile.role)
+        : coerceUserRole(user?.app_metadata?.role)
+      if (!profile?.role) {
+        const { data: row } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+        role = coerceUserRole((row as any)?.role || user?.app_metadata?.role)
+      }
 
       setUserRole(role)
 
@@ -109,10 +112,15 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
   return (
     <>
       <nav
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-50 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 sm:px-4"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-50"
         aria-label="Mobile navigation"
       >
-        <div className="pointer-events-auto mx-auto flex w-full max-w-lg items-stretch justify-around gap-0.5 rounded-2xl border border-border/50 bg-background/80 p-1.5 shadow-floating backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 sm:gap-1">
+        <div
+          aria-hidden
+          className="absolute inset-x-0 bottom-0 top-0 bg-background"
+        />
+        <div className="relative px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 sm:px-4">
+        <div className="pointer-events-auto mx-auto flex w-full max-w-lg items-stretch justify-around gap-0.5 rounded-2xl border border-border/50 bg-background p-1.5 shadow-floating sm:gap-1">
           {mainNavigation.map((item) => {
             const active = isActive(item.href)
             return (
@@ -181,6 +189,7 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
             </span>
           </button>
         </div>
+        </div>
       </nav>
 
       {menuOpen && (
@@ -222,6 +231,11 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
               <span className="ml-auto rounded-md bg-background px-1.5 py-0.5 text-[10px] font-medium">Live</span>
             </button>
 
+            {secondaryNavigation.length > 0 && (
+              <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Learner&apos;s Dashboard
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-2 mb-4">
               {secondaryNavigation.map((item) => (
                 <Link
@@ -239,44 +253,20 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
             {canTeach && (
               <div className="mb-4">
                 <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Teacher
+                  Teacher&apos;s Dashboard
                 </p>
-                {teacherNavigation.some((item) => item.group === 'Course management') && (
-                  <>
-                    <p className="mb-2 px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">
-                      Course management
-                    </p>
-                    <div className="mb-3 grid grid-cols-2 gap-2">
-                      {teacherNavigation
-                        .filter((item) => item.group === 'Course management')
-                        .map((item) => (
-                          <Link
-                            key={item.name}
-                            href={item.href}
-                            onClick={() => setMenuOpen(false)}
-                            className="flex flex-col items-center justify-center gap-2 rounded-xl bg-bhutan-yellow/10 p-4 transition-colors active:bg-bhutan-yellow/20"
-                          >
-                            <item.icon className="h-5 w-5 text-bhutan-yellow" />
-                            <span className="text-center text-xs font-medium">{item.name}</span>
-                          </Link>
-                        ))}
-                    </div>
-                  </>
-                )}
                 <div className="grid grid-cols-2 gap-2">
-                  {teacherNavigation
-                    .filter((item) => item.group !== 'Course management')
-                    .map((item) => (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        onClick={() => setMenuOpen(false)}
-                        className="flex flex-col items-center justify-center gap-2 rounded-xl bg-bhutan-yellow/10 p-4 transition-colors active:bg-bhutan-yellow/20"
-                      >
-                        <item.icon className="h-5 w-5 text-bhutan-yellow" />
-                        <span className="text-center text-xs font-medium">{item.name}</span>
-                      </Link>
-                    ))}
+                  {teacherNavigation.map((item) => (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      onClick={() => setMenuOpen(false)}
+                      className="flex flex-col items-center justify-center gap-2 rounded-xl bg-bhutan-yellow/10 p-4 transition-colors active:bg-bhutan-yellow/20"
+                    >
+                      <item.icon className="h-5 w-5 text-bhutan-yellow" />
+                      <span className="text-center text-xs font-medium">{item.name}</span>
+                    </Link>
+                  ))}
                 </div>
               </div>
             )}
@@ -284,7 +274,7 @@ export function MobileNavigation({ user }: MobileNavigationProps) {
             {adminNavigation.length > 0 && (
               <div className="mb-4">
                 <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Admin
+                  Superadmin&apos;s Dashboard
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   {adminNavigation.map((item) => (

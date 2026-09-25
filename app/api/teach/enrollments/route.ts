@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
 import { notifyStudentOfEnrollmentDecision } from '@/lib/notify-enrolled'
+import { getRequestUser } from '@/lib/request-user'
 
 async function assertCourseStaff(
   service: any,
@@ -45,9 +46,7 @@ async function assertCourseStaff(
 export async function GET(request: NextRequest) {
   try {
     const auth = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await auth.auth.getUser()
+    const user = await getRequestUser(request)
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -158,9 +157,7 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const auth = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await auth.auth.getUser()
+    const user = await getRequestUser(request)
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

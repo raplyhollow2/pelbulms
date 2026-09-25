@@ -53,12 +53,10 @@ type EnrollmentRow = {
 }
 
 export default function DashboardPage() {
-  const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [enrollments, setEnrollments] = useState<EnrollmentRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [redirecting, setRedirecting] = useState(false)
   const [stats, setStats] = useState({
     activeCourses: 0,
     completedLessons: 0,
@@ -71,6 +69,7 @@ export default function DashboardPage() {
   )
   const [page, setPage] = useState(1)
 
+  const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
@@ -82,6 +81,7 @@ export default function DashboardPage() {
   }, [query, statusFilter])
 
   const fetchDashboardData = async () => {
+    let leaving = false
     try {
       setLoading(true)
       const {
@@ -97,10 +97,10 @@ export default function DashboardPage() {
         .eq('id', session.user.id)
         .single()
 
-      const home = homePathForRole((profileData as any)?.role)
-      if (home === '/admin/reports' || home === '/teach/dashboard') {
-        setRedirecting(true)
-        router.replace(home)
+      const destination = homePathForRole(profileData?.role)
+      if (destination !== '/dashboard') {
+        leaving = true
+        router.replace(destination)
         return
       }
 
@@ -154,7 +154,7 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
     } finally {
-      setLoading(false)
+      if (!leaving) setLoading(false)
     }
   }
 
@@ -190,14 +190,6 @@ export default function DashboardPage() {
       })
     return sortable[0] || null
   }, [enrollments])
-
-  if (redirecting) {
-    return (
-      <div className="container mx-auto px-4 py-16 text-sm text-muted-foreground">
-        Opening your dashboard…
-      </div>
-    )
-  }
 
   if (loading) {
     return (

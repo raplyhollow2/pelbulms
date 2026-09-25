@@ -243,7 +243,7 @@ export function CourseActionDeck({
         <div className={sticky ? 'lg:sticky lg:top-24' : ''}>{body}</div>
       )}
       {variant !== 'sidebar' && (
-        <div className="fixed inset-x-0 z-40 px-3 pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:hidden">
+        <div className="fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-40 px-3 md:bottom-3 lg:hidden">
         <div className="mx-auto max-w-lg rounded-xl border border-border/60 bg-background/95 p-3 shadow-lg backdrop-blur">
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">

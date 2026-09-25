@@ -2,16 +2,22 @@
 
 export function rowsToCsv(
   columns: { key: string; label: string }[],
-  rows: { cells: Record<string, string | number | boolean | null> }[]
+  rows: { cells: Record<string, string | number | boolean | null>; href?: string }[]
 ): string {
   const escape = (v: unknown) => {
     const s = v == null ? '' : String(v)
     if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`
     return s
   }
-  const header = columns.map((c) => escape(c.label)).join(',')
+  const withLinks = rows.some((row) => row.href)
+  const header = [...columns.map((c) => escape(c.label)), ...(withLinks ? ['Link'] : [])].join(',')
   const body = rows
-    .map((row) => columns.map((c) => escape(row.cells[c.key])).join(','))
+    .map((row) =>
+      [
+        ...columns.map((c) => escape(row.cells[c.key])),
+        ...(withLinks ? [escape(row.href || '')] : []),
+      ].join(',')
+    )
     .join('\n')
   return `${header}\n${body}`
 }

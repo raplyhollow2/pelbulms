@@ -42,6 +42,18 @@ export type CapabilityCheck = RBACCheck & {
 
 type AdminDb = Awaited<ReturnType<typeof tryCreateServiceClient>> | null
 
+const CAPABILITY_CACHE_MS = 60_000
+const capabilityCache = new Map<string, { at: number; value: ResolvedCapabilities }>()
+
+export function invalidateCapabilityCache() {
+  capabilityCache.clear()
+}
+
+function rememberCapabilities(userId: string, value: ResolvedCapabilities) {
+  capabilityCache.set(userId, { at: Date.now(), value })
+  return value
+}
+
 async function getDb() {
   const service = await tryCreateServiceClient()
   if (service) return service
@@ -53,6 +65,15 @@ async function getDb() {
  * the roles tables are missing / empty (pre-migration).
  */
 export async function resolveUserCapabilities(
+  userId: string,
+  fallbackRole?: UserRole | null
+): Promise<ResolvedCapabilities> {
+  const hit = capabilityCache.get(userId)
+  if (hit && Date.now() - hit.at < CAPABILITY_CACHE_MS) return hit.value
+  return rememberCapabilities(userId, await resolveUserCapabilitiesUncached(userId, fallbackRole))
+}
+
+async function resolveUserCapabilitiesUncached(
   userId: string,
   fallbackRole?: UserRole | null
 ): Promise<ResolvedCapabilities> {

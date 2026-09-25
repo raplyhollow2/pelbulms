@@ -15,9 +15,9 @@ export async function buildExcelPack(
   summary.addRow(['Generated', snapshot.generatedAt])
   summary.addRow(['Audience', snapshot.audience])
   summary.addRow([])
-  summary.addRow(['KPI', 'Value', 'Hint'])
+  summary.addRow(['KPI', 'Value', 'Hint', 'Link'])
   for (const k of snapshot.kpis) {
-    summary.addRow([k.label, k.value, k.hint || ''])
+    summary.addRow([k.label, k.value, k.hint || '', k.href || ''])
   }
 
   const funnel = wb.addWorksheet('Funnel')
@@ -49,9 +49,9 @@ export async function buildExcelPack(
   }
 
   const alerts = wb.addWorksheet('Alerts')
-  alerts.addRow(['Severity', 'Title', 'Detail'])
+  alerts.addRow(['Severity', 'Title', 'Detail', 'Link'])
   for (const a of snapshot.alerts) {
-    alerts.addRow([a.severity, a.title, a.detail])
+    alerts.addRow([a.severity, a.title, a.detail, a.href || ''])
   }
 
   const actions = wb.addWorksheet('Actions')
@@ -61,10 +61,14 @@ export async function buildExcelPack(
   }
 
   for (const table of snapshot.tables) {
+    const linkable = table.rows.some((row) => row.href)
     const ws = wb.addWorksheet(table.title.slice(0, 28))
-    ws.addRow(table.columns.map((c) => c.label))
+    ws.addRow([...table.columns.map((c) => c.label), ...(linkable ? ['Link'] : [])])
     for (const row of table.rows) {
-      ws.addRow(table.columns.map((c) => row.cells[c.key] ?? ''))
+      ws.addRow([
+        ...table.columns.map((c) => row.cells[c.key] ?? ''),
+        ...(linkable ? [row.href || ''] : []),
+      ])
     }
   }
 

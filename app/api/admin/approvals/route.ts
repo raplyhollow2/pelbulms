@@ -6,6 +6,7 @@ import {
   resolveEffectiveRole,
 } from '@/lib/approvals-access'
 import { processRegistrationReview } from '@/lib/approve-registration'
+import { getRequestUser } from '@/lib/request-user'
 
 /**
  * Secure API for student registration approvals.
@@ -14,11 +15,9 @@ import { processRegistrationReview } from '@/lib/approve-registration'
  * platform admins are not blocked by institution_access-only RLS policies.
  */
 
-async function loadCaller() {
+async function loadCaller(request: { headers: Headers }) {
   const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getRequestUser(request)
 
   if (!user) {
     return { error: NextResponse.json(
@@ -88,7 +87,7 @@ async function loadCaller() {
 
 export async function POST(request: Request) {
   try {
-    const loaded = await loadCaller()
+    const loaded = await loadCaller(request)
     if ('error' in loaded && loaded.error instanceof NextResponse) return loaded.error
     const { user, scope, service } = loaded as any
 
@@ -208,7 +207,7 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const loaded = await loadCaller()
+    const loaded = await loadCaller(request)
     if ('error' in loaded && loaded.error instanceof NextResponse) return loaded.error
     const { profile, scope, service } = loaded as any
 

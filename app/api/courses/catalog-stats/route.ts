@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getDbClient } from '@/lib/db'
+import { getRequestUser } from '@/lib/request-user'
 
 /**
  * POST /api/courses/catalog-stats
@@ -11,9 +12,7 @@ import { getDbClient } from '@/lib/db'
 export async function POST(request: Request) {
   try {
     const supabase = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getRequestUser(request)
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

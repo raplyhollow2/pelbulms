@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, tryCreateServiceClient } from '@/lib/supabase/server'
 import { userCanManageCourse } from '@/lib/course-access'
 import { fetchLinkPreview } from '@/lib/link-preview'
+import { getRequestUser } from '@/lib/request-user'
 
 async function assertCourseAccess(courseId: string, userId: string, role?: string | null) {
   const admin = await tryCreateServiceClient()
@@ -30,9 +31,7 @@ export async function GET(
   try {
     const { courseId } = await params
     const session = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await session.auth.getUser()
+    const user = await getRequestUser(request)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const admin = await tryCreateServiceClient()

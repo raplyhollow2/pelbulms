@@ -8,6 +8,7 @@ import {
   DEFAULT_PLATFORM_SETTINGS,
   parsePlatformSettings,
   type PlatformSettings,
+  invalidatePlatformSettingsCache,
 } from '@/lib/platform-settings'
 import {
   normalizeLandingFaqInput,
@@ -26,6 +27,7 @@ function denied(rbac: { error?: string }) {
 }
 
 function bustPublicSiteCache() {
+  invalidatePlatformSettingsCache()
   revalidatePath('/', 'layout')
   revalidatePath('/')
   revalidatePath('/auth/login')

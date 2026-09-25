@@ -8,6 +8,7 @@ import { LessonResources, type ActivityProgressItem } from '@/components/course/
 import { inferLectureKind } from '@/lib/lesson-kind'
 import { parseLessonBlocks } from '@/lib/lesson-blocks'
 import { resolveMediaUrl } from '@/lib/media'
+import { VIDEO_COMPLETE_PERCENT } from '@/lib/lesson-completion-sync'
 import { cn } from '@/lib/utils'
 
 type LessonLike = {
@@ -77,7 +78,7 @@ export function LessonContentStage({
             videoUrl={videoUrl}
             title={lesson.title}
             initialPositionSeconds={initialPositionSeconds}
-            thresholdPercent={90}
+            thresholdPercent={VIDEO_COMPLETE_PERCENT}
             onProgress={onProgress}
             onThresholdReached={onThresholdReached}
             onEnded={onEnded}

@@ -8,6 +8,13 @@ import type {
   ReportRange,
 } from '@/lib/reports/types'
 import { rangeToDays } from '@/lib/reports/types'
+import {
+  courseRosterHref,
+  gradingHref,
+  learnerHref,
+  lessonHref,
+} from '@/lib/reports/action-links'
+import { currentAssessableActivityKeys } from '@/lib/activity-responses'
 
 type Db = SupabaseClient<any>
 
@@ -137,7 +144,7 @@ export async function computeTeachReports(
         'id, user_id, lesson_id, course_id, completed, completed_at, time_spent_seconds, last_accessed_at, progress_percentage'
       )
       .in('course_id', courseIds),
-    db.from('lessons').select('id, module_id, title, is_published, order_index').limit(5000),
+    db.from('lessons').select('id, module_id, title, is_published, order_index, resources').limit(5000),
     db.from('modules').select('id, course_id, title, order_index').in('course_id', courseIds),
     db.from('quizzes').select('id, lesson_id, title').limit(5000),
     db.from('enrollment_invites').select('id, course_id, used_at, created_at').in('course_id', courseIds),
@@ -226,7 +233,11 @@ export async function computeTeachReports(
       .limit(5000)
     activityProgress = (data || []) as any[]
   }
-  const submittedActivities = activityProgress.filter((r) => r.completed || r.status)
+  const assessableKeys = currentAssessableActivityKeys(lessonList)
+  const submittedActivities = activityProgress.filter(
+    (r) =>
+      assessableKeys.has(`${r.lesson_id}:${r.activity_id}`) && (r.completed || r.status)
+  )
   const pendingActivities = submittedActivities.filter(
     (r) => r.status !== 'graded' && r.status !== 'returned'
   )
@@ -266,7 +277,8 @@ export async function computeTeachReports(
   const gradingRows = Object.entries(gradingByCourse)
     .map(([courseId, stats]) => ({
       id: courseId,
-      href: `/teach/courses/${courseId}/grading`,
+      href: gradingHref(courseId),
+      actionLabel: 'Grade',
       cells: {
         course: courseTitle.get(courseId) || courseId,
         submitted: stats.submitted,
@@ -453,6 +465,8 @@ export async function computeTeachReports(
 
   const frictionRows = hotspots.map((h) => ({
     id: h.lessonId,
+    href: lessonHref(h.courseId, h.lessonId),
+    actionLabel: 'Edit lesson',
     cells: {
       lesson: h.lessonTitle,
       course: h.courseTitle,
@@ -484,6 +498,26 @@ export async function computeTeachReports(
     (e) => e.last_accessed_at && e.last_accessed_at >= since7
   ).length
 
+  const atRiskByCourse: Record<string, number> = {}
+  for (const e of atRisk) {
+    atRiskByCourse[e.course_id] = (atRiskByCourse[e.course_id] || 0) + 1
+  }
+  const topAtRiskCourseId = Object.entries(atRiskByCourse).sort((a, b) => b[1] - a[1])[0]?.[0]
+  const atRiskRosterHref = topAtRiskCourseId ? courseRosterHref(topAtRiskCourseId) : undefined
+  const topGrading = gradingRows.find((row) => Number(row.cells.pending) > 0)
+  const pendingGradeHref = topGrading?.href
+  const topHotspot = hotspots[0]
+  const topLessonHref = topHotspot
+    ? lessonHref(topHotspot.courseId, topHotspot.lessonId)
+    : undefined
+  const quizLesson = new Map(
+    quizList.map((q) => {
+      const lesson = lessonById.get(q.lesson_id)
+      const mod = lesson ? moduleById.get(lesson.module_id) : null
+      return [q.id, { lessonId: q.lesson_id as string | undefined, courseId: mod?.course_id as string | undefined }]
+    })
+  )
+
   const blocks: ReportBlock[] = [
     {
       id: 'engagement',
@@ -509,6 +543,8 @@ export async function computeTeachReports(
             : 0
         return {
           id: c.id,
+          href: courseRosterHref(c.id),
+          actionLabel: 'Open roster',
           cells: {
             course: c.title,
             students: ens.length,
@@ -522,7 +558,14 @@ export async function computeTeachReports(
       id: 'at-risk',
       title: 'At-risk learners',
       description: 'Inactive 14+ days or lagging cohort median by 20+ points.',
-      metrics: [{ key: 'count', label: 'At-risk students', value: atRisk.length }],
+      metrics: [
+        {
+          key: 'count',
+          label: 'At-risk students',
+          value: atRisk.length,
+          href: atRiskRosterHref,
+        },
+      ],
       columns: [
         { key: 'student', label: 'Student' },
         { key: 'course', label: 'Course' },
@@ -531,6 +574,8 @@ export async function computeTeachReports(
       ],
       rows: atRisk.slice(0, 50).map((e) => ({
         id: e.id,
+        href: learnerHref(e.course_id, e.user_id),
+        actionLabel: 'Review learner',
         cells: {
           student: nameById.get(e.user_id) || e.user_id.slice(0, 8),
           course: courseTitle.get(e.course_id) || e.course_id,
@@ -550,6 +595,7 @@ export async function computeTeachReports(
           key: 'pending',
           label: 'Pending activity grades',
           value: pendingActivities.length,
+          href: pendingGradeHref,
         },
         {
           key: 'gradedRate',
@@ -573,15 +619,22 @@ export async function computeTeachReports(
         { key: 'passRate', label: 'Pass rate' },
         { key: 'avgScore', label: 'Avg score' },
       ],
-      rows: Object.entries(byQuiz).map(([quizId, stats]) => ({
+      rows: Object.entries(byQuiz).map(([quizId, stats]) => {
+        const meta = quizLesson.get(quizId)
+        const href =
+          meta?.courseId && meta.lessonId ? lessonHref(meta.courseId, meta.lessonId) : undefined
+        return {
         id: quizId,
+        href,
+        actionLabel: href ? 'Edit lesson' : undefined,
         cells: {
           quiz: quizTitle.get(quizId) || quizId,
           attempts: stats.total,
           passRate: `${Math.round((stats.passed / stats.total) * 100)}%`,
           avgScore: Math.round(stats.scoreSum / stats.total),
         },
-      })),
+        }
+      }),
       emptyMessage: 'No quiz attempts or activity submissions for your courses yet.',
     },
     {
@@ -590,7 +643,7 @@ export async function computeTeachReports(
       description: 'Submitted work waiting for a grade. Open a course to grade it.',
       metrics: [
         { key: 'submitted', label: 'Submitted', value: submittedActivities.length },
-        { key: 'pending', label: 'Pending', value: pendingActivities.length },
+        { key: 'pending', label: 'Pending', value: pendingActivities.length, href: pendingGradeHref },
         { key: 'graded', label: 'Graded', value: gradedActivities.length },
         { key: 'gradedRate', label: 'Graded rate', value: `${gradedRate}%` },
       ],
@@ -638,7 +691,7 @@ export async function computeTeachReports(
       description:
         'Behavioral hotspots: drop-off, hesitation (dwell), stuck mid-lesson, and assessment fail rates (≥3 starts).',
       metrics: [
-        { key: 'hotspots', label: 'Friction hotspots', value: hotspots.length },
+        { key: 'hotspots', label: 'Friction hotspots', value: hotspots.length, href: topLessonHref },
         {
           key: 'topScore',
           label: 'Top friction score',

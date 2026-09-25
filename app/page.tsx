@@ -178,10 +178,19 @@ function resolveFaq(
   requireIdentity: boolean
 ): LandingFaqItem[] {
   if (custom?.length) {
-    return custom.map((f) => ({
-      question: f.question.replaceAll('Pelbu LMS', siteName).replaceAll('Pelbu', siteName),
-      answer: f.answer.replaceAll('Pelbu LMS', siteName).replaceAll('Pelbu', siteName),
-    }))
+    const browserInstall = DEFAULT_LANDING_FAQ.find(
+      (item) => item.question === 'Is there an Android app?'
+    )
+    return custom.map((f) => {
+      const answer =
+        f.question.trim().toLowerCase() === 'is there an android app?' && browserInstall
+          ? browserInstall.answer
+          : f.answer
+      return {
+        question: f.question.replaceAll('Pelbu LMS', siteName).replaceAll('Pelbu', siteName),
+        answer: answer.replaceAll('Pelbu LMS', siteName).replaceAll('Pelbu', siteName),
+      }
+    })
   }
 
   if (requireIdentity) {
@@ -455,9 +464,6 @@ export default async function Home() {
             © {new Date().getFullYear()} {siteName} · Empowering education in Bhutan.
           </p>
           <nav className="flex items-center gap-5">
-            <Link href="/download" className="transition-colors hover:text-foreground">
-              Android app
-            </Link>
             <Link href="/auth/login" className="transition-colors hover:text-foreground">
               Sign in
             </Link>

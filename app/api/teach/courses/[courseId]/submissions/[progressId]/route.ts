@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
 import { userCanManageCourse, courseIdByLesson } from '@/lib/course-access'
 import { reconcileLessonCourseCompletion } from '@/lib/lesson-completion-sync'
+import { getRequestUser } from '@/lib/request-user'
 
 /**
  * PATCH /api/teach/courses/[courseId]/submissions/[progressId]
@@ -22,9 +23,7 @@ export async function PATCH(
   try {
     const { courseId, progressId } = await params
     const auth = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await auth.auth.getUser()
+    const user = await getRequestUser(request)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const service = await createServiceClient()

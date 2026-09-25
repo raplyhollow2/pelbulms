@@ -1,18 +1,18 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
 import { canAccessAdmin, canAccessTeaching } from '@/lib/roles'
+import { currentAssessableActivityKeys } from '@/lib/activity-responses'
+import { getRequestUser } from '@/lib/request-user'
 
 /**
  * GET /api/teach/grading-summary
  * Pending gradable submissions for every course the caller can grade.
  * Admin and superadmin see every course. Loaded once for the teacher dashboard.
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const auth = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await auth.auth.getUser()
+    const user = await getRequestUser(request)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const service = (await createServiceClient()) as any
@@ -62,11 +62,15 @@ export async function GET() {
       return NextResponse.json({ counts: {}, backlog: [] })
     }
 
-    const { data: lessons } = await service.from('lessons').select('id, module_id').in('module_id', moduleIds)
-    const lessonList = (lessons || []) as { id: string; module_id: string }[]
+    const { data: lessons } = await service
+      .from('lessons')
+      .select('id, module_id, resources')
+      .in('module_id', moduleIds)
+    const lessonList = (lessons || []) as { id: string; module_id: string; resources?: unknown }[]
     const courseByLesson = new Map(
       lessonList.map((l) => [l.id, courseByModule.get(l.module_id) || ''])
     )
+    const assessableKeys = currentAssessableActivityKeys(lessonList)
     const lessonIds = lessonList.map((l) => l.id)
     if (lessonIds.length === 0) {
       return NextResponse.json({ counts: {}, backlog: [] })
@@ -78,16 +82,19 @@ export async function GET() {
       const slice = lessonIds.slice(i, i + chunk)
       const { data: progress } = await service
         .from('lesson_activity_progress')
-        .select('lesson_id, status, completed, source')
+        .select('lesson_id, activity_id, status, completed, source')
         .in('lesson_id', slice)
         .in('source', ['submission', 'response'])
         .limit(5000)
       for (const row of progress || []) {
+        const lessonId = (row as any).lesson_id as string
+        const activityId = (row as any).activity_id as string
+        if (!assessableKeys.has(`${lessonId}:${activityId}`)) continue
         const submitted = (row as any).completed || (row as any).status
         const status = (row as any).status as string | null
         if (!submitted) continue
         if (status === 'graded' || status === 'returned') continue
-        const courseId = courseByLesson.get((row as any).lesson_id)
+        const courseId = courseByLesson.get(lessonId)
         if (!courseId) continue
         counts[courseId] = (counts[courseId] || 0) + 1
       }

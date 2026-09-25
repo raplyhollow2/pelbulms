@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from 'cloudinary'
 import type { VideoQualityPreference } from '@/lib/video-quality'
+import { VIDEO_EAGER_TRANSFORMATION } from '@/lib/video-url'
 import { tryCreateServiceClient } from '@/lib/supabase/server'
 
 const CACHE_MS = 30_000
@@ -173,12 +174,9 @@ export function videoQualityTransformation(
   }
 }
 
-function defaultTransformation(
-  resourceType: MediaResourceType,
-  videoQuality: VideoQualityPreference = 'high'
-) {
+function defaultTransformation(resourceType: MediaResourceType) {
   return resourceType === 'video'
-    ? videoQualityTransformation(videoQuality)
+    ? [{ ...VIDEO_EAGER_TRANSFORMATION }]
     : [{ fetch_format: 'auto', quality: 'auto' }]
 }
 
@@ -192,13 +190,18 @@ export function signedUrl(
   } = {}
 ): string {
   applyAccount(account)
-  const { resourceType = 'image', transformation, videoQuality = 'high' } = opts
+  const { resourceType = 'image', transformation, videoQuality } = opts
+  const resolved =
+    transformation ??
+    (resourceType === 'video' && videoQuality
+      ? videoQualityTransformation(videoQuality)
+      : defaultTransformation(resourceType))
   return cloudinary.url(publicId, {
     resource_type: resourceType,
     type: 'authenticated',
     sign_url: true,
     secure: true,
-    transformation: transformation ?? defaultTransformation(resourceType, videoQuality),
+    transformation: resolved,
   })
 }
 

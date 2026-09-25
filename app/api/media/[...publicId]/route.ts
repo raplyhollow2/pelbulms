@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCloudinaryAccount, signedUrl } from '@/lib/cloudinary'
 import { getPlatformSettings } from '@/lib/platform-settings'
+import { getRequestUser } from '@/lib/request-user'
 
 export const runtime = 'nodejs'
 // Never cache the proxy response at the edge; access is per-user authenticated.
@@ -24,10 +24,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ publicId: string[] }> }
 ) {
-  const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const user = await getRequestUser(request)
 
   const { publicId } = await params
   const id = (publicId || []).join('/')
@@ -47,9 +44,11 @@ export async function GET(
     return NextResponse.json({ error: 'Missing media id' }, { status: 400 })
   }
 
-  const videoQuality =
-    resourceType === 'video' ? (await getPlatformSettings()).video_quality : 'high'
-  const upstreamUrl = signedUrl(id, account, { resourceType, videoQuality })
+  const settings = resourceType === 'video' ? await getPlatformSettings() : null
+  const upstreamUrl = signedUrl(id, account, {
+    resourceType,
+    ...(settings ? { videoQuality: settings.video_quality } : {}),
+  })
 
   // Forward Range (for video seeking). Avoid forwarding browser Accept for images.
   const forwardHeaders: Record<string, string> = {}

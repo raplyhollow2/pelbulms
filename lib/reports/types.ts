@@ -76,12 +76,16 @@ export interface ReportMetric {
   label: string
   value: string | number
   hint?: string
+  /** Decision page for this count. */
+  href?: string
 }
 
 export interface ReportRow {
   id: string
   cells: Record<string, string | number | boolean | null>
   href?: string
+  /** Verb shown on the row action, e.g. Grade, Fix course. */
+  actionLabel?: string
 }
 
 export interface ReportBlock {

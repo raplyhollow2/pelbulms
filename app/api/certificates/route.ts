@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
+import { getRequestUser } from '@/lib/request-user'
 
 export const runtime = 'nodejs'
 
@@ -7,12 +8,10 @@ export const runtime = 'nodejs'
  * GET /api/certificates
  * Lists the authenticated user's certificates (with course info).
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const auth = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await auth.auth.getUser()
+    const user = await getRequestUser(request)
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

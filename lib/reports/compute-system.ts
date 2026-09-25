@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ReportBlock } from '@/lib/reports/types'
 import { instrumentationGapsAsReportRows } from '@/lib/reports/instrumentation-gaps'
+import { courseEditHref, learnerHref } from '@/lib/reports/action-links'
 
 type Db = SupabaseClient<any>
 
@@ -93,18 +94,25 @@ export async function computeSystemPulseReports(db: Db): Promise<ReportBlock[]> 
     .map((c) => {
       const mods = modulesByCourse[c.id] || []
       if (mods.length === 0) {
-        return { id: c.id, cells: { course: c.title, issue: 'No modules' } }
+        return { id: c.id, href: courseEditHref(c.id), actionLabel: 'Fix course', cells: { course: c.title, issue: 'No modules' } }
       }
       const emptyMods = mods.filter((m) => (lessonsByModule[m.id] || 0) === 0)
       if (emptyMods.length) {
         return {
           id: c.id,
+          href: courseEditHref(c.id),
+          actionLabel: 'Fix course',
           cells: { course: c.title, issue: `${emptyMods.length} module(s) with 0 lessons` },
         }
       }
       return null
     })
-    .filter(Boolean) as { id: string; cells: Record<string, string | number> }[]
+    .filter(Boolean) as {
+      id: string
+      href?: string
+      actionLabel?: string
+      cells: Record<string, string | number>
+    }[]
 
   // Teacher time-to-value
   const instructors = profileList.filter((p) =>
@@ -205,6 +213,8 @@ export async function computeSystemPulseReports(db: Db): Promise<ReportBlock[]> 
       ],
       rows: leaks.slice(0, 40).map((e) => ({
         id: e.id,
+        href: learnerHref(e.course_id, e.user_id),
+        actionLabel: 'Review learner',
         cells: {
           enrollment: e.id.slice(0, 8),
           course: courseList.find((c) => c.id === e.course_id)?.title || e.course_id,

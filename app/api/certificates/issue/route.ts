@@ -3,6 +3,8 @@ import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/
 import { generateCertificatePdf } from '@/lib/certificate-pdf'
 import { describeCompletionBlockers } from '@/lib/activity-responses'
 import { reconcileCourseCompletion } from '@/lib/lesson-completion-sync'
+import { getRequestUser } from '@/lib/request-user'
+import { publicAppUrl } from '@/lib/email/send'
 
 export const runtime = 'nodejs'
 
@@ -22,9 +24,7 @@ function makeVerificationCode(): string {
 export async function POST(request: NextRequest) {
   try {
     const auth = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await auth.auth.getUser()
+    const user = await getRequestUser(request)
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -140,8 +140,7 @@ export async function POST(request: NextRequest) {
     const verificationCode =
       (existing as any)?.verification_code || makeVerificationCode()
 
-    const appUrl =
-      process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin
+    const appUrl = publicAppUrl(new URL(request.url).origin)
     const issuedDate = new Date().toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',

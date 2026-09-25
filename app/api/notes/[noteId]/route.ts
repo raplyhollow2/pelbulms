@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { getRequestUser } from '@/lib/request-user'
 
-async function requireUser() {
+async function requireUser(request: NextRequest) {
   const supabase = await createSupabaseServerClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
-
-  if (error || !user) {
+  const user = await getRequestUser(request)
+  if (!user) {
     return { supabase, user: null as null, unauthorized: true as const }
   }
   return { supabase, user, unauthorized: false as const }
@@ -19,7 +16,7 @@ export async function PATCH(
   { params }: { params: Promise<{ noteId: string }> }
 ) {
   try {
-    const { supabase, user, unauthorized } = await requireUser()
+    const { supabase, user, unauthorized } = await requireUser(request)
     if (unauthorized || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -57,11 +54,11 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ noteId: string }> }
 ) {
   try {
-    const { supabase, user, unauthorized } = await requireUser()
+    const { supabase, user, unauthorized } = await requireUser(request)
     if (unauthorized || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

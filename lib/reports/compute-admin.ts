@@ -1,6 +1,18 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ReportBlock } from '@/lib/reports/types'
 import { computePresenceSnapshot } from '@/lib/admin/presence'
+import { currentAssessableActivityKeys } from '@/lib/activity-responses'
+import {
+  APPROVALS_HREF,
+  PERMISSIONS_HREF,
+  REGISTRATION_SETTINGS_HREF,
+  REVIEWERS_HREF,
+  courseEditHref,
+  courseRosterHref,
+  gradingHref,
+  institutionCatalogHref,
+  internalPathHref,
+} from '@/lib/reports/action-links'
 
 type Db = SupabaseClient<any>
 
@@ -122,7 +134,7 @@ export async function computeApprovalsReports(
   // Institution coverage
   const { data: institutions } = await db
     .from('institutions')
-    .select('id, name, is_active')
+    .select('id, name, slug, is_active')
     .eq('is_active', true)
   const instList = (institutions || []) as any[]
   const scopedInst = options?.institutionIds?.length
@@ -152,9 +164,9 @@ export async function computeApprovalsReports(
       id: 'approval-queue-aging',
       title: 'Approval queue aging',
       metrics: [
-        { key: 'pending', label: 'Open backlog', value: pending.length },
-        { key: 'median', label: 'Median decision (h)', value: Math.round(medianH) },
-        { key: 'p95', label: 'P95 decision (h)', value: Math.round(p95H) },
+        { key: 'pending', label: 'Open backlog', value: pending.length, href: APPROVALS_HREF },
+        { key: 'median', label: 'Median decision (h)', value: Math.round(medianH), href: APPROVALS_HREF },
+        { key: 'p95', label: 'P95 decision (h)', value: Math.round(p95H), href: APPROVALS_HREF },
         { key: 'decided', label: 'Decided (sample)', value: decided.length },
       ],
       columns: [
@@ -169,6 +181,8 @@ export async function computeApprovalsReports(
           : 0
         return {
           id: r.id,
+          href: APPROVALS_HREF,
+          actionLabel: 'Review KYC',
           cells: {
             status: r.registration_status,
             submitted: submitted ? new Date(submitted).toLocaleDateString() : '—',
@@ -189,6 +203,8 @@ export async function computeApprovalsReports(
         .sort((a, b) => b[1] - a[1])
         .map(([reason, count]) => ({
           id: reason,
+          href: APPROVALS_HREF,
+          actionLabel: 'Review KYC',
           cells: { reason, count },
         })),
       emptyMessage: 'No rejections in sample.',
@@ -202,6 +218,8 @@ export async function computeApprovalsReports(
       ],
       rows: Object.entries(byReviewer).map(([id, stats]) => ({
         id,
+        href: REVIEWERS_HREF,
+        actionLabel: 'Open reviewers',
         cells: {
           reviewer: reviewerName.get(id) || id.slice(0, 8),
           decided: stats.decided,
@@ -250,6 +268,8 @@ export async function computeApprovalsReports(
       ],
       rows: scopedInst.map((i) => ({
         id: i.id,
+        href: institutionCatalogHref(i.slug),
+        actionLabel: 'Open catalog',
         cells: {
           institution: i.name,
           teachers: teachersByInst[i.id] || 0,
@@ -284,9 +304,9 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
     db
       .from('enrollments')
       .select('id, user_id, course_id, status, progress_percentage, last_accessed_at, completed_at, enrolled_at'),
-    db.from('institutions').select('id, name, is_active'),
+    db.from('institutions').select('id, name, slug, is_active'),
     db.from('modules').select('id, course_id'),
-    db.from('lessons').select('id, module_id').limit(8000),
+    db.from('lessons').select('id, module_id, resources').limit(8000),
     db.from('course_institutions').select('course_id, institution_id'),
     db.from('institution_access').select('institution_id, user_id, role_within_institution, is_active'),
     db
@@ -297,7 +317,7 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
     db.from('course_instructors').select('course_id, user_id, role'),
     db
       .from('lesson_activity_progress')
-      .select('id, lesson_id, status, grade, source, completed')
+      .select('id, lesson_id, activity_id, status, grade, source, completed')
       .in('source', ['submission', 'response'])
       .limit(8000),
   ])
@@ -311,7 +331,10 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
   const ciList = (courseInstitutions || []) as any[]
   const accessList = ((institutionAccess || []) as any[]).filter((a) => a.is_active)
   const regList = (registrations || []) as any[]
-  const activityList = (activitySubmissions || []) as any[]
+  const assessableKeys = currentAssessableActivityKeys(lessonList)
+  const activityList = ((activitySubmissions || []) as any[]).filter((row) =>
+    assessableKeys.has(`${row.lesson_id}:${row.activity_id}`)
+  )
 
   const published = courseList.filter((c) => c.is_published)
   const draft = courseList.filter((c) => !c.is_published)
@@ -382,6 +405,8 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
       if (eligible > 0 && ens === 0) {
         return {
           id: courseId,
+          href: courseEditHref(courseId),
+          actionLabel: 'Fix course',
           cells: {
             course: course.title,
             institutions: instIds.length,
@@ -392,7 +417,12 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
       }
       return null
     })
-    .filter(Boolean) as { id: string; cells: Record<string, string | number> }[]
+    .filter(Boolean) as {
+      id: string
+      href?: string
+      actionLabel?: string
+      cells: Record<string, string | number>
+    }[]
 
   // Funnel
   const submitted = regList.filter((r) => r.submitted_at || r.registration_status !== 'draft').length
@@ -448,7 +478,8 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
   const assessedCourseRows = Object.keys(submittedByCourse)
     .map((courseId) => ({
       id: courseId,
-      href: `/teach/courses/${courseId}/grading`,
+      href: gradingHref(courseId),
+      actionLabel: 'Grade',
       cells: {
         course: courseTitleMap.get(courseId) || courseId,
         submitted: submittedByCourse[courseId] || 0,
@@ -466,6 +497,8 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
     .slice(0, 40)
 
   const instName = new Map(instList.map((i) => [i.id, i.name]))
+  const instSlug = new Map(instList.map((i) => [i.id, i.slug as string | null]))
+  const topPendingCourse = assessedCourseRows.find((row) => Number(row.cells.pending) > 0)
 
   return [
     {
@@ -488,6 +521,8 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
         .sort((a, b) => b[1] - a[1])
         .map(([id, count]) => ({
           id,
+          href: institutionCatalogHref(instSlug.get(id)),
+          actionLabel: 'Open catalog',
           cells: { institution: instName.get(id) || id, enrollments: count },
         })),
     },
@@ -495,7 +530,7 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
       id: 'catalog-health',
       title: 'Catalog health',
       metrics: [
-        { key: 'empty', label: 'Published with 0 modules', value: emptyCourses.length },
+        { key: 'empty', label: 'Published with 0 modules', value: emptyCourses.length, href: emptyCourses[0] ? courseEditHref(emptyCourses[0].id) : undefined },
         { key: 'restricted', label: 'Audience-restricted courses', value: restrictedCourseIds.size },
       ],
       columns: [
@@ -504,6 +539,8 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
       ],
       rows: emptyCourses.slice(0, 30).map((c) => ({
         id: c.id,
+        href: courseEditHref(c.id),
+        actionLabel: 'Fix course',
         cells: { course: c.title, issue: 'No modules' },
       })),
       emptyMessage: 'No empty published courses.',
@@ -536,7 +573,7 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
       description: 'Activity and assignment submission grading across courses.',
       metrics: [
         { key: 'submitted', label: 'Activity submissions', value: totalActivitySubmitted },
-        { key: 'pending', label: 'Pending grading', value: totalActivityPending },
+        { key: 'pending', label: 'Pending grading', value: totalActivityPending, href: topPendingCourse?.href },
         { key: 'graded', label: 'Graded', value: totalActivityGraded },
         { key: 'gradedRate', label: 'Graded rate', value: `${platformGradedRate}%` },
       ],
@@ -555,10 +592,10 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
       id: 'registration-funnel',
       title: 'Registration funnel',
       metrics: [
-        { key: 'submitted', label: 'Submitted / in pipeline', value: submitted },
-        { key: 'approved', label: 'Approved', value: approvedRegs },
-        { key: 'rejected', label: 'Rejected', value: rejectedRegs },
-        { key: 'enrolled', label: 'Approved → enrolled', value: approvedThenEnrolled },
+        { key: 'submitted', label: 'Submitted / in pipeline', value: submitted, href: APPROVALS_HREF },
+        { key: 'approved', label: 'Approved', value: approvedRegs, href: APPROVALS_HREF },
+        { key: 'rejected', label: 'Rejected', value: rejectedRegs, href: APPROVALS_HREF },
+        { key: 'enrolled', label: 'Approved → enrolled', value: approvedThenEnrolled, href: REGISTRATION_SETTINGS_HREF },
       ],
     },
     {
@@ -570,7 +607,7 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
           label: 'Published with no co-teachers',
           value: published.filter((c) => (staffByCourse[c.id] || 0) === 0).length,
         },
-        { key: 'quiet', label: 'Published with enrollments but no 30d activity', value: quietCourses.length },
+        { key: 'quiet', label: 'Published with enrollments but no 30d activity', value: quietCourses.length, href: quietCourses[0] ? courseRosterHref(quietCourses[0].id) : undefined },
       ],
       columns: [
         { key: 'course', label: 'Course' },
@@ -578,6 +615,8 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
       ],
       rows: quietCourses.slice(0, 25).map((c) => ({
         id: c.id,
+        href: courseRosterHref(c.id),
+        actionLabel: 'Open roster',
         cells: { course: c.title, enrollments: ensByCourse[c.id] || 0 },
       })),
       emptyMessage: 'No quiet courses detected.',
@@ -593,6 +632,8 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
       ],
       rows: darkCatalog.map((c) => ({
         id: c.id,
+        href: courseEditHref(c.id),
+        actionLabel: 'Fix course',
         cells: {
           course: c.title,
           enrollments: ensByCourse[c.id] || 0,
@@ -643,15 +684,20 @@ export async function computePlatformCommandReports(db: Db): Promise<ReportBlock
         { key: 'where', label: 'Location' },
         { key: 'state', label: 'State' },
       ],
-      rows: snap.activeToday.slice(0, 40).map((p) => ({
-        id: p.userId,
-        cells: {
-          name: p.fullName,
-          role: p.role,
-          where: p.pathLabel,
-          state: p.live ? 'Active now' : 'Earlier today',
-        },
-      })),
+      rows: snap.activeToday.slice(0, 40).map((p) => {
+        const href = internalPathHref(p.path)
+        return {
+          id: p.userId,
+          href,
+          actionLabel: href ? 'Open page' : undefined,
+          cells: {
+            name: p.fullName,
+            role: p.role,
+            where: p.pathLabel,
+            state: p.live ? 'Active now' : 'Earlier today',
+          },
+        }
+      }),
       emptyMessage: 'No presence heartbeats yet today.',
     }
   } catch {
@@ -669,7 +715,7 @@ export async function computePlatformCommandReports(db: Db): Promise<ReportBlock
     { data: certificates },
     { data: interventions },
   ] = await Promise.all([
-    db.from('institutions').select('id, name, is_active'),
+    db.from('institutions').select('id, name, slug, is_active'),
     db.from('profiles').select('id, role, institution_id'),
     db.from('courses').select('id, title, is_published'),
     db
@@ -707,6 +753,8 @@ export async function computePlatformCommandReports(db: Db): Promise<ReportBlock
     ).length
     return {
       id: inst.id,
+      href: institutionCatalogHref(inst.slug),
+      actionLabel: 'Open catalog',
       cells: {
         institution: inst.name,
         members: members.length,
@@ -775,6 +823,8 @@ export async function computePlatformCommandReports(db: Db): Promise<ReportBlock
       ],
       rows: Object.entries(roleCounts).map(([role, count]) => ({
         id: role,
+        href: PERMISSIONS_HREF,
+        actionLabel: 'Review roles',
         cells: { role, count },
       })),
     },

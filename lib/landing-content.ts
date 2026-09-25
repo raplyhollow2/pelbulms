@@ -65,7 +65,7 @@ export const DEFAULT_LANDING_FEATURES: LandingFeature[] = [
     icon: 'BarChart3',
     title: 'Real progress tracking',
     description:
-      'Watch-time is measured per lesson. Courses complete automatically at 90% — no gaming the system.',
+      'Watch-time is measured per lesson. Courses complete automatically when a lesson is fully watched.',
   },
   {
     icon: 'BadgeCheck',
@@ -167,7 +167,7 @@ export const DEFAULT_LANDING_FAQ: LandingFaqItem[] = [
   {
     question: 'Is there an Android app?',
     answer:
-      'Yes. Download the official Pelbu LMS APK from the website. It is a native Android SDK app. Releases are built only when we run a GitHub Action by hand — they are not auto-published to Google Play.',
+      'Install Pelbu from your browser. In Chrome or Edge, use the install prompt, or open the browser menu and choose Install app. On other mobile browsers, use Add to Home Screen.',
   },
 ]
 

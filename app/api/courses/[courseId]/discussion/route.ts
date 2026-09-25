@@ -4,15 +4,15 @@ import { createSupabaseServerClient, tryCreateServiceClient } from '@/lib/supaba
 import { userCanManageCourse } from '@/lib/course-access'
 import { fetchLinkPreview, firstNonYoutubeUrl, firstYoutubeUrl } from '@/lib/link-preview'
 import { getYoutubeId } from '@/lib/video-url'
+import { getRequestUser } from '@/lib/request-user'
 
 const BUCKET = 'course-media'
 
-async function getSessionUser() {
+async function getSessionUser(request: NextRequest) {
   const session = await createSupabaseServerClient()
-  const {
-    data: { user },
-  } = await session.auth.getUser()
+  const user = await getRequestUser(request)
   if (!user) return { session: null as any, user: null as any, role: null as string | null }
+  if (user.role) return { session, user, role: user.role }
 
   const admin = await tryCreateServiceClient()
   const db = admin || session
@@ -129,7 +129,7 @@ export async function GET(
 ) {
   try {
     const { courseId } = await params
-    const { session, user, role } = await getSessionUser()
+    const { session, user, role } = await getSessionUser(request)
     if (!session || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -271,7 +271,7 @@ export async function POST(
 ) {
   try {
     const { courseId } = await params
-    const { session, user, role } = await getSessionUser()
+    const { session, user, role } = await getSessionUser(request)
     if (!session || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

@@ -8,6 +8,7 @@ import {
   type ActivityResponsePayload,
 } from '@/lib/activity-responses'
 import { parseLessonActivities, type LessonActivity } from '@/lib/lesson-activities'
+import { getRequestUser } from '@/lib/request-user'
 
 type AssessableActivityMeta = {
   lessonId: string
@@ -84,9 +85,7 @@ export async function GET(
   try {
     const { courseId } = await params
     const auth = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await auth.auth.getUser()
+    const user = await getRequestUser(request)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const service = (await createServiceClient()) as any

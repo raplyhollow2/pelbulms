@@ -431,15 +431,15 @@ export default function ModuleLessonsPage() {
       <div className="space-y-4">
         {/* Sticky header with always-visible Save */}
         <div className="sticky top-0 z-30 -mx-4 border-b border-border/40 bg-background/85 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6">
-          <div className="mb-1 flex items-center gap-1 overflow-x-auto scrollbar-hide whitespace-nowrap text-xs text-muted-foreground">
+          <div className="mb-1 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
             <button
               onClick={() => router.push(`/teach/courses/${courseId}/edit`)}
-              className="shrink-0 hover:text-foreground"
+              className="min-w-0 truncate hover:text-foreground"
             >
               {course.title}
             </button>
             <span className="shrink-0">/</span>
-            <span className="truncate font-medium text-foreground">
+            <span className="min-w-0 truncate font-medium text-foreground">
               {module.title || 'Untitled Module'}
             </span>
           </div>
@@ -478,7 +478,7 @@ export default function ModuleLessonsPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="w-full justify-start gap-1 overflow-x-auto scrollbar-hide [&>*]:flex-none [&>*]:px-3.5">
+          <TabsList className="h-auto min-h-9 w-full flex-wrap justify-start gap-1 py-1 group-data-horizontal/tabs:h-auto [&>*]:flex-none [&>*]:px-3.5">
             <TabsTrigger value="lessons" className="min-h-11 gap-1.5">
               <BookOpen className="w-4 h-4" /> Lessons
               {lessons.length > 0 && (

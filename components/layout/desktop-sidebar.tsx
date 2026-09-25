@@ -28,6 +28,11 @@ import { coerceUserRole } from '@/lib/roles'
 interface DesktopSidebarProps {
   user?: any
   siteName?: string
+  profile?: {
+    role?: string | null
+    full_name?: string | null
+    avatar_url?: string | null
+  } | null
 }
 
 interface NavItem {
@@ -38,7 +43,7 @@ interface NavItem {
 
 const STORAGE_KEY = 'pelbu:sidebar-collapsed'
 
-export function DesktopSidebar({ user, siteName = 'Pelbu LMS' }: DesktopSidebarProps) {
+export function DesktopSidebar({ user, siteName = 'Pelbu LMS', profile: profileHint = null }: DesktopSidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
   const { loaded: capsLoaded, has: hasCapKey, role: capRole } = useCapabilities()
@@ -107,25 +112,31 @@ export function DesktopSidebar({ user, siteName = 'Pelbu LMS' }: DesktopSidebarP
 
   useEffect(() => {
     if (user) fetchProfile()
-  }, [user])
+  }, [user, profileHint])
 
   const fetchProfile = async () => {
     try {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('profiles')
-        .select('role, full_name, avatar_url')
-        .eq('id', user.id)
-        .single()
-
-      const role = coerceUserRole(
-        (data as any)?.role || user?.app_metadata?.role
-      )
-
-      setUserRole(role)
-      if (data) {
-        setProfile({ full_name: (data as any).full_name, avatar_url: (data as any).avatar_url })
+      let role = coerceUserRole(profileHint?.role || user?.app_metadata?.role)
+      if (profileHint) {
+        setProfile({
+          full_name: profileHint.full_name || undefined,
+          avatar_url: profileHint.avatar_url || undefined,
+        })
+      } else {
+        const supabase = createClient()
+        const { data } = await supabase
+          .from('profiles')
+          .select('role, full_name, avatar_url')
+          .eq('id', user.id)
+          .single()
+        role = coerceUserRole((data as any)?.role || user?.app_metadata?.role)
+        if (data) {
+          setProfile({ full_name: (data as any).full_name, avatar_url: (data as any).avatar_url })
+        }
       }
+      setUserRole(role)
+
+      const supabase = createClient()
 
       if (role === 'superadmin' || role === 'resource_person') {
         setCanApprove(true)
@@ -330,31 +341,23 @@ export function DesktopSidebar({ user, siteName = 'Pelbu LMS' }: DesktopSidebarP
             </Button>
           )}
 
-          {renderNav(navigation)}
+          {navigation.length > 0 && (
+            <>
+              {sectionLabel("Learner's Dashboard", 'Learn')}
+              {renderNav(navigation)}
+            </>
+          )}
 
           {canTeach && (
             <>
-              {sectionLabel('Teacher Tools', 'Teach')}
-              {teacherNavigation.some((item) => item.group === 'Course management') && (
-                <>
-                  <p
-                    className={cn(
-                      'px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60',
-                      collapsed && 'sr-only'
-                    )}
-                  >
-                    Course management
-                  </p>
-                  {renderNav(teacherNavigation.filter((item) => item.group === 'Course management'))}
-                </>
-              )}
-              {renderNav(teacherNavigation.filter((item) => item.group !== 'Course management'))}
+              {sectionLabel("Teacher's Dashboard", 'Teach')}
+              {renderNav(teacherNavigation)}
             </>
           )}
 
           {adminNavigation.length > 0 && (
             <>
-              {sectionLabel('Administration', 'Admin')}
+              {sectionLabel("Superadmin's Dashboard", 'Admin')}
               {renderNav(adminNavigation)}
             </>
           )}

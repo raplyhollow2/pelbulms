@@ -19,6 +19,12 @@ import type {
 } from '@/lib/reports/types'
 import { rangeToDays } from '@/lib/reports/types'
 import { REPORT_SECTIONS } from '@/lib/reports/catalog'
+import {
+  APPROVALS_HREF,
+  courseEditHref,
+  courseRosterHref,
+  institutionCatalogHref,
+} from '@/lib/reports/action-links'
 
 type Db = SupabaseClient<any>
 
@@ -148,7 +154,7 @@ export async function buildReportSnapshot(
       )
       .limit(3000),
     db.from('profiles').select('id, role, institution_id'),
-    db.from('institutions').select('id, name, is_active'),
+    db.from('institutions').select('id, name, slug, is_active'),
     db.from('courses').select('id, title, is_published, created_at'),
   ])
 
@@ -269,15 +275,24 @@ export async function buildReportSnapshot(
       ? Math.round((completions / enrollmentList.length) * 100)
       : 0
 
+  const darkRow = darkBlock?.rows?.[0]
+  const misfitRow = misfitBlock?.rows?.[0]
+  const leakRow = tenancyBlock?.rows?.[0]
+  const quietRow = quietBlock?.rows?.[0]
+  const darkHref = darkRow?.href || (darkRow ? courseEditHref(darkRow.id) : '/admin/reports?focus=dark-catalog')
+  const misfitHref = misfitRow?.href || (misfitRow ? courseEditHref(misfitRow.id) : '/admin/reports?focus=audience-lock-misfit')
+  const leakHref = leakRow?.href || '/admin/reports?focus=tenancy-leak'
+  const quietHref = quietRow?.href || (quietRow ? courseRosterHref(quietRow.id) : '/admin/reports?focus=instructor-health')
+
   const kpis: ReportMetric[] = [
     { key: 'wau', label: 'Active learners (7d)', value: wau, hint: 'Via enrollment last access' },
     { key: 'mau', label: 'Active learners (30d)', value: mau },
-    { key: 'pendingKyc', label: 'Pending KYC', value: pendingKyc },
-    { key: 'kycP95', label: 'KYC decision P95 (h)', value: p95 },
+    { key: 'pendingKyc', label: 'Pending KYC', value: pendingKyc, href: pendingKyc > 0 ? APPROVALS_HREF : undefined },
+    { key: 'kycP95', label: 'KYC decision P95 (h)', value: p95, href: APPROVALS_HREF },
     { key: 'completionRate', label: 'Completion rate', value: `${completionRate}%` },
     { key: 'published', label: 'Published courses', value: courseList.filter((c) => c.is_published).length },
-    { key: 'darkCatalog', label: 'Dark catalog', value: darkCount },
-    { key: 'tenancyLeaks', label: 'Tenancy leaks', value: leakCount },
+    { key: 'darkCatalog', label: 'Dark catalog', value: darkCount, href: darkCount > 0 ? darkHref : undefined },
+    { key: 'tenancyLeaks', label: 'Tenancy leaks', value: leakCount, href: leakCount > 0 ? leakHref : undefined },
   ]
 
   // SLA breaches: pending > 72h
@@ -303,7 +318,7 @@ export async function buildReportSnapshot(
       severity: 'critical',
       title: `${slaBreaches} KYC cases over 72h`,
       detail: 'Approval SLA breach — reviewers should clear the oldest backlog first.',
-      href: '/admin/users?tab=approvals',
+      href: APPROVALS_HREF,
     })
   }
   if (leakCount > 0) {
@@ -312,7 +327,7 @@ export async function buildReportSnapshot(
       severity: 'critical',
       title: `${leakCount} possible institution audience leaks`,
       detail: 'Enrollments on restricted courses outside course_institutions audience.',
-      href: '/admin/reports',
+      href: leakHref,
     })
   }
   if (darkCount > 0) {
@@ -321,7 +336,7 @@ export async function buildReportSnapshot(
       severity: 'watch',
       title: `${darkCount} dark-catalog courses`,
       detail: 'Published 30+ days with ≤1 enrollment.',
-      href: '/admin/reports',
+      href: darkHref,
     })
   }
   if (misfitCount > 0) {
@@ -330,6 +345,7 @@ export async function buildReportSnapshot(
       severity: 'watch',
       title: `${misfitCount} audience-lock misfits`,
       detail: 'Restricted courses with eligible students but zero enrollments.',
+      href: misfitHref,
     })
   }
   if (quietCount > 0) {
@@ -338,6 +354,7 @@ export async function buildReportSnapshot(
       severity: 'info',
       title: `${quietCount} quiet courses`,
       detail: 'Published with enrollments but no 30-day learner activity.',
+      href: quietHref,
     })
   }
 
@@ -349,7 +366,7 @@ export async function buildReportSnapshot(
       priority: prio++,
       title: 'Clear KYC backlog over 72 hours',
       reason: `${slaBreaches} registrations exceed SLA`,
-      href: '/admin/users?tab=approvals',
+      href: APPROVALS_HREF,
     })
   }
   if (Number(p95) > 72 || (typeof p95 === 'number' && p95 > 72)) {
@@ -358,7 +375,7 @@ export async function buildReportSnapshot(
       priority: prio++,
       title: 'Investigate KYC P95 latency',
       reason: `Decision P95 is ${p95} hours`,
-      href: '/admin/users?tab=approvals',
+      href: APPROVALS_HREF,
     })
   }
   if (darkCount > 0) {
@@ -367,7 +384,7 @@ export async function buildReportSnapshot(
       priority: prio++,
       title: 'Review dark-catalog courses',
       reason: `${darkCount} published courses with near-zero enrollments`,
-      href: '/courses',
+      href: darkHref,
     })
   }
   if (misfitCount > 0) {
@@ -376,7 +393,16 @@ export async function buildReportSnapshot(
       priority: prio++,
       title: 'Fix audience locks with zero enrollments',
       reason: `${misfitCount} restricted courses have eligible students but no enrollments`,
-      href: '/admin/settings/institutions',
+      href: misfitHref,
+    })
+  }
+  if (quietCount > 0) {
+    actions.push({
+      id: 'act-quiet',
+      priority: prio++,
+      title: 'Check quiet courses',
+      reason: `${quietCount} published courses have enrollments but no recent activity`,
+      href: quietHref,
     })
   }
   if (leakCount > 0) {
@@ -385,7 +411,7 @@ export async function buildReportSnapshot(
       priority: prio++,
       title: 'Audit tenancy leaks',
       reason: `${leakCount} enrollments may violate course institution audience rules`,
-      href: '/admin/reports',
+      href: leakHref,
     })
   }
   if (actions.length === 0) {
@@ -420,6 +446,8 @@ export async function buildReportSnapshot(
       ],
       rows: institutionScores.map((s) => ({
         id: s.id,
+        href: institutionCatalogHref(instList.find((i) => i.id === s.id)?.slug),
+        actionLabel: 'Open catalog',
         cells: {
           name: s.name,
           members: s.members,

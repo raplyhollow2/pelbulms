@@ -8,6 +8,7 @@ import { buildDocxPack } from '@/lib/reports/export/docx'
 import { buildPdfPack } from '@/lib/reports/export/pdf'
 import { audienceAllowsAiBrief } from '@/lib/reports/types'
 import type { AiBriefPayload, ReportRange, SnapshotAudience } from '@/lib/reports/types'
+import { getRequestUser } from '@/lib/request-user'
 
 function parseRange(raw: unknown): ReportRange {
   if (raw === '7d' || raw === '90d' || raw === '30d') return raw
@@ -31,9 +32,7 @@ function parsePrefer(raw: unknown): SnapshotAudience | undefined {
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getRequestUser(request)
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

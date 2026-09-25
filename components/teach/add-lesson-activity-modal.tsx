@@ -229,14 +229,14 @@ export function AddLessonActivityModal({
           setError('')
         }}
         className={cn(
-          'flex min-w-0 flex-col items-start gap-2 overflow-hidden rounded-lg border p-3 text-left transition-colors hover:border-bhutan-yellow/60 hover:bg-bhutan-yellow/5',
+          'flex min-w-0 flex-col items-start gap-2 rounded-lg border p-3 text-left transition-colors hover:border-bhutan-yellow/60 hover:bg-bhutan-yellow/5',
           selected === item.type && 'border-bhutan-yellow bg-bhutan-yellow/10'
         )}
       >
         <div className="flex w-full min-w-0 items-start gap-2">
           <Icon className="mt-0.5 h-5 w-5 shrink-0 text-bhutan-orange" />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium leading-snug">{item.label}</p>
+            <p className="break-words text-sm font-medium leading-snug">{item.label}</p>
             <Badge
               variant="outline"
               className={cn(
@@ -257,7 +257,7 @@ export function AddLessonActivityModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>
             {selected && def ? `Add ${def.label}` : 'Add an activity or resource'}

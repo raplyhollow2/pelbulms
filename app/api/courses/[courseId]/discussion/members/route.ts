@@ -2,21 +2,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, tryCreateServiceClient } from '@/lib/supabase/server'
 import { userCanManageCourse, listCourseStaffIds } from '@/lib/course-access'
+import { getRequestUser } from '@/lib/request-user'
 
 /**
  * GET /api/courses/[courseId]/discussion/members
  * Enrolled learners + course staff available for tagging (course-scoped).
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ courseId: string }> }
 ) {
   try {
     const { courseId } = await params
     const session = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await session.auth.getUser()
+    const user = await getRequestUser(request)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const admin = await tryCreateServiceClient()

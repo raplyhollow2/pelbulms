@@ -83,7 +83,7 @@ export function VideoPreviewModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-4xl w-full p-0 gap-0 bg-background/95 backdrop-blur-sm overflow-hidden">
+      <DialogContent className="w-full gap-0 overflow-hidden bg-background/95 p-0 backdrop-blur-sm sm:max-w-4xl">
         <div className="relative">
           <div className="relative aspect-video bg-black group">
             {!hasVideo ? (

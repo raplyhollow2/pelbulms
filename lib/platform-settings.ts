@@ -203,7 +203,25 @@ export function toPublicSite(settings: PlatformSettings) {
   }
 }
 
+const SETTINGS_CACHE_MS = 60_000
+let settingsCache: { at: number; value: PlatformSettings } | null = null
+
+export function invalidatePlatformSettingsCache() {
+  settingsCache = null
+}
+
+function defaultSettings(): PlatformSettings {
+  return {
+    ...DEFAULT_PLATFORM_SETTINGS,
+    hero_rotating_words: [...DEFAULT_HERO_ROTATING_WORDS],
+    landing_stats: [...DEFAULT_LANDING_STATS],
+  }
+}
+
 export async function getPlatformSettings(): Promise<PlatformSettings> {
+  if (settingsCache && Date.now() - settingsCache.at < SETTINGS_CACHE_MS) {
+    return settingsCache.value
+  }
   try {
     const service = await tryCreateServiceClient()
     const client = service || (await createSupabaseServerClient())
@@ -212,9 +230,13 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
       .select('*')
       .eq('id', 'default')
       .maybeSingle()
-    if (error || !data) return { ...DEFAULT_PLATFORM_SETTINGS, hero_rotating_words: [...DEFAULT_HERO_ROTATING_WORDS], landing_stats: [...DEFAULT_LANDING_STATS] }
-    return parsePlatformSettings(data as unknown as Record<string, unknown>)
+    const value =
+      error || !data
+        ? defaultSettings()
+        : parsePlatformSettings(data as unknown as Record<string, unknown>)
+    settingsCache = { at: Date.now(), value }
+    return value
   } catch {
-    return { ...DEFAULT_PLATFORM_SETTINGS, hero_rotating_words: [...DEFAULT_HERO_ROTATING_WORDS], landing_stats: [...DEFAULT_LANDING_STATS] }
+    return defaultSettings()
   }
 }

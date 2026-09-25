@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { getRequestUser } from '@/lib/request-user'
 
 const BUCKET = 'kyc-documents'
 const MAX_BYTES = 8 * 1024 * 1024 // 8MB
@@ -18,7 +19,7 @@ const FIELDS = ['passport', 'cid']
  */
 export async function POST(request: NextRequest) {
   const supabase = await createSupabaseServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getRequestUser(request)
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

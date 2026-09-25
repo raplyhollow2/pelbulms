@@ -6,6 +6,7 @@ import { notifyTeacherOfEnrollment } from '@/lib/notify-teachers'
 import { isKycExemptRole } from '@/lib/kyc'
 import { getPlatformSettings } from '@/lib/platform-settings'
 import { assertUserMayEnrollInCourse } from '@/lib/course-institution-access'
+import { getRequestUser } from '@/lib/request-user'
 
 /**
  * POST /api/enrollments
@@ -18,9 +19,7 @@ import { assertUserMayEnrollInCourse } from '@/lib/course-institution-access'
 export async function POST(request: Request) {
   try {
     const supabase = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const user = await getRequestUser(request)
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -34,12 +33,8 @@ export async function POST(request: Request) {
       .eq('id', user.id)
       .maybeSingle()
 
-    const accountStatus =
-      (profile as any)?.account_status ||
-      (user.app_metadata as any)?.account_status ||
-      (user.user_metadata as any)?.account_status ||
-      null
-    const role = (profile as any)?.role || (user.app_metadata as any)?.role || 'student'
+    const accountStatus = (profile as any)?.account_status || user.accountStatus || null
+    const role = (profile as any)?.role || user.role || 'student'
 
     if (accountStatus === 'rejected' || accountStatus === 'suspended') {
       return NextResponse.json(

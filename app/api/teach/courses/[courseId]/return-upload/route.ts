@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, tryCreateServiceClient } from '@/lib/supabase/server'
 import { userCanManageCourse } from '@/lib/course-access'
+import { getRequestUser } from '@/lib/request-user'
 
 const BUCKET = 'assignment-submissions'
 const MAX_BYTES = 50 * 1024 * 1024 // 50MB
@@ -47,9 +48,7 @@ export async function POST(
   try {
     const { courseId } = await params
     const session = await createSupabaseServerClient()
-    const {
-      data: { user },
-    } = await session.auth.getUser()
+    const user = await getRequestUser(request)
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const admin = await tryCreateServiceClient()
