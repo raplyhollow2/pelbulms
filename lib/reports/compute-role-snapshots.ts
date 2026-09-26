@@ -16,6 +16,7 @@ import type {
 } from '@/lib/reports/types'
 import { rangeToDays } from '@/lib/reports/types'
 import { lessonHref } from '@/lib/reports/action-links'
+import { computeLearnerDemographics } from '@/lib/reports/demographics'
 
 type Db = SupabaseClient<any>
 
@@ -289,6 +290,13 @@ export async function buildTeachSnapshot(
     })
   }
 
+  const learnerIds = [...new Set(enrollmentList.map((e) => e.user_id).filter(Boolean))]
+  const demographics = await computeLearnerDemographics(db, {
+    mode: 'enrolled',
+    userIds: learnerIds,
+  })
+  sections.push(demographics.section)
+
   const tables = [
     {
       key: 'engagement',
@@ -308,6 +316,7 @@ export async function buildTeachSnapshot(
       columns: friction?.columns || [],
       rows: friction?.rows || [],
     },
+    ...demographics.tables,
   ]
 
   const base: Omit<ReportSnapshot, 'hash'> = {
@@ -324,6 +333,7 @@ export async function buildTeachSnapshot(
     tables,
     sections,
     frictionMap,
+    breakdowns: demographics.breakdowns,
   }
   void outcomes
   return { ...base, hash: hashSnapshot(base) }

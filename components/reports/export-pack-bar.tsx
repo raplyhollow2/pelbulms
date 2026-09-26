@@ -4,16 +4,19 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Download, FileSpreadsheet, FileText, Loader2 } from 'lucide-react'
 import type { ReportRange, SnapshotAudience } from '@/lib/reports/types'
+import type { ModelFamily } from '@/lib/ai/models'
 import { toast } from 'sonner'
 
 export function ExportPackBar({
   range,
   includeAiBrief = true,
   audience,
+  family,
 }: {
   range: ReportRange
   includeAiBrief?: boolean
   audience?: SnapshotAudience
+  family?: ModelFamily
 }) {
   const [busy, setBusy] = useState<string | null>(null)
 
@@ -28,6 +31,7 @@ export function ExportPackBar({
           range,
           includeAiBrief: includeAiBrief && audience !== 'student',
           audience,
+          family,
         }),
       })
       if (!res.ok) {
@@ -54,7 +58,7 @@ export function ExportPackBar({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-sm text-muted-foreground">Export pack:</span>
+      <span className="text-sm text-muted-foreground">Full report:</span>
       <Button variant="outline" size="sm" disabled={!!busy} onClick={() => download('pdf')}>
         {busy === 'pdf' ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -69,7 +73,7 @@ export function ExportPackBar({
         ) : (
           <FileText className="mr-2 h-4 w-4" />
         )}
-        DOCX
+        Word brief
       </Button>
       <Button variant="outline" size="sm" disabled={!!busy} onClick={() => download('xlsx')}>
         {busy === 'xlsx' ? (

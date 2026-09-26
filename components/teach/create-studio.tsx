@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
   DropdownMenu,
@@ -13,8 +14,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Loader2, Paperclip, Send, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { CourseOutline, CourseSize } from '@/lib/ai-course-builder'
+import { slugify, type CourseOutline, type CourseSize } from '@/lib/ai-course-builder'
 import { OutlineCanvas } from '@/components/teach/outline-canvas'
+import { createClient } from '@/lib/supabase/client'
+import { ModelPicker } from '@/components/ai/model-picker'
+import { StructureProposal } from '@/components/ai/structure-proposal'
+import { applyProposalToOutline, type CourseStructureProposal } from '@/lib/ai/course-structure'
+import type { ModelFamily } from '@/lib/ai/models'
 
 const CHIPS = [
   'AI for teachers in Bhutanese classrooms',
@@ -36,12 +42,18 @@ export function CreateStudio() {
   const [loading, setLoading] = useState(false)
   const [phase, setPhase] = useState<'compose' | 'outline' | 'building'>('compose')
   const [outline, setOutline] = useState<CourseOutline | null>(null)
+  const [structureFamily, setStructureFamily] = useState<ModelFamily>('chatgpt')
+  const [structureProposal, setStructureProposal] = useState<CourseStructureProposal | null>(null)
+  const [structureModel, setStructureModel] = useState<string>()
   const [totals, setTotals] = useState<any>(null)
   const [progress, setProgress] = useState<string[]>([])
   const [error, setError] = useState('')
   const [draftCourseId, setDraftCourseId] = useState<string | null>(null)
   const [draftModuleIds, setDraftModuleIds] = useState<string[]>([])
   const [failedModule, setFailedModule] = useState<number | null>(null)
+  const [attachMode, setAttachMode] = useState<'url' | 'paste' | null>(null)
+  const [attachValue, setAttachValue] = useState('')
+  const [startingBlank, setStartingBlank] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('pelbu:create-language')
@@ -50,6 +62,12 @@ export function CreateStudio() {
       .then((r) => r.json())
       .then((d) => setKeyReady(Boolean(d.gemini?.configured)))
       .catch(() => setKeyReady(false))
+    void fetch('/api/ai/models')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.defaults?.['course-structure']) setStructureFamily(d.defaults['course-structure'])
+      })
+      .catch(() => undefined)
   }, [])
 
   const extractFile = async (file: File) => {
@@ -62,24 +80,65 @@ export function CreateStudio() {
     setDocumentText(data.text || '')
   }
 
-  const attachUrl = async () => {
-    const url = window.prompt('Paste a YouTube or web URL')
-    if (!url) return
+  const attachUrl = async (url: string) => {
+    const trimmed = url.trim()
+    if (!trimmed) return
     setLoading(true)
+    setError('')
     try {
       const res = await fetch('/api/ai/extract-source', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ url: trimmed }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       setDocumentText(data.text || '')
-      setSourceLabel(url)
+      setSourceLabel(trimmed)
+      setAttachMode(null)
+      setAttachValue('')
     } catch (e: any) {
       setError(e?.message || 'Could not use that URL')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const startBlank = async () => {
+    setStartingBlank(true)
+    setError('')
+    try {
+      const supabase = createClient()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
+        router.push('/auth/login')
+        return
+      }
+      const title = 'Untitled course'
+      const slug = `${slugify(title) || 'course'}-${Date.now().toString(36).slice(-5)}`
+      const { data, error: insertError } = await (supabase as any)
+        .from('courses')
+        .insert({
+          instructor_id: user.id,
+          title,
+          slug,
+          description: null,
+          category: 'General',
+          level: 'beginner',
+          language,
+          is_published: false,
+          is_featured: false,
+          enrollment_mode: 'approval',
+        })
+        .select('id')
+        .single()
+      if (insertError) throw insertError
+      router.push(`/teach/courses/${data.id}/studio`)
+    } catch (e: any) {
+      setError(e?.message || 'Could not start a blank course')
+      setStartingBlank(false)
     }
   }
 
@@ -108,6 +167,32 @@ export function CreateStudio() {
       setPhase('outline')
     } catch (e: any) {
       setError(e?.message || 'Could not design the course')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const restructure = async (instruction: string) => {
+    if (!outline) return
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/ai/structure-course', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'propose',
+          instruction,
+          outline,
+          family: structureFamily,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Could not propose a structure')
+      setStructureProposal(data.proposal)
+      setStructureModel(data.model)
+    } catch (e: any) {
+      setError(e?.message || 'Could not propose a structure')
     } finally {
       setLoading(false)
     }
@@ -246,14 +331,18 @@ export function CreateStudio() {
                     <DropdownMenuItem onClick={() => fileRef.current?.click()}>
                       Upload PDF, Word, PPT, or text
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => void attachUrl()}>YouTube or web URL</DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => {
-                        const text = window.prompt('Paste source text')
-                        if (text) {
-                          setDocumentText(text)
-                          setSourceLabel('Pasted text')
-                        }
+                        setAttachMode('url')
+                        setAttachValue('')
+                      }}
+                    >
+                      YouTube or web URL
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setAttachMode('paste')
+                        setAttachValue('')
                       }}
                     >
                       Paste text
@@ -281,6 +370,56 @@ export function CreateStudio() {
                   </Button>
                 </div>
               </div>
+              {attachMode === 'url' && (
+                <div className="mt-3 flex flex-wrap gap-2 px-1">
+                  <Input
+                    value={attachValue}
+                    onChange={(e) => setAttachValue(e.target.value)}
+                    placeholder="Paste a YouTube or web URL"
+                    className="min-h-11 min-w-0 flex-1 border-white/15 bg-zinc-800 text-white"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        void attachUrl(attachValue)
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-11"
+                    disabled={loading || !attachValue.trim()}
+                    onClick={() => void attachUrl(attachValue)}
+                  >
+                    Attach
+                  </Button>
+                </div>
+              )}
+              {attachMode === 'paste' && (
+                <div className="mt-3 space-y-2 px-1">
+                  <Textarea
+                    value={attachValue}
+                    onChange={(e) => setAttachValue(e.target.value)}
+                    placeholder="Paste source text"
+                    rows={4}
+                    className="border-white/15 bg-zinc-800 text-white"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-11"
+                    disabled={!attachValue.trim()}
+                    onClick={() => {
+                      setDocumentText(attachValue.trim())
+                      setSourceLabel('Pasted text')
+                      setAttachMode(null)
+                      setAttachValue('')
+                    }}
+                  >
+                    Use this text
+                  </Button>
+                </div>
+              )}
               {sourceLabel && <p className="mt-2 px-2 text-xs text-zinc-400">Source: {sourceLabel}</p>}
               <p className="mt-1 px-2 text-xs text-zinc-500">{prompt.length} characters</p>
             </div>
@@ -298,24 +437,48 @@ export function CreateStudio() {
               ))}
             </div>
             <p className="mt-6 text-sm text-zinc-400">
-              Prefer a blank form?{' '}
-              <Link href="/teach/courses/new" className="text-bhutan-yellow underline">
-                Create manually
-              </Link>
+              <button
+                type="button"
+                className="text-bhutan-yellow underline disabled:opacity-60"
+                disabled={startingBlank}
+                onClick={() => void startBlank()}
+              >
+                {startingBlank ? 'Starting…' : 'Start blank'}
+              </button>
             </p>
           </>
         )}
 
         {phase === 'outline' && outline && (
-          <OutlineCanvas
-            outline={outline}
-            totals={totals}
-            onChange={setOutline}
-            onBack={() => setPhase('compose')}
-            onGenerate={() => void generate()}
-            onRefine={(instruction) => design(instruction)}
-            loading={loading}
-          />
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs uppercase tracking-wide text-zinc-400">Structure model</p>
+              <ModelPicker tone="dark" value={structureFamily} onChange={setStructureFamily} disabled={loading} />
+            </div>
+            {structureProposal ? (
+              <StructureProposal
+                tone="dark"
+                proposal={structureProposal}
+                model={structureModel}
+                applying={loading}
+                onDismiss={() => setStructureProposal(null)}
+                onApply={(indexes) => {
+                  setOutline(applyProposalToOutline(outline, structureProposal, indexes))
+                  setStructureProposal(null)
+                }}
+              />
+            ) : null}
+            <OutlineCanvas
+              outline={outline}
+              totals={totals}
+              onChange={setOutline}
+              onBack={() => setPhase('compose')}
+              onGenerate={() => void generate()}
+              onRefine={(instruction) => design(instruction)}
+              onRestructure={(instruction) => restructure(instruction)}
+              loading={loading}
+            />
+          </div>
         )}
 
         {phase === 'building' && (

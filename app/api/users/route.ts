@@ -8,6 +8,8 @@ import {
 } from '@/lib/capabilities'
 import { createServiceClient } from '@/lib/supabase/server'
 import type { UserRole } from '@/lib/roles'
+import { normalizeDzongkhag } from '@/lib/dzongkhags'
+import { PHONE_RE } from '@/lib/profile-fields'
 
 type Role = UserRole
 
@@ -94,6 +96,8 @@ export async function POST(request: NextRequest) {
       avatar_url = null,
       password,
       institution_id = null,
+      phone_number = null,
+      location = null,
     } = body ?? {}
 
     if (!email || !full_name) {
@@ -149,6 +153,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    let normalizedPhone: string | null = null
+    if (typeof phone_number === 'string' && phone_number.trim()) {
+      if (!PHONE_RE.test(phone_number.trim())) {
+        return NextResponse.json(
+          { error: 'Phone must be +975 followed by 8 digits.' },
+          { status: 400 }
+        )
+      }
+      normalizedPhone = phone_number.trim()
+    }
+    let normalizedPlace: string | null = null
+    if (typeof location === 'string' && location.trim()) {
+      const place = normalizeDzongkhag(location)
+      if (!place) {
+        return NextResponse.json({ error: 'Please select a valid dzongkhag.' }, { status: 400 })
+      }
+      normalizedPlace = place
+    }
+
     const tempPassword = password || `Pelbu-${Math.random().toString(36).slice(-10)}!`
     const { data: created, error: createError } =
       await supabase.auth.admin.createUser({
@@ -177,6 +200,8 @@ export async function POST(request: NextRequest) {
     }
     if (institution_id) profilePayload.institution_id = institution_id
     if (resolvedRoleId) profilePayload.role_id = resolvedRoleId
+    if (normalizedPhone) profilePayload.phone_number = normalizedPhone
+    if (normalizedPlace) profilePayload.location = normalizedPlace
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')

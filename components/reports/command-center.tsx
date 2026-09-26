@@ -43,11 +43,7 @@ export function CommandCenter({
         <ReportHubHeader
           title="Executive Command Center"
           description="Decision-first view of adoption, KYC SLA, catalog risk, and institution health — with Claude briefings and board-ready exports."
-          badges={[
-            role === 'superadmin' ? 'Superadmin' : 'Admin',
-            range,
-            `hash ${snapshot.hash}`,
-          ]}
+          badges={[role === 'superadmin' ? 'Superadmin' : 'Admin', range]}
         />
         <div className="flex flex-col items-stretch gap-3 sm:items-end">
           <div className="flex gap-1 rounded-full border border-border/60 p-1">

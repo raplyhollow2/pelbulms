@@ -35,28 +35,49 @@ const FRICTION_TYPE_COLORS: Record<FrictionType, string> = {
   assessment: '#c2410c',
 }
 
+function ExplainButton({ onExplain }: { onExplain?: () => void }) {
+  if (!onExplain) return null
+  return (
+    <button
+      type="button"
+      onClick={onExplain}
+      className="shrink-0 text-xs font-medium text-bhutan-orange hover:underline"
+    >
+      Explain
+    </button>
+  )
+}
+
 export function FunnelChart({
   steps,
   title = 'Growth funnel',
   description,
+  yAxisWidth = 110,
+  onExplain,
 }: {
   steps: FunnelStep[]
   title?: string
   description?: string
+  yAxisWidth?: number
+  onExplain?: () => void
 }) {
   const data = steps.map((s) => ({ name: s.label, count: s.count }))
+  const height = steps.length > 8 ? Math.max(256, steps.length * 28) : 256
   return (
     <Card className="glass">
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-        {description ? <CardDescription>{description}</CardDescription> : null}
+      <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
+        <div>
+          <CardTitle className="text-base">{title}</CardTitle>
+          {description ? <CardDescription>{description}</CardDescription> : null}
+        </div>
+        <ExplainButton onExplain={onExplain} />
       </CardHeader>
-      <CardContent className="h-64">
+      <CardContent style={{ height }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} layout="vertical" margin={{ left: 24, right: 16 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
             <XAxis type="number" allowDecimals={false} />
-            <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} />
+            <YAxis type="category" dataKey="name" width={yAxisWidth} tick={{ fontSize: 11 }} />
             <Tooltip />
             <Bar dataKey="count" radius={[0, 4, 4, 0]}>
               {data.map((_, i) => (
@@ -70,7 +91,13 @@ export function FunnelChart({
   )
 }
 
-export function FrictionHotspotChart({ hotspots }: { hotspots: FrictionHotspot[] }) {
+export function FrictionHotspotChart({
+  hotspots,
+  onExplain,
+}: {
+  hotspots: FrictionHotspot[]
+  onExplain?: () => void
+}) {
   const data = hotspots.slice(0, 10).map((h) => ({
     name: h.lessonTitle.length > 22 ? `${h.lessonTitle.slice(0, 20)}…` : h.lessonTitle,
     score: h.frictionScore,
@@ -79,9 +106,12 @@ export function FrictionHotspotChart({ hotspots }: { hotspots: FrictionHotspot[]
 
   return (
     <Card className="glass">
-      <CardHeader>
-        <CardTitle className="text-base">Friction hotspots</CardTitle>
-        <CardDescription>Top lessons by composite friction score</CardDescription>
+      <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
+        <div>
+          <CardTitle className="text-base">Friction hotspots</CardTitle>
+          <CardDescription>Top lessons by composite friction score</CardDescription>
+        </div>
+        <ExplainButton onExplain={onExplain} />
       </CardHeader>
       <CardContent className="h-72">
         {data.length === 0 ? (
@@ -114,7 +144,13 @@ export function FrictionHotspotChart({ hotspots }: { hotspots: FrictionHotspot[]
   )
 }
 
-export function TrendChart({ series }: { series: ReportSeries[] }) {
+export function TrendChart({
+  series,
+  onExplain,
+}: {
+  series: ReportSeries[]
+  onExplain?: () => void
+}) {
   const dates = series[0]?.points.map((p) => p.date) || []
   const data = dates.map((date) => {
     const row: Record<string, string | number> = { date: date.slice(5) }
@@ -126,8 +162,9 @@ export function TrendChart({ series }: { series: ReportSeries[] }) {
 
   return (
     <Card className="glass">
-      <CardHeader>
+      <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
         <CardTitle className="text-base">Weekly trends</CardTitle>
+        <ExplainButton onExplain={onExplain} />
       </CardHeader>
       <CardContent className="h-64">
         <ResponsiveContainer width="100%" height="100%">
@@ -154,15 +191,22 @@ export function TrendChart({ series }: { series: ReportSeries[] }) {
   )
 }
 
-export function InstitutionScoreChart({ rows }: { rows: InstitutionScoreRow[] }) {
+export function InstitutionScoreChart({
+  rows,
+  onExplain,
+}: {
+  rows: InstitutionScoreRow[]
+  onExplain?: () => void
+}) {
   const data = rows.slice(0, 12).map((r) => ({
     name: r.name.length > 18 ? `${r.name.slice(0, 16)}…` : r.name,
     score: r.compositeScore,
   }))
   return (
     <Card className="glass">
-      <CardHeader>
+      <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
         <CardTitle className="text-base">Institution scoreboard</CardTitle>
+        <ExplainButton onExplain={onExplain} />
       </CardHeader>
       <CardContent className="h-72">
         <ResponsiveContainer width="100%" height="100%">
@@ -179,7 +223,13 @@ export function InstitutionScoreChart({ rows }: { rows: InstitutionScoreRow[] })
   )
 }
 
-export function SparkKpis({ kpis }: { kpis: ReportMetric[] }) {
+export function SparkKpis({
+  kpis,
+  onExplain,
+}: {
+  kpis: ReportMetric[]
+  onExplain?: (kpi: ReportMetric) => void
+}) {
   return (
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
       {kpis.map((k) => {
@@ -187,20 +237,33 @@ export function SparkKpis({ kpis }: { kpis: ReportMetric[] }) {
           'rounded-xl border border-bhutan-orange/20 bg-gradient-to-br from-bhutan-yellow/15 to-transparent p-4',
           k.href && 'transition-colors hover:border-bhutan-orange/50'
         )
-        const body = (
+        const figures = (
           <>
-            <p className="text-xs text-muted-foreground">{k.label}</p>
             <p className="mt-1 text-2xl font-semibold tabular-nums text-bhutan-orange">{k.value}</p>
             {k.hint ? <p className="mt-1 text-[11px] text-muted-foreground">{k.hint}</p> : null}
           </>
         )
-        return k.href ? (
-          <Link key={k.key} href={k.href} className={className}>
-            {body}
-          </Link>
-        ) : (
+        return (
           <div key={k.key} className={className}>
-            {body}
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-xs text-muted-foreground">{k.label}</p>
+              {onExplain ? (
+                <button
+                  type="button"
+                  className="text-[11px] font-medium text-bhutan-orange hover:underline"
+                  onClick={() => onExplain(k)}
+                >
+                  Explain
+                </button>
+              ) : null}
+            </div>
+            {k.href ? (
+              <Link href={k.href} className="block">
+                {figures}
+              </Link>
+            ) : (
+              figures
+            )}
           </div>
         )
       })}

@@ -13,7 +13,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, BookOpen, Users, Loader2, Edit, Award, HardDrive, Check, X, ClipboardCheck } from 'lucide-react'
+import { Plus, BookOpen, Users, Loader2, Edit, Award, HardDrive, Check, X, ClipboardCheck, Trash2 } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 import { resolveMediaUrl } from '@/lib/media'
@@ -56,6 +66,8 @@ export default function TeacherDashboard() {
   } | null>(null)
   const [decidingId, setDecidingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [deleteTarget, setDeleteTarget] = useState<Course | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all')
@@ -252,6 +264,22 @@ export default function TeacherDashboard() {
       alert(e?.message || 'Failed to update enrollment')
     } finally {
       setDecidingId(null)
+    }
+  }
+
+  const confirmDeleteCourse = async () => {
+    if (!deleteTarget) return
+    try {
+      setDeleting(true)
+      const res = await fetch(`/api/teach/courses/${deleteTarget.id}`, { method: 'DELETE' })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Failed to delete course')
+      setCourses((prev) => prev.filter((c) => c.id !== deleteTarget.id))
+      setDeleteTarget(null)
+    } catch (e: any) {
+      alert(e?.message || 'Failed to delete course')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -759,11 +787,20 @@ export default function TeacherDashboard() {
                   </Button>
                   <Button
                     size="sm"
-                    onClick={() => router.push(`/teach/courses/${course.id}/edit`)}
+                    onClick={() => router.push(`/teach/courses/${course.id}/studio`)}
                     className="w-full sm:w-auto"
                   >
                     <Edit className="w-4 h-4 mr-1" />
                     Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => setDeleteTarget(course)}
+                    className="w-full sm:w-auto"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Delete
                   </Button>
                 </div>
               </div>
@@ -771,6 +808,32 @@ export default function TeacherDashboard() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this course?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.title ? `"${deleteTarget.title}"` : 'This course'} and its lessons,
+              enrollments, and student progress will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleting}
+              onClick={(event) => {
+                event.preventDefault()
+                void confirmDeleteCourse()
+              }}
+            >
+              {deleting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
+              Delete course
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

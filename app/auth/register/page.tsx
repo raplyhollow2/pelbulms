@@ -32,12 +32,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import type { RegistrationPolicy } from '@/lib/platform-settings'
-
-const DZONGKHAGS = [
-  'Bumthang', 'Chukha', 'Dagana', 'Gasa', 'Haa', 'Lhuentse', 'Mongar', 'Paro',
-  'Pema Gatshel', 'Punakha', 'Samdrup Jongkhar', 'Samtse', 'Sarpang', 'Thimphu',
-  'Trashigang', 'Trashiyangtse', 'Trongsa', 'Tsirang', 'Wangdue Phodrang', 'Zhemgang',
-]
+import { DZONGKHAGS } from '@/lib/dzongkhags'
 
 const ROLE_OPTIONS = [
   { value: 'student', label: 'Student / Learner' },
@@ -55,7 +50,9 @@ const HEAR_ABOUT = [
 ]
 
 const DEFAULT_POLICY: RegistrationPolicy = {
-  require_identity_documents: true,
+  require_identity_documents: false,
+  require_cid: false,
+  require_identity_photo: false,
   require_qualification: false,
   require_student_id: false,
   require_emergency_contact: false,
@@ -70,7 +67,7 @@ function buildSteps(policy: RegistrationPolicy) {
   const steps: { id: StepId; title: string; icon: typeof UserRound }[] = [
     { id: 'personal', title: 'Personal', icon: UserRound },
   ]
-  if (policy.require_identity_documents) {
+  if (policy.require_cid || policy.require_identity_photo) {
     steps.push({ id: 'identity', title: 'Identity', icon: IdCard })
   }
   steps.push({ id: 'institution', title: 'Institution', icon: Building2 })
@@ -267,14 +264,18 @@ export default function RegisterPage() {
         return 'Phone must be +975 followed by 8 digits.'
       if (!form.date_of_birth) return 'Please enter your date of birth.'
       if (!form.gender) return 'Please select your gender.'
+      if (!form.dzongkhag) return 'Please select your dzongkhag.'
+      // Gewog and village are optional. Dzongkhag is the required location.
       return null
     }
     if (id === 'identity') {
-      if (!/^[0-9]{11}$/.test(form.cid_number)) return 'CID number must be exactly 11 digits.'
-      if (!passport?.path) return 'Please upload your passport-size photo.'
-      if (!cid?.path) return 'Please upload a photo of your CID.'
-      if (!form.dzongkhag) return 'Please select your dzongkhag.'
-      if (!form.gewog.trim()) return 'Please enter your gewog.'
+      if (policy.require_cid) {
+        if (!/^[0-9]{11}$/.test(form.cid_number)) return 'CID number must be exactly 11 digits.'
+        if (!cid?.path) return 'Please upload a photo of your CID.'
+      }
+      if (policy.require_identity_photo && !passport?.path) {
+        return 'Please upload your identity photo.'
+      }
       return null
     }
     if (id === 'institution') {
@@ -456,8 +457,8 @@ export default function RegisterPage() {
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {policy.require_identity_documents
-              ? 'Bhutan KYC is required before you can request a course. Upload your CID and a passport photo.'
-              : 'Tell us who you are and which institution you are joining.'}
+              ? 'Finish your profile, including any identity details this institution asks for.'
+              : 'Tell us who you are, where you live, and which institution you are joining.'}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             Step {step + 1} of {steps.length} — tap Next when you are ready.
@@ -510,11 +511,11 @@ export default function RegisterPage() {
               <CardTitle className="flex items-center gap-2 text-lg">
                 <UserRound className="h-5 w-5" /> Personal details
               </CardTitle>
-              <CardDescription>Tell us who you are.</CardDescription>
+              <CardDescription>Tell us who you are and where you live.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
               <div className="space-y-2">
-                <Label>Full name{policy.require_identity_documents ? ' (as on CID)' : ''}</Label>
+                <Label>Full name{policy.require_cid ? ' (as on CID)' : ''}</Label>
                 <Input
                   value={form.full_name}
                   onChange={(e) => set('full_name', e.target.value)}
@@ -554,6 +555,41 @@ export default function RegisterPage() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label>Dzongkhag</Label>
+                <Select value={form.dzongkhag} onValueChange={(v) => set('dzongkhag', v ?? '')}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select dzongkhag">
+                      {(v: string | null) => v || 'Select dzongkhag'}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DZONGKHAGS.map((d) => (
+                      <SelectItem key={d} value={d}>
+                        {d}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Gewog (optional)</Label>
+                  <Input
+                    value={form.gewog}
+                    onChange={(e) => set('gewog', e.target.value)}
+                    placeholder="Gewog"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Village (optional)</Label>
+                  <Input
+                    value={form.village}
+                    onChange={(e) => set('village', e.target.value)}
+                    placeholder="Village"
+                  />
+                </div>
+              </div>
               {extrasBlock}
             </CardContent>
           </Card>
@@ -566,71 +602,44 @@ export default function RegisterPage() {
                 <IdCard className="h-5 w-5" /> Identity verification
               </CardTitle>
               <CardDescription>
-                CID details, photos, and your home location (dzongkhag / gewog / village).
+                {policy.require_cid && policy.require_identity_photo
+                  ? 'CID number, a photo of the card, and a passport-size identity photo.'
+                  : policy.require_cid
+                    ? 'CID number and a photo of the card.'
+                    : 'A passport-size identity photo.'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>CID number (11 digits)</Label>
-                <Input
-                  value={form.cid_number}
-                  inputMode="numeric"
-                  maxLength={11}
-                  onChange={(e) => set('cid_number', e.target.value.replace(/\D/g, ''))}
-                  placeholder="10101000000"
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
+              {policy.require_cid && (
+                <>
+                  <div className="space-y-2">
+                    <Label>CID number (11 digits)</Label>
+                    <Input
+                      value={form.cid_number}
+                      inputMode="numeric"
+                      maxLength={11}
+                      onChange={(e) => set('cid_number', e.target.value.replace(/\D/g, ''))}
+                      placeholder="10101000000"
+                    />
+                  </div>
+                  <PhotoUpload
+                    label="CID photo"
+                    hint="Tap to upload a photo of your CID"
+                    field="cid"
+                    value={cid}
+                    onUploaded={setCid}
+                  />
+                </>
+              )}
+              {policy.require_identity_photo && (
                 <PhotoUpload
-                  label="Passport-size photo"
-                  hint="Tap to upload a clear passport photo"
+                  label="Identity photo"
+                  hint="Tap to upload a clear passport-size photo"
                   field="passport"
                   value={passport}
                   onUploaded={setPassport}
                 />
-                <PhotoUpload
-                  label="CID photo"
-                  hint="Tap to upload a photo of your CID"
-                  field="cid"
-                  value={cid}
-                  onUploaded={setCid}
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Dzongkhag</Label>
-                  <Select value={form.dzongkhag} onValueChange={(v) => set('dzongkhag', v ?? '')}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select dzongkhag">
-                        {(v: string | null) => v || 'Select dzongkhag'}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DZONGKHAGS.map((d) => (
-                        <SelectItem key={d} value={d}>
-                          {d}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Gewog</Label>
-                  <Input
-                    value={form.gewog}
-                    onChange={(e) => set('gewog', e.target.value)}
-                    placeholder="Gewog"
-                  />
-                </div>
-                <div className="space-y-2 sm:col-span-2">
-                  <Label>Village (optional)</Label>
-                  <Input
-                    value={form.village}
-                    onChange={(e) => set('village', e.target.value)}
-                    placeholder="Village"
-                  />
-                </div>
-              </div>
+              )}
               {extrasBlock}
             </CardContent>
           </Card>

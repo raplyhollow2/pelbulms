@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
 import { resolveEffectiveRole } from '@/lib/approvals-access'
 import { generateExecutiveBrief, isAiGatewayConfigured } from '@/lib/reports/ai-brief'
+import { parseModelFamily, type ModelFamily } from '@/lib/ai/models'
 import { resolveSnapshotForUser } from '@/lib/reports/resolve-snapshot'
 import { buildExcelPack } from '@/lib/reports/export/excel'
 import { buildDocxPack } from '@/lib/reports/export/docx'
@@ -57,6 +58,9 @@ export async function POST(request: NextRequest) {
 
     const range = parseRange(body.range)
     const prefer = parsePrefer(body.audience)
+    const family: ModelFamily | undefined = body.family
+      ? parseModelFamily(body.family, 'claude')
+      : undefined
     // Students never get AI briefings even if client requests it
     const includeAiBrief =
       Boolean(body.includeAiBrief) && role !== 'student'
@@ -71,20 +75,25 @@ export async function POST(request: NextRequest) {
 
     let brief: AiBriefPayload | null = null
     if (includeAiBrief && audienceAllowsAiBrief(snapshot.audience)) {
-      const { data: cached } = await service
+      const { data: cachedRows } = await (service as any)
         .from('report_ai_briefs')
-        .select('brief')
+        .select('brief, snapshot_hash')
         .eq('user_id', user.id)
         .eq('range', range)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      brief = (cached?.brief as AiBriefPayload) || null
+        .limit(12)
+      const rows = (cachedRows || []) as { brief: AiBriefPayload; snapshot_hash: string }[]
+      const matched = rows.find(
+        (row) =>
+          row.snapshot_hash === snapshot.hash &&
+          (!family || row.brief?.family === family)
+      )
+      brief = matched?.brief || null
 
       if (!brief && isAiGatewayConfigured()) {
         try {
-          brief = await generateExecutiveBrief(snapshot)
-          await service.from('report_ai_briefs').insert({
+          brief = await generateExecutiveBrief(snapshot, { family, userId: user.id })
+          await (service as any).from('report_ai_briefs').insert({
             user_id: user.id,
             role,
             range,

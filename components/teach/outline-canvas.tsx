@@ -16,6 +16,7 @@ export function OutlineCanvas({
   onBack,
   onGenerate,
   onRefine,
+  onRestructure,
   loading,
 }: {
   outline: CourseOutline
@@ -24,11 +25,13 @@ export function OutlineCanvas({
   onBack: () => void
   onGenerate: () => void
   onRefine?: (instruction: string) => Promise<void>
+  onRestructure?: (instruction: string) => Promise<void>
   loading?: boolean
 }) {
   const stats = totals || outlineTotals(outline)
   const [history, setHistory] = useState<CourseOutline[]>([])
   const [refine, setRefine] = useState('')
+  const [restructure, setRestructure] = useState('')
   const [open, setOpen] = useState<number | null>(0)
 
   const push = (next: CourseOutline) => {
@@ -118,6 +121,30 @@ export function OutlineCanvas({
             }}
           >
             Update outline
+          </Button>
+        </div>
+      )}
+
+      {onRestructure && (
+        <div className="rounded-xl border border-white/10 bg-zinc-900 p-3">
+          <p className="mb-2 text-xs font-semibold uppercase text-zinc-400">Restructure</p>
+          <Textarea
+            value={restructure}
+            onChange={(e) => setRestructure(e.target.value)}
+            placeholder="Quiz too late, split a module, add outcomes…"
+            rows={2}
+            className="border-white/10 bg-zinc-800"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-2 min-h-11"
+            disabled={loading || !restructure.trim()}
+            onClick={() => {
+              void onRestructure(restructure).then(() => setRestructure(''))
+            }}
+          >
+            Propose structure
           </Button>
         </div>
       )}

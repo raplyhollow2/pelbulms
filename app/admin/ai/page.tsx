@@ -1,5 +1,6 @@
 'use client'
 
+import { AiModelDefaultsForm } from '@/components/ai/ai-model-defaults-form'
 import { GeminiKeySettings } from '@/components/ai/gemini-key-settings'
 import { SuperadminGate } from '@/components/admin/superadmin-gate'
 import { CAP } from '@/lib/capability-keys'
@@ -13,6 +14,7 @@ export default function AdminAiPage() {
           Superadmins can save school-wide Gemini and avatar-video keys used when a teacher has not added their own.
         </p>
         <GeminiKeySettings platform />
+        <AiModelDefaultsForm />
       </div>
     </SuperadminGate>
   )

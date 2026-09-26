@@ -1,29 +1,14 @@
 // @ts-nocheck - Lesson schema fields extend generated types; unblock deploy
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { Switch } from '@/components/ui/switch'
-import { ArrowLeft, Loader2, Save, Edit, Clock, FileText, BookOpen, CheckCircle2, Link, UploadCloud, Lock, Trash2 } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, BookOpen, FileText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { resolveMediaUrl, parseMediaRef } from '@/lib/media'
-import { uploadVideoDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
-import { LessonActivitiesPanel } from '@/components/teach/lesson-activities-panel'
-import { ScenarioEditor } from '@/components/teach/scenario-editor'
-import { withGateSettings, readGateSettings } from '@/lib/progression-gates'
-import {
-  DRIVE_SHARE_HINT,
-  getGoogleDriveEmbedUrl,
-  getYoutubeId,
-  isGoogleDriveUrl,
-  MAX_VIDEO_UPLOAD_LABEL,
-} from '@/lib/video-url'
+import { LessonOptionsFields } from '@/components/teach/lesson-options-fields'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
@@ -42,11 +27,6 @@ export default function LessonEditPage() {
   const [module, setModule] = useState<Module | null>(null)
   const [course, setCourse] = useState<Course | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
-
-  const videoInputRef = useRef<HTMLInputElement>(null)
-  const [uploadingVideo, setUploadingVideo] = useState(false)
-  const [videoUploadProgress, setVideoUploadProgress] = useState(0)
-  const [videoUploadError, setVideoUploadError] = useState('')
 
   const supabase = createClient()
 
@@ -134,10 +114,11 @@ export default function LessonEditPage() {
     console.log('🔧 updateLesson called:', { lessonId, updates })
 
     // Optimistic update
-    if (lesson) {
-      setLesson({ ...lesson, ...updates })
-      setHasChanges(true)
-    }
+    setLesson((current) => {
+      if (!current) return current
+      return { ...current, ...updates }
+    })
+    setHasChanges(true)
 
     // Persist to database
     try {
@@ -165,53 +146,6 @@ export default function LessonEditPage() {
       // Revert on error
       fetchLessonData()
     }
-  }
-
-  const getYoutubeIdLocal = (url: string) => getYoutubeId(url) || ''
-
-  // Direct browser → Cloudinary upload (supports up to 1GB; compresses on Cloudinary).
-  const uploadLessonVideo = async (file: File) => {
-    setVideoUploadError('')
-    setUploadingVideo(true)
-    setVideoUploadProgress(0)
-    try {
-      const { url } = await uploadVideoDirectToCloudinary(file, {
-        folder: `course-media/videos/${courseId}`,
-        onProgress: setVideoUploadProgress,
-      })
-
-      setLesson((prev) => (prev ? { ...prev, video_url: url } : prev))
-      await updateLesson({ video_url: url })
-    } catch (err: any) {
-      console.error('Lesson video upload error:', err)
-      // Fallback only for small files when Cloudinary is not configured
-      if (file.size > 20 * 1024 * 1024) {
-        setVideoUploadError(err?.message || 'Failed to upload video')
-        return
-      }
-      try {
-        const body = new FormData()
-        body.append('file', file)
-        body.append('courseId', courseId)
-        body.append('kind', 'video')
-        const res = await fetch('/api/courses/media', { method: 'POST', body })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || err?.message || 'Upload failed')
-        setLesson((prev) => (prev ? { ...prev, video_url: data.url } : prev))
-        await updateLesson({ video_url: data.url })
-      } catch (fallbackErr: any) {
-        setVideoUploadError(fallbackErr?.message || err?.message || 'Failed to upload video')
-      }
-    } finally {
-      setUploadingVideo(false)
-      setVideoUploadProgress(0)
-      if (videoInputRef.current) videoInputRef.current.value = ''
-    }
-  }
-
-  const removeLessonVideo = async () => {
-    setLesson((prev) => (prev ? { ...prev, video_url: '' } : prev))
-    await updateLesson({ video_url: '' })
   }
 
   const saveChanges = async () => {
@@ -324,385 +258,18 @@ export default function LessonEditPage() {
           </div>
         </div>
 
-        {/* Basic Info Card */}
         <Card className="glass">
           <CardHeader className="pb-4">
-            <CardTitle className="text-lg">Basic Information</CardTitle>
-            <CardDescription className="text-sm">Core details about this lesson</CardDescription>
+            <CardTitle className="text-lg">Page options</CardTitle>
+            <CardDescription className="text-sm">Title, video, activities, and gates. Page blocks are edited in Studio.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="lesson-title" className="text-sm">Lesson Title</Label>
-              <Input
-                id="lesson-title"
-                value={lesson.title}
-                onChange={(e) => setLesson({ ...lesson, title: e.target.value })}
-                onBlur={() => updateLesson({ title: lesson.title })}
-                placeholder="Lesson title"
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="lesson-description" className="text-sm">Description</Label>
-              <Textarea
-                id="lesson-description"
-                value={lesson.description || ''}
-                onChange={(e) => setLesson({ ...lesson, description: e.target.value })}
-                onBlur={() => updateLesson({ description: lesson.description })}
-                placeholder="Lesson description..."
-                rows={4}
-                className="mt-1 resize-none"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="lesson-published"
-                  checked={(lesson as any).is_published || false}
-                  onCheckedChange={(checked) => updateLesson({ is_published: checked })}
-                />
-                <Label htmlFor="lesson-published" className="text-sm">Published</Label>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="lesson-free"
-                  checked={lesson.is_free || false}
-                  onCheckedChange={(checked) => updateLesson({ is_free: checked })}
-                />
-                <Label htmlFor="lesson-free" className="text-sm">Free Preview</Label>
-              </div>
-            </div>
-
-            <div className="rounded-lg border p-4 space-y-3">
-              <div>
-                <p className="text-sm font-medium">Progression lock (optional)</p>
-                <p className="text-xs text-muted-foreground">
-                  All options are off by default. Turn on only what you need.
-                </p>
-              </div>
-              {(() => {
-                const gates = readGateSettings((lesson as any).metadata)
-                return (
-                  <>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <Label htmlFor="gate-resources" className="text-sm">
-                          Resources &amp; flashcards after lesson complete
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Hide Resources and Learning Tools flashcards until this lesson is completed
-                        </p>
-                      </div>
-                      <Switch
-                        id="gate-resources"
-                        checked={Boolean(gates.gateResourcesUntilComplete)}
-                        onCheckedChange={(checked) =>
-                          updateLesson({
-                            metadata: withGateSettings((lesson as any).metadata, {
-                              gateResourcesUntilComplete: checked,
-                            }),
-                          } as any)
-                        }
-                      />
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <Label htmlFor="gate-next" className="text-sm">
-                          Block next until mandatory activities are done
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Next lesson stays locked until mandatory activities are finished
-                        </p>
-                      </div>
-                      <Switch
-                        id="gate-next"
-                        checked={Boolean(gates.gateNextUntilActivitiesDone)}
-                        onCheckedChange={(checked) =>
-                          updateLesson({
-                            metadata: withGateSettings((lesson as any).metadata, {
-                              gateNextUntilActivitiesDone: checked,
-                            }),
-                          } as any)
-                        }
-                      />
-                    </div>
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <Label htmlFor="completion-mode" className="text-sm">
-                          Lesson completion
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Auto marks the lesson complete when the video watch threshold and mandatory
-                          activities are done, then continues to the next lecture. Manual keeps the
-                          Complete button only.
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 items-center gap-2">
-                        <span className="text-xs text-muted-foreground">
-                          {(gates.completionMode || 'auto') === 'auto' ? 'Auto' : 'Manual'}
-                        </span>
-                        <Switch
-                          id="completion-mode"
-                          checked={(gates.completionMode || 'auto') === 'auto'}
-                          onCheckedChange={(checked) =>
-                            updateLesson({
-                              metadata: withGateSettings((lesson as any).metadata, {
-                                completionMode: checked ? 'auto' : 'manual',
-                              }),
-                            } as any)
-                          }
-                        />
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Sequential unlock is controlled on the module settings page for all lessons in
-                      that module.
-                    </p>
-                  </>
-                )
-              })()}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Video Content Card — one control: YouTube URL or private upload */}
-        <Card className="glass">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg">Lesson video</CardTitle>
-            <CardDescription className="text-sm">
-              Paste a YouTube or Google Drive link, or upload a private video (up to{' '}
-              {MAX_VIDEO_UPLOAD_LABEL}). Uploads go directly to Cloudinary and are compressed.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <input
-              ref={videoInputRef}
-              type="file"
-              accept="video/mp4,video/webm,video/ogg,video/quicktime"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0]
-                if (f) uploadLessonVideo(f)
-              }}
-            />
-
-            <div className="space-y-2">
-              <Label htmlFor="video-url" className="text-sm">
-                Video (YouTube, Google Drive, or upload)
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  id="video-url"
-                  value={parseMediaRef(lesson.video_url) ? '' : lesson.video_url || ''}
-                  onChange={(e) => setLesson({ ...lesson, video_url: e.target.value })}
-                  onBlur={() => {
-                    if (!parseMediaRef(lesson.video_url)) {
-                      updateLesson({ video_url: lesson.video_url })
-                    }
-                  }}
-                  placeholder="YouTube / Drive link, or upload →"
-                  className="flex-1"
-                  disabled={!!parseMediaRef(lesson.video_url) || uploadingVideo}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="shrink-0 gap-1.5"
-                  disabled={uploadingVideo}
-                  onClick={() => videoInputRef.current?.click()}
-                >
-                  {uploadingVideo ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <UploadCloud className="h-4 w-4" />
-                  )}
-                  <span className="hidden sm:inline">Upload</span>
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Private uploads (up to {MAX_VIDEO_UPLOAD_LABEL}) stream through your site. Drive links
-                play inside the LMS — {DRIVE_SHARE_HINT}
-              </p>
-              {uploadingVideo && videoUploadProgress > 0 && (
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Uploading to Cloudinary…</span>
-                    <span>{videoUploadProgress}%</span>
-                  </div>
-                  <div className="h-1.5 w-full rounded-full bg-secondary">
-                    <div
-                      className="h-1.5 rounded-full bg-bhutan-yellow transition-all"
-                      style={{ width: `${videoUploadProgress}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-              {videoUploadError && (
-                <p className="text-sm text-destructive">{videoUploadError}</p>
-              )}
-              {isGoogleDriveUrl(lesson.video_url || '') && (
-                <p className="text-xs text-amber-700 dark:text-amber-400">{DRIVE_SHARE_HINT}</p>
-              )}
-            </div>
-
-            {parseMediaRef(lesson.video_url)?.type === 'video' && (
-              <div className="space-y-2 rounded-lg border p-3">
-                <div className="aspect-video overflow-hidden rounded-lg bg-black">
-                  <video
-                    src={resolveMediaUrl(lesson.video_url) || undefined}
-                    controls
-                    controlsList="nodownload"
-                    onContextMenu={(e) => e.preventDefault()}
-                    className="h-full w-full"
-                  />
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Lock className="h-3 w-3" /> Private · streamed through your site
-                  </span>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={uploadingVideo}
-                      onClick={() => videoInputRef.current?.click()}
-                    >
-                      {uploadingVideo ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Replace'}
-                    </Button>
-                    <Button type="button" variant="ghost" size="sm" onClick={removeLessonVideo}>
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {lesson.video_url && getYoutubeIdLocal(lesson.video_url) && (
-              <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
-                <div className="aspect-video overflow-hidden rounded-lg bg-black">
-                  <iframe
-                    src={`https://www.youtube.com/embed/${getYoutubeIdLocal(lesson.video_url)}?enablejsapi=1&rel=0&modestbranding=1`}
-                    className="h-full w-full"
-                    allowFullScreen
-                    title={lesson.title || 'Lesson video'}
-                  />
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Link className="h-3 w-3" /> YouTube
-                  </span>
-                  <Button type="button" variant="ghost" size="sm" onClick={removeLessonVideo}>
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {lesson.video_url && getGoogleDriveEmbedUrl(lesson.video_url) && !getYoutubeIdLocal(lesson.video_url) && (
-              <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
-                <div className="aspect-video overflow-hidden rounded-lg bg-black">
-                  <iframe
-                    src={getGoogleDriveEmbedUrl(lesson.video_url)!}
-                    className="h-full w-full border-0"
-                    allow="autoplay; encrypted-media; fullscreen"
-                    allowFullScreen
-                    title={lesson.title || 'Drive video'}
-                  />
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Link className="h-3 w-3" /> Google Drive (in-LMS preview)
-                  </span>
-                  <Button type="button" variant="ghost" size="sm" onClick={removeLessonVideo}>
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            )}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="duration" className="text-sm flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  Duration (minutes)
-                </Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  value={lesson.duration_minutes ? Math.round(lesson.duration_minutes / 60) : ''}
-                  onChange={(e) => {
-                    const minutes = parseInt(e.target.value) || 0
-                    setLesson({ ...lesson, duration_minutes: minutes * 60 })
-                  }}
-                  onBlur={() => {
-                    const minutes = lesson.duration_minutes ? Math.round(lesson.duration_minutes / 60) : 0
-                    updateLesson({ duration_minutes: minutes * 60 })
-                  }}
-                  placeholder="30"
-                  className="mt-1"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="video-duration" className="text-sm">Video Duration (seconds)</Label>
-                <Input
-                  id="video-duration"
-                  type="number"
-                  value={lesson.video_duration || ''}
-                  onChange={(e) => {
-                    const seconds = parseInt(e.target.value) || 0
-                    setLesson({ ...lesson, video_duration: seconds })
-                  }}
-                  onBlur={() => updateLesson({ video_duration: lesson.video_duration })}
-                  placeholder="1800"
-                  className="mt-1"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Activities & resources (Moodle-style) */}
-        <Card className="glass border-bhutan-yellow/30">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-bhutan-yellow" />
-              Lesson content
-            </CardTitle>
-            <CardDescription className="text-sm">
-              Add activities and resources (assignment, file, quiz, and more). Students see
-              them under this lesson. Use the Discussion tab for class conversation.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="transcript" className="text-sm flex items-center gap-1">
-                <FileText className="w-3 h-3" />
-                Transcript (optional)
-              </Label>
-              <Textarea
-                id="transcript"
-                value={lesson.transcript || ''}
-                onChange={(e) => setLesson({ ...lesson, transcript: e.target.value })}
-                onBlur={() => updateLesson({ transcript: lesson.transcript })}
-                placeholder="Lesson transcript for accessibility and search..."
-                rows={4}
-                className="mt-1 resize-none"
-              />
-            </div>
-            <LessonActivitiesPanel
+          <CardContent>
+            <LessonOptionsFields
               courseId={courseId}
-              lessonId={lessonId}
-              resources={lesson.resources}
-              onChange={async (next) => {
-                setLesson({ ...lesson, resources: next as any })
-                await updateLesson({ resources: next as any })
-              }}
+              lesson={lesson}
+              onChange={(updates) => setLesson((current) => (current ? { ...current, ...updates } : current))}
+              onCommit={(updates) => updateLesson(updates)}
             />
-            <ScenarioEditor lessonId={lessonId} />
           </CardContent>
         </Card>
 
@@ -727,7 +294,7 @@ export default function LessonEditPage() {
                 className="justify-start"
               >
                 <FileText className="w-4 h-4 mr-2" />
-                Edit Course
+                Edit course settings
               </Button>
             </div>
           </CardContent>

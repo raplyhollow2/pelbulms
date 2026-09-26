@@ -388,6 +388,21 @@ export interface Database {
           bio: string | null
           headline: string | null
           location: string | null
+          phone_number: string | null
+          date_of_birth: string | null
+          gender: string | null
+          cid_number: string | null
+          gewog: string | null
+          village: string | null
+          education_level: string | null
+          passport_photo_url: string | null
+          cid_photo_url: string | null
+          pelsung_number: string | null
+          class_name: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          parent_guardian_name: string | null
+          parent_guardian_phone: string | null
           website: string | null
           social_links?: unknown
           institution_id: string | null
@@ -401,6 +416,22 @@ export interface Database {
           email?: string | null
           role?: 'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
           bio?: string | null
+          location?: string | null
+          phone_number?: string | null
+          date_of_birth?: string | null
+          gender?: string | null
+          cid_number?: string | null
+          gewog?: string | null
+          village?: string | null
+          education_level?: string | null
+          passport_photo_url?: string | null
+          cid_photo_url?: string | null
+          pelsung_number?: string | null
+          class_name?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          parent_guardian_name?: string | null
+          parent_guardian_phone?: string | null
           institution_id?: string | null
           created_at?: string
           updated_at?: string
@@ -414,6 +445,21 @@ export interface Database {
           bio?: string | null
           headline?: string | null
           location?: string | null
+          phone_number?: string | null
+          date_of_birth?: string | null
+          gender?: string | null
+          cid_number?: string | null
+          gewog?: string | null
+          village?: string | null
+          education_level?: string | null
+          passport_photo_url?: string | null
+          cid_photo_url?: string | null
+          pelsung_number?: string | null
+          class_name?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          parent_guardian_name?: string | null
+          parent_guardian_phone?: string | null
           website?: string | null
           social_links?: unknown
           institution_id?: string | null

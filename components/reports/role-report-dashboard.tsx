@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,6 +22,7 @@ import {
   type SnapshotAudience,
 } from '@/lib/reports/types'
 import { LiveUsersPanel } from '@/components/admin/live-users-panel'
+import type { ModelFamily } from '@/lib/ai/models'
 import { cn } from '@/lib/utils'
 import { AlertTriangle, ArrowRight, CheckCircle2 } from 'lucide-react'
 
@@ -62,6 +63,32 @@ export function RoleReportDashboard({
 }) {
   const audience = snapshot.audience
   const showAi = audienceAllowsAiBrief(audience)
+  const [family, setFamily] = useState<ModelFamily>('claude')
+  const familyTouched = useRef(false)
+  const [focus, setFocus] = useState<{ label: string; detail?: string } | null>(null)
+
+  useEffect(() => {
+    if (!showAi) return
+    let cancelled = false
+    void fetch('/api/ai/models')
+      .then((res) => res.json())
+      .then((json) => {
+        if (!cancelled && !familyTouched.current && json.defaults?.report) {
+          setFamily(json.defaults.report)
+        }
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [showAi])
+
+  const explain = (label: string, detail?: string) => {
+    setFocus({ label, detail })
+    window.setTimeout(() => {
+      document.getElementById('report-interpreter')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 40)
+  }
   const showInstitutionChart = snapshot.institutionScores.length > 0
   const frictionMap = snapshot.frictionMap
   const showFrictionCharts =
@@ -86,7 +113,7 @@ export function RoleReportDashboard({
         <ReportHubHeader
           title={snapshot.title}
           description={DESCRIPTIONS[audience]}
-          badges={[badge || audience, range, `hash ${snapshot.hash}`]}
+          badges={[badge || audience, range]}
         />
         <div className="flex flex-col items-stretch gap-3 sm:items-end">
           <div className="flex gap-1 rounded-full border border-border/60 p-1">
@@ -110,6 +137,7 @@ export function RoleReportDashboard({
             range={range}
             audience={audience}
             includeAiBrief={showAi}
+            family={family}
           />
           {headerExtra}
         </div>
@@ -117,12 +145,55 @@ export function RoleReportDashboard({
 
       {(audience === 'superadmin' || audience === 'admin') && <LiveUsersPanel />}
 
-      <SparkKpis kpis={snapshot.kpis} />
+      <SparkKpis
+        kpis={snapshot.kpis}
+        onExplain={
+          showAi
+            ? (kpi) => explain(kpi.label, kpi.hint || String(kpi.value))
+            : undefined
+        }
+      />
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <FunnelChart steps={snapshot.funnel} />
-        <TrendChart series={snapshot.series} />
+        <FunnelChart
+          steps={snapshot.funnel}
+          onExplain={showAi ? () => explain('Growth funnel') : undefined}
+        />
+        <TrendChart
+          series={snapshot.series}
+          onExplain={showAi ? () => explain('Weekly trends') : undefined}
+        />
       </div>
+
+      {snapshot.breakdowns && snapshot.breakdowns.length > 0 ? (
+        <div className="space-y-3">
+          <div>
+            <h2 className="text-xl font-semibold">Learner profile</h2>
+            <p className="text-sm text-muted-foreground">
+              Each person is counted once. Open Learner profile in detailed reports for class, gewog,
+              and completeness.
+            </p>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {snapshot.breakdowns.map((breakdown) => (
+              <FunnelChart
+                key={breakdown.key}
+                steps={breakdown.steps}
+                title={breakdown.title}
+                description={breakdown.description}
+                onExplain={
+                  showAi ? () => explain(breakdown.title, breakdown.description) : undefined
+                }
+                yAxisWidth={
+                  breakdown.key === 'learner-dzongkhag' || breakdown.key === 'learner-qualification'
+                    ? 148
+                    : 110
+                }
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {showFrictionCharts && frictionMap ? (
         <div
@@ -131,11 +202,15 @@ export function RoleReportDashboard({
             frictionMap.sequenceFunnel.length > 0 ? 'lg:grid-cols-2' : ''
           )}
         >
-          <FrictionHotspotChart hotspots={frictionMap.hotspots} />
+          <FrictionHotspotChart
+            hotspots={frictionMap.hotspots}
+            onExplain={showAi ? () => explain('Friction hotspots') : undefined}
+          />
           {frictionMap.sequenceFunnel.length > 0 ? (
             <FunnelChart
               steps={frictionMap.sequenceFunnel}
               title="Lesson sequence starts"
+              onExplain={showAi ? () => explain('Lesson sequence starts') : undefined}
               description={
                 frictionMap.sequenceCourseTitle
                   ? `Start counts along ${frictionMap.sequenceCourseTitle}`
@@ -153,7 +228,10 @@ export function RoleReportDashboard({
         )}
       >
         {showInstitutionChart ? (
-          <InstitutionScoreChart rows={snapshot.institutionScores} />
+          <InstitutionScoreChart
+            rows={snapshot.institutionScores}
+            onExplain={showAi ? () => explain('Institution scoreboard') : undefined}
+          />
         ) : null}
 
         <Card className="glass">
@@ -233,7 +311,18 @@ export function RoleReportDashboard({
         </CardContent>
       </Card>
 
-      {showAi ? <AiBriefingPanel range={range} audience={audience} /> : null}
+      {showAi ? (
+        <AiBriefingPanel
+          range={range}
+          audience={audience}
+          family={family}
+          onFamilyChange={(next) => {
+            familyTouched.current = true
+            setFamily(next)
+          }}
+          focus={focus}
+        />
+      ) : null}
 
       {showDeepDive && snapshot.sections.length > 0 && onDeepDiveChange ? (
         <div className="space-y-4 border-t border-border/40 pt-6">

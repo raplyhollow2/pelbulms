@@ -5,9 +5,8 @@ import { getPlatformSettings, toRegistrationPolicy } from '@/lib/platform-settin
 import { autoActivateStudentAccount } from '@/lib/approve-registration'
 import { isTeachingRequestRole } from '@/lib/kyc'
 import { getRequestUser } from '@/lib/request-user'
-
-const PHONE_RE = /^\+975[0-9]{8}$/
-const CID_RE = /^[0-9]{11}$/
+import { normalizeDzongkhag } from '@/lib/dzongkhags'
+import { CID_RE, PHONE_RE, registrationProfileColumns } from '@/lib/profile-fields'
 const REQUESTABLE_ROLES = ['student', 'instructor', 'resource_person']
 
 function shortLabel(i: { name?: string; slug?: string; display_name?: string | null }) {
@@ -134,12 +133,16 @@ export async function POST(request: Request) {
   if (!phone_number?.trim()) missing.push('phone_number')
   if (!institution_id?.trim()) missing.push('institution_id')
 
-  if (policy.require_identity_documents) {
+  if (!dzongkhag?.trim()) missing.push('dzongkhag')
+  // Gewog and village stay optional under every registration policy, including CID and identity photo.
+  const optionalGewog = typeof gewog === 'string' ? gewog.trim() : ''
+  const optionalVillage = typeof village === 'string' ? village.trim() : ''
+  if (policy.require_cid) {
     if (!cid_number?.trim()) missing.push('cid_number')
-    if (!passport_photo_url?.trim()) missing.push('passport_photo_url')
     if (!cid_photo_url?.trim()) missing.push('cid_photo_url')
-    if (!gewog?.trim()) missing.push('gewog')
-    if (!dzongkhag?.trim()) missing.push('dzongkhag')
+  }
+  if (policy.require_identity_photo && !passport_photo_url?.trim()) {
+    missing.push('passport_photo_url')
   }
   if (policy.require_qualification && !education_level?.trim()) {
     missing.push('education_level')
@@ -177,6 +180,14 @@ export async function POST(request: Request) {
     )
   }
 
+  const place = normalizeDzongkhag(dzongkhag)
+  if (!place) {
+    return NextResponse.json(
+      { error: 'Please select a valid dzongkhag.' },
+      { status: 400 }
+    )
+  }
+
   const { data: institution, error: instError } = await supabase
     .from('institutions')
     .select('id, is_active')
@@ -189,7 +200,8 @@ export async function POST(request: Request) {
 
   const role = REQUESTABLE_ROLES.includes(requested_role) ? requested_role : 'student'
   const teachingRequest = isTeachingRequestRole(role)
-  const autoActivate = !policy.require_identity_documents
+  const identityRequired = policy.require_cid || policy.require_identity_photo
+  const autoActivate = !identityRequired
   const now = new Date().toISOString()
 
   const payload = {
@@ -206,9 +218,9 @@ export async function POST(request: Request) {
     requested_role: role,
     class: className || null,
     education_level: education_level?.trim() || null,
-    village: village || null,
-    gewog: gewog?.trim() || null,
-    dzongkhag: dzongkhag?.trim() || null,
+    village: optionalVillage || null,
+    gewog: optionalGewog || null,
+    dzongkhag: place,
     parent_guardian_name: parent_guardian_name || null,
     parent_guardian_phone: parent_guardian_phone || null,
     motivation_statement: motivation_statement || null,
@@ -235,16 +247,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: upsertError.message }, { status: 400 })
   }
 
-  await supabase
+  const admin = await tryCreateServiceClient()
+  const profileWriter = admin || supabase
+  const { error: profileError } = await profileWriter
     .from('profiles')
     .update({
       institution_id,
       full_name: full_name.trim(),
       updated_at: now,
+      ...registrationProfileColumns({
+        phoneNumber: phone_number,
+        dzongkhag: place,
+        dateOfBirth: date_of_birth || null,
+        gender: gender || null,
+        cidNumber: cid,
+        gewog: optionalGewog || null,
+        village: optionalVillage || null,
+        educationLevel: education_level,
+        passportPhotoUrl: passport_photo_url,
+        cidPhotoUrl: cid_photo_url,
+        pelsungNumber: pelsung_number,
+        className: className,
+        emergencyContactName: emergency_contact_name,
+        emergencyContactPhone: emergency_contact_phone,
+        parentGuardianName: parent_guardian_name,
+        parentGuardianPhone: parent_guardian_phone,
+      }),
     })
     .eq('id', user.id)
 
-  const admin = await tryCreateServiceClient()
+  if (profileError) {
+    return NextResponse.json({ error: profileError.message }, { status: 400 })
+  }
 
   if (autoActivate && !admin) {
     return NextResponse.json(
@@ -264,7 +298,7 @@ export async function POST(request: Request) {
       cidNumber: cid,
       pelsungNumber: pelsung_number?.trim() || null,
       className: className || null,
-      dzongkhag: dzongkhag?.trim() || null,
+      dzongkhag: place,
     })
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 })

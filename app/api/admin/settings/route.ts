@@ -47,6 +47,8 @@ const BOOLEAN_KEYS = [
   'public_catalog',
   'maintenance_mode',
   'require_identity_documents',
+  'require_cid',
+  'require_identity_photo',
   'require_qualification',
   'require_student_id',
   'require_emergency_contact',
@@ -245,6 +247,38 @@ export async function PATCH(request: NextRequest) {
   }
 
   const service = await getAdminDb()
+
+  if (
+    typeof updates.require_cid === 'boolean' ||
+    typeof updates.require_identity_photo === 'boolean' ||
+    typeof updates.require_identity_documents === 'boolean'
+  ) {
+    const legacyOnly =
+      typeof updates.require_identity_documents === 'boolean' &&
+      updates.require_cid === undefined &&
+      updates.require_identity_photo === undefined
+    if (legacyOnly) {
+      updates.require_cid = updates.require_identity_documents
+      updates.require_identity_photo = updates.require_identity_documents
+    } else {
+      const { data: currentFlags } = await service
+        .from('platform_settings')
+        .select('require_cid, require_identity_photo')
+        .eq('id', 'default')
+        .maybeSingle()
+      const cid =
+        typeof updates.require_cid === 'boolean'
+          ? updates.require_cid
+          : (currentFlags as { require_cid?: boolean } | null)?.require_cid === true
+      const photo =
+        typeof updates.require_identity_photo === 'boolean'
+          ? updates.require_identity_photo
+          : (currentFlags as { require_identity_photo?: boolean } | null)?.require_identity_photo === true
+      updates.require_cid = cid
+      updates.require_identity_photo = photo
+      updates.require_identity_documents = cid || photo
+    }
+  }
 
   if (nextStart !== undefined || nextEnd !== undefined) {
     const { data: current } = await service

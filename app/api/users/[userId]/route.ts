@@ -7,10 +7,118 @@ import {
 } from '@/lib/capabilities'
 import { createServiceClient } from '@/lib/supabase/server'
 import type { UserRole } from '@/lib/roles'
+import { normalizeDzongkhag } from '@/lib/dzongkhags'
+import { CID_RE, PHONE_RE } from '@/lib/profile-fields'
 
 type Role = UserRole
 
 const VALID_ROLES: Role[] = ['student', 'instructor', 'admin', 'resource_person', 'superadmin']
+const GENDERS = new Set(['male', 'female', 'other'])
+
+const PROFILE_TEXT_FIELDS = [
+  'gewog',
+  'village',
+  'education_level',
+  'passport_photo_url',
+  'cid_photo_url',
+  'pelsung_number',
+  'class_name',
+  'emergency_contact_name',
+  'emergency_contact_phone',
+  'parent_guardian_name',
+  'parent_guardian_phone',
+  'headline',
+  'website',
+] as const
+
+function optionalText(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined
+  if (value === null) return null
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed || null
+}
+
+function applyProfileDetails(body: Record<string, unknown>, updates: Record<string, unknown>) {
+  const phone = optionalText(body.phone_number)
+  if (body.phone_number !== undefined) {
+    if (phone === undefined) return 'Invalid phone number'
+    if (phone && !PHONE_RE.test(phone)) return 'Phone must be +975 followed by 8 digits.'
+    updates.phone_number = phone
+  }
+
+  const cid = optionalText(body.cid_number)
+  if (body.cid_number !== undefined) {
+    if (cid === undefined) return 'Invalid CID number'
+    if (cid && !CID_RE.test(cid)) return 'CID number must be exactly 11 digits.'
+    updates.cid_number = cid
+  }
+
+  if (body.location !== undefined) {
+    const place = optionalText(body.location)
+    if (place === undefined) return 'Invalid dzongkhag'
+    if (place && !normalizeDzongkhag(place)) return 'Please select a valid dzongkhag.'
+    updates.location = place ? normalizeDzongkhag(place) : null
+  }
+
+  if (body.gender !== undefined) {
+    const gender = optionalText(body.gender)
+    if (gender === undefined) return 'Invalid gender'
+    if (gender && !GENDERS.has(gender)) return 'Invalid gender'
+    updates.gender = gender
+  }
+
+  if (body.date_of_birth !== undefined) {
+    const dob = optionalText(body.date_of_birth)
+    if (dob === undefined) return 'Invalid date of birth'
+    if (dob && !/^\d{4}-\d{2}-\d{2}$/.test(dob)) return 'Date of birth must be YYYY-MM-DD.'
+    updates.date_of_birth = dob
+  }
+
+  for (const key of PROFILE_TEXT_FIELDS) {
+    if (body[key] === undefined) continue
+    const value = optionalText(body[key])
+    if (value === undefined) return `Invalid ${key.replaceAll('_', ' ')}`
+    updates[key] = value
+  }
+
+  return null
+}
+
+async function syncRegistrationFromProfile(
+  supabase: Awaited<ReturnType<typeof createServiceClient>>,
+  userId: string,
+  updates: Record<string, unknown>
+) {
+  const reg: Record<string, unknown> = { updated_at: updates.updated_at }
+  const copy = (from: string, to = from, allowNull = true) => {
+    if (updates[from] === undefined) return
+    if (updates[from] === null && !allowNull) return
+    reg[to] = updates[from]
+  }
+  copy('full_name', 'full_name', false)
+  copy('email', 'email', false)
+  copy('phone_number', 'phone_number', false)
+  copy('date_of_birth')
+  copy('gender')
+  copy('cid_number')
+  copy('gewog')
+  copy('village')
+  copy('education_level')
+  copy('passport_photo_url')
+  copy('cid_photo_url')
+  copy('pelsung_number')
+  copy('emergency_contact_name')
+  copy('emergency_contact_phone')
+  copy('parent_guardian_name')
+  copy('parent_guardian_phone')
+  if (updates.location !== undefined) reg.dzongkhag = updates.location
+  if (updates.class_name !== undefined) reg.class = updates.class_name
+  if (Object.keys(reg).length <= 1) return null
+  const { error } = await supabase.from('student_registrations').update(reg as never).eq('user_id', userId)
+  if (error) return error.message || 'Could not sync registration details.'
+  return null
+}
 
 function denied(rbac: { error?: string }) {
   return NextResponse.json(
@@ -76,7 +184,7 @@ export async function PATCH(
 
     const { data: target } = await supabase
       .from('profiles')
-      .select('role, institution_id')
+      .select('role, institution_id, email, metadata')
       .eq('id', userId)
       .single()
     const targetRole = (target as { role?: string } | null)?.role
@@ -109,6 +217,35 @@ export async function PATCH(
 
     if (typeof body.full_name === 'string') updates.full_name = body.full_name
     if (typeof body.bio === 'string' || body.bio === null) updates.bio = body.bio
+
+    if (typeof body.email === 'string') {
+      const email = body.email.trim().toLowerCase()
+      const currentEmail = String((target as { email?: string } | null)?.email || '').toLowerCase()
+      if (email !== currentEmail) {
+        if (rbac.userRole !== 'superadmin') {
+          return NextResponse.json(
+            { error: 'Only a superadmin can change an email address' },
+            { status: 403 }
+          )
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          return NextResponse.json({ error: 'Enter a valid email address' }, { status: 400 })
+        }
+        const { error: emailError } = await supabase.auth.admin.updateUserById(userId, {
+          email,
+          email_confirm: true,
+        })
+        if (emailError) {
+          return NextResponse.json({ error: emailError.message }, { status: 400 })
+        }
+        updates.email = email
+      }
+    }
+
+    const detailError = applyProfileDetails(body, updates)
+    if (detailError) {
+      return NextResponse.json({ error: detailError }, { status: 400 })
+    }
     if (typeof body.avatar_url === 'string' || body.avatar_url === null)
       updates.avatar_url = body.avatar_url
     if (body.institution_id !== undefined) {
@@ -183,6 +320,20 @@ export async function PATCH(
       updates.role = body.role
     }
 
+    const existingMeta =
+      (target as { metadata?: Record<string, unknown> } | null)?.metadata &&
+      typeof (target as { metadata?: unknown }).metadata === 'object'
+        ? ((target as { metadata: Record<string, unknown> }).metadata)
+        : {}
+    updates.metadata = {
+      ...existingMeta,
+      phone_number: updates.phone_number !== undefined ? updates.phone_number : existingMeta.phone_number,
+      cid_number: updates.cid_number !== undefined ? updates.cid_number : existingMeta.cid_number,
+      pelsung_number:
+        updates.pelsung_number !== undefined ? updates.pelsung_number : existingMeta.pelsung_number,
+      class: updates.class_name !== undefined ? updates.class_name : existingMeta.class,
+    }
+
     const { data: profile, error } = await supabase
       .from('profiles')
       .update(updates as never)
@@ -192,6 +343,11 @@ export async function PATCH(
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+
+    const syncError = await syncRegistrationFromProfile(supabase, userId, updates)
+    if (syncError) {
+      return NextResponse.json({ error: syncError }, { status: 400 })
     }
 
     const metadata: Record<string, unknown> = {}

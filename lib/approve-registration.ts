@@ -6,6 +6,7 @@
  */
 
 import { isTeachingRequestRole } from '@/lib/kyc'
+import { registrationProfileColumns } from '@/lib/profile-fields'
 
 type ReviewAction = 'approve' | 'reject' | 'request_info'
 
@@ -205,7 +206,24 @@ export async function processRegistrationReview(
         institution_id: reg.institution_id,
         enrollment_date: now,
         full_name: reg.full_name,
-        location: reg.dzongkhag,
+        ...registrationProfileColumns({
+          phoneNumber: reg.phone_number,
+          dzongkhag: reg.dzongkhag,
+          dateOfBirth: reg.date_of_birth,
+          gender: reg.gender,
+          cidNumber: reg.cid_number,
+          gewog: reg.gewog,
+          village: reg.village,
+          educationLevel: reg.education_level,
+          passportPhotoUrl: reg.passport_photo_url,
+          cidPhotoUrl: reg.cid_photo_url,
+          pelsungNumber: reg.pelsung_number,
+          className: reg.class,
+          emergencyContactName: reg.emergency_contact_name,
+          emergencyContactPhone: reg.emergency_contact_phone,
+          parentGuardianName: reg.parent_guardian_name,
+          parentGuardianPhone: reg.parent_guardian_phone,
+        }),
         metadata: {
           ...existingMetadata,
           cid_number: reg.cid_number,
@@ -319,7 +337,11 @@ export async function autoActivateStudentAccount(
     role: nextRole,
     institution_id: opts.institutionId,
     full_name: opts.fullName,
+    phone_number: opts.phoneNumber || null,
     location: opts.dzongkhag || null,
+    ...(opts.cidNumber ? { cid_number: opts.cidNumber } : {}),
+    ...(opts.pelsungNumber ? { pelsung_number: opts.pelsungNumber } : {}),
+    ...(opts.className ? { class_name: opts.className } : {}),
     metadata: {
       ...existingMetadata,
       cid_number: opts.cidNumber || existingMetadata.cid_number || null,

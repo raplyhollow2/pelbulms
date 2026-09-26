@@ -24,6 +24,7 @@ export type CourseOutline = {
   description: string
   durationMinutes?: number
   language?: string
+  learningObjectives?: string[]
   modules: OutlineModule[]
 }
 

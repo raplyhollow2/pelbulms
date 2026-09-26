@@ -34,7 +34,10 @@ export type PlatformSettings = {
   public_catalog: boolean
   featured_course_ids: string[]
   maintenance_mode: boolean
+  /** Derived: CID or identity photo is required. */
   require_identity_documents: boolean
+  require_cid: boolean
+  require_identity_photo: boolean
   require_qualification: boolean
   require_student_id: boolean
   require_emergency_contact: boolean
@@ -62,7 +65,10 @@ export type PlatformSettings = {
 }
 
 export type RegistrationPolicy = {
+  /** True when CID or an identity photo is required. Students then wait for review. */
   require_identity_documents: boolean
+  require_cid: boolean
+  require_identity_photo: boolean
   require_qualification: boolean
   require_student_id: boolean
   require_emergency_contact: boolean
@@ -80,7 +86,9 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   public_catalog: true,
   featured_course_ids: [],
   maintenance_mode: false,
-  require_identity_documents: true,
+  require_identity_documents: false,
+  require_cid: false,
+  require_identity_photo: false,
   require_qualification: false,
   require_student_id: false,
   require_emergency_contact: false,
@@ -132,7 +140,7 @@ export function parsePlatformSettings(row: Record<string, unknown> | null | unde
       ? featured.filter((id): id is string => typeof id === 'string')
       : [],
     maintenance_mode: row.maintenance_mode === true,
-    require_identity_documents: row.require_identity_documents !== false,
+    ...parseIdentityFlags(row),
     require_qualification: row.require_qualification === true,
     require_student_id: row.require_student_id === true,
     require_emergency_contact: row.require_emergency_contact === true,
@@ -153,6 +161,19 @@ export function parsePlatformSettings(row: Record<string, unknown> | null | unde
   }
 }
 
+function parseIdentityFlags(row: Record<string, unknown>) {
+  const legacy = row.require_identity_documents !== false
+  const hasCid = typeof row.require_cid === 'boolean'
+  const hasPhoto = typeof row.require_identity_photo === 'boolean'
+  const require_cid = hasCid ? row.require_cid === true : legacy
+  const require_identity_photo = hasPhoto ? row.require_identity_photo === true : legacy
+  return {
+    require_cid,
+    require_identity_photo,
+    require_identity_documents: require_cid || require_identity_photo,
+  }
+}
+
 function parseOptionalNonNegInt(value: unknown): number | null {
   if (value === null || value === undefined || value === '') return null
   const n = typeof value === 'number' ? value : Number(value)
@@ -169,7 +190,9 @@ function parseOptionalPositiveInt(value: unknown): number | null {
 
 export function toRegistrationPolicy(settings: PlatformSettings): RegistrationPolicy {
   return {
-    require_identity_documents: settings.require_identity_documents,
+    require_identity_documents: settings.require_cid || settings.require_identity_photo,
+    require_cid: settings.require_cid,
+    require_identity_photo: settings.require_identity_photo,
     require_qualification: settings.require_qualification,
     require_student_id: settings.require_student_id,
     require_emergency_contact: settings.require_emergency_contact,
@@ -188,7 +211,7 @@ export function toPublicSite(settings: PlatformSettings) {
     public_catalog: settings.public_catalog,
     featured_course_ids: settings.featured_course_ids,
     maintenance_mode: settings.maintenance_mode,
-    require_identity_documents: settings.require_identity_documents,
+    require_identity_documents: settings.require_cid || settings.require_identity_photo,
     hero_video_url: settings.hero_video_url,
     hero_video_start_seconds: settings.hero_video_start_seconds,
     hero_video_end_seconds: settings.hero_video_end_seconds,

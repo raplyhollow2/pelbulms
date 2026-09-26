@@ -11,6 +11,7 @@ export type ReportAudience =
 export type ReportSectionId =
   | 'my-learning'
   | 'course-insights'
+  | 'learner-demographics'
   | 'approvals-health'
   | 'institution-ops'
   | 'platform-command'
@@ -31,6 +32,17 @@ export type ReportId =
   | 'roster-ops'
   | 'outcomes'
   | 'lesson-friction'
+  // Learner demographics
+  | 'learner-qualification'
+  | 'learner-gender'
+  | 'learner-dzongkhag'
+  | 'learner-age'
+  | 'learner-class'
+  | 'learner-gewog'
+  | 'learner-institution'
+  | 'learner-account-status'
+  | 'learner-completeness'
+  | 'learner-role-mix'
   // Resource person
   | 'approval-queue-aging'
   | 'rejection-reasons'
@@ -166,6 +178,14 @@ export interface FunnelStep {
   count: number
 }
 
+/** Category counts shown as horizontal bars on the report dashboard. */
+export interface ReportBreakdown {
+  key: string
+  title: string
+  description?: string
+  steps: FunnelStep[]
+}
+
 export interface InstitutionScoreRow {
   id: string
   name: string
@@ -211,13 +231,31 @@ export interface AiBriefPriority {
   suggestedAction: string
 }
 
+export interface AiBriefSection {
+  figure: string
+  value: string
+  reading: string
+}
+
+export interface AiBriefNarrativeBlock {
+  heading: string
+  paragraphs: string[]
+  severity: 'critical' | 'watch' | 'opportunity' | 'note'
+  /** Outline part id such as pulse, funnel, friction-hotspots, or breakdown:learner-dzongkhag. */
+  tableKey: string
+}
+
 export interface AiBriefPayload {
   headline: string
   summary: string
+  caveat?: string
+  sections?: AiBriefSection[]
+  narrative?: AiBriefNarrativeBlock[]
   priorities: AiBriefPriority[]
   questionsForTeam: string[]
   generatedAt?: string
   model?: string
+  family?: string
 }
 
 /** Single source of truth for Command Center + exports + AI briefs */
@@ -249,6 +287,8 @@ export interface ReportSnapshot {
   sections: ReportSectionPayload[]
   /** Instructor behavioral friction map (omit for other audiences). */
   frictionMap?: FrictionMapPayload
+  /** Aggregate learner-profile charts (instructor and superadmin). */
+  breakdowns?: ReportBreakdown[]
   hash: string
 }
 

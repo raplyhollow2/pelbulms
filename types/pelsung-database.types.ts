@@ -338,8 +338,8 @@ export interface FormValidationResult {
 // ============================================================================
 
 export const BHUTANESE_DZONGKHAGS = [
-  'Bumthang', 'Chukha', 'Dagana', 'Gasa', 'Haa', 'Lhuentse',
-  'Mongar', 'Paro', 'Pema Gatshel', 'Punakha', 'Samdrup Jongkhar',
+  'Bumthang', 'Chhukha', 'Dagana', 'Gasa', 'Haa', 'Lhuentse',
+  'Mongar', 'Paro', 'Pemagatshel', 'Punakha', 'Samdrup Jongkhar',
   'Samtse', 'Sarpang', 'Thimphu', 'Trashigang', 'Trashiyangtse',
   'Trongsa', 'Tsirang', 'Wangdue Phodrang', 'Zhemgang'
 ] as const

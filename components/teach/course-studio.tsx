@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,7 +18,23 @@ import { LessonBlocks } from '@/components/course/lesson-blocks'
 import { BlockPicker } from '@/components/teach/block-picker'
 import { AskPelbuRail } from '@/components/ai/ask-pelbu-rail'
 import { parseLessonBlocks, readCourseAiMetadata, type LessonBlock } from '@/lib/lesson-blocks'
-import { Plus, Share2, Palette, Bot, Eye, Loader2 } from 'lucide-react'
+import { Plus, Share2, Palette, Bot, Eye, Loader2, Settings, MoreHorizontal, Trash2 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { CourseSettingsSheet } from '@/components/teach/course-settings-form'
+import { LessonOptionsPanel } from '@/components/teach/lesson-options-panel'
+import { ModuleOptionsPanel } from '@/components/teach/module-options-panel'
 
 type ModuleRow = { id: string; title: string; order_index: number }
 type LessonRow = {
@@ -31,7 +46,6 @@ type LessonRow = {
 }
 
 export function CourseStudio({ courseId }: { courseId: string }) {
-  const router = useRouter()
   const supabase = createClient()
   const [loading, setLoading] = useState(true)
   const [course, setCourse] = useState<any>(null)
@@ -45,6 +59,10 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   const [tutorOpen, setTutorOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [publishing, setPublishing] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [pageOptionsId, setPageOptionsId] = useState<string | null>(null)
+  const [moduleOptionsId, setModuleOptionsId] = useState<string | null>(null)
 
   const current = lessons.find((l) => l.id === lessonId)
 
@@ -110,6 +128,86 @@ export function CourseStudio({ courseId }: { courseId: string }) {
     setSaving(false)
   }
 
+  const addModule = async () => {
+    const { data } = await (supabase as any)
+      .from('modules')
+      .insert({
+        course_id: courseId,
+        title: 'New module',
+        description: '',
+        order_index: modules.length,
+        is_published: false,
+      })
+      .select('id, title, order_index')
+      .single()
+    if (data) setModules((rows) => [...rows, data])
+  }
+
+  const commitModuleTitle = async (moduleId: string, title: string) => {
+    const next = title.trim() || 'Untitled module'
+    setModules((rows) => rows.map((row) => (row.id === moduleId ? { ...row, title: next } : row)))
+    await (supabase as any)
+      .from('modules')
+      .update({ title: next, updated_at: new Date().toISOString() })
+      .eq('id', moduleId)
+  }
+
+  const moveModule = async (index: number, direction: -1 | 1) => {
+    const target = index + direction
+    if (target < 0 || target >= modules.length) return
+    const next = [...modules]
+    const [moved] = next.splice(index, 1)
+    next.splice(target, 0, moved)
+    const ordered = next.map((row, order_index) => ({ ...row, order_index }))
+    setModules(ordered)
+    await Promise.all(
+      ordered.map((row) =>
+        (supabase as any)
+          .from('modules')
+          .update({ order_index: row.order_index, updated_at: new Date().toISOString() })
+          .eq('id', row.id)
+      )
+    )
+  }
+
+  const deleteModule = async (moduleId: string) => {
+    if (!window.confirm('Delete this module and its pages?')) return
+    const { error: lessonError } = await (supabase as any).from('lessons').delete().eq('module_id', moduleId)
+    if (lessonError) return
+    const { error: moduleError } = await (supabase as any).from('modules').delete().eq('id', moduleId)
+    if (moduleError) return
+    const remainingLessons = lessons.filter((row) => row.module_id !== moduleId)
+    setLessons(remainingLessons)
+    const ordered = modules
+      .filter((row) => row.id !== moduleId)
+      .map((row, order_index) => ({ ...row, order_index }))
+    setModules(ordered)
+    await Promise.all(
+      ordered.map((row) =>
+        (supabase as any)
+          .from('modules')
+          .update({ order_index: row.order_index, updated_at: new Date().toISOString() })
+          .eq('id', row.id)
+      )
+    )
+    if (moduleOptionsId === moduleId) setModuleOptionsId(null)
+    if (pageOptionsId && remainingLessons.every((row) => row.id !== pageOptionsId)) setPageOptionsId(null)
+    if (lessonId && remainingLessons.every((row) => row.id !== lessonId)) {
+      setLessonId(remainingLessons[0]?.id || null)
+    }
+  }
+
+  const togglePublish = async () => {
+    const next = !course?.is_published
+    setPublishing(true)
+    setCourse((current: any) => (current ? { ...current, is_published: next } : current))
+    await (supabase as any)
+      .from('courses')
+      .update({ is_published: next, updated_at: new Date().toISOString() })
+      .eq('id', courseId)
+    setPublishing(false)
+  }
+
   const addPage = async (moduleId: string) => {
     const existing = lessonsByModule.get(moduleId) || []
     const { data } = await (supabase as any)
@@ -165,10 +263,41 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   }
 
   const outline = (
-    <nav className="space-y-3">
-      {modules.map((mod) => (
+    <nav className="space-y-4">
+      {modules.length === 0 && (
+        <p className="px-2 text-sm text-muted-foreground">Add a module to start the outline.</p>
+      )}
+      {modules.map((mod, index) => (
         <div key={mod.id}>
-          <p className="px-2 text-xs font-semibold uppercase text-muted-foreground">{mod.title}</p>
+          <div className="flex items-center gap-1">
+            <Input
+              value={mod.title}
+              aria-label="Module title"
+              className="h-9 min-w-0 flex-1 text-xs"
+              onChange={(e) =>
+                setModules((rows) => rows.map((row) => (row.id === mod.id ? { ...row, title: e.target.value } : row)))
+              }
+              onBlur={() => void commitModuleTitle(mod.id, mod.title)}
+            />
+            <DropdownMenu>
+              <DropdownMenuTrigger className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md hover:bg-muted">
+                <MoreHorizontal className="h-4 w-4" />
+                <span className="sr-only">Module actions</span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem disabled={index === 0} onClick={() => void moveModule(index, -1)}>
+                  Move up
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled={index === modules.length - 1} onClick={() => void moveModule(index, 1)}>
+                  Move down
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setModuleOptionsId(mod.id)}>Resources and gates</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => void deleteModule(mod.id)}>
+                  <Trash2 className="mr-2 h-4 w-4" /> Delete module
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
           <div className="mt-1 space-y-1">
             {(lessonsByModule.get(mod.id) || []).map((les) => (
               <div key={les.id} className="flex items-center gap-1">
@@ -184,6 +313,16 @@ export function CourseStudio({ courseId }: { courseId: string }) {
                 >
                   {les.title}
                 </button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="min-h-11 min-w-11 shrink-0"
+                  aria-label="Page options"
+                  onClick={() => setPageOptionsId(les.id)}
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
               </div>
             ))}
             <Button
@@ -199,13 +338,19 @@ export function CourseStudio({ courseId }: { courseId: string }) {
           </div>
         </div>
       ))}
+      <Button type="button" variant="outline" className="min-h-11 w-full" onClick={() => void addModule()}>
+        <Plus className="mr-2 h-4 w-4" />
+        Add module
+      </Button>
     </nav>
   )
 
   const canvas = (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">{current?.title || 'Select a page'}</h2>
+        <h2 className="text-lg font-semibold">
+          {current?.title || (modules.length ? 'Select a page' : 'Add a module to start')}
+        </h2>
         <Button type="button" variant="outline" className="min-h-11" onClick={() => setPickerOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Add
@@ -222,12 +367,13 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   )
 
   const rail = (
-    <AskPelbuRail
+      <AskPelbuRail
       courseId={courseId}
       lessonId={lessonId || undefined}
       onApplied={(next) => {
         if (Array.isArray(next)) void saveBlocks(next as LessonBlock[])
       }}
+      onStructureApplied={() => void load()}
     />
   )
 
@@ -236,8 +382,13 @@ export function CourseStudio({ courseId }: { courseId: string }) {
       <header className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{course?.title}</p>
-          <p className="text-xs text-muted-foreground">Course studio</p>
+          <p className="text-xs text-muted-foreground">
+            Course studio · {course?.is_published ? 'Published' : 'Draft'}
+          </p>
         </div>
+        <Button type="button" variant="outline" className="min-h-11" onClick={() => setSettingsOpen(true)}>
+          <Settings className="mr-2 h-4 w-4" /> Settings
+        </Button>
         <Button type="button" variant="outline" className="min-h-11" onClick={() => setThemeOpen(true)}>
           <Palette className="mr-2 h-4 w-4" /> Theme
         </Button>
@@ -258,15 +409,11 @@ export function CourseStudio({ courseId }: { courseId: string }) {
         <Button
           type="button"
           className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
-          onClick={async () => {
-            await (supabase as any)
-              .from('courses')
-              .update({ is_published: true, updated_at: new Date().toISOString() })
-              .eq('id', courseId)
-            router.push(`/teach/courses/${courseId}/edit`)
-          }}
+          disabled={publishing}
+          onClick={() => void togglePublish()}
         >
-          Publish
+          {publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          {course?.is_published ? 'Unpublish' : 'Publish'}
         </Button>
       </header>
 
@@ -284,8 +431,10 @@ export function CourseStudio({ courseId }: { courseId: string }) {
         ))}
       </div>
 
-      <div className="grid flex-1 lg:grid-cols-[240px_1fr_320px]">
-        <aside className={`border-r p-3 ${mobileTab === 'outline' ? 'block' : 'hidden'} lg:block`}>{outline}</aside>
+      <div className="grid flex-1 lg:grid-cols-[280px_1fr_320px]">
+        <aside className={`overflow-y-auto border-r p-3 ${mobileTab === 'outline' ? 'block' : 'hidden'} lg:block`}>
+          {outline}
+        </aside>
         <main className={`p-4 ${mobileTab === 'page' ? 'block' : 'hidden'} lg:block`}>{canvas}</main>
         <aside className={`border-l p-3 ${mobileTab === 'ai' ? 'block' : 'hidden'} lg:block`}>{rail}</aside>
       </div>
@@ -296,6 +445,53 @@ export function CourseStudio({ courseId }: { courseId: string }) {
         lessonId={lessonId || undefined}
         onPick={(block) => void saveBlocks([...blocks, block])}
       />
+
+      <CourseSettingsSheet
+        courseId={courseId}
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        onUpdated={(patch) => setCourse((current: any) => (current ? { ...current, ...patch } : current))}
+      />
+
+      <Sheet open={!!pageOptionsId} onOpenChange={(next) => !next && setPageOptionsId(null)}>
+        <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-xl">
+          <SheetHeader>
+            <SheetTitle>Page options</SheetTitle>
+            <SheetDescription>Video, activities, and gates for this page.</SheetDescription>
+          </SheetHeader>
+          <div className="px-4 pb-6">
+            {pageOptionsId && (
+              <LessonOptionsPanel
+                courseId={courseId}
+                lessonId={pageOptionsId}
+                onTitleChange={(title) =>
+                  setLessons((rows) => rows.map((row) => (row.id === pageOptionsId ? { ...row, title } : row)))
+                }
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={!!moduleOptionsId} onOpenChange={(next) => !next && setModuleOptionsId(null)}>
+        <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-xl">
+          <SheetHeader>
+            <SheetTitle>Module options</SheetTitle>
+            <SheetDescription>Resources and progression gates.</SheetDescription>
+          </SheetHeader>
+          <div className="px-4 pb-6">
+            {moduleOptionsId && (
+              <ModuleOptionsPanel
+                courseId={courseId}
+                moduleId={moduleOptionsId}
+                onTitleChange={(title) =>
+                  setModules((rows) => rows.map((row) => (row.id === moduleOptionsId ? { ...row, title } : row)))
+                }
+              />
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={themeOpen} onOpenChange={setThemeOpen}>
         <DialogContent>

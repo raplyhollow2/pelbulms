@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
 import { resolveEffectiveRole } from '@/lib/approvals-access'
 import { generateExecutiveBrief, isAiGatewayConfigured } from '@/lib/reports/ai-brief'
+import { parseModelFamily, type ModelFamily } from '@/lib/ai/models'
+import type { AiBriefPayload } from '@/lib/reports/types'
 import { resolveSnapshotForUser } from '@/lib/reports/resolve-snapshot'
 import { audienceAllowsAiBrief } from '@/lib/reports/types'
 import type { ReportRange, SnapshotAudience } from '@/lib/reports/types'
@@ -40,6 +42,27 @@ function parsePrefer(raw: unknown): SnapshotAudience | undefined {
 }
 
 const AI_ROLES = new Set(['admin', 'superadmin', 'instructor', 'resource_person'])
+
+async function findCachedBrief(
+  service: { from: (table: string) => any },
+  opts: { userId: string; range: string; hash?: string; family?: ModelFamily }
+) {
+  const { data } = await service
+    .from('report_ai_briefs')
+    .select('id, brief, created_at, snapshot_hash')
+    .eq('user_id', opts.userId)
+    .eq('range', opts.range)
+    .order('created_at', { ascending: false })
+    .limit(12)
+  const rows = ((data || []) as {
+    id: string
+    brief: AiBriefPayload
+    created_at: string
+    snapshot_hash: string
+  }[]).filter((row) => !opts.hash || row.snapshot_hash === opts.hash)
+  if (!opts.family) return rows[0] || null
+  return rows.find((row) => row.brief?.family === opts.family) || null
+}
 
 /** POST /api/reports/ai-brief */
 export async function POST(request: NextRequest) {
@@ -90,6 +113,7 @@ export async function POST(request: NextRequest) {
     const range = parseRange(body.range)
     const force = Boolean(body.force)
     const prefer = parsePrefer(body.audience)
+    const family: ModelFamily | undefined = body.family ? parseModelFamily(body.family, 'claude') : undefined
 
     const snapshot = await resolveSnapshotForUser(service as any, {
       userId: user.id,
@@ -107,15 +131,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (!force) {
-      const { data: cached } = await service
-        .from('report_ai_briefs')
-        .select('id, brief, created_at, snapshot_hash')
-        .eq('user_id', user.id)
-        .eq('snapshot_hash', snapshot.hash)
-        .eq('range', range)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+      const cached = await findCachedBrief(service, {
+        userId: user.id,
+        range,
+        hash: snapshot.hash,
+        family,
+      })
 
       if (cached?.brief) {
         return NextResponse.json({
@@ -127,9 +148,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const brief = await generateExecutiveBrief(snapshot)
+    const brief = await generateExecutiveBrief(snapshot, { family, userId: user.id })
 
-    await service.from('report_ai_briefs').insert({
+    await (service as any).from('report_ai_briefs').insert({
       user_id: user.id,
       role,
       range,
@@ -179,19 +200,18 @@ export async function GET(request: NextRequest) {
     }
 
     const range = parseRange(request.nextUrl.searchParams.get('range'))
-    const { data } = await service
-      .from('report_ai_briefs')
-      .select('brief, created_at, snapshot_hash, range')
-      .eq('user_id', user.id)
-      .eq('range', range)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+    const familyParam = request.nextUrl.searchParams.get('family')
+    const family = familyParam ? parseModelFamily(familyParam, 'claude') : undefined
+    const cached = await findCachedBrief(service, {
+      userId: user.id,
+      range,
+      family,
+    })
 
     return NextResponse.json({
-      brief: data?.brief || null,
-      createdAt: data?.created_at || null,
-      snapshotHash: data?.snapshot_hash || null,
+      brief: cached?.brief || null,
+      createdAt: cached?.created_at || null,
+      snapshotHash: cached?.snapshot_hash || null,
       gatewayConfigured: isAiGatewayConfigured(),
       allowed: true,
     })

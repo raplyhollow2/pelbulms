@@ -57,6 +57,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PendingApprovalsPanel } from '@/components/admin/pending-approvals-panel'
 import { ReviewersPanel } from '@/components/admin/reviewers-panel'
 import { RoleBadge } from '@/components/auth/role-badge'
+import { DZONGKHAGS, normalizeDzongkhag } from '@/lib/dzongkhags'
+import { GENDER_OPTIONS } from '@/lib/profile-fields'
 
 type Profile = Database['public']['Tables']['profiles']['Row']
 type Role = 'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
@@ -67,9 +69,61 @@ const EMPTY_FORM = {
   role: 'student' as Role,
   role_id: '',
   bio: '',
+  headline: '',
+  website: '',
   avatar_url: '',
   institution_id: '',
   account_status: 'active',
+  phone_number: '',
+  date_of_birth: '',
+  gender: '',
+  location: '',
+  gewog: '',
+  village: '',
+  cid_number: '',
+  education_level: '',
+  passport_photo_url: '',
+  cid_photo_url: '',
+  pelsung_number: '',
+  class_name: '',
+  emergency_contact_name: '',
+  emergency_contact_phone: '',
+  parent_guardian_name: '',
+  parent_guardian_phone: '',
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  student: 'Student',
+  instructor: 'Instructor',
+  resource_person: 'Resource person',
+  admin: 'Admin',
+  superadmin: 'Super admin',
+}
+
+function fieldText(user: any, key: string, metaKey?: string) {
+  const direct = user?.[key]
+  if (typeof direct === 'string' && direct.trim()) return direct
+  const meta = user?.metadata?.[metaKey || key]
+  return typeof meta === 'string' ? meta : ''
+}
+
+function roleTriggerLabel(
+  value: string | null | undefined,
+  assignableRoles: AssignableRole[],
+  fallbackRole?: string
+) {
+  if (!value && !fallbackRole) return 'Select role'
+  const found = assignableRoles.find(
+    (r) => r.id === value || r.slug === value || r.base_archetype === value
+  )
+  if (found) return found.is_system ? found.name : `${found.name} (${found.base_archetype})`
+  return ROLE_LABELS[value || ''] || ROLE_LABELS[fallbackRole || ''] || 'Select role'
+}
+
+function documentSrc(path?: string | null) {
+  if (!path) return ''
+  if (path.startsWith('http')) return path
+  return `/api/register/document?path=${encodeURIComponent(path)}`
 }
 
 type AssignableRole = {
@@ -182,6 +236,7 @@ export default function AdminUsersPage() {
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState('')
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [uploadingKyc, setUploadingKyc] = useState<'passport' | 'cid' | null>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -348,6 +403,8 @@ export default function AdminUsersPage() {
     return (
       user.full_name?.toLowerCase().includes(q) ||
       (user as any).email?.toLowerCase().includes(q) ||
+      fieldText(user, 'phone_number', 'phone_number').toLowerCase().includes(q) ||
+      (user.location || '').toLowerCase().includes(q) ||
       user.id.toLowerCase().includes(q)
     )
   })
@@ -372,6 +429,8 @@ export default function AdminUsersPage() {
           role_id: formData.role_id || undefined,
           bio: formData.bio || null,
           institution_id: formData.institution_id || null,
+          phone_number: formData.phone_number || null,
+          location: formData.location || null,
         }),
       })
       const json = await res.json()
@@ -398,15 +457,34 @@ export default function AdminUsersPage() {
   const openEdit = (user: Profile) => {
     setEditingUser(user)
     setEditError('')
+    const meta = (user as any).metadata || {}
     setEditData({
       email: (user as any).email || '',
       full_name: user.full_name || '',
       role: (user.role as Role) || 'student',
       role_id: (user as any).role_id || '',
       bio: user.bio || '',
+      headline: (user as any).headline || '',
+      website: (user as any).website || '',
       avatar_url: user.avatar_url || '',
       institution_id: (user as any).institution_id || '',
       account_status: (user as any).account_status || 'active',
+      phone_number: fieldText(user, 'phone_number', 'phone_number'),
+      date_of_birth: (user as any).date_of_birth ? String((user as any).date_of_birth).slice(0, 10) : '',
+      gender: (user as any).gender || '',
+      location: normalizeDzongkhag((user as any).location) || (user as any).location || '',
+      gewog: (user as any).gewog || '',
+      village: (user as any).village || '',
+      cid_number: fieldText(user, 'cid_number', 'cid_number'),
+      education_level: (user as any).education_level || '',
+      passport_photo_url: (user as any).passport_photo_url || '',
+      cid_photo_url: (user as any).cid_photo_url || '',
+      pelsung_number: fieldText(user, 'pelsung_number', 'pelsung_number'),
+      class_name: fieldText(user, 'class_name', 'class') || meta.class || '',
+      emergency_contact_name: (user as any).emergency_contact_name || '',
+      emergency_contact_phone: (user as any).emergency_contact_phone || '',
+      parent_guardian_name: (user as any).parent_guardian_name || '',
+      parent_guardian_phone: (user as any).parent_guardian_phone || '',
     })
   }
 
@@ -421,12 +499,31 @@ export default function AdminUsersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           full_name: editData.full_name,
+          email: editData.email,
           bio: editData.bio,
+          headline: editData.headline,
+          website: editData.website,
           role: editData.role,
           role_id: editData.role_id || undefined,
           avatar_url: editData.avatar_url || null,
           institution_id: editData.institution_id || null,
           account_status: editData.account_status,
+          phone_number: editData.phone_number,
+          date_of_birth: editData.date_of_birth,
+          gender: editData.gender,
+          location: editData.location,
+          gewog: editData.gewog,
+          village: editData.village,
+          cid_number: editData.cid_number,
+          education_level: editData.education_level,
+          passport_photo_url: editData.passport_photo_url,
+          cid_photo_url: editData.cid_photo_url,
+          pelsung_number: editData.pelsung_number,
+          class_name: editData.class_name,
+          emergency_contact_name: editData.emergency_contact_name,
+          emergency_contact_phone: editData.emergency_contact_phone,
+          parent_guardian_name: editData.parent_guardian_name,
+          parent_guardian_phone: editData.parent_guardian_phone,
         }),
       })
       const json = await res.json()
@@ -482,6 +579,28 @@ export default function AdminUsersPage() {
       setEditError(err.message || 'Failed to upload avatar')
     } finally {
       setUploadingAvatar(false)
+    }
+  }
+
+  const handleKycUpload = async (field: 'passport' | 'cid', file: File) => {
+    if (!editingUser) return
+    try {
+      setUploadingKyc(field)
+      setEditError('')
+      const body = new FormData()
+      body.append('file', file)
+      body.append('field', field)
+      const res = await fetch(`/api/users/${editingUser.id}/kyc`, { method: 'POST', body })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to upload photo')
+      const key = field === 'cid' ? 'cid_photo_url' : 'passport_photo_url'
+      setEditData((prev) => ({ ...prev, [key]: json.path }))
+      hapticSuccess()
+      await fetchUsers()
+    } catch (err: any) {
+      setEditError(err.message || 'Failed to upload photo')
+    } finally {
+      setUploadingKyc(null)
     }
   }
 
@@ -614,7 +733,7 @@ export default function AdminUsersPage() {
               <div className="relative min-w-0 flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search by name or email…"
+                  placeholder="Search by name, email, or phone…"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="h-10 pl-9"
@@ -697,11 +816,48 @@ export default function AdminUsersPage() {
                         }
                       }}
                     >
-                      <SelectTrigger id="role" className="h-10">
-                        <SelectValue />
+                      <SelectTrigger id="role" className="h-10 w-full">
+                        <SelectValue>
+                          {(v: string | null) => roleTriggerLabel(v, assignableRoles, formData.role)}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {roleSelectOptions(assignableRoles, isSuperAdmin)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="phone_number" className="text-xs font-medium">
+                      Mobile number
+                    </Label>
+                    <Input
+                      id="phone_number"
+                      inputMode="tel"
+                      placeholder="+97517123456"
+                      value={formData.phone_number}
+                      onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
+                      className="h-10"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="create_dzongkhag" className="text-xs font-medium">
+                      Dzongkhag
+                    </Label>
+                    <Select
+                      value={formData.location}
+                      onValueChange={(value) => setFormData({ ...formData, location: value ?? '' })}
+                    >
+                      <SelectTrigger id="create_dzongkhag" className="h-10 w-full">
+                        <SelectValue placeholder="Select dzongkhag">
+                          {(v: string | null) => v || 'Select dzongkhag'}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DZONGKHAGS.map((d) => (
+                          <SelectItem key={d} value={d}>
+                            {d}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -781,6 +937,13 @@ export default function AdminUsersPage() {
                             </span>
                           </div>
                           <p className="mt-0.5 truncate text-xs text-muted-foreground">{email}</p>
+                          {(fieldText(user, 'phone_number', 'phone_number') || user.location) && (
+                            <p className="truncate text-xs text-muted-foreground">
+                              {[fieldText(user, 'phone_number', 'phone_number'), user.location]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </p>
+                          )}
                           <div className="mt-1 flex flex-wrap items-center gap-1.5">
                             <span
                               className={cn(
@@ -819,7 +982,9 @@ export default function AdminUsersPage() {
                             className="h-9 flex-1 text-xs md:w-[9.5rem] md:flex-none"
                             aria-label={`Change role for ${user.full_name || email}`}
                           >
-                            <SelectValue />
+                            <SelectValue>
+                              {(v: string | null) => ROLE_LABELS[v || ''] || v || 'Role'}
+                            </SelectValue>
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="student">Student</SelectItem>
@@ -904,15 +1069,17 @@ export default function AdminUsersPage() {
 
       {/* Edit user dialog */}
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
-        <DialogContent className="max-h-[92dvh] max-w-[calc(100%-1.5rem)] gap-0 overflow-hidden p-0 sm:max-w-md">
+        <DialogContent className="max-h-[92dvh] max-w-[calc(100%-1.5rem)] gap-0 overflow-hidden p-0 sm:max-w-lg">
           <DialogHeader className="space-y-1 border-b border-border/50 px-5 py-4">
             <DialogTitle className="text-base">Edit user</DialogTitle>
             <DialogDescription className="text-xs">
-              Update profile details and role assignment.
+              {isSuperAdmin
+                ? 'Update every profile field, including the sign-in email.'
+                : 'Update every profile field.'}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="max-h-[min(70dvh,32rem)] space-y-4 overflow-y-auto px-5 py-4">
+          <div className="max-h-[min(70dvh,36rem)] space-y-4 overflow-y-auto px-5 py-4">
             <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/20 p-3">
               <Avatar className="h-12 w-12 shrink-0 ring-1 ring-border/60">
                 <AvatarImage
@@ -971,8 +1138,262 @@ export default function AdminUsersPage() {
                 <Label htmlFor="edit_email" className="text-xs font-medium">
                   Email
                 </Label>
-                <Input id="edit_email" value={editData.email} disabled className="h-10 bg-muted/50" />
-                <p className="text-[11px] text-muted-foreground">Email cannot be changed here.</p>
+                <Input
+                  id="edit_email"
+                  type="email"
+                  value={editData.email}
+                  disabled={!isSuperAdmin}
+                  className={cn('h-10', !isSuperAdmin && 'bg-muted/50')}
+                  onChange={(e) => setEditData({ ...editData, email: e.target.value })}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  {isSuperAdmin
+                    ? 'Changing email updates the sign-in address.'
+                    : 'Only a superadmin can change email.'}
+                </p>
+              </div>
+
+              <div className="grid gap-3.5 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit_phone" className="text-xs font-medium">
+                    Mobile number
+                  </Label>
+                  <Input
+                    id="edit_phone"
+                    inputMode="tel"
+                    className="h-10"
+                    placeholder="+97517123456"
+                    value={editData.phone_number}
+                    onChange={(e) => setEditData({ ...editData, phone_number: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit_dob" className="text-xs font-medium">
+                    Date of birth
+                  </Label>
+                  <Input
+                    id="edit_dob"
+                    type="date"
+                    className="h-10"
+                    value={editData.date_of_birth}
+                    onChange={(e) => setEditData({ ...editData, date_of_birth: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit_gender" className="text-xs font-medium">
+                    Gender
+                  </Label>
+                  <Select
+                    value={editData.gender || '__none__'}
+                    onValueChange={(value) =>
+                      setEditData({ ...editData, gender: !value || value === '__none__' ? '' : value })
+                    }
+                  >
+                    <SelectTrigger id="edit_gender" className="h-10 w-full">
+                      <SelectValue>
+                        {(v: string | null) =>
+                          GENDER_OPTIONS.find((g) => g.value === v)?.label || 'Not set'
+                        }
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Not set</SelectItem>
+                      {GENDER_OPTIONS.map((g) => (
+                        <SelectItem key={g.value} value={g.value}>
+                          {g.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit_dzongkhag" className="text-xs font-medium">
+                    Dzongkhag
+                  </Label>
+                  <Select
+                    value={editData.location || '__none__'}
+                    onValueChange={(value) =>
+                      setEditData({
+                        ...editData,
+                        location: !value || value === '__none__' ? '' : value,
+                      })
+                    }
+                  >
+                    <SelectTrigger id="edit_dzongkhag" className="h-10 w-full">
+                      <SelectValue>
+                        {(v: string | null) => (!v || v === '__none__' ? 'Not set' : v)}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Not set</SelectItem>
+                      {DZONGKHAGS.map((d) => (
+                        <SelectItem key={d} value={d}>
+                          {d}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit_gewog" className="text-xs font-medium">
+                    Gewog
+                  </Label>
+                  <Input
+                    id="edit_gewog"
+                    className="h-10"
+                    value={editData.gewog}
+                    onChange={(e) => setEditData({ ...editData, gewog: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit_village" className="text-xs font-medium">
+                    Village
+                  </Label>
+                  <Input
+                    id="edit_village"
+                    className="h-10"
+                    value={editData.village}
+                    onChange={(e) => setEditData({ ...editData, village: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit_cid" className="text-xs font-medium">
+                    CID number
+                  </Label>
+                  <Input
+                    id="edit_cid"
+                    inputMode="numeric"
+                    maxLength={11}
+                    className="h-10"
+                    value={editData.cid_number}
+                    onChange={(e) =>
+                      setEditData({ ...editData, cid_number: e.target.value.replace(/\D/g, '') })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit_staff_id" className="text-xs font-medium">
+                    Student / staff ID
+                  </Label>
+                  <Input
+                    id="edit_staff_id"
+                    className="h-10"
+                    value={editData.pelsung_number}
+                    onChange={(e) => setEditData({ ...editData, pelsung_number: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit_class" className="text-xs font-medium">
+                    Class
+                  </Label>
+                  <Input
+                    id="edit_class"
+                    className="h-10"
+                    value={editData.class_name}
+                    onChange={(e) => setEditData({ ...editData, class_name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit_education" className="text-xs font-medium">
+                    Education level
+                  </Label>
+                  <Input
+                    id="edit_education"
+                    className="h-10"
+                    value={editData.education_level}
+                    onChange={(e) => setEditData({ ...editData, education_level: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit_emergency_name" className="text-xs font-medium">
+                    Emergency contact
+                  </Label>
+                  <Input
+                    id="edit_emergency_name"
+                    className="h-10"
+                    value={editData.emergency_contact_name}
+                    onChange={(e) =>
+                      setEditData({ ...editData, emergency_contact_name: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit_emergency_phone" className="text-xs font-medium">
+                    Emergency phone
+                  </Label>
+                  <Input
+                    id="edit_emergency_phone"
+                    className="h-10"
+                    value={editData.emergency_contact_phone}
+                    onChange={(e) =>
+                      setEditData({ ...editData, emergency_contact_phone: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit_guardian" className="text-xs font-medium">
+                    Parent / guardian
+                  </Label>
+                  <Input
+                    id="edit_guardian"
+                    className="h-10"
+                    value={editData.parent_guardian_name}
+                    onChange={(e) =>
+                      setEditData({ ...editData, parent_guardian_name: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="edit_guardian_phone" className="text-xs font-medium">
+                    Guardian phone
+                  </Label>
+                  <Input
+                    id="edit_guardian_phone"
+                    className="h-10"
+                    value={editData.parent_guardian_phone}
+                    onChange={(e) =>
+                      setEditData({ ...editData, parent_guardian_phone: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                {([
+                  ['passport', 'Identity photo', editData.passport_photo_url],
+                  ['cid', 'CID photo', editData.cid_photo_url],
+                ] as const).map(([field, label, path]) => (
+                  <div key={field} className="space-y-1.5">
+                    <Label className="text-xs font-medium">{label}</Label>
+                    {path ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={documentSrc(path)}
+                        alt={label}
+                        className="h-28 w-full rounded-lg border border-border/60 object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-28 items-center justify-center rounded-lg border border-dashed border-border text-xs text-muted-foreground">
+                        No photo
+                      </div>
+                    )}
+                    <label className="inline-flex">
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) handleKycUpload(field, file)
+                          e.target.value = ''
+                        }}
+                      />
+                      <span className="inline-flex h-8 cursor-pointer items-center rounded-md border border-input px-2.5 text-xs">
+                        {uploadingKyc === field ? 'Uploading…' : path ? 'Replace photo' : 'Upload photo'}
+                      </span>
+                    </label>
+                  </div>
+                ))}
               </div>
 
               <div className="space-y-1.5">
@@ -1000,8 +1421,10 @@ export default function AdminUsersPage() {
                     }
                   }}
                 >
-                  <SelectTrigger id="edit_role" className="h-10">
-                    <SelectValue />
+                  <SelectTrigger id="edit_role" className="h-10 w-full">
+                    <SelectValue>
+                      {(v: string | null) => roleTriggerLabel(v, assignableRoles, editData.role)}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {roleSelectOptions(
@@ -1023,7 +1446,7 @@ export default function AdminUsersPage() {
                     setEditData({ ...editData, institution_id: value === '__none__' ? '' : value })
                   }
                 >
-                  <SelectTrigger id="edit_institution" className="h-10">
+                  <SelectTrigger id="edit_institution" className="h-10 w-full">
                     <SelectValue>
                       {(v: string | null) =>
                         !v || v === '__none__' ? 'No institution' : institutionLabel(v)
@@ -1049,8 +1472,12 @@ export default function AdminUsersPage() {
                   value={editData.account_status || 'active'}
                   onValueChange={(value: any) => setEditData({ ...editData, account_status: value })}
                 >
-                  <SelectTrigger id="edit_status" className="h-10">
-                    <SelectValue />
+                  <SelectTrigger id="edit_status" className="h-10 w-full">
+                    <SelectValue>
+                      {(v: string | null) =>
+                        v ? v.charAt(0).toUpperCase() + v.slice(1) : 'Active'
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="active">Active</SelectItem>
@@ -1085,6 +1512,28 @@ export default function AdminUsersPage() {
                 </div>
               </div>
 
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_headline" className="text-xs font-medium">
+                  Headline
+                </Label>
+                <Input
+                  id="edit_headline"
+                  className="h-10"
+                  value={editData.headline}
+                  onChange={(e) => setEditData({ ...editData, headline: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit_website" className="text-xs font-medium">
+                  Website
+                </Label>
+                <Input
+                  id="edit_website"
+                  className="h-10"
+                  value={editData.website}
+                  onChange={(e) => setEditData({ ...editData, website: e.target.value })}
+                />
+              </div>
               <div className="space-y-1.5">
                 <Label htmlFor="edit_bio" className="text-xs font-medium">
                   Bio

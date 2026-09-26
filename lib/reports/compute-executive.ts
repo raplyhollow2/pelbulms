@@ -25,6 +25,7 @@ import {
   courseRosterHref,
   institutionCatalogHref,
 } from '@/lib/reports/action-links'
+import { computeLearnerDemographics } from '@/lib/reports/demographics'
 
 type Db = SupabaseClient<any>
 
@@ -97,6 +98,7 @@ export async function buildReportSnapshot(
     opsBlocks,
     platformBlocks,
     systemBlocks,
+    demographics,
   ] = await Promise.all([
     computeApprovalsReports(db, {
       institutionIds: opts.institutionIds?.length ? opts.institutionIds : null,
@@ -106,6 +108,9 @@ export async function buildReportSnapshot(
       ? computePlatformCommandReports(db)
       : Promise.resolve([]),
     opts.audience === 'superadmin' ? computeSystemPulseReports(db) : Promise.resolve([]),
+    opts.audience === 'superadmin'
+      ? computeLearnerDemographics(db, { mode: 'platform' })
+      : Promise.resolve(null),
   ])
 
   const sections: ReportSectionPayload[] = [
@@ -135,6 +140,7 @@ export async function buildReportSnapshot(
       description: REPORT_SECTIONS['system-pulse'].description,
       blocks: systemBlocks,
     })
+    if (demographics) sections.push(demographics.section)
   }
 
   const [
@@ -477,6 +483,7 @@ export async function buildReportSnapshot(
       ],
       rows: misfitBlock?.rows || [],
     },
+    ...(demographics?.tables || []),
   ]
 
   const base: Omit<ReportSnapshot, 'hash'> = {
@@ -495,6 +502,7 @@ export async function buildReportSnapshot(
     actions,
     tables,
     sections,
+    breakdowns: demographics?.breakdowns,
   }
 
   return { ...base, hash: hashSnapshot(base) }
@@ -531,6 +539,10 @@ export function snapshotForAiPrompt(snapshot: ReportSnapshot) {
     actions: snapshot.actions.map((a) => ({
       title: a.title,
       reason: a.reason,
+    })),
+    learnerProfile: snapshot.breakdowns?.map((b) => ({
+      title: b.title,
+      steps: b.steps,
     })),
     frictionMap: snapshot.frictionMap
       ? {

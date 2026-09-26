@@ -24,6 +24,9 @@ export async function createDraftCourse(
       level: 'beginner',
       language: opts.language || opts.outline.language || 'English',
       duration_minutes: opts.outline.durationMinutes || null,
+      learning_objectives: opts.outline.learningObjectives?.length
+        ? opts.outline.learningObjectives
+        : null,
       is_published: false,
       is_featured: false,
       enrollment_mode: 'approval',
