@@ -19,7 +19,7 @@ import { OutlineCanvas } from '@/components/teach/outline-canvas'
 import { createClient } from '@/lib/supabase/client'
 import { ModelPicker } from '@/components/ai/model-picker'
 import { StructureProposal } from '@/components/ai/structure-proposal'
-import { applyProposalToOutline, type CourseStructureProposal } from '@/lib/ai/course-structure'
+import { applyProposalToOutline, type CourseStructureProposal } from '@/lib/ai/course-structure-outline'
 import type { ModelFamily } from '@/lib/ai/models'
 
 const CHIPS = [

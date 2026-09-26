@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Loader2, Sparkles } from 'lucide-react'
 import { ModelPicker } from '@/components/ai/model-picker'
 import { StructureProposal } from '@/components/ai/structure-proposal'
-import type { CourseStructureProposal } from '@/lib/ai/course-structure'
+import type { CourseStructureProposal } from '@/lib/ai/course-structure-outline'
 import type { ModelFamily } from '@/lib/ai/models'
 import { cn } from '@/lib/utils'
 

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import type { CourseStructureProposal } from '@/lib/ai/course-structure'
+import type { CourseStructureProposal } from '@/lib/ai/course-structure-outline'
 import { cn } from '@/lib/utils'
 
 export function StructureProposal({
