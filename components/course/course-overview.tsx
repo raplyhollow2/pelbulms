@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -18,15 +19,36 @@ export type InstructorInfo = {
   avatar_url?: string | null
   bio?: string | null
   social_links?: unknown
+  staffRole?: string
 }
 
 interface CourseOverviewProps {
   course: Course
   instructor?: InstructorInfo | null
+  instructors?: InstructorInfo[]
   moduleDescription?: string | null
 }
 
-export function CourseOverview({ course, instructor, moduleDescription }: CourseOverviewProps) {
+function staffRoleLabel(role?: string) {
+  if (!role || role === 'owner') return 'Lead'
+  return role.replace(/_/g, ' ')
+}
+
+function initialsFor(name: string) {
+  return name
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+}
+
+export function CourseOverview({
+  course,
+  instructor,
+  instructors,
+  moduleDescription,
+}: CourseOverviewProps) {
   const [expanded, setExpanded] = useState(false)
 
   const whatYouLearn = Array.isArray((course as any).learning_objectives)
@@ -52,15 +74,10 @@ export function CourseOverview({ course, instructor, moduleDescription }: Course
     })
   }
 
-  const instructorName = instructor?.full_name?.trim() || 'Instructor'
-  const initials = instructorName
-    .split(/\s+/)
-    .map((p) => p[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-  const instructorLinkedIn = linkedinFromProfile(instructor)
-  const avatarUrl = resolveMediaUrl(instructor?.avatar_url)
+  const people: InstructorInfo[] =
+    instructors && instructors.length > 0
+      ? instructors
+      : [instructor || { full_name: 'Instructor' }]
 
   return (
     <div className="space-y-6">
@@ -214,36 +231,75 @@ export function CourseOverview({ course, instructor, moduleDescription }: Course
 
       <Card className="glass">
         <CardHeader>
-          <CardTitle>Instructor</CardTitle>
+          <CardTitle>{people.length > 1 ? 'Instructors' : 'Instructor'}</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-start gap-4">
-            {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={avatarUrl}
-                alt={instructorName}
-                className="w-16 h-16 rounded-full object-cover"
-              />
-            ) : (
-              <div className="w-16 h-16 rounded-full bg-bhutan-yellow flex items-center justify-center text-black font-bold text-xl">
-                {initials || 'IN'}
-              </div>
-            )}
-            <div className="flex-1">
-              <h3 className="font-semibold text-lg">{instructorName}</h3>
-              {instructor?.bio ? (
-                <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{instructor.bio}</p>
-              ) : (
-                <p className="text-sm text-muted-foreground mt-1">Course instructor</p>
-              )}
-              {instructorLinkedIn && (
-                <div className="mt-2">
-                  <LinkedInProfileLink url={instructorLinkedIn} />
+        <CardContent className="space-y-6">
+          {people.map((person, index) => {
+            const instructorName = person.full_name?.trim() || 'Instructor'
+            const instructorLinkedIn = linkedinFromProfile(person)
+            const avatarUrl = resolveMediaUrl(person.avatar_url)
+            const profileHref = person.id ? `/instructors/${person.id}` : null
+            return (
+              <div key={person.id || index} className="flex items-start gap-4">
+                {profileHref ? (
+                  <Link
+                    href={profileHref}
+                    className="w-16 h-16 shrink-0 overflow-hidden rounded-full"
+                  >
+                    {avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={avatarUrl}
+                        alt={instructorName}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-bhutan-yellow text-xl font-bold text-black">
+                        {initialsFor(instructorName) || 'IN'}
+                      </div>
+                    )}
+                  </Link>
+                ) : avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={avatarUrl}
+                    alt={instructorName}
+                    className="h-16 w-16 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-bhutan-yellow text-xl font-bold text-black">
+                    {initialsFor(instructorName) || 'IN'}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {profileHref ? (
+                      <Link href={profileHref} className="font-semibold text-lg hover:text-bhutan-orange">
+                        {instructorName}
+                      </Link>
+                    ) : (
+                      <h3 className="font-semibold text-lg">{instructorName}</h3>
+                    )}
+                    {people.length > 1 && person.staffRole && (
+                      <Badge variant={person.staffRole === 'owner' ? 'secondary' : 'outline'} className="text-[10px] capitalize">
+                        {staffRoleLabel(person.staffRole)}
+                      </Badge>
+                    )}
+                  </div>
+                  {person.bio ? (
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{person.bio}</p>
+                  ) : (
+                    <p className="mt-1 text-sm text-muted-foreground">Course instructor</p>
+                  )}
+                  {instructorLinkedIn && (
+                    <div className="mt-2">
+                      <LinkedInProfileLink url={instructorLinkedIn} />
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
+            )
+          })}
         </CardContent>
       </Card>
     </div>

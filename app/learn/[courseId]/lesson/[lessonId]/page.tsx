@@ -14,6 +14,7 @@ import { CurriculumRail } from '@/components/learning/curriculum-rail'
 import { LessonPlayerHeader } from '@/components/learning/lesson-player-header'
 import { LessonNextBar } from '@/components/learning/lesson-next-bar'
 import { CourseLearningTabs } from '@/components/course/course-learning-tabs'
+import { loadCourseFacilitators, type CourseFacilitator } from '@/lib/course-facilitators'
 import { LessonBlocks } from '@/components/course/lesson-blocks'
 import { LessonContentStage } from '@/components/learning/lesson-content-stage'
 import { CourseCompletionDialog } from '@/components/learning/course-completion-dialog'
@@ -52,13 +53,7 @@ export default function LessonViewPage() {
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null)
   const [allLessons, setAllLessons] = useState<Lesson[]>([])
   const [allModules, setAllModules] = useState<Module[]>([])
-  const [instructor, setInstructor] = useState<{
-    id?: string
-    full_name?: string | null
-    avatar_url?: string | null
-    bio?: string | null
-    social_links?: unknown
-  } | null>(null)
+  const [instructors, setInstructors] = useState<CourseFacilitator[]>([])
   const [currentLessonIndex, setCurrentLessonIndex] = useState(0)
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
@@ -298,14 +293,8 @@ export default function LessonViewPage() {
 
       const instructorId = (courseData as any)?.instructor_id as string | undefined
       const moduleList = (modulesData || []) as Module[]
-      const [instructorResult, courseLessonsResult, questionsResult] = await Promise.all([
-        instructorId
-          ? supabase
-              .from('profiles')
-              .select('id, full_name, avatar_url, bio, social_links')
-              .eq('id', instructorId)
-              .maybeSingle()
-          : Promise.resolve({ data: null }),
+      const [facilitators, courseLessonsResult, questionsResult] = await Promise.all([
+        loadCourseFacilitators(supabase, courseId, instructorId).catch(() => [] as CourseFacilitator[]),
         moduleList.length > 0
           ? supabase
               .from('lessons')
@@ -324,7 +313,7 @@ export default function LessonViewPage() {
       ])
 
       if (courseData) setCourse(courseData)
-      if (instructorResult.data) setInstructor(instructorResult.data as any)
+      setInstructors(facilitators)
 
       const courseLessons = (courseLessonsResult.data || []) as Lesson[]
       if (moduleList.length > 0) {
@@ -1496,7 +1485,8 @@ export default function LessonViewPage() {
                 currentLessonId={lessonId}
                 currentLesson={lesson}
                 currentModule={module}
-                instructor={instructor}
+                instructor={instructors[0] || null}
+                instructors={instructors}
                 videoRef={videoRef}
                 userId={currentUser?.id}
                 completedLessons={completedLessonIds}

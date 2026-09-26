@@ -35,6 +35,7 @@ interface CourseLearningTabsProps {
   currentLesson?: Lesson | null
   currentModule?: Module | null
   instructor?: InstructorInfo | null
+  instructors?: InstructorInfo[]
   videoRef: React.RefObject<HTMLVideoElement>
   userId?: string
   completedLessons: Set<string>
@@ -69,6 +70,7 @@ export function CourseLearningTabs({
   currentLesson,
   currentModule,
   instructor,
+  instructors,
   videoRef,
   userId,
   completedLessons: _completedLessons,
@@ -151,6 +153,7 @@ export function CourseLearningTabs({
         <CourseOverview
           course={course}
           instructor={instructor}
+          instructors={instructors}
           moduleDescription={currentModule?.description}
         />
       </TabsContent>

@@ -22,6 +22,7 @@ import {
 import { canAccessTeaching } from '@/lib/roles'
 import { LinkedInProfileLink } from '@/components/profile/linkedin-profile-link'
 import { linkedinFromProfile } from '@/lib/social-links'
+import { loadCourseFacilitators } from '@/lib/course-facilitators'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -166,37 +167,9 @@ export default function CourseDetailPage() {
       }
 
       try {
-        const { data: staffRows } = await (supabase as any)
-          .from('course_instructors')
-          .select('user_id, role')
-          .eq('course_id', courseId)
-
         const ownerId = (courseData as any).instructor_id as string | null
-        const staffList = (staffRows || []) as Array<{ user_id: string; role: string }>
-        const ids = new Set<string>()
-        if (ownerId) ids.add(ownerId)
-        for (const row of staffList) ids.add(row.user_id)
-
-        if (ids.size > 0) {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, full_name, avatar_url, bio, social_links')
-            .in('id', Array.from(ids))
-
-          const roleByUser = new Map(staffList.map((r) => [r.user_id, r.role]))
-          const ordered = (profiles || [])
-            .map((p: any) => ({
-              ...p,
-              staffRole:
-                p.id === ownerId
-                  ? 'owner'
-                  : roleByUser.get(p.id) || 'co_teacher',
-            }))
-            .sort((a: any, b: any) => {
-              if (a.staffRole === 'owner') return -1
-              if (b.staffRole === 'owner') return 1
-              return (a.full_name || '').localeCompare(b.full_name || '')
-            })
+        const ordered = await loadCourseFacilitators(supabase, courseId, ownerId)
+        if (ordered.length > 0) {
           setFacilitators(ordered)
         } else {
           setFacilitators(
