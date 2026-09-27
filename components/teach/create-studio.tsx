@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,10 +16,9 @@ import { cn } from '@/lib/utils'
 import { slugify, type CourseOutline, type CourseSize } from '@/lib/ai-course-builder'
 import { OutlineCanvas } from '@/components/teach/outline-canvas'
 import { createClient } from '@/lib/supabase/client'
-import { ModelPicker } from '@/components/ai/model-picker'
+import { AssignedProviderNote } from '@/components/ai/assigned-provider'
 import { StructureProposal } from '@/components/ai/structure-proposal'
 import { applyProposalToOutline, type CourseStructureProposal } from '@/lib/ai/course-structure-outline'
-import type { ModelFamily } from '@/lib/ai/models'
 
 const CHIPS = [
   'AI for teachers in Bhutanese classrooms',
@@ -42,7 +40,6 @@ export function CreateStudio() {
   const [loading, setLoading] = useState(false)
   const [phase, setPhase] = useState<'compose' | 'outline' | 'building'>('compose')
   const [outline, setOutline] = useState<CourseOutline | null>(null)
-  const [structureFamily, setStructureFamily] = useState<ModelFamily>('chatgpt')
   const [structureProposal, setStructureProposal] = useState<CourseStructureProposal | null>(null)
   const [structureModel, setStructureModel] = useState<string>()
   const [totals, setTotals] = useState<any>(null)
@@ -58,16 +55,10 @@ export function CreateStudio() {
   useEffect(() => {
     const saved = localStorage.getItem('pelbu:create-language')
     if (saved) setLanguage(saved)
-    void fetch('/api/ai/keys')
-      .then((r) => r.json())
-      .then((d) => setKeyReady(Boolean(d.gemini?.configured)))
-      .catch(() => setKeyReady(false))
     void fetch('/api/ai/models')
       .then((r) => r.json())
-      .then((d) => {
-        if (d.defaults?.['course-structure']) setStructureFamily(d.defaults['course-structure'])
-      })
-      .catch(() => undefined)
+      .then((d) => setKeyReady(Boolean(d.configured?.['course-generate'])))
+      .catch(() => setKeyReady(false))
   }, [])
 
   const extractFile = async (file: File) => {
@@ -184,7 +175,6 @@ export function CreateStudio() {
           action: 'propose',
           instruction,
           outline,
-          family: structureFamily,
         }),
       })
       const data = await res.json()
@@ -260,27 +250,24 @@ export function CreateStudio() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-zinc-950 via-zinc-900 to-background text-white">
+    <div className="min-h-[calc(100vh-4rem)] bg-background text-foreground">
       <div className="mx-auto max-w-4xl px-4 py-10 sm:py-16">
         {phase === 'compose' && (
           <>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-bhutan-yellow">Pelbu Coursebox</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Pelbu Coursebox</p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-5xl">Create your course</h1>
-            <p className="mt-2 text-sm text-zinc-300 sm:text-base">
-              One prompt. Gemini drafts the structure, pages, quizzes, and scenarios.
+            <p className="mt-2 text-sm text-muted-foreground sm:text-base">
+              One prompt. The school AI drafts the structure, pages, quizzes, and scenarios.
             </p>
 
             {keyReady === false && (
               <div className="mt-6 rounded-xl border border-bhutan-yellow/40 bg-bhutan-yellow/10 p-4 text-sm">
-                Add a Gemini API key before generating.{' '}
-                <Link href="/settings#ai" className="font-semibold text-bhutan-yellow underline">
-                  Settings → AI
-                </Link>
+                Course generation is not configured yet. A superadmin needs to enable an AI provider under Admin → AI.
               </div>
             )}
 
             <div
-              className="mt-8 rounded-2xl border border-white/10 bg-zinc-900/80 p-3 shadow-2xl"
+              className="mt-8 rounded-2xl border border-border bg-card p-3 shadow-sm"
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault()
@@ -293,7 +280,7 @@ export function CreateStudio() {
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="What will you create?"
                 rows={5}
-                className="min-h-32 border-0 bg-transparent text-base text-white placeholder:text-zinc-500"
+                className="min-h-32 border-0 bg-transparent text-base shadow-none"
               />
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <select
@@ -302,13 +289,13 @@ export function CreateStudio() {
                     setLanguage(e.target.value)
                     localStorage.setItem('pelbu:create-language', e.target.value)
                   }}
-                  className="min-h-11 rounded-full border border-white/15 bg-zinc-800 px-3 text-sm"
+                  className="min-h-11 rounded-full border border-border bg-background px-3 text-sm"
                 >
                   {LANGS.map((l) => (
                     <option key={l}>{l}</option>
                   ))}
                 </select>
-                <div className="flex rounded-full border border-white/15 p-0.5">
+                <div className="flex rounded-full border border-border p-0.5">
                   {(['compact', 'standard', 'full'] as CourseSize[]).map((s) => (
                     <button
                       key={s}
@@ -316,7 +303,7 @@ export function CreateStudio() {
                       onClick={() => setSize(s)}
                       className={cn(
                         'min-h-11 rounded-full px-3 text-xs capitalize',
-                        size === s ? 'bg-bhutan-yellow text-black' : 'text-zinc-300'
+                        size === s ? 'bg-bhutan-yellow text-black' : 'text-muted-foreground'
                       )}
                     >
                       {s}
@@ -324,7 +311,7 @@ export function CreateStudio() {
                   ))}
                 </div>
                 <DropdownMenu>
-                  <DropdownMenuTrigger className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-white/15">
+                  <DropdownMenuTrigger className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-border">
                     <Paperclip className="h-4 w-4" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
@@ -376,7 +363,7 @@ export function CreateStudio() {
                     value={attachValue}
                     onChange={(e) => setAttachValue(e.target.value)}
                     placeholder="Paste a YouTube or web URL"
-                    className="min-h-11 min-w-0 flex-1 border-white/15 bg-zinc-800 text-white"
+                    className="min-h-11 min-w-0 flex-1"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault()
@@ -402,7 +389,6 @@ export function CreateStudio() {
                     onChange={(e) => setAttachValue(e.target.value)}
                     placeholder="Paste source text"
                     rows={4}
-                    className="border-white/15 bg-zinc-800 text-white"
                   />
                   <Button
                     type="button"
@@ -420,8 +406,8 @@ export function CreateStudio() {
                   </Button>
                 </div>
               )}
-              {sourceLabel && <p className="mt-2 px-2 text-xs text-zinc-400">Source: {sourceLabel}</p>}
-              <p className="mt-1 px-2 text-xs text-zinc-500">{prompt.length} characters</p>
+              {sourceLabel && <p className="mt-2 px-2 text-xs text-muted-foreground">Source: {sourceLabel}</p>}
+              <p className="mt-1 px-2 text-xs text-muted-foreground">{prompt.length} characters</p>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
@@ -429,17 +415,17 @@ export function CreateStudio() {
                 <button
                   key={chip}
                   type="button"
-                  className="min-h-11 rounded-full border border-white/15 px-3 text-xs text-zinc-200 hover:bg-white/10"
+                  className="min-h-11 rounded-full border border-border px-3 text-xs text-foreground hover:bg-muted"
                   onClick={() => setPrompt(chip)}
                 >
                   {chip}
                 </button>
               ))}
             </div>
-            <p className="mt-6 text-sm text-zinc-400">
+            <p className="mt-6 text-sm text-muted-foreground">
               <button
                 type="button"
-                className="text-bhutan-yellow underline disabled:opacity-60"
+                className="text-foreground underline disabled:opacity-60"
                 disabled={startingBlank}
                 onClick={() => void startBlank()}
               >
@@ -451,13 +437,9 @@ export function CreateStudio() {
 
         {phase === 'outline' && outline && (
           <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs uppercase tracking-wide text-zinc-400">Structure model</p>
-              <ModelPicker tone="dark" value={structureFamily} onChange={setStructureFamily} disabled={loading} />
-            </div>
+            <AssignedProviderNote feature="course-structure" />
             {structureProposal ? (
               <StructureProposal
-                tone="dark"
                 proposal={structureProposal}
                 model={structureModel}
                 applying={loading}
@@ -482,16 +464,16 @@ export function CreateStudio() {
         )}
 
         {phase === 'building' && (
-          <div className="rounded-2xl border border-white/10 bg-zinc-900 p-6">
+          <div className="rounded-2xl border border-border bg-card p-6">
             <h2 className="flex items-center gap-2 text-xl font-semibold">
-              <Sparkles className="h-5 w-5 text-bhutan-yellow" /> Designing your course
+              <Sparkles className="h-5 w-5 text-bhutan-orange" /> Designing your course
             </h2>
-            <ul className="mt-4 space-y-2 text-sm text-zinc-300">
+            <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
               {progress.map((line) => (
                 <li key={line}>{line}</li>
               ))}
             </ul>
-            {loading && <Loader2 className="mt-6 h-6 w-6 animate-spin text-bhutan-yellow" />}
+            {loading && <Loader2 className="mt-6 h-6 w-6 animate-spin text-foreground" />}
             {failedModule !== null && draftCourseId && !loading && (
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button
@@ -509,7 +491,7 @@ export function CreateStudio() {
           </div>
         )}
 
-        {error && <p className="mt-4 text-sm text-red-300">{error}</p>}
+        {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
       </div>
     </div>
   )

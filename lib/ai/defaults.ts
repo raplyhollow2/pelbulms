@@ -1,33 +1,34 @@
 import { tryCreateServiceClient } from '@/lib/supabase/server'
 import {
-  DEFAULT_AI_MODEL_DEFAULTS,
-  parseAiModelDefaults,
-  type AiModelDefaults,
+  DEFAULT_FEATURE_ROUTES,
+  parseFeatureRoutes,
+  type AiFeatureRoutes,
 } from '@/lib/ai/models'
 
-export async function getAiModelDefaults(): Promise<AiModelDefaults> {
+export async function getFeatureRoutes(): Promise<AiFeatureRoutes> {
   try {
     const service = await tryCreateServiceClient()
-    if (!service) return { ...DEFAULT_AI_MODEL_DEFAULTS }
+    if (!service) return { ...DEFAULT_FEATURE_ROUTES }
     const { data, error } = await (service as any)
       .from('platform_settings')
-      .select('ai_model_defaults')
+      .select('ai_feature_routes')
       .eq('id', 'default')
       .maybeSingle()
-    if (error || !data) return { ...DEFAULT_AI_MODEL_DEFAULTS }
-    return parseAiModelDefaults((data as { ai_model_defaults?: unknown }).ai_model_defaults)
+    if (error || !data) return { ...DEFAULT_FEATURE_ROUTES }
+    return parseFeatureRoutes((data as { ai_feature_routes?: unknown }).ai_feature_routes)
   } catch {
-    return { ...DEFAULT_AI_MODEL_DEFAULTS }
+    return { ...DEFAULT_FEATURE_ROUTES }
   }
 }
 
-export async function saveAiModelDefaults(next: AiModelDefaults): Promise<void> {
+export async function saveFeatureRoutes(next: AiFeatureRoutes): Promise<AiFeatureRoutes> {
   const service = await tryCreateServiceClient()
   if (!service) throw new Error('Database is not configured.')
-  const parsed = parseAiModelDefaults(next)
+  const parsed = parseFeatureRoutes(next)
   const { error } = await (service as any)
     .from('platform_settings')
-    .update({ ai_model_defaults: parsed, updated_at: new Date().toISOString() })
+    .update({ ai_feature_routes: parsed, updated_at: new Date().toISOString() })
     .eq('id', 'default')
   if (error) throw new Error(error.message)
+  return parsed
 }

@@ -4,19 +4,16 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Download, FileSpreadsheet, FileText, Loader2 } from 'lucide-react'
 import type { ReportRange, SnapshotAudience } from '@/lib/reports/types'
-import type { ModelFamily } from '@/lib/ai/models'
 import { toast } from 'sonner'
 
 export function ExportPackBar({
   range,
   includeAiBrief = true,
   audience,
-  family,
 }: {
   range: ReportRange
   includeAiBrief?: boolean
   audience?: SnapshotAudience
-  family?: ModelFamily
 }) {
   const [busy, setBusy] = useState<string | null>(null)
 
@@ -31,7 +28,6 @@ export function ExportPackBar({
           range,
           includeAiBrief: includeAiBrief && audience !== 'student',
           audience,
-          family,
         }),
       })
       if (!res.ok) {

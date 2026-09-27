@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkRBAC } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
 import { courseIdByLesson, userCanManageCourse } from '@/lib/course-access'
-import { geminiJson, geminiText } from '@/lib/gemini'
+import { runJsonText, runText } from '@/lib/ai/dispatch'
 import { parseLessonBlocks, newBlockId, sanitizeHtml, type LessonBlock } from '@/lib/lesson-blocks'
 
 const TEACHER_ROLES = ['instructor', 'admin', 'resource_person', 'superadmin'] as const
@@ -40,15 +40,16 @@ export async function POST(request: NextRequest) {
 
     try {
       if (lessonId && (lower.includes('add a quiz') || lower.includes('add quiz') || lower.includes('short quiz'))) {
-        const generated = await geminiJson<{
+        const generated = await runJsonText<{
           title?: string
           questions: Array<{ question: string; options: string[]; correctIndex: number; explanation?: string }>
-        }>(
-          `Write a 4-question multiple-choice quiz for lesson “${(lesson as any)?.title}”.
+        }>({
+          feature: 'course-edit',
+          userId: rbac.userId,
+          prompt: `Write a 4-question multiple-choice quiz for lesson “${(lesson as any)?.title}”.
 Context: ${String((lesson as any)?.description || '').slice(0, 2000)}
 JSON: { "title": string, "questions": [{ "question": string, "options": [string, string, string, string], "correctIndex": 0, "explanation": string }] }`,
-          { userId: rbac.userId }
-        )
+        })
         const { data: quizRow } = await service
           .from('quizzes')
           .insert({
@@ -87,8 +88,10 @@ JSON: { "title": string, "questions": [{ "question": string, "options": [string,
         }
       }
 
-      const updated = await geminiJson<{ blocks?: LessonBlock[]; html?: string; reply: string }>(
-        `You edit an online lesson in Pelbu LMS.
+      const updated = await runJsonText<{ blocks?: LessonBlock[]; html?: string; reply: string }>({
+        feature: 'course-edit',
+        userId: rbac.userId,
+        prompt: `You edit an online lesson in Pelbu LMS.
 Course: ${(course as any)?.title}
 Lesson: ${(lesson as any)?.title}
 Current blocks JSON: ${JSON.stringify(blocks).slice(0, 12000)}
@@ -101,8 +104,7 @@ Return JSON:
 }
 Keep existing quiz/assignment/scenario blocks (same ids and types) unless asked to remove them.
 For text blocks use HTML. Give every block an id.`,
-        { userId: rbac.userId }
-      )
+      })
       let nextBlocks = Array.isArray(updated.blocks) ? updated.blocks : blocks
       nextBlocks = nextBlocks.map((b: any) => ({
         ...b,
@@ -115,19 +117,22 @@ For text blocks use HTML. Give every block an id.`,
         .eq('id', lessonId)
       return NextResponse.json({ success: true, reply: updated.reply, blocks: nextBlocks })
     } catch (e: any) {
-      return NextResponse.json({ error: e?.message || 'Edit failed' }, { status: 500 })
+      return NextResponse.json({ error: e?.message || 'Edit failed' }, { status: e?.status || 500 })
     }
   }
 
   try {
-    const reply = await geminiText(
-      `Course “${(course as any)?.title}”: ${(course as any)?.description || ''}
+    const reply = (
+      await runText({
+        feature: 'course-edit',
+        userId: rbac.userId,
+        prompt: `Course “${(course as any)?.title}”: ${(course as any)?.description || ''}
 Teacher asked: ${instruction}
 Give a concise actionable reply. If they asked to rename the course, propose a title.`,
-      { userId: rbac.userId }
-    )
+      })
+    ).text
     return NextResponse.json({ success: true, reply })
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Edit failed' }, { status: 500 })
+    return NextResponse.json({ error: e?.message || 'Edit failed' }, { status: e?.status || 500 })
   }
 }

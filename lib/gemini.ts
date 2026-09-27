@@ -1,5 +1,4 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { resolveAiKey } from '@/lib/ai-keys'
 
 export const GEMINI_TEXT_MODEL = 'gemini-3.6-flash'
 export const GEMINI_IMAGE_MODEL = 'gemini-3.1-flash-image'
@@ -32,19 +31,10 @@ function isMissingModel(err: unknown) {
   return /\[404\]|no longer available|not found|is not found/i.test(msg)
 }
 
-async function withGeminiKey(userId?: string | null) {
-  const key = await resolveAiKey('gemini', userId)
-  if (!key) {
-    throw new Error(
-      'Gemini API key is not configured. Add one in Settings → AI or ask an admin to save a platform key.'
-    )
-  }
+function clientFor(apiKey: string) {
+  const key = apiKey.trim()
+  if (!key) throw new Error('Gemini API key is not configured.')
   return new GoogleGenerativeAI(key)
-}
-
-export async function getGemini(model = GEMINI_TEXT_MODEL, userId?: string | null) {
-  const genAI = await withGeminiKey(userId)
-  return genAI.getGenerativeModel({ model })
 }
 
 async function generateWithFallback(
@@ -84,36 +74,13 @@ function textModelList(preferred?: string) {
   return [first, ...GEMINI_TEXT_FALLBACKS.filter((m) => m !== first)]
 }
 
-export async function geminiJson<T>(
-  prompt: string,
-  opts?: { model?: string; userId?: string | null }
-): Promise<T> {
-  const genAI = await withGeminiKey(opts?.userId)
-  const result = await generateWithFallback(
-    genAI,
-    textModelList(opts?.model),
-    `${prompt}\n\nRespond with valid JSON only. No markdown fences.`
-  )
-  const text = result.response.text().trim().replace(/^```json\s*|\s*```$/g, '')
-  return JSON.parse(text) as T
-}
-
-export async function geminiText(
-  prompt: string,
-  opts?: { model?: string; userId?: string | null }
-): Promise<string> {
-  const genAI = await withGeminiKey(opts?.userId)
-  const result = await generateWithFallback(genAI, textModelList(opts?.model), prompt)
-  return result.response.text()
-}
-
 export async function geminiExtractFromFile(opts: {
-  userId?: string | null
+  apiKey: string
   mimeType: string
   base64: string
   hint?: string
 }): Promise<string> {
-  const genAI = await withGeminiKey(opts.userId)
+  const genAI = clientFor(opts.apiKey)
   const result = await generateWithFallback(genAI, textModelList(), [
     {
       text:
@@ -131,10 +98,10 @@ export async function geminiExtractFromFile(opts: {
 }
 
 export async function geminiImagePng(opts: {
-  userId?: string | null
+  apiKey: string
   prompt: string
 }): Promise<Buffer | null> {
-  const genAI = await withGeminiKey(opts.userId)
+  const genAI = clientFor(opts.apiKey)
   let lastError: unknown
   for (const modelName of GEMINI_IMAGE_FALLBACKS) {
     try {
@@ -168,6 +135,6 @@ export async function geminiImagePng(opts: {
 }
 
 export async function pingGeminiKey(secret: string) {
-  const genAI = new GoogleGenerativeAI(secret)
+  const genAI = clientFor(secret)
   await generateWithFallback(genAI, textModelList(), 'Reply with the single word OK.')
 }

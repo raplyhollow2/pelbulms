@@ -1,18 +1,25 @@
 import { NextResponse } from 'next/server'
 import { getRequestUser } from '@/lib/request-user'
-import { getAiModelDefaults } from '@/lib/ai/defaults'
-import { MODEL_FAMILIES } from '@/lib/ai/models'
-import { isAiGatewayConfigured } from '@/lib/ai/complete'
+import { getFeatureRoutes } from '@/lib/ai/defaults'
+import { isFeatureConfigured } from '@/lib/ai/dispatch'
+import { AI_FEATURES, FEATURE_LABELS, PROVIDER_LABELS } from '@/lib/ai/models'
 
-/** GET /api/ai/models — catalog and platform defaults for signed-in users. */
+/** GET /api/ai/models — assigned providers for signed-in users. No secrets. */
 export async function GET(request: Request) {
   const user = await getRequestUser(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const defaults = await getAiModelDefaults()
+  const routes = await getFeatureRoutes()
+  const configured = Object.fromEntries(
+    await Promise.all(
+      AI_FEATURES.map(async (feature) => [feature, await isFeatureConfigured(feature)] as const)
+    )
+  )
+
   return NextResponse.json({
-    defaults,
-    families: MODEL_FAMILIES,
-    gatewayConfigured: isAiGatewayConfigured(),
+    routes,
+    labels: PROVIDER_LABELS,
+    features: FEATURE_LABELS,
+    configured,
   })
 }

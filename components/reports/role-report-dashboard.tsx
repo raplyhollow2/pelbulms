@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,7 +22,6 @@ import {
   type SnapshotAudience,
 } from '@/lib/reports/types'
 import { LiveUsersPanel } from '@/components/admin/live-users-panel'
-import type { ModelFamily } from '@/lib/ai/models'
 import { cn } from '@/lib/utils'
 import { AlertTriangle, ArrowRight, CheckCircle2 } from 'lucide-react'
 
@@ -63,25 +62,7 @@ export function RoleReportDashboard({
 }) {
   const audience = snapshot.audience
   const showAi = audienceAllowsAiBrief(audience)
-  const [family, setFamily] = useState<ModelFamily>('claude')
-  const familyTouched = useRef(false)
   const [focus, setFocus] = useState<{ label: string; detail?: string } | null>(null)
-
-  useEffect(() => {
-    if (!showAi) return
-    let cancelled = false
-    void fetch('/api/ai/models')
-      .then((res) => res.json())
-      .then((json) => {
-        if (!cancelled && !familyTouched.current && json.defaults?.report) {
-          setFamily(json.defaults.report)
-        }
-      })
-      .catch(() => undefined)
-    return () => {
-      cancelled = true
-    }
-  }, [showAi])
 
   const explain = (label: string, detail?: string) => {
     setFocus({ label, detail })
@@ -137,7 +118,6 @@ export function RoleReportDashboard({
             range={range}
             audience={audience}
             includeAiBrief={showAi}
-            family={family}
           />
           {headerExtra}
         </div>
@@ -312,16 +292,7 @@ export function RoleReportDashboard({
       </Card>
 
       {showAi ? (
-        <AiBriefingPanel
-          range={range}
-          audience={audience}
-          family={family}
-          onFamilyChange={(next) => {
-            familyTouched.current = true
-            setFamily(next)
-          }}
-          focus={focus}
-        />
+        <AiBriefingPanel range={range} audience={audience} focus={focus} />
       ) : null}
 
       {showDeepDive && snapshot.sections.length > 0 && onDeepDiveChange ? (

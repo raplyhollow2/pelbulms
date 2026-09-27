@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
 import { resolveEffectiveRole } from '@/lib/approvals-access'
-import { generateExecutiveBrief, isAiGatewayConfigured } from '@/lib/reports/ai-brief'
-import { parseModelFamily, type ModelFamily } from '@/lib/ai/models'
+import { generateExecutiveBrief } from '@/lib/reports/ai-brief'
 import { resolveSnapshotForUser } from '@/lib/reports/resolve-snapshot'
 import { buildExcelPack } from '@/lib/reports/export/excel'
 import { buildDocxPack } from '@/lib/reports/export/docx'
@@ -58,9 +57,6 @@ export async function POST(request: NextRequest) {
 
     const range = parseRange(body.range)
     const prefer = parsePrefer(body.audience)
-    const family: ModelFamily | undefined = body.family
-      ? parseModelFamily(body.family, 'claude')
-      : undefined
     // Students never get AI briefings even if client requests it
     const includeAiBrief =
       Boolean(body.includeAiBrief) && role !== 'student'
@@ -85,14 +81,13 @@ export async function POST(request: NextRequest) {
       const rows = (cachedRows || []) as { brief: AiBriefPayload; snapshot_hash: string }[]
       const matched = rows.find(
         (row) =>
-          row.snapshot_hash === snapshot.hash &&
-          (!family || row.brief?.family === family)
+          row.snapshot_hash === snapshot.hash
       )
       brief = matched?.brief || null
 
-      if (!brief && isAiGatewayConfigured()) {
+      if (!brief) {
         try {
-          brief = await generateExecutiveBrief(snapshot, { family, userId: user.id })
+          brief = await generateExecutiveBrief(snapshot, { userId: user.id })
           await (service as any).from('report_ai_briefs').insert({
             user_id: user.id,
             role,

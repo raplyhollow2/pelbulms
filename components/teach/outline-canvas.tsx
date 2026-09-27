@@ -65,13 +65,13 @@ export function OutlineCanvas({
   }
 
   return (
-    <div className="space-y-5 text-zinc-100">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button type="button" variant="ghost" className="min-h-11 text-zinc-200" onClick={onBack}>
+        <Button type="button" variant="ghost" className="min-h-11" onClick={onBack}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
-        <p className="text-sm text-zinc-300">
+        <p className="text-sm text-muted-foreground">
           {stats.sections} sections · {stats.pages} pages · {stats.quizzes} quizzes · {stats.assignments}{' '}
           assignments · ~{Math.round((stats.durationMinutes || 0) / 60)}h
         </p>
@@ -96,20 +96,19 @@ export function OutlineCanvas({
         <Input
           value={outline.title}
           onChange={(e) => push({ ...outline, title: e.target.value })}
-          className="h-12 border-white/15 bg-zinc-900 text-xl font-semibold"
+          className="h-12 bg-card text-xl font-semibold"
         />
-        <p className="mt-2 text-sm text-zinc-400">{outline.description}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{outline.description}</p>
       </div>
 
       {onRefine && (
-        <div className="rounded-xl border border-white/10 bg-zinc-900 p-3">
-          <p className="mb-2 text-xs font-semibold uppercase text-zinc-400">Ask Pelbu</p>
+        <div className="rounded-xl border border-border bg-card p-3">
+          <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Ask Pelbu</p>
           <Textarea
             value={refine}
             onChange={(e) => setRefine(e.target.value)}
             placeholder="Make it smaller / fewer quizzes / more scenarios…"
             rows={2}
-            className="border-white/10 bg-zinc-800"
           />
           <Button
             type="button"
@@ -126,14 +125,13 @@ export function OutlineCanvas({
       )}
 
       {onRestructure && (
-        <div className="rounded-xl border border-white/10 bg-zinc-900 p-3">
-          <p className="mb-2 text-xs font-semibold uppercase text-zinc-400">Restructure</p>
+        <div className="rounded-xl border border-border bg-card p-3">
+          <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Restructure</p>
           <Textarea
             value={restructure}
             onChange={(e) => setRestructure(e.target.value)}
             placeholder="Quiz too late, split a module, add outcomes…"
             rows={2}
-            className="border-white/10 bg-zinc-800"
           />
           <Button
             type="button"
@@ -151,12 +149,12 @@ export function OutlineCanvas({
 
       <div className="space-y-3">
         {outline.modules.map((mod, i) => (
-          <div key={`${mod.title}-${i}`} className="rounded-xl border border-white/10 bg-zinc-900 p-4">
+          <div key={`${mod.title}-${i}`} className="rounded-xl border border-border bg-card p-4">
             <div className="flex items-center gap-2">
               <Input
                 value={mod.title}
                 onChange={(e) => updateModule(i, e.target.value)}
-                className="min-h-11 border-white/10 bg-zinc-800"
+                className="min-h-11 bg-background"
               />
               <Button type="button" variant="ghost" className="min-h-11" onClick={() => moveModule(i, -1)}>
                 <ArrowUp className="h-4 w-4" />
@@ -170,7 +168,7 @@ export function OutlineCanvas({
             </div>
             <button
               type="button"
-              className="mt-2 text-xs text-bhutan-yellow"
+              className="mt-2 text-xs text-foreground underline-offset-2 hover:underline"
               onClick={() => setOpen(open === i ? null : i)}
             >
               {open === i ? 'Hide pages' : 'Show pages'}
@@ -178,7 +176,7 @@ export function OutlineCanvas({
             {open === i && (
               <div className="mt-3 space-y-2">
                 {mod.lessons.map((les, j) => (
-                  <div key={`${les.title}-${j}`} className="rounded-lg bg-zinc-800/80 p-3">
+                  <div key={`${les.title}-${j}`} className="rounded-lg bg-muted p-3">
                     <p className="text-sm font-medium">{les.title}</p>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {(les.blocks || []).map((b) => (
@@ -190,7 +188,7 @@ export function OutlineCanvas({
                       {les.hasAssignment && <Badge>Assignment</Badge>}
                       {les.hasScenario && <Badge>Scenario</Badge>}
                       {les.hasFlashcards && <Badge>Flashcards</Badge>}
-                      <span className="text-xs text-zinc-400">
+                      <span className="text-xs text-muted-foreground">
                         {(les.blocks?.length || 0) +
                           Number(!!les.hasQuiz) +
                           Number(!!les.hasAssignment) +

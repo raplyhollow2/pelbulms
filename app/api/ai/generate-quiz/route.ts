@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkRBAC } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
 import { authorizeLessonManage } from '@/lib/authoring'
-import { geminiJson } from '@/lib/gemini'
+import { runJsonText } from '@/lib/ai/dispatch'
 
 const TEACHER_ROLES = ['instructor', 'admin', 'resource_person', 'superadmin'] as const
 
@@ -41,8 +41,10 @@ export async function POST(request: NextRequest) {
     .maybeSingle()
 
   try {
-    const generated = await geminiJson<GeneratedQuiz>(
-      `Write a short multiple-choice knowledge check for Pelbu LMS (Bhutan).
+    const generated = await runJsonText<GeneratedQuiz>({
+      feature: 'quiz',
+      userId: rbac.userId,
+      prompt: `Write a short multiple-choice knowledge check for Pelbu LMS (Bhutan).
 Lesson title: ${(lesson as any)?.title || ''}
 Lesson notes: ${String((lesson as any)?.description || (lesson as any)?.content || '').slice(0, 4000)}
 Extra topic: ${topic || 'the lesson content'}
@@ -55,13 +57,12 @@ JSON:
   ]
 }
 Create 4 questions. One correct option per question.`,
-      { userId: rbac.userId }
-    )
+    })
     return NextResponse.json({ quiz: generated })
   } catch (e: any) {
     return NextResponse.json(
-      { error: e?.message || 'Gemini generation failed. Set GEMINI_API_KEY.' },
-      { status: 500 }
+      { error: e?.message || 'Quiz generation failed. A superadmin needs to configure AI.' },
+      { status: e?.status || 500 }
     )
   }
 }

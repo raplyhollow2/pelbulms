@@ -7,8 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Textarea } from '@/components/ui/textarea'
 import { Loader2, Sparkles } from 'lucide-react'
 import type { AiBriefPayload, ReportRange, SnapshotAudience } from '@/lib/reports/types'
-import { ModelPicker } from '@/components/ai/model-picker'
-import { MODEL_FAMILIES, type ModelFamily } from '@/lib/ai/models'
+import { PROVIDER_LABELS, type LlmProvider } from '@/lib/ai/models'
 import ReactMarkdown from 'react-markdown'
 import { toast } from 'sonner'
 
@@ -24,42 +23,32 @@ type FollowUp = {
 export function AiBriefingPanel({
   range,
   audience,
-  family,
-  onFamilyChange,
   focus,
 }: {
   range: ReportRange
   audience?: SnapshotAudience
-  family?: ModelFamily
-  onFamilyChange?: (family: ModelFamily) => void
   focus?: Focus
 }) {
   const [brief, setBrief] = useState<AiBriefPayload | null>(null)
   const [loading, setLoading] = useState(false)
   const [asking, setAsking] = useState(false)
-  const [gatewayOk, setGatewayOk] = useState<boolean | null>(null)
+  const [configured, setConfigured] = useState<boolean | null>(null)
+  const [providerLabel, setProviderLabel] = useState<string | null>(null)
   const [createdAt, setCreatedAt] = useState<string | null>(null)
   const [snapshotHash, setSnapshotHash] = useState<string | null>(null)
   const [allowed, setAllowed] = useState(true)
-  const [ownFamily, setOwnFamily] = useState<ModelFamily>(family || 'claude')
   const [question, setQuestion] = useState('')
   const [thread, setThread] = useState<FollowUp[]>([])
 
-  const selected = family || ownFamily
-  const setSelected = (next: ModelFamily) => {
-    setOwnFamily(next)
-    onFamilyChange?.(next)
-  }
-
-  const loadCached = async (nextFamily: ModelFamily) => {
+  const loadCached = async () => {
     try {
-      const res = await fetch(`/api/reports/ai-brief?range=${range}&family=${nextFamily}`)
+      const res = await fetch(`/api/reports/ai-brief?range=${range}`)
       const json = await res.json()
       if (res.ok) {
         setBrief(json.brief)
         setCreatedAt(json.createdAt)
         setSnapshotHash(json.snapshotHash || null)
-        setGatewayOk(json.gatewayConfigured)
+        setConfigured(json.configured)
         if (json.allowed === false) setAllowed(false)
       }
     } catch {
@@ -73,27 +62,23 @@ export function AiBriefingPanel({
       return
     }
     let cancelled = false
-    ;(async () => {
-      if (!family) {
-        try {
-          const res = await fetch('/api/ai/models')
-          const json = await res.json()
-          if (!cancelled && json.defaults?.report) setOwnFamily(json.defaults.report)
-        } catch {
-          /* keep claude */
-        }
-      }
-    })()
+    void fetch('/api/ai/models')
+      .then((res) => res.json())
+      .then((json) => {
+        const provider = json.routes?.report as LlmProvider | undefined
+        if (!cancelled && provider) setProviderLabel(PROVIDER_LABELS[provider] || null)
+      })
+      .catch(() => undefined)
     return () => {
       cancelled = true
     }
-  }, [audience, family])
+  }, [audience])
 
   useEffect(() => {
     if (audience === 'student') return
     setThread([])
-    void loadCached(selected)
-  }, [range, audience, selected])
+    void loadCached()
+  }, [range, audience])
 
   useEffect(() => {
     if (!focus?.label) return
@@ -106,7 +91,7 @@ export function AiBriefingPanel({
       const res = await fetch('/api/reports/ai-brief', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ range, force, audience, family: selected }),
+        body: JSON.stringify({ range, force, audience }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Briefing failed')
@@ -133,7 +118,6 @@ export function AiBriefingPanel({
         body: JSON.stringify({
           range,
           audience,
-          family: selected,
           question: text,
           snapshotHash,
           focus,
@@ -161,7 +145,8 @@ export function AiBriefingPanel({
 
   if (audience === 'student' || !allowed) return null
 
-  const modelLabel = brief?.model || MODEL_FAMILIES[selected].label
+  const modelLabel =
+    (brief?.family && PROVIDER_LABELS[brief.family as LlmProvider]) || providerLabel || brief?.model || 'School AI'
 
   return (
     <Card id="report-interpreter" className="glass-strong scroll-mt-24 border-bhutan-orange/30">
@@ -177,7 +162,6 @@ export function AiBriefingPanel({
           </CardDescription>
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
-          <ModelPicker value={selected} onChange={setSelected} disabled={loading || asking} />
           <div className="flex gap-2">
             <Button size="sm" variant="outline" disabled={loading} onClick={() => generate(false)}>
               {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
@@ -196,10 +180,9 @@ export function AiBriefingPanel({
             {focus.detail ? ` · ${focus.detail}` : ''}
           </p>
         ) : null}
-        {gatewayOk === false ? (
+        {configured === false ? (
           <p className="text-sm text-amber-700 dark:text-amber-400">
-            AI Gateway is not configured. Set <code className="text-xs">AI_GATEWAY_API_KEY</code> to
-            enable report readings.
+            Report reading is not configured. A superadmin can assign a provider under Admin → AI.
           </p>
         ) : null}
 

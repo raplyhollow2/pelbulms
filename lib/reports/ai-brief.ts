@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import { complete } from '@/lib/ai/complete'
-import { isAiGatewayConfigured } from '@/lib/ai/complete'
-import type { ModelFamily } from '@/lib/ai/models'
+import type { LlmProvider } from '@/lib/ai/models'
 import type {
   AiBriefNarrativeBlock,
   AiBriefPayload,
@@ -11,8 +10,6 @@ import type {
 } from '@/lib/reports/types'
 import { audienceAllowsAiBrief } from '@/lib/reports/types'
 import { snapshotForAiPrompt } from '@/lib/reports/compute-executive'
-
-export { isAiGatewayConfigured }
 
 export const aiBriefSchema = z.object({
   headline: z.string(),
@@ -152,7 +149,7 @@ function absentNote(snapshot: ReportSnapshot): string {
 
 export async function generateExecutiveBrief(
   snapshot: ReportSnapshot,
-  opts?: { family?: ModelFamily; userId?: string | null }
+  opts?: { userId?: string | null }
 ): Promise<AiBriefPayload> {
   if (!audienceAllowsAiBrief(snapshot.audience)) {
     const err = new Error('AI decision briefings are not available for student accounts.')
@@ -164,7 +161,6 @@ export async function generateExecutiveBrief(
   const tableKeys = narrativeTableKeys(snapshot)
   const result = await complete({
     task: 'report',
-    family: opts?.family,
     userId: opts?.userId,
     audience: snapshot.audience,
     schema: aiBriefSchema,
@@ -190,7 +186,7 @@ ${JSON.stringify(safe)}`,
     narrative,
     generatedAt: new Date().toISOString(),
     model: result.model,
-    family: result.family,
+    family: result.provider,
   }
 }
 
@@ -198,9 +194,8 @@ export async function interpretReportQuestion(opts: {
   snapshot: ReportSnapshot
   question: string
   focus?: { label?: string; detail?: string } | null
-  family?: ModelFamily
   userId?: string | null
-}): Promise<{ answer: string; citedFigures: { figure: string; value: string }[]; model: string; family: ModelFamily }> {
+}): Promise<{ answer: string; citedFigures: { figure: string; value: string }[]; model: string; provider: LlmProvider }> {
   if (!audienceAllowsAiBrief(opts.snapshot.audience)) {
     const err = new Error('AI decision briefings are not available for student accounts.')
     ;(err as { status?: number }).status = 403
@@ -213,7 +208,6 @@ export async function interpretReportQuestion(opts: {
     : 'No single chart is selected.'
   const result = await complete({
     task: 'report-followup',
-    family: opts.family,
     userId: opts.userId,
     audience: opts.snapshot.audience,
     schema: interpretSchema,
@@ -241,6 +235,6 @@ ${JSON.stringify(safe)}`,
     answer: result.object.answer,
     citedFigures,
     model: result.model,
-    family: result.family,
+    provider: result.provider,
   }
 }

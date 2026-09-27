@@ -1,14 +1,21 @@
 import { createServiceClient } from '@/lib/supabase/server'
 
-export type AiProvider = 'gemini' | 'heygen' | 'did' | 'tavus'
-export type AvatarProvider = 'heygen' | 'did' | 'tavus'
+export type AiProvider = 'gemini' | 'claude' | 'chatgpt' | 'copilot'
+export type LanguageProvider = AiProvider
 
-export const AVATAR_PROVIDERS: AvatarProvider[] = ['heygen', 'did', 'tavus']
+export const LANGUAGE_PROVIDERS: LanguageProvider[] = ['claude', 'gemini', 'chatgpt', 'copilot']
+
+export function isLanguageProvider(provider: string): provider is LanguageProvider {
+  return (LANGUAGE_PROVIDERS as string[]).includes(provider)
+}
 
 export type AiKeyMeta = {
-  avatarId?: string
-  replicaId?: string
-  sourceUrl?: string
+  model?: string
+  endpoint?: string
+  deployment?: string
+  imageDeployment?: string
+  hourlyCap?: number | null
+  enabled?: boolean
 }
 
 export function last4Of(secret: string) {
@@ -18,10 +25,22 @@ export function last4Of(secret: string) {
 
 function envFor(provider: AiProvider): string | null {
   if (provider === 'gemini') return process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || null
-  if (provider === 'heygen') return process.env.HEYGEN_API_KEY || null
-  if (provider === 'did') return process.env.DID_API_KEY || process.env.D_ID_API_KEY || null
-  if (provider === 'tavus') return process.env.TAVUS_API_KEY || null
+  if (provider === 'claude') return process.env.ANTHROPIC_API_KEY || null
+  if (provider === 'chatgpt') return process.env.OPENAI_API_KEY || null
+  if (provider === 'copilot') return process.env.AZURE_OPENAI_API_KEY || null
   return null
+}
+
+function envMeta(provider: AiProvider): AiKeyMeta {
+  if (provider === 'copilot') {
+    return {
+      endpoint: process.env.AZURE_OPENAI_ENDPOINT || undefined,
+      deployment: process.env.AZURE_OPENAI_DEPLOYMENT || undefined,
+      imageDeployment: process.env.AZURE_OPENAI_IMAGE_DEPLOYMENT || undefined,
+      model: process.env.AZURE_OPENAI_DEPLOYMENT || undefined,
+    }
+  }
+  return {}
 }
 
 export async function resolveAiKey(
@@ -34,22 +53,9 @@ export async function resolveAiKey(
 
 export async function resolveAiKeyRecord(
   provider: AiProvider,
-  userId?: string | null
-): Promise<{ secret: string; meta: AiKeyMeta; source: 'user' | 'platform' | 'env' } | null> {
+  _userId?: string | null
+): Promise<{ secret: string; meta: AiKeyMeta; source: 'platform' | 'env' } | null> {
   const service = await createServiceClient()
-
-  if (userId) {
-    const { data: own } = await (service as any)
-      .from('ai_provider_keys')
-      .select('secret, meta')
-      .eq('provider', provider)
-      .eq('user_id', userId)
-      .eq('is_platform', false)
-      .maybeSingle()
-    if (own?.secret) {
-      return { secret: String(own.secret), meta: (own.meta || {}) as AiKeyMeta, source: 'user' }
-    }
-  }
 
   const { data: platform } = await (service as any)
     .from('ai_provider_keys')
@@ -58,9 +64,10 @@ export async function resolveAiKeyRecord(
     .eq('is_platform', true)
     .maybeSingle()
   if (platform?.secret) {
+    const meta = { ...envMeta(provider), ...((platform.meta || {}) as AiKeyMeta) }
     return {
       secret: String(platform.secret),
-      meta: (platform.meta || {}) as AiKeyMeta,
+      meta,
       source: 'platform',
     }
   }
@@ -69,73 +76,45 @@ export async function resolveAiKeyRecord(
   if (!env) return null
   return {
     secret: env,
-    meta: {
-      avatarId: process.env.HEYGEN_AVATAR_ID || undefined,
-      replicaId: process.env.TAVUS_REPLICA_ID || undefined,
-      sourceUrl: process.env.DID_SOURCE_URL || undefined,
-    },
+    meta: envMeta(provider),
     source: 'env',
   }
 }
 
-export async function resolveAvatarVendor(
-  userId?: string | null,
-  preferred?: AvatarProvider | null
-): Promise<{ provider: AvatarProvider; secret: string; meta: AiKeyMeta; source: string } | null> {
-  const order: AvatarProvider[] = preferred
-    ? [preferred, ...AVATAR_PROVIDERS.filter((p) => p !== preferred)]
-    : AVATAR_PROVIDERS
-  for (const provider of order) {
-    const row = await resolveAiKeyRecord(provider, userId)
-    if (row?.secret) {
-      return { provider, secret: row.secret, meta: row.meta, source: row.source }
-    }
-  }
-  return null
-}
-
-function publicLast4(own: string | undefined, platform: string | undefined, envSet: boolean, isSuperadmin: boolean) {
-  if (own) return own
+function publicLast4(platform: string | undefined, envSet: boolean, isSuperadmin: boolean) {
   if (platform) return isSuperadmin ? platform : '****'
   if (envSet) return 'env'
   return null
 }
 
-export async function getAiKeyStatus(userId: string, isSuperadmin: boolean) {
+export async function getAiKeyStatus(_userId: string, isSuperadmin: boolean) {
   const service = await createServiceClient()
-  const { data: ownRows } = await (service as any)
-    .from('ai_provider_keys')
-    .select('provider, last4, is_platform, meta')
-    .eq('user_id', userId)
-    .eq('is_platform', false)
-
   const { data: platformRows } = await (service as any)
     .from('ai_provider_keys')
     .select('provider, last4, is_platform, meta')
     .eq('is_platform', true)
 
-  const own = Object.fromEntries((ownRows || []).map((r: any) => [r.provider, r]))
   const platform = Object.fromEntries((platformRows || []).map((r: any) => [r.provider, r]))
 
   const pack = (provider: AiProvider) => {
     const envSet = Boolean(envFor(provider))
-    const ownRow = own[provider]
     const platRow = platform[provider]
-    const configured = Boolean(ownRow?.last4 || platRow?.last4 || envSet)
+    const configured = Boolean(platRow?.last4 || envSet)
+    const meta = { ...envMeta(provider), ...((platRow?.meta || {}) as AiKeyMeta) }
     return {
       configured,
-      last4: publicLast4(ownRow?.last4, platRow?.last4, envSet, isSuperadmin),
-      source: ownRow?.last4 ? 'user' : platRow?.last4 ? 'platform' : envSet ? 'env' : null,
-      meta: (ownRow?.meta || platRow?.meta || {}) as AiKeyMeta,
+      last4: publicLast4(platRow?.last4, envSet, isSuperadmin),
+      source: platRow?.last4 ? 'platform' : envSet ? 'env' : null,
+      meta,
+      enabled: meta.enabled !== false && configured,
     }
   }
 
   return {
+    claude: pack('claude'),
     gemini: pack('gemini'),
-    heygen: pack('heygen'),
-    did: pack('did'),
-    tavus: pack('tavus'),
-    avatarConfigured: Boolean(pack('heygen').configured || pack('did').configured || pack('tavus').configured),
+    chatgpt: pack('chatgpt'),
+    copilot: pack('copilot'),
   }
 }
 
@@ -171,6 +150,7 @@ export async function upsertAiKey(opts: {
         .update(payload)
         .eq('id', existing.id)
       if (error) throw error
+      await purgeNonPlatformAiKeys()
       return last4
     }
   } else {
@@ -193,26 +173,8 @@ export async function upsertAiKey(opts: {
 
   const { error } = await (service as any).from('ai_provider_keys').insert(payload)
   if (error) throw error
+  if (opts.isPlatform) await purgeNonPlatformAiKeys()
   return last4
-}
-
-export async function updateAiKeyMeta(opts: {
-  provider: AiProvider
-  userId: string | null
-  isPlatform: boolean
-  meta: AiKeyMeta
-}) {
-  const service = await createServiceClient()
-  let q = (service as any).from('ai_provider_keys').update({
-    meta: opts.meta,
-    updated_at: new Date().toISOString(),
-  }).eq('provider', opts.provider)
-  if (opts.isPlatform) q = q.eq('is_platform', true)
-  else q = q.eq('user_id', opts.userId).eq('is_platform', false)
-  const { data, error } = await q.select('last4').maybeSingle()
-  if (error) throw error
-  if (!data) throw new Error('Save an API key first, then you can update Avatar / Replica IDs.')
-  return data.last4 as string
 }
 
 export async function deleteAiKey(opts: {
@@ -226,42 +188,12 @@ export async function deleteAiKey(opts: {
   else q = q.eq('user_id', opts.userId).eq('is_platform', false)
   const { error } = await q
   if (error) throw error
+  if (opts.isPlatform) await purgeNonPlatformAiKeys()
 }
 
-export async function validateVendorKey(provider: AiProvider, secret: string) {
-  if (provider === 'gemini') {
-    const { pingGeminiKey } = await import('@/lib/gemini')
-    await pingGeminiKey(secret)
-    return
-  }
-  if (provider === 'heygen') {
-    const res = await fetch('https://api.heygen.com/v2/avatars', {
-      headers: { 'X-Api-Key': secret, Accept: 'application/json' },
-    })
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      throw new Error(data.message || data.error || 'HeyGen rejected this API key')
-    }
-    return
-  }
-  if (provider === 'did') {
-    const auth = Buffer.from(`${secret}:`).toString('base64')
-    const res = await fetch('https://api.d-id.com/credits', {
-      headers: { Authorization: `Basic ${auth}` },
-    })
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      throw new Error(data.message || data.kind || 'D-ID rejected this API key')
-    }
-    return
-  }
-  if (provider === 'tavus') {
-    const res = await fetch('https://tavusapi.com/v2/replicas?limit=1', {
-      headers: { 'x-api-key': secret },
-    })
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      throw new Error(data.message || 'Tavus rejected this API key')
-    }
-  }
+/** Personal keys are no longer used. Remove leftovers so they cannot stay stranded. */
+export async function purgeNonPlatformAiKeys() {
+  const service = await createServiceClient()
+  const { error } = await (service as any).from('ai_provider_keys').delete().eq('is_platform', false)
+  if (error) throw error
 }

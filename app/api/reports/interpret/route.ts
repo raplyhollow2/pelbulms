@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { resolveEffectiveRole } from '@/lib/approvals-access'
-import { interpretReportQuestion, isAiGatewayConfigured } from '@/lib/reports/ai-brief'
+import { interpretReportQuestion } from '@/lib/reports/ai-brief'
 import { resolveSnapshotForUser } from '@/lib/reports/resolve-snapshot'
 import { audienceAllowsAiBrief } from '@/lib/reports/types'
 import type { ReportRange, SnapshotAudience } from '@/lib/reports/types'
 import { getRequestUser } from '@/lib/request-user'
-import { parseModelFamily } from '@/lib/ai/models'
 
 const rateBuckets = new Map<string, { count: number; resetAt: number }>()
 
@@ -66,16 +65,6 @@ export async function POST(request: NextRequest) {
         { status: 403 }
       )
     }
-    if (!isAiGatewayConfigured()) {
-      return NextResponse.json(
-        {
-          error:
-            'AI Gateway is not configured. Set AI_GATEWAY_API_KEY (or deploy with Vercel OIDC) to enable report interpretation.',
-        },
-        { status: 503 }
-      )
-    }
-
     const body = await request.json().catch(() => ({}))
     const question = String(body.question || '').trim()
     if (!question) return NextResponse.json({ error: 'Ask a question about this report.' }, { status: 400 })
@@ -85,7 +74,6 @@ export async function POST(request: NextRequest) {
 
     const range = parseRange(body.range)
     const prefer = parsePrefer(body.audience)
-    const family = body.family ? parseModelFamily(body.family, 'claude') : undefined
     const focus =
       body.focus && typeof body.focus === 'object'
         ? {
@@ -120,7 +108,6 @@ export async function POST(request: NextRequest) {
       snapshot,
       question,
       focus,
-      family,
       userId: user.id,
     })
 
@@ -130,12 +117,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[reports/interpret]', error)
-    const status =
-      (error as { status?: number })?.status === 503
-        ? 503
-        : (error as { status?: number })?.status === 403
-          ? 403
-          : 500
+    const status = (error as { status?: number })?.status || 500
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Could not interpret this report' },
       { status }

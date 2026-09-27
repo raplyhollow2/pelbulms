@@ -1,13 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Loader2, Sparkles } from 'lucide-react'
-import { ModelPicker } from '@/components/ai/model-picker'
+import { AssignedProviderNote } from '@/components/ai/assigned-provider'
 import { StructureProposal } from '@/components/ai/structure-proposal'
 import type { CourseStructureProposal } from '@/lib/ai/course-structure-outline'
-import type { ModelFamily } from '@/lib/ai/models'
 import { cn } from '@/lib/utils'
 
 const CHIPS = [
@@ -16,7 +15,6 @@ const CHIPS = [
   'Add a short quiz',
   'Add flip cards',
   'Add an educational image',
-  'Add AI avatar video',
 ]
 
 const STRUCTURE_CHIPS = [
@@ -41,26 +39,9 @@ export function AskPelbuRail({
   const [instruction, setInstruction] = useState('')
   const [log, setLog] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
-  const [family, setFamily] = useState<ModelFamily>('chatgpt')
-  const familyTouched = useRef(false)
   const [proposal, setProposal] = useState<CourseStructureProposal | null>(null)
   const [proposalModel, setProposalModel] = useState<string>()
   const [applying, setApplying] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    void fetch('/api/ai/models')
-      .then((res) => res.json())
-      .then((json) => {
-        if (!cancelled && !familyTouched.current && json.defaults?.['course-structure']) {
-          setFamily(json.defaults['course-structure'])
-        }
-      })
-      .catch(() => undefined)
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   const send = async (preset?: string) => {
     const text = (preset || instruction).trim()
@@ -79,26 +60,6 @@ export function AskPelbuRail({
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Image failed')
         setLog((prev) => [...prev, `You: ${text}`, 'Pelbu: Added an image to this page.'])
-        setInstruction('')
-        onApplied?.(data.blocks)
-        return
-      }
-      if (lower.includes('avatar') || lower.includes('ai video')) {
-        const res = await fetch('/api/ai/avatar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ lessonId, script: '' }),
-        })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Avatar failed')
-        setLog((prev) => [
-          ...prev,
-          `You: ${text}`,
-          `Pelbu: ${data.message || (data.url ? 'Avatar video attached.' : 'Avatar job started.')}`,
-        ])
-        if (data.settingsUrl && !data.configured) {
-          setLog((prev) => [...prev, 'Add a HeyGen, D-ID, or Tavus key in Settings → AI.'])
-        }
         setInstruction('')
         onApplied?.(data.blocks)
         return
@@ -132,7 +93,6 @@ export function AskPelbuRail({
           action: 'propose',
           courseId,
           instruction: text,
-          family,
         }),
       })
       const data = await res.json()
@@ -196,16 +156,7 @@ export function AskPelbuRail({
           ))}
         </div>
       </div>
-      {mode === 'structure' ? (
-        <ModelPicker
-          value={family}
-          onChange={(next) => {
-            familyTouched.current = true
-            setFamily(next)
-          }}
-          disabled={loading}
-        />
-      ) : null}
+      {mode === 'structure' ? <AssignedProviderNote feature="course-structure" /> : null}
       <div className="min-h-32 flex-1 space-y-2 overflow-y-auto rounded-lg border bg-muted/20 p-3 text-xs">
         {log.length === 0 && !proposal && (
           <p className="text-muted-foreground">

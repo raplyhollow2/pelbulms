@@ -442,7 +442,6 @@ export function CourseStudio({ courseId }: { courseId: string }) {
       <BlockPicker
         open={pickerOpen}
         onOpenChange={setPickerOpen}
-        lessonId={lessonId || undefined}
         onPick={(block) => void saveBlocks([...blocks, block])}
       />
 

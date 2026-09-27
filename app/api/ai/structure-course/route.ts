@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkRBAC } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
 import { userCanManageCourse } from '@/lib/course-access'
-import { parseModelFamily } from '@/lib/ai/models'
-import { isAiGatewayConfigured } from '@/lib/ai/complete'
 import {
   applyCourseStructure,
   courseStructureSchema,
@@ -102,16 +100,6 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  if (!isAiGatewayConfigured()) {
-    return NextResponse.json(
-      {
-        error:
-          'AI Gateway is not configured. Set AI_GATEWAY_API_KEY (or deploy with Vercel OIDC) to restructure courses.',
-      },
-      { status: 503 }
-    )
-  }
-
   const instruction = String(body.instruction || '').trim()
   if (!instruction) return NextResponse.json({ error: 'Describe how to restructure the course.' }, { status: 400 })
 
@@ -122,11 +110,9 @@ export async function POST(request: NextRequest) {
     if (!outline.modules.length && !outline.title) {
       return NextResponse.json({ error: 'There is no course structure to reshape yet.' }, { status: 400 })
     }
-    const family = body.family ? parseModelFamily(body.family, 'chatgpt') : undefined
     const result = await proposeCourseStructure({
       instruction,
       outline,
-      family,
       userId: rbac.userId,
     })
     return NextResponse.json(result)

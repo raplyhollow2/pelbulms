@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
 import { resolveEffectiveRole } from '@/lib/approvals-access'
-import { generateExecutiveBrief, isAiGatewayConfigured } from '@/lib/reports/ai-brief'
-import { parseModelFamily, type ModelFamily } from '@/lib/ai/models'
+import { generateExecutiveBrief } from '@/lib/reports/ai-brief'
+import { isFeatureConfigured } from '@/lib/ai/dispatch'
 import type { AiBriefPayload } from '@/lib/reports/types'
 import { resolveSnapshotForUser } from '@/lib/reports/resolve-snapshot'
 import { audienceAllowsAiBrief } from '@/lib/reports/types'
@@ -45,7 +45,7 @@ const AI_ROLES = new Set(['admin', 'superadmin', 'instructor', 'resource_person'
 
 async function findCachedBrief(
   service: { from: (table: string) => any },
-  opts: { userId: string; range: string; hash?: string; family?: ModelFamily }
+  opts: { userId: string; range: string; hash?: string }
 ) {
   const { data } = await service
     .from('report_ai_briefs')
@@ -60,8 +60,7 @@ async function findCachedBrief(
     created_at: string
     snapshot_hash: string
   }[]).filter((row) => !opts.hash || row.snapshot_hash === opts.hash)
-  if (!opts.family) return rows[0] || null
-  return rows.find((row) => row.brief?.family === opts.family) || null
+  return rows[0] || null
 }
 
 /** POST /api/reports/ai-brief */
@@ -99,21 +98,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!isAiGatewayConfigured()) {
-      return NextResponse.json(
-        {
-          error:
-            'AI Gateway is not configured. Set AI_GATEWAY_API_KEY (or deploy with Vercel OIDC) to enable Claude briefings.',
-        },
-        { status: 503 }
-      )
-    }
-
     const body = await request.json().catch(() => ({}))
     const range = parseRange(body.range)
     const force = Boolean(body.force)
     const prefer = parsePrefer(body.audience)
-    const family: ModelFamily | undefined = body.family ? parseModelFamily(body.family, 'claude') : undefined
 
     const snapshot = await resolveSnapshotForUser(service as any, {
       userId: user.id,
@@ -135,7 +123,6 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         range,
         hash: snapshot.hash,
-        family,
       })
 
       if (cached?.brief) {
@@ -148,7 +135,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const brief = await generateExecutiveBrief(snapshot, { family, userId: user.id })
+    const brief = await generateExecutiveBrief(snapshot, { userId: user.id })
 
     await (service as any).from('report_ai_briefs').insert({
       user_id: user.id,
@@ -166,7 +153,7 @@ export async function POST(request: NextRequest) {
     })
   } catch (error: any) {
     console.error('[reports/ai-brief]', error)
-    const status = error?.status === 503 ? 503 : error?.status === 403 ? 403 : 500
+    const status = typeof error?.status === 'number' ? error.status : 500
     return NextResponse.json(
       { error: error?.message || 'Failed to generate briefing' },
       { status }
@@ -194,25 +181,22 @@ export async function GET(request: NextRequest) {
     if (!AI_ROLES.has(role)) {
       return NextResponse.json({
         brief: null,
-        gatewayConfigured: isAiGatewayConfigured(),
+        configured: await isFeatureConfigured('report'),
         allowed: false,
       })
     }
 
     const range = parseRange(request.nextUrl.searchParams.get('range'))
-    const familyParam = request.nextUrl.searchParams.get('family')
-    const family = familyParam ? parseModelFamily(familyParam, 'claude') : undefined
     const cached = await findCachedBrief(service, {
       userId: user.id,
       range,
-      family,
     })
 
     return NextResponse.json({
       brief: cached?.brief || null,
       createdAt: cached?.created_at || null,
       snapshotHash: cached?.snapshot_hash || null,
-      gatewayConfigured: isAiGatewayConfigured(),
+      configured: await isFeatureConfigured('report'),
       allowed: true,
     })
   } catch (error: any) {

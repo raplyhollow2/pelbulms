@@ -3,7 +3,7 @@ import {
   courseStructureSchema,
   type CourseStructureProposal,
 } from '@/lib/ai/course-structure-outline'
-import type { ModelFamily } from '@/lib/ai/models'
+import type { LlmProvider } from '@/lib/ai/models'
 
 export { applyProposalToOutline, courseStructureSchema, type CourseStructureProposal } from '@/lib/ai/course-structure-outline'
 
@@ -23,12 +23,10 @@ export async function proposeCourseStructure(opts: {
     learningObjectives?: string[]
     modules: { title: string; description?: string; lessons: { title: string; description?: string }[] }[]
   }
-  family?: ModelFamily
   userId?: string | null
-}): Promise<{ proposal: CourseStructureProposal; model: string; family: ModelFamily }> {
+}): Promise<{ proposal: CourseStructureProposal; model: string; provider: LlmProvider }> {
   const result = await complete({
     task: 'course-structure',
-    family: opts.family,
     userId: opts.userId,
     audience: 'instructor',
     schema: courseStructureSchema,
@@ -44,7 +42,7 @@ Set hasQuiz only as a placement hint. Do not rewrite lesson text.`,
 Current structure JSON:
 ${JSON.stringify(opts.outline)}`,
   })
-  return { proposal: result.object, model: result.model, family: result.family }
+  return { proposal: result.object, model: result.model, provider: result.provider }
 }
 
 export async function applyCourseStructure(

@@ -1,90 +1,99 @@
-/**
- * Model ids are taken from the installed AI Gateway catalog
- * (`GatewayModelId` in @ai-sdk/gateway). Each family tries its first id,
- * then the next id in the same family.
- */
-export const MODEL_FAMILIES = {
-  claude: {
-    id: 'claude',
-    label: 'Claude',
-    blurb: 'Long judgment and report reading',
-    models: ['anthropic/claude-sonnet-5', 'anthropic/claude-sonnet-4.6'],
-  },
-  chatgpt: {
-    id: 'chatgpt',
-    label: 'ChatGPT',
-    blurb: 'Structured plans and course outlines',
-    models: ['openai/gpt-5.5', 'openai/gpt-5.4'],
-  },
-  gemini: {
-    id: 'gemini',
-    label: 'Gemini',
-    blurb: 'Fast drafts',
-    models: ['google/gemini-3.8-flash', 'google/gemini-3.6-flash'],
-  },
-} as const
+/** School-wide language models. Users do not pick among these. */
 
-export type ModelFamily = keyof typeof MODEL_FAMILIES
+export const LLM_PROVIDERS = ['claude', 'gemini', 'chatgpt', 'copilot'] as const
 
-export const MODEL_FAMILY_IDS = Object.keys(MODEL_FAMILIES) as ModelFamily[]
+export type LlmProvider = (typeof LLM_PROVIDERS)[number]
 
-export type AiTask = 'report' | 'report-followup' | 'course-structure'
+/** Stored on report briefs. Same ids as the four providers. */
+export type ModelFamily = LlmProvider
 
-export const TASK_DEFAULTS: Record<AiTask, ModelFamily> = {
+export const AI_FEATURES = [
+  'tutor',
+  'quiz',
+  'course-generate',
+  'course-edit',
+  'extract',
+  'image',
+  'course-structure',
+  'report',
+  'report-followup',
+] as const
+
+export type AiFeature = (typeof AI_FEATURES)[number]
+
+export type AiFeatureRoutes = Record<AiFeature, LlmProvider>
+
+export const PROVIDER_LABELS: Record<LlmProvider, string> = {
+  claude: 'Claude',
+  gemini: 'Gemini',
+  chatgpt: 'ChatGPT',
+  copilot: 'Microsoft Copilot',
+}
+
+export const FEATURE_LABELS: Record<AiFeature, string> = {
+  tutor: 'Course tutor',
+  quiz: 'Quiz generation',
+  'course-generate': 'Course generation',
+  'course-edit': 'Lesson editing',
+  extract: 'Source extract',
+  image: 'Image generation',
+  'course-structure': 'Course structure',
+  report: 'Report reading',
+  'report-followup': 'Report follow-up',
+}
+
+/** Curated text models. Copilot uses the school's Azure deployment name instead. */
+export const PROVIDER_MODELS: Record<Exclude<LlmProvider, 'copilot'>, readonly string[]> = {
+  claude: ['claude-sonnet-5', 'claude-sonnet-4.6'],
+  chatgpt: ['gpt-5.5', 'gpt-5.4'],
+  gemini: ['gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-3.1-flash-lite', 'gemini-flash-latest'],
+}
+
+export const CHATGPT_IMAGE_MODEL = 'gpt-image-2'
+
+export const DEFAULT_FEATURE_ROUTES: AiFeatureRoutes = {
+  tutor: 'gemini',
+  quiz: 'gemini',
+  'course-generate': 'gemini',
+  'course-edit': 'gemini',
+  extract: 'gemini',
+  image: 'gemini',
+  'course-structure': 'chatgpt',
   report: 'claude',
   'report-followup': 'claude',
-  'course-structure': 'chatgpt',
 }
 
-export type AiModelDefaults = {
-  report: ModelFamily
-  'course-structure': ModelFamily
+export function isLlmProvider(value: unknown): value is LlmProvider {
+  return value === 'claude' || value === 'gemini' || value === 'chatgpt' || value === 'copilot'
 }
 
-export const DEFAULT_AI_MODEL_DEFAULTS: AiModelDefaults = {
-  report: TASK_DEFAULTS.report,
-  'course-structure': TASK_DEFAULTS['course-structure'],
+export function providersForFeature(feature: AiFeature): LlmProvider[] {
+  if (feature === 'image') return ['gemini', 'chatgpt', 'copilot']
+  return [...LLM_PROVIDERS]
 }
 
-export function isModelFamily(value: unknown): value is ModelFamily {
-  return value === 'claude' || value === 'chatgpt' || value === 'gemini'
-}
-
-export function parseModelFamily(value: unknown, fallback: ModelFamily): ModelFamily {
-  return isModelFamily(value) ? value : fallback
-}
-
-export function familyOfModel(model: string): ModelFamily {
-  if (model.startsWith('openai/')) return 'chatgpt'
-  if (model.startsWith('google/')) return 'gemini'
-  return 'claude'
-}
-
-export function modelsForFamily(family: ModelFamily): readonly string[] {
-  return MODEL_FAMILIES[family].models
-}
-
-export function modelChain(task: AiTask, family: ModelFamily): string[] {
-  const primary = [...modelsForFamily(family)]
-  const fallback = TASK_DEFAULTS[task]
-  if (fallback === family) return primary
-  return [...primary, ...modelsForFamily(fallback)]
-}
-
-export function parseAiModelDefaults(raw: unknown): AiModelDefaults {
+export function parseFeatureRoutes(raw: unknown): AiFeatureRoutes {
   const row = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
-  return {
-    report: parseModelFamily(row.report, DEFAULT_AI_MODEL_DEFAULTS.report),
-    'course-structure': parseModelFamily(
-      row['course-structure'],
-      DEFAULT_AI_MODEL_DEFAULTS['course-structure']
-    ),
+  const next = { ...DEFAULT_FEATURE_ROUTES }
+  for (const feature of AI_FEATURES) {
+    const value = row[feature]
+    if (!isLlmProvider(value)) continue
+    if (feature === 'image' && value === 'claude') continue
+    next[feature] = value
   }
+  return next
 }
 
-export function defaultFamilyForTask(task: AiTask, defaults?: AiModelDefaults | null): ModelFamily {
-  if (task === 'course-structure') {
-    return defaults?.['course-structure'] || TASK_DEFAULTS['course-structure']
+export function modelChain(provider: LlmProvider, selected?: string | null): string[] {
+  if (provider === 'copilot') {
+    const deployment = selected?.trim()
+    return deployment ? [deployment] : []
   }
-  return defaults?.report || TASK_DEFAULTS.report
+  const catalog = [...PROVIDER_MODELS[provider]]
+  const first = selected?.trim()
+  if (first && catalog.includes(first)) {
+    return [first, ...catalog.filter((id) => id !== first)]
+  }
+  if (first) return [first, ...catalog.filter((id) => id !== first)]
+  return catalog
 }

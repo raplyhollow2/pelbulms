@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkRBAC } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
 import { userCanManageCourse } from '@/lib/course-access'
-import { geminiJson } from '@/lib/gemini'
+import { runJsonText } from '@/lib/ai/dispatch'
 import {
   outlineTotals,
   sizeInstructions,
@@ -34,8 +34,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Describe the course or attach source text' }, { status: 400 })
     }
     try {
-      const outline = await geminiJson<CourseOutline>(
-        `You are a senior instructional designer for Pelbu LMS (Bhutan).
+      const outline = await runJsonText<CourseOutline>({
+        feature: 'course-generate',
+        userId,
+        prompt: `You are a senior instructional designer for Pelbu LMS (Bhutan).
 Language for ALL titles and descriptions: ${language}.
 ${sizeInstructions(size)}
 Topic / brief: ${prompt || 'From the attached source'}
@@ -66,8 +68,7 @@ Return JSON:
   ]
 }
 blocks may include text, accordion, flipcards, quiz, assignment, scenario, flashcards, youtube.`,
-        { userId }
-      )
+      })
       return NextResponse.json({
         success: true,
         outline,
@@ -75,8 +76,8 @@ blocks may include text, accordion, flipcards, quiz, assignment, scenario, flash
       })
     } catch (e: any) {
       return NextResponse.json(
-        { error: e?.message || 'Gemini could not design the outline' },
-        { status: 500 }
+        { error: e?.message || 'Could not design the outline. A superadmin needs to configure AI.' },
+        { status: e?.status || 500 }
       )
     }
   }
@@ -130,8 +131,10 @@ blocks may include text, accordion, flipcards, quiz, assignment, scenario, flash
     }
 
     try {
-      const packed = await geminiJson<{ lessons: FilledLesson[] }>(
-        `Write complete lesson pages for this module of “${(course as any)?.title}”.
+      const packed = await runJsonText<{ lessons: FilledLesson[] }>({
+        feature: 'course-generate',
+        userId,
+        prompt: `Write complete lesson pages for this module of “${(course as any)?.title}”.
 Course description: ${(course as any)?.description || ''}
 Module: ${(moduleRow as any)?.title} — ${(moduleRow as any)?.description || ''}
 Language: ${language}.
@@ -166,8 +169,7 @@ Return JSON:
   ]
 }
 Match the lesson count and order. Include a quiz for most lessons. Include one scenario in the module. HTML only, no markdown fences.`,
-        { userId }
-      )
+      })
 
       const filledLessons = packed.lessons || []
       let filled = 0
@@ -189,7 +191,7 @@ Match the lesson count and order. Include a quiz for most lessons. Include one s
     } catch (e: any) {
       return NextResponse.json(
         { error: e?.message || 'Gemini could not write this module' },
-        { status: 500 }
+        { status: e?.status || 500 }
       )
     }
   }

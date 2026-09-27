@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
-import { geminiText } from '@/lib/gemini'
+import { runText } from '@/lib/ai/dispatch'
 import { parseLessonBlocks, readCourseAiMetadata } from '@/lib/lesson-blocks'
 import { getRequestUser } from '@/lib/request-user'
 
@@ -77,8 +77,11 @@ export async function POST(request: NextRequest) {
   const extra = tutor?.instructions || 'Answer only from this course. If the question is off-topic, politely redirect.'
 
   try {
-    const answer = await geminiText(
-      `You are ${name}, the AI tutor trained on this Pelbu LMS course.
+    const answer = (
+      await runText({
+        feature: 'tutor',
+        userId: user.id,
+        prompt: `You are ${name}, the AI tutor trained on this Pelbu LMS course.
 ${extra}
 
 Course: ${(course as any)?.title}
@@ -91,13 +94,13 @@ ${lessonTitles}
 ${lessonContext}
 
 Student question: ${question}`,
-      { userId: (course as any)?.instructor_id || user.id }
-    )
+      })
+    ).text
     return NextResponse.json({ answer, tutorName: name })
   } catch (e: any) {
     return NextResponse.json(
-      { error: e?.message || 'Tutor unavailable. Add a Gemini API key in Settings → AI.' },
-      { status: 500 }
+      { error: e?.message || 'Tutor unavailable. A superadmin needs to configure AI.' },
+      { status: e?.status || 500 }
     )
   }
 }

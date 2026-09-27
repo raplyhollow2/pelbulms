@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRBAC } from '@/lib/rbac'
-import { geminiExtractFromFile, geminiText } from '@/lib/gemini'
+import { runExtract, runText } from '@/lib/ai/dispatch'
 
 const TEACHER_ROLES = ['instructor', 'admin', 'resource_person', 'superadmin'] as const
 
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       if (file.type.startsWith('text/') || file.name.endsWith('.txt') || file.name.endsWith('.md')) {
         return NextResponse.json({ text: buf.toString('utf8') })
       }
-      const text = await geminiExtractFromFile({
+      const text = await runExtract({
         userId: rbac.userId,
         mimeType: file.type || 'application/octet-stream',
         base64: buf.toString('base64'),
@@ -36,13 +36,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
     const url = String(body.url || '').trim()
     if (!url) return NextResponse.json({ error: 'url or file is required' }, { status: 400 })
-    const text = await geminiText(
-      `Fetch and summarize this learning source for course generation. If it is a YouTube URL, use the title and any known topic. URL: ${url}
+    const text = (
+      await runText({
+        feature: 'extract',
+        userId: rbac.userId,
+        prompt: `Fetch and summarize this learning source for course generation. If it is a YouTube URL, use the title and any known topic. URL: ${url}
 Return plain text notes (headings + bullets), max 4000 words.`,
-      { userId: rbac.userId }
-    )
+      })
+    ).text
     return NextResponse.json({ text })
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Could not extract source' }, { status: 500 })
+    return NextResponse.json({ error: e?.message || 'Could not extract source' }, { status: e?.status || 500 })
   }
 }

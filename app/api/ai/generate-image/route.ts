@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { checkRBAC } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
 import { courseIdByLesson, userCanManageCourse } from '@/lib/course-access'
-import { geminiImagePng } from '@/lib/gemini'
+import { runImage } from '@/lib/ai/dispatch'
 import { cloudinaryClient, getCloudinaryAccount } from '@/lib/cloudinary'
 import { parseLessonBlocks, newBlockId } from '@/lib/lesson-blocks'
 
@@ -28,13 +28,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const png = await geminiImagePng({ userId: rbac.userId, prompt })
-    if (!png) {
-      return NextResponse.json(
-        { error: 'Gemini did not return an image. Try a more visual prompt.' },
-        { status: 400 }
-      )
-    }
+    const png = await runImage({ userId: rbac.userId, prompt })
     let url: string | null = null
     const account = await getCloudinaryAccount()
     if (account) {
@@ -60,6 +54,6 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ success: true, url })
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Image generation failed' }, { status: 500 })
+    return NextResponse.json({ error: e?.message || 'Image generation failed' }, { status: e?.status || 500 })
   }
 }

@@ -31,7 +31,7 @@ import {
 
 const LAST_USED_KEY = 'pelbu:block-picker-last'
 
-const GROUPS: { label: string; items: { type: LessonBlock['type'] | 'ai-image' | 'ai-avatar'; title: string; icon: any }[] }[] = [
+const GROUPS: { label: string; items: { type: LessonBlock['type'] | 'ai-image'; title: string; icon: any }[] }[] = [
   {
     label: 'Text',
     items: [
@@ -63,7 +63,6 @@ const GROUPS: { label: string; items: { type: LessonBlock['type'] | 'ai-image' |
       { type: 'ai-image', title: 'Generate image', icon: Sparkles },
       { type: 'youtube', title: 'YouTube', icon: Play },
       { type: 'video', title: 'Upload video', icon: Video },
-      { type: 'ai-avatar', title: 'AI avatar video', icon: Video },
     ],
   },
 ]
@@ -102,12 +101,10 @@ export function BlockPicker({
   open,
   onOpenChange,
   onPick,
-  lessonId,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
   onPick: (block: LessonBlock) => void
-  lessonId?: string
 }) {
   const [query, setQuery] = useState('')
   const [lastUsed, setLastUsed] = useState<string[]>([])
@@ -160,35 +157,6 @@ export function BlockPicker({
     }
   }
 
-  const avatarVideo = async () => {
-    const script = window.prompt('Presenter script (leave blank to write from this lesson)')
-    setBusy(true)
-    try {
-      const res = await fetch('/api/ai/avatar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ script: script || '', lessonId, attach: false }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Avatar failed')
-      remember('AI avatar video')
-      if (data.url) {
-        onPick({ id: newBlockId(), type: 'video', url: data.url })
-      } else if (data.settingsUrl) {
-        if (window.confirm(`${data.message}\n\nOpen Settings → AI to paste a key?`)) {
-          window.location.href = data.settingsUrl
-        }
-      } else {
-        window.alert(data.message || 'Avatar job started. Add the video URL when it is ready.')
-      }
-      onOpenChange(false)
-    } catch (e: any) {
-      window.alert(e?.message || 'Could not start avatar video')
-    } finally {
-      setBusy(false)
-    }
-  }
-
   const items = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return GROUPS
@@ -233,7 +201,6 @@ export function BlockPicker({
                     disabled={busy}
                     onClick={() => {
                       if (item.type === 'ai-image') void generateImage()
-                      else if (item.type === 'ai-avatar') void avatarVideo()
                       else pickType(item.type, item.title)
                     }}
                   >
@@ -263,8 +230,7 @@ export function BlockPicker({
                       disabled={busy}
                       onClick={() => {
                         if (item.type === 'ai-image') void generateImage()
-                        else if (item.type === 'ai-avatar') void avatarVideo()
-                        else pickType(item.type as LessonBlock['type'], item.title)
+                        else pickType(item.type, item.title)
                       }}
                     >
                       <Icon className="h-4 w-4" />
