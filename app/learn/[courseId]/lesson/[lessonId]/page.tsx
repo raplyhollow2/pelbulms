@@ -8,14 +8,12 @@ import { ArrowLeft, Loader2, CheckCircle, Award } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 import { QuizPlayer } from '@/components/quiz/quiz-player'
-import { GeminiTutor } from '@/components/ai/gemini-tutor'
 import { ScenarioPlayer } from '@/components/learning/scenario-player'
-import { CurriculumRail } from '@/components/learning/curriculum-rail'
+import { CoursePlayerRail } from '@/components/learning/course-player-rail'
 import { LessonPlayerHeader } from '@/components/learning/lesson-player-header'
 import { LessonNextBar } from '@/components/learning/lesson-next-bar'
 import { CourseLearningTabs } from '@/components/course/course-learning-tabs'
 import { loadCourseFacilitators, type CourseFacilitator } from '@/lib/course-facilitators'
-import { LessonBlocks } from '@/components/course/lesson-blocks'
 import { LessonContentStage } from '@/components/learning/lesson-content-stage'
 import { CourseCompletionDialog } from '@/components/learning/course-completion-dialog'
 import { VIDEO_COMPLETE_PERCENT } from '@/lib/lesson-completion-sync'
@@ -79,6 +77,7 @@ export default function LessonViewPage() {
   const [certificateUrl, setCertificateUrl] = useState<string | null>(null)
   const [issuingCert, setIssuingCert] = useState(false)
   const [focusLearningTab, setFocusLearningTab] = useState<string | null>(null)
+  const [focusActivityId, setFocusActivityId] = useState<string | null>(null)
   const [autoAdvanceNotice, setAutoAdvanceNotice] = useState<string | null>(null)
   const [showCompletionDialog, setShowCompletionDialog] = useState(false)
   const lessonProgressIdRef = useRef<string | null>(null)
@@ -125,6 +124,7 @@ export default function LessonViewPage() {
     setMandatoryCompleted(0)
     setActivityProgressById({})
     setFocusLearningTab(null)
+    setFocusActivityId(null)
     lessonProgressIdRef.current = null
     completingLessonRef.current = false
     clearAutoAdvance()
@@ -144,6 +144,16 @@ export default function LessonViewPage() {
   useEffect(() => {
     fetchLessonData()
   }, [courseId, lessonId])
+
+  useEffect(() => {
+    if (loading || !lesson) return
+    const activityId = activityIdFromHash(window.location.hash)
+    if (!activityId) return
+    setFocusActivityId(activityId)
+    setFocusLearningTab('resources')
+    const timer = window.setTimeout(() => scrollActivityIntoView(activityId), 280)
+    return () => window.clearTimeout(timer)
+  }, [loading, lessonId, lesson])
 
   // If sequential unlock is enabled and this lesson isn't open yet, bounce back (no alert spam)
   useEffect(() => {
@@ -789,6 +799,7 @@ export default function LessonViewPage() {
       })
 
       // Refresh enrollment (the DB trigger recomputes % and completion)
+      const wasBelowComplete = ((enrollment as any)?.progress_percentage ?? 0) < 100
       const { data: updatedEnrollment } = await supabase
         .from('enrollments')
         .select('*')
@@ -798,7 +809,8 @@ export default function LessonViewPage() {
 
       if (updatedEnrollment) {
         setEnrollment(updatedEnrollment)
-        if ((updatedEnrollment as any).progress_percentage >= 100) {
+        const nowComplete = ((updatedEnrollment as any).progress_percentage ?? 0) >= 100
+        if (wasBelowComplete && nowComplete) {
           celebrateCourseCompletion()
         }
       }
@@ -856,6 +868,7 @@ export default function LessonViewPage() {
       (allLessons.length > 0 && completedLessonIds.size >= allLessons.length)
     if (!allDone) return
     celebrateCourseCompletion()
+    // celebrateCourseCompletion reads session storage and refs; listing it would retrigger every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, enrollment?.progress_percentage, completedLessonIds, allLessons.length])
 
@@ -1156,8 +1169,8 @@ export default function LessonViewPage() {
       void (async () => {
         const result = await issueCertificate(Boolean(opts?.force))
         if (!result.url) {
-          // A grading hold is stable until the lesson remounts. Clearing the lock
-          // here lets the completion effect issue the same request on every update.
+          // A grading hold stays until the learner finishes the required work.
+          // Other failures clear the lock so a later completion crossing can retry.
           if (!result.pending) certAutoRequestedRef.current = false
           return
         }
@@ -1269,8 +1282,44 @@ export default function LessonViewPage() {
       )
       return
     }
+    if (targetId === lessonId) {
+      if (window.location.hash.startsWith('#item-')) {
+        window.history.replaceState(
+          null,
+          '',
+          `${window.location.pathname}${window.location.search}`
+        )
+      }
+      setFocusActivityId(null)
+      return
+    }
     router.push(`/learn/${courseId}/lesson/${targetId}`)
   }
+
+  const tryOpenActivity = (targetId: string, activityId: string) => {
+    if (lockedLessonIds.has(targetId)) {
+      alert(
+        'This lesson is locked. Complete the previous lesson (and activities if required) first.'
+      )
+      return
+    }
+    const hash = `item-${encodeURIComponent(activityId)}`
+    if (targetId !== lessonId) {
+      router.push(`/learn/${courseId}/lesson/${targetId}#${hash}`)
+      return
+    }
+    const nextUrl = `${window.location.pathname}${window.location.search}#${hash}`
+    window.history.replaceState(null, '', nextUrl)
+    setFocusActivityId(activityId)
+    setFocusLearningTab('resources')
+    window.setTimeout(() => scrollActivityIntoView(activityId), 280)
+  }
+
+  const completedActivityIds = new Set(
+    Object.entries(activityProgressById)
+      .filter(([, row]) => row.completed)
+      .map(([id]) => id)
+  )
 
   if (loading) {
     return (
@@ -1436,6 +1485,7 @@ export default function LessonViewPage() {
             onMarkDone={(id) => void markActivityDone(id)}
             onSubmitResponse={(id, response) => void submitActivityResponse(id, response)}
             markingActivityId={markingActivityId}
+            highlightActivityId={focusActivityId}
           />
           {completionHold ? (
             <div className="border-b border-amber-600/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-900 dark:text-amber-200">
@@ -1462,23 +1512,10 @@ export default function LessonViewPage() {
             />
           </div>
 
-          {lesson.video_url && parseLessonBlocks(lesson.content).length > 0 && (
-            <div className="px-4 py-3">
-              <Card className="glass">
-                <CardContent className="p-4 sm:p-6">
-                  <LessonBlocks
-                    content={lesson.content}
-                    lessonId={lessonId}
-                    onTakeQuiz={(quizId) => void openQuiz(quizId)}
-                  />
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
           {course && (
             <div id="lesson-learning-tabs" className="border-t px-4 py-4">
               <CourseLearningTabs
+                key={lessonId}
                 course={course}
                 modules={allModules}
                 lessons={allLessons}
@@ -1502,7 +1539,9 @@ export default function LessonViewPage() {
                 onSubmitActivityResponse={(id, response) =>
                   void submitActivityResponse(id, response)
                 }
-                defaultTab="overview"
+                defaultTab={
+                  parseLessonBlocks(lesson.content).length > 0 ? 'resources' : 'overview'
+                }
                 activitiesExtra={activitiesExtra}
                 onLessonClick={(clickedLessonId) => tryOpenLesson(clickedLessonId)}
                 onLessonComplete={(targetLessonId, completed) => {
@@ -1512,6 +1551,7 @@ export default function LessonViewPage() {
                 }}
                 moduleResources={(module as any)?.resources}
                 onTakeQuiz={(quizId) => void openQuiz(quizId)}
+                highlightActivityId={focusActivityId}
               />
             </div>
           )}
@@ -1530,26 +1570,50 @@ export default function LessonViewPage() {
           )}
         </div>
 
-        <CurriculumRail
+        <CoursePlayerRail
+          assistantEnabled={courseAi.tutor?.enabled !== false}
+          courseId={courseId}
+          tutorName={courseAi.tutor?.name || 'Course tutor'}
+          starterPrompts={courseAi.tutor?.starterPrompts}
           lessons={allLessons}
           modules={allModules}
           currentLessonId={lesson.id}
           completedLessonIds={completedLessonIds}
           lockedLessonIds={lockedLessonIds}
           onSelect={tryOpenLesson}
+          onSelectActivity={tryOpenActivity}
+          activeActivityId={focusActivityId}
+          completedActivityIds={completedActivityIds}
           className="border-t lg:h-[calc(100dvh-3.5rem)] lg:w-[380px] lg:shrink-0 lg:border-l lg:border-t-0"
         />
       </div>
-
-      {courseAi.tutor?.enabled !== false && (
-        <GeminiTutor
-          courseId={courseId}
-          lessonId={lessonId}
-          floating
-          name={courseAi.tutor?.name || 'Course tutor'}
-          photoUrl={courseAi.tutor?.photoUrl}
-        />
-      )}
     </div>
   )
+}
+
+function activityIdFromHash(hash: string) {
+  if (!hash.startsWith('#item-')) return null
+  try {
+    return decodeURIComponent(hash.slice('#item-'.length)) || null
+  } catch {
+    return null
+  }
+}
+
+function scrollActivityIntoView(itemKey: string) {
+  let attempts = 0
+  const tick = () => {
+    const escaped =
+      typeof CSS !== 'undefined' && typeof CSS.escape === 'function'
+        ? CSS.escape(itemKey)
+        : itemKey.replace(/"/g, '')
+    const el = document.querySelector(`[data-curriculum-item="${escaped}"]`)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      return
+    }
+    attempts += 1
+    if (attempts < 8) window.setTimeout(tick, 120)
+  }
+  tick()
 }

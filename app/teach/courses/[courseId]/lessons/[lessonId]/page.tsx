@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Loader2, Save, BookOpen, FileText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { LessonOptionsFields } from '@/components/teach/lesson-options-fields'
+import { shouldSyncCourseDuration, syncCourseDuration } from '@/lib/video-duration'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
@@ -140,6 +141,7 @@ export default function LessonEditPage() {
 
       console.log('✅ Database update successful:', data)
       setHasChanges(false)
+      if (shouldSyncCourseDuration(updates)) void syncCourseDuration(courseId)
     } catch (error) {
       console.error('❌ Error updating lesson:', error)
       alert('Failed to update lesson. Please try again.')
@@ -174,6 +176,7 @@ export default function LessonEditPage() {
       if (error) throw error
 
       setHasChanges(false)
+      void syncCourseDuration(courseId)
       alert('Lesson saved successfully!')
     } catch (error) {
       console.error('Error saving lesson:', error)

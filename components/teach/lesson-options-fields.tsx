@@ -10,7 +10,6 @@ import { Clock, FileText, Link, Loader2, Lock, Trash2, UploadCloud } from 'lucid
 import { resolveMediaUrl, parseMediaRef } from '@/lib/media'
 import { uploadVideoDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
 import { LessonActivitiesPanel } from '@/components/teach/lesson-activities-panel'
-import { ScenarioEditor } from '@/components/teach/scenario-editor'
 import { withGateSettings, readGateSettings } from '@/lib/progression-gates'
 import {
   DRIVE_SHARE_HINT,
@@ -19,6 +18,14 @@ import {
   isGoogleDriveUrl,
   MAX_VIDEO_UPLOAD_LABEL,
 } from '@/lib/video-url'
+import {
+  clearedLessonVideoPatch,
+  finiteSeconds,
+  lessonDurationPatch,
+  pickVideoDuration,
+  probeYouTubeDuration,
+  readLocalVideoDuration,
+} from '@/lib/video-duration'
 
 export type LessonOptionsValue = {
   id: string
@@ -43,6 +50,7 @@ type Props = {
 
 export function LessonOptionsFields({ courseId, lesson, onChange, onCommit }: Props) {
   const videoInputRef = useRef<HTMLInputElement>(null)
+  const youtubeProbeId = useRef(0)
   const [uploadingVideo, setUploadingVideo] = useState(false)
   const [videoUploadProgress, setVideoUploadProgress] = useState(0)
   const [videoUploadError, setVideoUploadError] = useState('')
@@ -52,16 +60,42 @@ export function LessonOptionsFields({ courseId, lesson, onChange, onCommit }: Pr
     void onCommit(updates)
   }
 
+  const commitDetectedDuration = (seconds: number | null) => {
+    const patch = lessonDurationPatch(seconds)
+    if (patch) commit(patch)
+  }
+
+  const clearLessonVideo = () => {
+    youtubeProbeId.current += 1
+    commit(clearedLessonVideoPatch())
+  }
+
+  const probePastedYouTube = (url: string) => {
+    const youtubeIdFromUrl = getYoutubeId(url)
+    if (!youtubeIdFromUrl) return
+    const requestId = ++youtubeProbeId.current
+    void probeYouTubeDuration(youtubeIdFromUrl).then((seconds) => {
+      if (requestId !== youtubeProbeId.current) return
+      commitDetectedDuration(seconds)
+    })
+  }
+
   const uploadLessonVideo = async (file: File) => {
     setVideoUploadError('')
     setUploadingVideo(true)
     setVideoUploadProgress(0)
+    youtubeProbeId.current += 1
+    const localDurationPromise = readLocalVideoDuration(file)
     try {
-      const { url } = await uploadVideoDirectToCloudinary(file, {
+      const uploaded = await uploadVideoDirectToCloudinary(file, {
         folder: `course-media/videos/${courseId}`,
         onProgress: setVideoUploadProgress,
       })
-      commit({ video_url: url })
+      const seconds = pickVideoDuration(await localDurationPromise, uploaded.duration)
+      commit({
+        video_url: uploaded.url,
+        ...(lessonDurationPatch(seconds) ?? {}),
+      })
     } catch (err: any) {
       if (file.size > 20 * 1024 * 1024) {
         setVideoUploadError(err?.message || 'Failed to upload video')
@@ -75,7 +109,11 @@ export function LessonOptionsFields({ courseId, lesson, onChange, onCommit }: Pr
         const res = await fetch('/api/courses/media', { method: 'POST', body })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || err?.message || 'Upload failed')
-        commit({ video_url: data.url })
+        const seconds = pickVideoDuration(await localDurationPromise, finiteSeconds(data.duration))
+        commit({
+          video_url: data.url,
+          ...(lessonDurationPatch(seconds) ?? {}),
+        })
       } catch (fallbackErr: any) {
         setVideoUploadError(fallbackErr?.message || err?.message || 'Failed to upload video')
       }
@@ -209,8 +247,15 @@ export function LessonOptionsFields({ courseId, lesson, onChange, onCommit }: Pr
             id={`video-url-${lesson.id}`}
             value={parseMediaRef(lesson.video_url) ? '' : lesson.video_url || ''}
             onChange={(e) => onChange({ video_url: e.target.value })}
-            onBlur={() => {
-              if (!parseMediaRef(lesson.video_url)) void onCommit({ video_url: lesson.video_url })
+            onBlur={(e) => {
+              if (parseMediaRef(lesson.video_url)) return
+              const url = e.currentTarget.value.trim()
+              if (!url) {
+                clearLessonVideo()
+                return
+              }
+              void onCommit({ video_url: url })
+              probePastedYouTube(url)
             }}
             placeholder="YouTube / Drive link, or upload"
             className="flex-1"
@@ -248,7 +293,7 @@ export function LessonOptionsFields({ courseId, lesson, onChange, onCommit }: Pr
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Lock className="h-3 w-3" /> Private upload
               </span>
-              <Button type="button" variant="ghost" size="sm" onClick={() => commit({ video_url: '' })}>
+              <Button type="button" variant="ghost" size="sm" onClick={clearLessonVideo}>
                 <Trash2 className="h-3 w-3" />
               </Button>
             </div>
@@ -264,7 +309,7 @@ export function LessonOptionsFields({ courseId, lesson, onChange, onCommit }: Pr
                 title={lesson.title || 'Lesson video'}
               />
             </div>
-            <Button type="button" variant="ghost" size="sm" onClick={() => commit({ video_url: '' })}>
+            <Button type="button" variant="ghost" size="sm" onClick={clearLessonVideo}>
               <Trash2 className="h-3 w-3" /> Remove
             </Button>
           </div>
@@ -297,11 +342,13 @@ export function LessonOptionsFields({ courseId, lesson, onChange, onCommit }: Pr
               value={lesson.duration_minutes ? Math.round(lesson.duration_minutes / 60) : ''}
               onChange={(e) => {
                 const minutes = parseInt(e.target.value) || 0
-                onChange({ duration_minutes: minutes * 60 })
+                const seconds = minutes * 60
+                onChange({ duration_minutes: seconds, video_duration: seconds })
               }}
-              onBlur={() => {
-                const minutes = lesson.duration_minutes ? Math.round(lesson.duration_minutes / 60) : 0
-                void onCommit({ duration_minutes: minutes * 60 })
+              onBlur={(e) => {
+                const minutes = parseInt(e.currentTarget.value, 10) || 0
+                const seconds = minutes * 60
+                void onCommit({ duration_minutes: seconds, video_duration: seconds })
               }}
               placeholder="30"
               className="mt-1"
@@ -315,8 +362,14 @@ export function LessonOptionsFields({ courseId, lesson, onChange, onCommit }: Pr
               id={`video-duration-${lesson.id}`}
               type="number"
               value={lesson.video_duration || ''}
-              onChange={(e) => onChange({ video_duration: parseInt(e.target.value) || 0 })}
-              onBlur={() => void onCommit({ video_duration: lesson.video_duration })}
+              onChange={(e) => {
+                const seconds = parseInt(e.target.value) || 0
+                onChange({ video_duration: seconds, duration_minutes: seconds })
+              }}
+              onBlur={(e) => {
+                const seconds = parseInt(e.currentTarget.value, 10) || 0
+                void onCommit({ video_duration: seconds, duration_minutes: seconds })
+              }}
               placeholder="1800"
               className="mt-1"
             />
@@ -349,7 +402,6 @@ export function LessonOptionsFields({ courseId, lesson, onChange, onCommit }: Pr
             await onCommit({ resources: next })
           }}
         />
-        <ScenarioEditor lessonId={lesson.id} />
       </div>
     </div>
   )

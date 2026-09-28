@@ -6,6 +6,7 @@ import { courseIdByLesson, userCanManageCourse } from '@/lib/course-access'
 import { runImage } from '@/lib/ai/dispatch'
 import { cloudinaryClient, getCloudinaryAccount } from '@/lib/cloudinary'
 import { parseLessonBlocks, newBlockId } from '@/lib/lesson-blocks'
+import { friendlyImageError } from '@/lib/gemini'
 
 const TEACHER_ROLES = ['instructor', 'admin', 'resource_person', 'superadmin'] as const
 
@@ -54,6 +55,9 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ success: true, url })
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Image generation failed' }, { status: e?.status || 500 })
+    return NextResponse.json(
+      { error: friendlyImageError(e?.message || 'Image generation failed') },
+      { status: e?.status || 500 }
+    )
   }
 }

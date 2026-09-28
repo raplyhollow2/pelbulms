@@ -22,6 +22,8 @@ import {
   MessagesSquare,
   Boxes,
   GitBranch,
+  Sparkles,
+  LayoutTemplate,
 } from 'lucide-react'
 
 export type LessonActivityType =
@@ -47,6 +49,8 @@ export type LessonActivityType =
   | 'survey'
   | 'chat'
   | 'flashcard'
+  | 'prompt'
+  | 'worksheet'
 
 /** Moodle-style picker categories (plus extras we keep). */
 export type ActivityCategory =
@@ -73,13 +77,26 @@ export type LessonActivity = {
   allowSubmissions?: boolean
   /** Choice options, one per line stored as array */
   choices?: string[]
-  /** Free-form body (page, label, book chapters) */
+  /** Free-form body (page, label, book chapters, prompt text) */
   content?: string
+  /** Worksheet fields the learner fills in */
+  fields?: WorksheetField[]
+  /** How the course assistant should use a filled worksheet */
+  aiBrief?: string
+  /** Extra assistant chips tied to this worksheet */
+  prompts?: string[]
   /** Linked row in `quizzes` when activity === 'quiz' */
   quizId?: string
   /** When true, learner must complete before next lesson (if gated) */
   required?: boolean
   createdAt?: string
+}
+
+export type WorksheetField = {
+  id: string
+  label: string
+  placeholder?: string
+  hint?: string
 }
 
 export type ActivityField =
@@ -93,6 +110,9 @@ export type ActivityField =
   | 'allowSubmissions'
   | 'choices'
   | 'content'
+  | 'fields'
+  | 'aiBrief'
+  | 'promptList'
 
 export type ActivityMaturity = 'working' | 'partial' | 'stub'
 
@@ -327,6 +347,26 @@ export const LESSON_ACTIVITY_TYPES: ActivityDefinition[] = [
     fields: ['title', 'description'],
     maturity: 'partial',
   },
+  {
+    type: 'prompt',
+    label: 'AI prompt',
+    description: 'A sample question students can ask the course assistant',
+    category: 'extras',
+    alsoIn: ['resources'],
+    icon: Sparkles,
+    fields: ['title', 'description', 'content'],
+    maturity: 'working',
+  },
+  {
+    type: 'worksheet',
+    label: 'Worksheet',
+    description: 'A template students fill in. The assistant can use their answers.',
+    category: 'extras',
+    alsoIn: ['interactive'],
+    icon: LayoutTemplate,
+    fields: ['title', 'description', 'fields', 'aiBrief', 'promptList'],
+    maturity: 'working',
+  },
 ]
 
 export function getActivityDef(type: LessonActivityType): ActivityDefinition | undefined {
@@ -401,6 +441,9 @@ export function parseLessonActivities(raw: unknown): LessonActivity[] {
         allowSubmissions: value.allowSubmissions,
         choices: value.choices,
         content: value.content,
+        fields: parseWorksheetFields(value.fields),
+        aiBrief: typeof value.aiBrief === 'string' ? value.aiBrief : undefined,
+        prompts: parsePromptList(value.prompts),
         quizId: value.quizId,
         required: typeof value.required === 'boolean' ? value.required : undefined,
         createdAt: value.createdAt,
@@ -423,7 +466,78 @@ export function parseLessonActivities(raw: unknown): LessonActivity[] {
 
 /** Default required=true for assessments/readings; false for decorative labels. */
 export function defaultActivityRequired(type: LessonActivityType): boolean {
-  return type !== 'label' && type !== 'chat'
+  return type !== 'label' && type !== 'chat' && type !== 'prompt' && type !== 'worksheet'
+}
+
+export const EMPATHY_MAP_FIELDS: WorksheetField[] = [
+  { id: 'says', label: 'Says', placeholder: 'What they say out loud' },
+  { id: 'thinks', label: 'Thinks', placeholder: 'What they think but may not say' },
+  { id: 'does', label: 'Does', placeholder: 'What they do' },
+  { id: 'feels', label: 'Feels', placeholder: 'How they feel' },
+  { id: 'pains', label: 'Pains', placeholder: 'Frustrations and obstacles' },
+  { id: 'gains', label: 'Gains', placeholder: 'What they want to achieve' },
+]
+
+function parseWorksheetFields(raw: unknown): WorksheetField[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const fields: WorksheetField[] = []
+  raw.forEach((item, index) => {
+    if (!item || typeof item !== 'object') return
+    const row = item as Record<string, unknown>
+    const label = typeof row.label === 'string' ? row.label.trim() : ''
+    if (!label) return
+    const id =
+      typeof row.id === 'string' && row.id.trim()
+        ? row.id.trim()
+        : `field_${index + 1}`
+    fields.push({
+      id,
+      label,
+      placeholder: typeof row.placeholder === 'string' ? row.placeholder : undefined,
+      hint: typeof row.hint === 'string' ? row.hint : undefined,
+    })
+  })
+  return fields.length ? fields : undefined
+}
+
+function parsePromptList(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const prompts = raw
+    .filter((item): item is string => typeof item === 'string')
+    .map((item) => item.trim())
+    .filter(Boolean)
+  return prompts.length ? prompts : undefined
+}
+
+/** One label per line. Optional placeholder and hint after pipes. */
+export function parseWorksheetFieldLines(text: string): WorksheetField[] {
+  const used = new Set<string>()
+  const fields: WorksheetField[] = []
+  text.split('\n').forEach((line) => {
+    const parts = line.split('|').map((part) => part.trim())
+    const label = parts[0]
+    if (!label) return
+    let id = label
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_|_$/g, '')
+      .slice(0, 40)
+    if (!id) id = `field_${fields.length + 1}`
+    const base = id
+    let n = 2
+    while (used.has(id)) {
+      id = `${base}_${n}`
+      n += 1
+    }
+    used.add(id)
+    fields.push({
+      id,
+      label,
+      placeholder: parts[1] || undefined,
+      hint: parts[2] || undefined,
+    })
+  })
+  return fields
 }
 
 export function isActivityRequired(activity: LessonActivity): boolean {

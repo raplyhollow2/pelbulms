@@ -29,6 +29,14 @@ import {
 import { LessonActivitiesPanel } from '@/components/teach/lesson-activities-panel'
 import { LessonResourcesEditor } from '@/components/teach/lesson-resources-editor'
 import { uploadVideoDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
+import {
+  clearedLessonVideoPatch,
+  finiteSeconds,
+  lessonDurationPatch,
+  pickVideoDuration,
+  probeYouTubeDuration,
+  readLocalVideoDuration,
+} from '@/lib/video-duration'
 import { parseMediaRef, resolveMediaUrl } from '@/lib/media'
 import {
   DRIVE_SHARE_HINT,
@@ -75,6 +83,7 @@ export function CurriculumSequenceEditor({
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const videoInputByLesson = useRef<Record<string, HTMLInputElement | null>>({})
+  const youtubeProbeByLesson = useRef<Record<string, string>>({})
   const prevCount = useRef(lessons.length)
 
   useEffect(() => {
@@ -93,17 +102,37 @@ export function CurriculumSequenceEditor({
     }
   }
 
+  const probePastedYouTube = (lessonId: string, url: string) => {
+    const youtubeId = getYoutubeId(url)
+    if (!youtubeId || youtubeProbeByLesson.current[lessonId] === youtubeId) return
+    youtubeProbeByLesson.current[lessonId] = youtubeId
+    void probeYouTubeDuration(youtubeId).then((seconds) => {
+      if (youtubeProbeByLesson.current[lessonId] !== youtubeId) return
+      const patch = lessonDurationPatch(seconds)
+      if (!patch) {
+        delete youtubeProbeByLesson.current[lessonId]
+        return
+      }
+      void onUpdate(lessonId, patch)
+    })
+  }
+
   const uploadVideo = async (lesson: Lesson, file: File) => {
     setUploadingId(lesson.id)
     setUploadProgress(0)
+    delete youtubeProbeByLesson.current[lesson.id]
+    const localDurationPromise = readLocalVideoDuration(file)
+    const metadata = withLectureKind((lesson as any).metadata, 'video') as any
     try {
-      const { url } = await uploadVideoDirectToCloudinary(file, {
+      const uploaded = await uploadVideoDirectToCloudinary(file, {
         folder: `course-media/videos/${courseId}`,
         onProgress: setUploadProgress,
       })
+      const seconds = pickVideoDuration(await localDurationPromise, uploaded.duration)
       await onUpdate(lesson.id, {
-        video_url: url,
-        metadata: withLectureKind((lesson as any).metadata, 'video') as any,
+        video_url: uploaded.url,
+        metadata,
+        ...(lessonDurationPatch(seconds) ?? {}),
       })
     } catch (err: any) {
       if (file.size > 20 * 1024 * 1024) {
@@ -118,9 +147,11 @@ export function CurriculumSequenceEditor({
         const res = await fetch('/api/courses/media', { method: 'POST', body })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || err?.message || 'Upload failed')
+        const seconds = pickVideoDuration(await localDurationPromise, finiteSeconds(data.duration))
         await onUpdate(lesson.id, {
           video_url: data.url,
-          metadata: withLectureKind((lesson as any).metadata, 'video') as any,
+          metadata,
+          ...(lessonDurationPatch(seconds) ?? {}),
         })
       } catch (fallbackErr: any) {
         alert(fallbackErr?.message || err?.message || 'Failed to upload video')
@@ -250,11 +281,13 @@ export function CurriculumSequenceEditor({
                           value={
                             lesson.duration_minutes ? Math.round(lesson.duration_minutes / 60) : ''
                           }
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const seconds = parseInt(e.target.value, 10) * 60 || 0
                             void onUpdate(lesson.id, {
-                              duration_minutes: parseInt(e.target.value, 10) * 60 || 0,
+                              duration_minutes: seconds,
+                              video_duration: seconds,
                             })
-                          }
+                          }}
                           placeholder="10"
                         />
                       </div>
@@ -294,7 +327,16 @@ export function CurriculumSequenceEditor({
                         <div className="flex flex-col gap-2 sm:flex-row">
                           <Input
                             value={parseMediaRef(lesson.video_url) ? '' : lesson.video_url || ''}
-                            onChange={(e) => void onUpdate(lesson.id, { video_url: e.target.value })}
+                            onChange={(e) => {
+                              const url = e.target.value
+                              if (!url.trim()) {
+                                delete youtubeProbeByLesson.current[lesson.id]
+                                void onUpdate(lesson.id, clearedLessonVideoPatch())
+                                return
+                              }
+                              void onUpdate(lesson.id, { video_url: url })
+                              probePastedYouTube(lesson.id, url)
+                            }}
                             placeholder="YouTube / Drive URL"
                             disabled={!!parseMediaRef(lesson.video_url) || uploadingId === lesson.id}
                           />

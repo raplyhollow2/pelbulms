@@ -31,6 +31,19 @@ function isMissingModel(err: unknown) {
   return /\[404\]|no longer available|not found|is not found/i.test(msg)
 }
 
+export function friendlyImageError(message: string) {
+  if (/quota|rate.?limit|limit:\s*0|Too Many Requests|RESOURCE_EXHAUSTED/i.test(message)) {
+    return 'Image generation is unavailable. This Google key has no image quota left. Add a picture with an image URL, or try again after the quota resets.'
+  }
+  if (/\[503\]|high demand|unavailable|overloaded/i.test(message)) {
+    return 'Image generation is busy right now. Wait a moment and try again.'
+  }
+  if (message.length > 180 || /GoogleGenerativeAI|googleapis/i.test(message)) {
+    return 'Could not generate that image. Try again in a little while, or add a picture with an image URL.'
+  }
+  return message || 'Could not generate that image.'
+}
+
 function clientFor(apiKey: string) {
   const key = apiKey.trim()
   if (!key) throw new Error('Gemini API key is not configured.')
@@ -131,7 +144,7 @@ export async function geminiImagePng(opts: {
       throw err
     }
   }
-  throw lastError instanceof Error ? lastError : new Error('Gemini image generation failed')
+  throw new Error(friendlyImageError(errorText(lastError)))
 }
 
 export async function pingGeminiKey(secret: string) {

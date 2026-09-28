@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
@@ -23,7 +24,6 @@ import {
   Scan,
   ListChecks,
   ClipboardList,
-  GitBranch,
   CreditCard,
   Sparkles,
   Search,
@@ -52,7 +52,6 @@ const GROUPS: { label: string; items: { type: LessonBlock['type'] | 'ai-image'; 
     items: [
       { type: 'quiz', title: 'Quiz', icon: ListChecks },
       { type: 'assignment', title: 'Assignment', icon: ClipboardList },
-      { type: 'scenario', title: 'Scenario', icon: GitBranch },
       { type: 'flashcards', title: 'Flashcards', icon: Layers },
     ],
   },
@@ -109,6 +108,9 @@ export function BlockPicker({
   const [query, setQuery] = useState('')
   const [lastUsed, setLastUsed] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
+  const [imagePrompt, setImagePrompt] = useState('')
+  const [imageError, setImageError] = useState('')
+  const [imageOpen, setImageOpen] = useState(false)
 
   useEffect(() => {
     try {
@@ -131,9 +133,13 @@ export function BlockPicker({
   }
 
   const generateImage = async () => {
-    const prompt = window.prompt('Describe the image to generate')
-    if (!prompt) return
+    const prompt = imagePrompt.trim()
+    if (!prompt) {
+      setImageError('Describe the picture first.')
+      return
+    }
     setBusy(true)
+    setImageError('')
     try {
       const res = await fetch('/api/ai/generate-image', {
         method: 'POST',
@@ -149,9 +155,10 @@ export function BlockPicker({
       } else if (data.url) {
         onPick({ id: newBlockId(), type: 'image', url: data.url, alt: prompt })
       }
+      setImagePrompt('')
       onOpenChange(false)
     } catch (e: any) {
-      window.alert(e?.message || 'Could not generate image')
+      setImageError(e?.message || 'Could not generate image')
     } finally {
       setBusy(false)
     }
@@ -170,12 +177,51 @@ export function BlockPicker({
   const lastItems = GROUPS.flatMap((g) => g.items).filter((item) => lastUsed.includes(item.title))
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) {
+          setImageOpen(false)
+          setImageError('')
+        }
+        onOpenChange(next)
+      }}
+    >
       <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Add content</DialogTitle>
           <DialogDescription>Search, or press / from the studio. Last used stays on top.</DialogDescription>
         </DialogHeader>
+        {imageOpen ? (
+          <div className="space-y-2 rounded-lg border p-3">
+            <p className="text-sm font-medium">Describe the picture</p>
+            <Textarea
+              autoFocus
+              rows={3}
+              placeholder="A diagram of the value proposition canvas"
+              value={imagePrompt}
+              onChange={(e) => setImagePrompt(e.target.value)}
+            />
+            {imageError ? <p className="text-sm text-destructive">{imageError}</p> : null}
+            <div className="flex gap-2">
+              <Button type="button" className="min-h-11" disabled={busy} onClick={() => void generateImage()}>
+                {busy ? 'Generating…' : 'Generate'}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="min-h-11"
+                disabled={busy}
+                onClick={() => {
+                  setImageOpen(false)
+                  setImageError('')
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : null}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -200,8 +246,10 @@ export function BlockPicker({
                     className="min-h-11 justify-start gap-2"
                     disabled={busy}
                     onClick={() => {
-                      if (item.type === 'ai-image') void generateImage()
-                      else pickType(item.type, item.title)
+                      if (item.type === 'ai-image') {
+                        setImageError('')
+                        setImageOpen(true)
+                      } else pickType(item.type, item.title)
                     }}
                   >
                     <Icon className="h-4 w-4" />
@@ -229,8 +277,10 @@ export function BlockPicker({
                       className="min-h-11 justify-start gap-2"
                       disabled={busy}
                       onClick={() => {
-                        if (item.type === 'ai-image') void generateImage()
-                        else pickType(item.type, item.title)
+                        if (item.type === 'ai-image') {
+                          setImageError('')
+                          setImageOpen(true)
+                        } else pickType(item.type, item.title)
                       }}
                     >
                       <Icon className="h-4 w-4" />

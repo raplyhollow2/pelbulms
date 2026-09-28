@@ -18,6 +18,7 @@ import { ModuleResourcesTab } from '@/components/teach/module-resources-tab'
 import { CurriculumSequenceEditor } from '@/components/teach/curriculum-sequence-editor'
 import { withGateSettings, readGateSettings } from '@/lib/progression-gates'
 import { withLectureKind, type LectureKind } from '@/lib/lesson-kind'
+import { shouldSyncCourseDuration, syncCourseDuration } from '@/lib/video-duration'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
@@ -241,6 +242,7 @@ export default function ModuleLessonsPage() {
       if (error) {
         throw error
       }
+      if (shouldSyncCourseDuration(updates)) void syncCourseDuration(courseId)
     } catch (error) {
       console.error('Error updating lesson:', error)
       // Revert on error
@@ -292,6 +294,7 @@ export default function ModuleLessonsPage() {
       // Update local state
       setLessons(lessons.filter((lesson: any) => lesson.id !== id))
       setHasChanges(true)
+      void syncCourseDuration(courseId)
     } catch (error) {
       console.error('Error deleting lesson:', error)
       alert('Failed to delete lesson. Please try again.')

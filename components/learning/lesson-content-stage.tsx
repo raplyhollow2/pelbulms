@@ -3,7 +3,6 @@
 import { ChevronLeft, ChevronRight, FileText, Paperclip } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TrackedVideoPlayer, type VideoProgressData } from '@/components/learning/tracked-video-player'
-import { LessonBlocks } from '@/components/course/lesson-blocks'
 import { LessonResources, type ActivityProgressItem } from '@/components/course/lesson-resources'
 import { inferLectureKind } from '@/lib/lesson-kind'
 import { parseLessonBlocks } from '@/lib/lesson-blocks'
@@ -42,6 +41,7 @@ type Props = {
     response: import('@/lib/activity-responses').ActivityResponsePayload
   ) => void | Promise<void>
   markingActivityId?: string | null
+  highlightActivityId?: string | null
 }
 
 export function LessonContentStage({
@@ -63,6 +63,7 @@ export function LessonContentStage({
   onMarkDone,
   onSubmitResponse,
   markingActivityId,
+  highlightActivityId,
 }: Props) {
   const kind = inferLectureKind(lesson)
   const videoUrl = resolveMediaUrl(lesson.video_url) || lesson.video_url || ''
@@ -127,28 +128,29 @@ export function LessonContentStage({
             onMarkDone={onMarkDone}
             onSubmitResponse={onSubmitResponse}
             markingActivityId={markingActivityId}
+            highlightActivityId={highlightActivityId}
           />
         </div>
       ) : (
-        <div className="min-h-[240px] space-y-3 bg-muted/30 p-4 sm:p-6">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <FileText className="h-4 w-4 text-bhutan-yellow" />
-            Article
-          </div>
+        <div className="space-y-3 bg-muted/30 p-4 sm:p-6">
+          {lesson.description || blocks.length === 0 ? (
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <FileText className="h-4 w-4 text-bhutan-yellow" />
+              Article
+            </div>
+          ) : null}
           {lesson.description ? (
             <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
               {lesson.description}
             </p>
           ) : null}
           {blocks.length > 0 ? (
-            <LessonBlocks
-              content={lesson.content}
-              lessonId={lessonId}
-              onTakeQuiz={onTakeQuiz}
-            />
+            <p className="text-sm text-muted-foreground">
+              Reading, pictures, video embeds, and checks for this lesson are on the Resources tab.
+            </p>
           ) : !lesson.description ? (
             <p className="text-sm text-muted-foreground">
-              This lecture has no video yet. Open the resources below for files and activities.
+              This lecture has no video yet. Open the Resources tab for files and activities.
             </p>
           ) : null}
         </div>

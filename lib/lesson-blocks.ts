@@ -31,6 +31,8 @@ export type CourseTutorSettings = {
   photoUrl?: string
   instructions?: string
   enabled?: boolean
+  /** Questions shown as assistant chips for every lesson in the course */
+  starterPrompts?: string[]
 }
 
 export type CourseAiMetadata = {

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { LessonOptionsFields, type LessonOptionsValue } from '@/components/teach/lesson-options-fields'
+import { shouldSyncCourseDuration, syncCourseDuration } from '@/lib/video-duration'
 
 export function LessonOptionsPanel({
   courseId,
@@ -47,6 +48,7 @@ export function LessonOptionsPanel({
       return
     }
     if (typeof updates.title === 'string') onTitleChange?.(updates.title)
+    if (shouldSyncCourseDuration(updates)) void syncCourseDuration(courseId)
   }
 
   if (error && !lesson) return <p className="text-sm text-destructive">{error}</p>

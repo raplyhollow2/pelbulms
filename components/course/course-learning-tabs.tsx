@@ -8,6 +8,9 @@ import { AnnouncementsList } from './announcements-list'
 import { ReviewsDashboard } from './reviews-dashboard'
 import { LearningTools } from './learning-tools'
 import { LessonResources, type ActivityProgressItem } from './lesson-resources'
+import { LessonBlocks } from './lesson-blocks'
+import { parseLessonBlocks } from '@/lib/lesson-blocks'
+import { parseLessonActivities } from '@/lib/lesson-activities'
 import { LessonForum } from './lesson-forum'
 import { Card, CardContent } from '@/components/ui/card'
 import {
@@ -60,6 +63,7 @@ interface CourseLearningTabsProps {
   defaultTab?: string
   /** When set, switches the active tab (e.g. after video ends with pending tasks) */
   focusTab?: string | null
+  highlightActivityId?: string | null
 }
 
 export function CourseLearningTabs({
@@ -90,8 +94,14 @@ export function CourseLearningTabs({
   activitiesExtra,
   defaultTab = 'overview',
   focusTab = null,
+  highlightActivityId = null,
 }: CourseLearningTabsProps) {
   const [activeTab, setActiveTab] = useState(defaultTab)
+  const lessonContent = (currentLesson as { content?: unknown } | null | undefined)?.content
+  const hasLessonContent = parseLessonBlocks(lessonContent).length > 0
+  const hasResourceItems =
+    parseLessonActivities((currentLesson as { resources?: unknown } | null | undefined)?.resources)
+      .length > 0 || parseLessonActivities(moduleResources).length > 0
 
   useEffect(() => {
     if (focusTab) setActiveTab(focusTab)
@@ -159,22 +169,33 @@ export function CourseLearningTabs({
       </TabsContent>
 
       <TabsContent value="resources" className="mt-6 space-y-3">
+        {hasLessonContent ? (
+          <LessonBlocks
+            content={lessonContent}
+            lessonId={currentLessonId}
+            onTakeQuiz={onTakeQuiz}
+            highlightItemKey={highlightActivityId}
+          />
+        ) : null}
         {resourcesLocked ? (
           <LockedPanel title="Activities" />
         ) : (
           <>
-            <LessonResources
-              resources={(currentLesson as any)?.resources}
-              extraResources={moduleResources}
-              lessonId={currentLessonId}
-              onTakeQuiz={onTakeQuiz}
-              progressById={activityProgressById}
-              mandatoryTotal={mandatoryTotal}
-              mandatoryCompleted={mandatoryCompleted}
-              onMarkDone={onMarkActivityDone}
-              onSubmitResponse={onSubmitActivityResponse}
-              markingActivityId={markingActivityId}
-            />
+            {hasResourceItems || !hasLessonContent ? (
+              <LessonResources
+                resources={(currentLesson as any)?.resources}
+                extraResources={moduleResources}
+                lessonId={currentLessonId}
+                onTakeQuiz={onTakeQuiz}
+                progressById={activityProgressById}
+                mandatoryTotal={mandatoryTotal}
+                mandatoryCompleted={mandatoryCompleted}
+                onMarkDone={onMarkActivityDone}
+                onSubmitResponse={onSubmitActivityResponse}
+                markingActivityId={markingActivityId}
+                highlightActivityId={highlightActivityId}
+              />
+            ) : null}
             {activitiesExtra}
             {mandatoryTotal > 0 && (
               <p
@@ -204,7 +225,6 @@ export function CourseLearningTabs({
       <TabsContent value="discussion" className="mt-6">
         <LessonForum
           courseId={course.id}
-          moduleId={currentModule?.id}
           lessonId={currentLessonId}
           userId={userId}
         />

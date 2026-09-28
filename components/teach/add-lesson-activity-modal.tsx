@@ -20,9 +20,11 @@ import { cn } from '@/lib/utils'
 import {
   ACTIVITY_CATEGORY_FILTERS,
   defaultActivityRequired,
+  EMPATHY_MAP_FIELDS,
   filterActivityTypes,
   getActivityDef,
   newActivityId,
+  parseWorksheetFieldLines,
   type ActivityCategory,
   type LessonActivity,
   type LessonActivityType,
@@ -52,6 +54,9 @@ type FormState = {
   choicesText: string
   fileUrl: string
   fileName: string
+  fieldsText: string
+  aiBrief: string
+  promptsText: string
 }
 
 const emptyForm = (): FormState => ({
@@ -66,6 +71,9 @@ const emptyForm = (): FormState => ({
   choicesText: '',
   fileUrl: '',
   fileName: '',
+  fieldsText: '',
+  aiBrief: '',
+  promptsText: '',
 })
 
 export function AddLessonActivityModal({
@@ -153,6 +161,14 @@ export function AddLessonActivityModal({
       setError('Upload a file or paste a file URL')
       return
     }
+    if (selected === 'prompt' && !form.content.trim()) {
+      setError('Write the prompt students will see')
+      return
+    }
+    if (selected === 'worksheet' && parseWorksheetFieldLines(form.fieldsText).length === 0) {
+      setError('Add at least one template field (one label per line)')
+      return
+    }
     if (show('choices')) {
       const choices = form.choicesText
         .split('\n')
@@ -196,6 +212,15 @@ export function AddLessonActivityModal({
               .split('\n')
               .map((s) => s.trim())
               .filter(Boolean)
+          : undefined,
+        fields: show('fields') ? parseWorksheetFieldLines(form.fieldsText) : undefined,
+        aiBrief: show('aiBrief') ? form.aiBrief.trim() || undefined : undefined,
+        prompts: show('promptList')
+          ? form.promptsText
+              .split('\n')
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .slice(0, 8)
           : undefined,
         required,
         createdAt: new Date().toISOString(),
@@ -356,7 +381,7 @@ export function AddLessonActivityModal({
                 implemented yet.
               </p>
             ) : null}
-            {def?.maturity === 'partial' && selected !== 'quiz' && selected !== 'assignment' ? (
+            {def?.maturity === 'partial' && selected !== 'assignment' ? (
               <p className="rounded-lg border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
                 Partial: metadata and links work for learners. Full grading, submissions, or
                 embedded players may still be missing.
@@ -395,7 +420,9 @@ export function AddLessonActivityModal({
                     ? 'Chapters / content'
                     : selected === 'lesson'
                       ? 'Pages / branching outline'
-                      : 'Content'}
+                      : selected === 'prompt'
+                        ? 'Prompt'
+                        : 'Content'}
                 </Label>
                 <Textarea
                   id="act-content"
@@ -407,7 +434,9 @@ export function AddLessonActivityModal({
                       ? 'Chapter 1…\nChapter 2…'
                       : selected === 'lesson'
                         ? 'Page 1 → Question → Branch A / Branch B…'
-                        : 'Write the page or text content…'
+                        : selected === 'prompt'
+                          ? 'What skills will I gain from this course?'
+                          : 'Write the page or text content…'
                   }
                 />
               </div>
@@ -524,6 +553,70 @@ export function AddLessonActivityModal({
                   onCheckedChange={(checked) =>
                     setForm({ ...form, allowSubmissions: checked })
                   }
+                />
+              </div>
+            )}
+
+            {show('fields') && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <Label htmlFor="act-fields">Template fields (one per line)</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-11"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        title: prev.title || 'Empathy map',
+                        fieldsText: EMPATHY_MAP_FIELDS.map(
+                          (field) => `${field.label} | ${field.placeholder || ''}`
+                        ).join('\n'),
+                        aiBrief:
+                          prev.aiBrief ||
+                          'Turn this empathy map into a one-page customer profile. Use only what the student wrote. Mark gaps instead of inventing facts.',
+                      }))
+                    }
+                  >
+                    Use empathy map
+                  </Button>
+                </div>
+                <Textarea
+                  id="act-fields"
+                  value={form.fieldsText}
+                  onChange={(e) => setForm({ ...form, fieldsText: e.target.value })}
+                  rows={6}
+                  placeholder={'Says | What they say out loud\nThinks | What they think'}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Label, then an optional placeholder after a pipe.
+                </p>
+              </div>
+            )}
+
+            {show('aiBrief') && (
+              <div className="space-y-1.5">
+                <Label htmlFor="act-brief">How the assistant should use this</Label>
+                <Textarea
+                  id="act-brief"
+                  value={form.aiBrief}
+                  onChange={(e) => setForm({ ...form, aiBrief: e.target.value })}
+                  rows={3}
+                  placeholder="Turn these answers into a customer profile. Do not invent facts."
+                />
+              </div>
+            )}
+
+            {show('promptList') && (
+              <div className="space-y-1.5">
+                <Label htmlFor="act-prompts">Assistant prompts (one per line)</Label>
+                <Textarea
+                  id="act-prompts"
+                  value={form.promptsText}
+                  onChange={(e) => setForm({ ...form, promptsText: e.target.value })}
+                  rows={3}
+                  placeholder={'Build a customer profile from my empathy map'}
                 />
               </div>
             )}

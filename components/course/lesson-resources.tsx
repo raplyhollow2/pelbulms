@@ -69,6 +69,7 @@ export function LessonResources({
   onMarkDone,
   onSubmitResponse,
   markingActivityId,
+  highlightActivityId,
 }: {
   resources?: unknown
   extraResources?: unknown
@@ -86,6 +87,8 @@ export function LessonResources({
     response: ActivityResponsePayload
   ) => void | Promise<void>
   markingActivityId?: string | null
+  /** Activity opened from the course content menu */
+  highlightActivityId?: string | null
 }) {
   const lessonItems = parseLessonActivities(resources).map((item) => ({
     ...item,
@@ -142,7 +145,13 @@ export function LessonResources({
           return (
             <div
               key={`${item.trackable ? 'lesson' : 'module'}-${item.id}`}
-              className="rounded-lg border p-3"
+              data-curriculum-item={item.trackable ? `activity:${item.id}` : undefined}
+              className={cn(
+                'rounded-lg border p-3',
+                item.trackable &&
+                  highlightActivityId === `activity:${item.id}` &&
+                  'ring-2 ring-bhutan-yellow'
+              )}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-2">
@@ -312,7 +321,11 @@ export function LessonResources({
                   <ActivityInputForm
                     item={item}
                     lessonId={lessonId}
-                    done={formLocked}
+                    done={
+                      item.activity === 'worksheet' && !isAssessableActivity(item)
+                        ? false
+                        : formLocked
+                    }
                     gate={gate}
                     marking={marking}
                     progress={progress}
@@ -353,6 +366,9 @@ function ActivityInputForm({
   const [term, setTerm] = useState(progress?.response?.term || '')
   const [definition, setDefinition] = useState(progress?.response?.definition || '')
   const [message, setMessage] = useState('')
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>(
+    progress?.response?.fields || {}
+  )
   const [uploadedUrl, setUploadedUrl] = useState(
     progress?.response?.fileName ? progress?.response?.fileUrl || '' : ''
   )
@@ -371,6 +387,7 @@ function ActivityInputForm({
     if (progress?.response?.entryBody) setEntryBody(progress.response.entryBody)
     if (progress?.response?.term) setTerm(progress.response.term)
     if (progress?.response?.definition) setDefinition(progress.response.definition)
+    if (progress?.response?.fields) setFieldValues(progress.response.fields)
     if (progress?.response?.fileName) {
       setFileName(progress.response.fileName)
       setUploadedUrl(progress.response.fileUrl || '')
@@ -854,6 +871,50 @@ function ActivityInputForm({
         ) : (
           <p className="text-xs text-muted-foreground">You posted in this chat.</p>
         )}
+      </div>
+    )
+  }
+
+  if (mode === 'worksheet') {
+    const defs = item.fields || []
+    const filled = defs.some((field) => (fieldValues[field.id] || '').trim())
+    return (
+      <div className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          Save your answers here. The course assistant can use them later.
+        </p>
+        {defs.length === 0 ? (
+          <p className="text-xs text-destructive">This template has no fields yet.</p>
+        ) : (
+          defs.map((field) => (
+            <div key={field.id} className="space-y-1.5">
+              <Label htmlFor={`ws-${item.id}-${field.id}`}>{field.label}</Label>
+              {field.hint ? (
+                <p className="text-[11px] text-muted-foreground">{field.hint}</p>
+              ) : null}
+              <Textarea
+                id={`ws-${item.id}-${field.id}`}
+                value={fieldValues[field.id] || ''}
+                placeholder={field.placeholder}
+                rows={3}
+                onChange={(e) =>
+                  setFieldValues((prev) => ({ ...prev, [field.id]: e.target.value }))
+                }
+              />
+            </div>
+          ))
+        )}
+        {error ? <p className="text-xs text-destructive">{error}</p> : null}
+        <Button
+          type="button"
+          size="sm"
+          className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+          disabled={marking || !filled}
+          onClick={() => void submit({ fields: fieldValues })}
+        >
+          {marking ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+          Save template
+        </Button>
       </div>
     )
   }

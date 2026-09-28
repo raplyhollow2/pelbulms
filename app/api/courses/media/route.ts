@@ -122,7 +122,11 @@ export async function POST(request: NextRequest) {
 
       if (isVideo) {
         const ref = makeMediaRef('video', uploaded.public_id)
-        return NextResponse.json({ url: ref, kind })
+        const duration =
+          typeof uploaded?.duration === 'number' && uploaded.duration > 0
+            ? Math.round(uploaded.duration)
+            : null
+        return NextResponse.json({ url: ref, kind, duration })
       }
 
       // Public image URL — no /api/media proxy required for course covers.

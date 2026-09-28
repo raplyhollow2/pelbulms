@@ -142,6 +142,8 @@ export function CourseSettingsForm({
   const [newObjective, setNewObjective] = useState('')
   const [discussionEnabled, setDiscussionEnabled] = useState(false)
   const [discussionSaving, setDiscussionSaving] = useState(false)
+  const [forumScope, setForumScope] = useState<'course' | 'lesson'>('course')
+  const [forumScopeSaving, setForumScopeSaving] = useState(false)
   const [audienceInstitutionIds, setAudienceInstitutionIds] = useState<string[]>([])
   const [restrictToInstitutions, setRestrictToInstitutions] = useState(false)
   const [crossOrgEnrollmentCount, setCrossOrgEnrollmentCount] = useState(0)
@@ -235,6 +237,7 @@ export function CourseSettingsForm({
       setAudienceInstitutionIds(audienceIds)
       setRestrictToInstitutions(audienceIds.length > 0)
       setDiscussionEnabled(Boolean(forum?.is_enabled))
+      setForumScope(row.forum_scope === 'lesson' ? 'lesson' : 'course')
       if (audienceIds.length > 0) {
         const cross = await countCrossInstitutionEnrollments(supabase as any, courseId, audienceIds)
         if (!cancelled) setCrossOrgEnrollmentCount(cross)
@@ -395,6 +398,25 @@ export function CourseSettingsForm({
       setError(err?.message || 'Failed to update discussion')
     } finally {
       setDiscussionSaving(false)
+    }
+  }
+
+  const setForumScopeSetting = async (next: 'course' | 'lesson') => {
+    if (next === forumScope || forumScopeSaving) return
+    setForumScopeSaving(true)
+    const prev = forumScope
+    setForumScope(next)
+    try {
+      const { error: updateError } = await (supabase as any)
+        .from('courses')
+        .update({ forum_scope: next, updated_at: new Date().toISOString() })
+        .eq('id', courseId)
+      if (updateError) throw updateError
+    } catch (err: any) {
+      setForumScope(prev)
+      setError(err?.message || 'Failed to update forum scope')
+    } finally {
+      setForumScopeSaving(false)
     }
   }
 
@@ -559,11 +581,15 @@ export function CourseSettingsForm({
             <Input
               id="settings-duration"
               type="number"
+              aria-describedby="settings-duration-hint"
               value={courseData.duration_minutes}
               onChange={(e) =>
                 setCourseData({ ...courseData, duration_minutes: parseInt(e.target.value) || 0 })
               }
             />
+            <p id="settings-duration-hint" className="text-xs text-muted-foreground">
+              Filled automatically from lesson videos.
+            </p>
           </div>
         </div>
         <div className="space-y-2">
@@ -805,6 +831,35 @@ export function CourseSettingsForm({
               disabled={discussionSaving}
               onCheckedChange={(checked) => void toggleDiscussion(checked)}
             />
+          </div>
+        )}
+        {has(CAP.MODULE_FORUMS_CONFIGURE) && discussionEnabled && (
+          <div className="space-y-2 rounded-lg border p-3">
+            <Label>Forum scope</Label>
+            <p className="text-xs text-muted-foreground">
+              Whole course shows the same posts on every lesson. Per lesson shows only posts from the lesson a learner is viewing.
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {(
+                [
+                  ['course', 'Whole course', 'One shared forum for the course'],
+                  ['lesson', 'Per lesson', 'Each lesson has its own posts'],
+                ] as const
+              ).map(([scope, label, hint]) => (
+                <button
+                  key={scope}
+                  type="button"
+                  disabled={forumScopeSaving}
+                  className={`rounded-lg border p-3 text-left disabled:opacity-60 ${
+                    forumScope === scope ? 'border-bhutan-yellow bg-bhutan-yellow/10' : ''
+                  }`}
+                  onClick={() => void setForumScopeSetting(scope)}
+                >
+                  <p className="text-sm font-medium">{label}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </Section>

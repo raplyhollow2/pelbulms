@@ -1,14 +1,30 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Check, ChevronDown, ChevronUp, FileText, Lock, Paperclip, Video } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import {
+  Check,
+  ChevronDown,
+  ChevronUp,
+  ClipboardList,
+  FileText,
+  Image as ImageIcon,
+  Layers,
+  ListChecks,
+  ListTree,
+  Lock,
+  Paperclip,
+  Play,
+  Video,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   formatLectureDuration,
   inferLectureKind,
   type LectureKind,
 } from '@/lib/lesson-kind'
-import { parseLessonActivities } from '@/lib/lesson-activities'
+import { getActivityDef, parseLessonActivities } from '@/lib/lesson-activities'
+import { parseLessonBlocks, type LessonBlock } from '@/lib/lesson-blocks'
 
 export type CurriculumLesson = {
   id: string
@@ -34,6 +50,14 @@ type Props = {
   completedLessonIds: Set<string>
   lockedLessonIds?: Set<string>
   onSelect: (lessonId: string) => void
+  /** Open a lesson and focus one activity, resource, or uploaded block. */
+  onSelectActivity?: (lessonId: string, itemKey: string) => void
+  /** Item currently scrolled into view on the open lesson (`activity:` or `block:`). */
+  activeActivityId?: string | null
+  /** Completed activity ids for the open lesson. */
+  completedActivityIds?: Set<string>
+  /** Hide the “Course content” title when a parent tab already shows it. */
+  hideHeader?: boolean
   className?: string
 }
 
@@ -53,6 +77,10 @@ export function CurriculumRail({
   completedLessonIds,
   lockedLessonIds,
   onSelect,
+  onSelectActivity,
+  activeActivityId,
+  completedActivityIds,
+  hideHeader = false,
   className,
 }: Props) {
   const sections = useMemo(() => {
@@ -94,6 +122,21 @@ export function CurriculumRail({
   }, [sections, currentLessonId])
 
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const [openLessons, setOpenLessons] = useState<Set<string>>(
+    () => new Set(currentLessonId ? [currentLessonId] : [])
+  )
+
+  useEffect(() => {
+    if (!currentLessonId) return
+    const current = lessons.find((lesson) => lesson.id === currentLessonId)
+    if (!current || lessonMenuEntries(current).length === 0) return
+    setOpenLessons((prev) => {
+      if (prev.has(currentLessonId)) return prev
+      const next = new Set(prev)
+      next.add(currentLessonId)
+      return next
+    })
+  }, [currentLessonId, lessons])
 
   useEffect(() => {
     if (!currentSectionId) return
@@ -119,19 +162,28 @@ export function CurriculumRail({
 
   const completedCount = lessons.filter((lesson) => completedLessonIds.has(lesson.id)).length
 
+  const Frame = hideHeader ? 'div' : 'aside'
+
   return (
-    <aside
+    <Frame
       className={cn(
         'flex h-full max-h-[min(80vh,760px)] flex-col overflow-hidden bg-background lg:max-h-[calc(100vh-5.5rem)]',
+        hideHeader && 'max-h-none lg:max-h-none',
         className
       )}
     >
-      <div className="border-b px-4 py-3">
-        <p className="text-sm font-semibold">Course content</p>
-        <p className="text-xs text-muted-foreground">
+      {hideHeader ? (
+        <p className="border-b px-4 py-2 text-xs text-muted-foreground">
           {completedCount}/{lessons.length} lectures
         </p>
-      </div>
+      ) : (
+        <div className="border-b px-4 py-3">
+          <p className="text-sm font-semibold">Course content</p>
+          <p className="text-xs text-muted-foreground">
+            {completedCount}/{lessons.length} lectures
+          </p>
+        </div>
+      )}
       <nav className="flex-1 overflow-y-auto" aria-label="Course content">
         {sections.map((section, sectionIndex) => {
           const open = !collapsed.has(section.id)
@@ -178,60 +230,115 @@ export function CurriculumRail({
                     const locked = lockedLessonIds?.has(lesson.id)
                     const kind = inferLectureKind(lesson)
                     const duration = formatLectureDuration(lesson.duration_minutes)
-                    const resourceCount = parseLessonActivities(lesson.resources).length
+                    const activities = lessonMenuEntries(lesson)
+                    const activitiesOpen = openLessons.has(lesson.id) && activities.length > 0
 
                     return (
                       <li key={lesson.id}>
-                        <button
-                          type="button"
-                          disabled={locked}
-                          onClick={() => onSelect(lesson.id)}
+                        <div
                           className={cn(
-                            'flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors',
-                            locked && 'cursor-not-allowed opacity-55',
-                            current
-                              ? 'bg-bhutan-yellow/15'
-                              : !locked && 'hover:bg-muted/60'
+                            'flex items-start',
+                            locked && 'opacity-55',
+                            current ? 'bg-bhutan-yellow/15' : !locked && 'hover:bg-muted/60'
                           )}
                         >
-                          <span
+                          <button
+                            type="button"
+                            disabled={locked}
+                            onClick={() => {
+                              onSelect(lesson.id)
+                              if (activities.length > 0) {
+                                setOpenLessons((prev) => {
+                                  if (prev.has(lesson.id)) return prev
+                                  const next = new Set(prev)
+                                  next.add(lesson.id)
+                                  return next
+                                })
+                              }
+                            }}
                             className={cn(
-                              'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border',
-                              done
-                                ? 'border-primary bg-primary text-primary-foreground'
-                                : 'border-muted-foreground/40 bg-background'
+                              'flex min-w-0 flex-1 items-start gap-2.5 px-3 py-2.5 text-left',
+                              locked && 'cursor-not-allowed'
                             )}
-                            aria-hidden
                           >
-                            {locked ? (
-                              <Lock className="h-2.5 w-2.5 text-muted-foreground" />
-                            ) : done ? (
-                              <Check className="h-3 w-3" />
-                            ) : null}
-                          </span>
-                          <span className="min-w-0 flex-1">
                             <span
                               className={cn(
-                                'block text-sm leading-snug',
-                                current ? 'font-semibold' : 'font-medium'
+                                'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border',
+                                done
+                                  ? 'border-primary bg-primary text-primary-foreground'
+                                  : 'border-muted-foreground/40 bg-background'
                               )}
+                              aria-hidden
                             >
-                              {number}. {lesson.title || `Lecture ${number}`}
-                            </span>
-                            <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
-                              <span className="inline-flex items-center gap-1">
-                                <KindIcon kind={kind} />
-                                {duration || lectureKindLabelFallback(kind)}
-                              </span>
-                              {resourceCount > 0 ? (
-                                <span className="inline-flex items-center gap-1">
-                                  <Paperclip className="h-3 w-3" />
-                                  {resourceCount}
-                                </span>
+                              {locked ? (
+                                <Lock className="h-2.5 w-2.5 text-muted-foreground" />
+                              ) : done ? (
+                                <Check className="h-3 w-3" />
                               ) : null}
                             </span>
-                          </span>
-                        </button>
+                            <span className="min-w-0 flex-1">
+                              <span
+                                className={cn(
+                                  'block text-sm leading-snug',
+                                  current ? 'font-semibold' : 'font-medium'
+                                )}
+                              >
+                                {number}. {lesson.title || `Lecture ${number}`}
+                              </span>
+                              <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                                <span className="inline-flex items-center gap-1">
+                                  <KindIcon kind={kind} />
+                                  {duration || lectureKindLabelFallback(kind)}
+                                </span>
+                                {activities.length > 0 ? (
+                                  <span className="inline-flex items-center gap-1">
+                                    <Paperclip className="h-3 w-3" />
+                                    {activities.length}
+                                  </span>
+                                ) : null}
+                              </span>
+                            </span>
+                          </button>
+                          {activities.length > 0 ? (
+                            <button
+                              type="button"
+                              aria-expanded={activitiesOpen}
+                              aria-label={
+                                activitiesOpen
+                                  ? `Hide activities and resources for ${lesson.title || 'lecture'}`
+                                  : `Show activities and resources for ${lesson.title || 'lecture'}`
+                              }
+                              onClick={() =>
+                                setOpenLessons((prev) => {
+                                  const next = new Set(prev)
+                                  if (next.has(lesson.id)) next.delete(lesson.id)
+                                  else next.add(lesson.id)
+                                  return next
+                                })
+                              }
+                              className="mt-2 mr-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-background/70"
+                            >
+                              {activitiesOpen ? (
+                                <ChevronUp className="h-4 w-4" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4" />
+                              )}
+                            </button>
+                          ) : null}
+                        </div>
+                        {activitiesOpen ? (
+                          <LessonActivityMenu
+                            activities={activities}
+                            locked={Boolean(locked)}
+                            current={current}
+                            activeActivityId={activeActivityId}
+                            completedActivityIds={current ? completedActivityIds : undefined}
+                            onSelect={(activityId) => {
+                              if (onSelectActivity) onSelectActivity(lesson.id, activityId)
+                              else onSelect(lesson.id)
+                            }}
+                          />
+                        ) : null}
                       </li>
                     )
                   })}
@@ -241,7 +348,117 @@ export function CurriculumRail({
           )
         })}
       </nav>
-    </aside>
+    </Frame>
+  )
+}
+
+type MenuEntry = {
+  key: string
+  title: string
+  label: string
+  icon: LucideIcon
+}
+
+function lessonMenuEntries(lesson: CurriculumLesson): MenuEntry[] {
+  const entries: MenuEntry[] = []
+  for (const activity of parseLessonActivities(lesson.resources)) {
+    const def = getActivityDef(activity.activity)
+    entries.push({
+      key: `activity:${activity.id}`,
+      title: activity.title || def?.label || 'Item',
+      label: def?.label || activity.activity,
+      icon: def?.icon ?? Paperclip,
+    })
+  }
+  for (const block of parseLessonBlocks(lesson.content)) {
+    const entry = blockMenuEntry(block)
+    if (entry) entries.push(entry)
+  }
+  return entries
+}
+
+function blockMenuEntry(block: LessonBlock): MenuEntry | null {
+  const key = `block:${block.id}`
+  switch (block.type) {
+    case 'youtube':
+      return { key, title: 'YouTube video', label: 'Resource', icon: Play }
+    case 'video':
+      return { key, title: 'Video', label: 'Resource', icon: Video }
+    case 'image':
+      return { key, title: block.alt?.trim() || 'Image', label: 'Resource', icon: ImageIcon }
+    case 'quiz':
+      return { key, title: 'Quiz', label: 'Activity', icon: ListChecks }
+    case 'assignment':
+      return { key, title: 'Assignment', label: 'Activity', icon: ClipboardList }
+    case 'scenario':
+      return { key, title: 'Scenario', label: 'Activity', icon: ListChecks }
+    case 'flashcards':
+      return { key, title: 'Flashcards', label: 'Activity', icon: Layers }
+    case 'flipcards':
+      return { key, title: 'Flip cards', label: 'Activity', icon: Layers }
+    case 'accordion':
+      return {
+        key,
+        title: block.items.find((item) => item.title.trim())?.title || 'Accordion',
+        label: 'Activity',
+        icon: ListTree,
+      }
+    case 'carousel':
+      return { key, title: 'Carousel', label: 'Activity', icon: Layers }
+    case 'hotspot':
+      return { key, title: 'Hotspot', label: 'Activity', icon: ImageIcon }
+    default:
+      return null
+  }
+}
+
+function LessonActivityMenu({
+  activities,
+  locked,
+  current,
+  activeActivityId,
+  completedActivityIds,
+  onSelect,
+}: {
+  activities: MenuEntry[]
+  locked: boolean
+  current: boolean
+  activeActivityId?: string | null
+  completedActivityIds?: Set<string>
+  onSelect: (itemKey: string) => void
+}) {
+  return (
+    <ul className="border-t bg-muted/20 py-1" aria-label="Activities and resources">
+      {activities.map((activity) => {
+        const Icon = activity.icon
+        const active = current && activeActivityId === activity.key
+        const activityId = activity.key.startsWith('activity:')
+          ? activity.key.slice('activity:'.length)
+          : null
+        const done = Boolean(activityId && completedActivityIds?.has(activityId))
+        return (
+          <li key={activity.key}>
+            <button
+              type="button"
+              disabled={locked}
+              onClick={() => onSelect(activity.key)}
+              className={cn(
+                'flex w-full items-start gap-2 py-1.5 pr-3 pl-9 text-left',
+                locked && 'cursor-not-allowed opacity-55',
+                active ? 'bg-bhutan-yellow/25' : !locked && 'hover:bg-muted/70'
+              )}
+            >
+              <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] leading-snug">{activity.title}</span>
+                <span className="text-[10px] text-muted-foreground">{activity.label}</span>
+              </span>
+              {done ? <Check className="mt-0.5 h-3 w-3 shrink-0 text-primary" /> : null}
+            </button>
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 

@@ -1,10 +1,12 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -13,7 +15,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, BookOpen, Users, Loader2, Edit, Award, HardDrive, Check, X, ClipboardCheck, Trash2 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Plus, BookOpen, Users, Loader2, Award, HardDrive, Check, X, ClipboardCheck, Trash2, MoreVertical, ListFilter } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,8 +75,11 @@ export default function TeacherDashboard() {
   } | null>(null)
   const [decidingId, setDecidingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [deleteTarget, setDeleteTarget] = useState<Course | null>(null)
+  const [deleteTargets, setDeleteTargets] = useState<Course[]>([])
   const [deleting, setDeleting] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [bulkWorking, setBulkWorking] = useState<'publish' | 'unpublish' | null>(null)
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all')
@@ -267,20 +279,61 @@ export default function TeacherDashboard() {
     }
   }
 
-  const confirmDeleteCourse = async () => {
-    if (!deleteTarget) return
+  const confirmDeleteCourses = async () => {
+    if (deleteTargets.length === 0) return
     try {
       setDeleting(true)
-      const res = await fetch(`/api/teach/courses/${deleteTarget.id}`, { method: 'DELETE' })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || 'Failed to delete course')
-      setCourses((prev) => prev.filter((c) => c.id !== deleteTarget.id))
-      setDeleteTarget(null)
+      const results = await Promise.all(
+        deleteTargets.map(async (course) => {
+          const res = await fetch(`/api/teach/courses/${course.id}`, { method: 'DELETE' })
+          const data = await res.json().catch(() => ({}))
+          return {
+            id: course.id,
+            ok: res.ok,
+            error: (data as { error?: string }).error,
+          }
+        })
+      )
+      const removed = new Set(results.filter((result) => result.ok).map((result) => result.id))
+      if (removed.size > 0) {
+        setCourses((prev) => prev.filter((course) => !removed.has(course.id)))
+        setSelectedIds((prev) => {
+          const next = new Set(prev)
+          for (const id of removed) next.delete(id)
+          return next
+        })
+      }
+      const failed = results.filter((result) => !result.ok)
+      if (failed.length === 0) {
+        setDeleteTargets([])
+      } else {
+        alert(
+          failed[0]?.error ||
+            `Could not delete ${failed.length} course${failed.length === 1 ? '' : 's'}.`
+        )
+        setDeleteTargets((prev) => prev.filter((course) => !removed.has(course.id)))
+      }
     } catch (e: any) {
       alert(e?.message || 'Failed to delete course')
     } finally {
       setDeleting(false)
     }
+  }
+
+  const toggleCourseSelected = (courseId: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (checked) next.add(courseId)
+      else next.delete(courseId)
+      return next
+    })
+  }
+
+  const clearFilters = () => {
+    setStatusFilter('all')
+    setCategoryFilter('all')
+    setLevelFilter('all')
+    setInstructorFilter('all')
   }
 
   const categories = useMemo(
@@ -354,6 +407,78 @@ export default function TeacherDashboard() {
     instructorFilter,
     sortKey,
   ])
+
+  const selectedVisible = filteredCourses.filter((course) => selectedIds.has(course.id))
+  const allVisibleSelected =
+    filteredCourses.length > 0 && selectedVisible.length === filteredCourses.length
+  const someVisibleSelected = selectedVisible.length > 0 && !allVisibleSelected
+  const courseCountLabel =
+    filteredCourses.length === courses.length
+      ? `${courses.length} ${courses.length === 1 ? 'course' : 'courses'}`
+      : `${filteredCourses.length} of ${courses.length} courses`
+
+  const filterChips = [
+    statusFilter !== 'all'
+      ? {
+          id: 'status',
+          label: `Status: ${statusFilter === 'published' ? 'Published' : 'Draft'}`,
+          clear: () => setStatusFilter('all'),
+        }
+      : null,
+    categoryFilter !== 'all'
+      ? {
+          id: 'category',
+          label: `Category: ${categoryFilter}`,
+          clear: () => setCategoryFilter('all'),
+        }
+      : null,
+    levelFilter !== 'all'
+      ? {
+          id: 'level',
+          label: `Level: ${levelFilter}`,
+          clear: () => setLevelFilter('all'),
+        }
+      : null,
+    isAdminView && instructorFilter !== 'all'
+      ? {
+          id: 'instructor',
+          label: `Instructor: ${instructors.find((instructor) => instructor.id === instructorFilter)?.name || 'Instructor'}`,
+          clear: () => setInstructorFilter('all'),
+        }
+      : null,
+  ].filter((chip): chip is { id: string; label: string; clear: () => void } => chip !== null)
+
+  const setSelectedPublished = async (next: boolean) => {
+    const ids = selectedVisible.map((course) => course.id)
+    if (ids.length === 0) return
+    try {
+      setBulkWorking(next ? 'publish' : 'unpublish')
+      const { error } = await supabase
+        .from('courses')
+        .update({ is_published: next, updated_at: new Date().toISOString() })
+        .in('id', ids)
+      if (error) throw new Error(error.message)
+      const idSet = new Set(ids)
+      setCourses((prev) =>
+        prev.map((course) => (idSet.has(course.id) ? { ...course, is_published: next } : course))
+      )
+    } catch (e: any) {
+      alert(e?.message || 'Failed to update courses')
+    } finally {
+      setBulkWorking(null)
+    }
+  }
+
+  const toggleAllVisible = (checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      for (const course of filteredCourses) {
+        if (checked) next.add(course.id)
+        else next.delete(course.id)
+      }
+      return next
+    })
+  }
 
   if (loading) {
     return (
@@ -571,129 +696,159 @@ export default function TeacherDashboard() {
 
       <Card className="glass-strong">
         <CardHeader className="space-y-3 px-4 sm:px-6">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-3">
-            <div className="min-w-0 shrink-0 lg:max-w-[200px]">
-              <CardTitle className="text-base sm:text-lg lg:text-xl">
-                {isAdminView ? 'All course designs' : 'My Courses'}
-              </CardTitle>
-              <CardDescription className="line-clamp-1 text-xs sm:text-sm">
-                Newest first by default — filter to change the view.
-              </CardDescription>
-            </div>
-            <div className="flex min-w-0 flex-1 flex-col gap-2 lg:flex-row lg:items-center">
-              <Input
-                placeholder="Search courses…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-9 min-w-0 flex-1"
-                aria-label="Search courses"
-              />
-              <div className="grid min-w-0 grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
-                <Select value={statusFilter} onValueChange={(v: any) => v && setStatusFilter(v)}>
-                  <SelectTrigger size="sm" className="h-9 w-full gap-1 sm:w-[130px]" aria-label="Status">
-                    <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
-                      <span className="shrink-0 text-muted-foreground">Status</span>
-                      <span className="truncate font-medium capitalize">
-                        {statusFilter === 'all' ? 'All' : statusFilter}
-                      </span>
+          <div className="flex items-baseline justify-between gap-3">
+            <CardTitle className="text-base sm:text-lg lg:text-xl">
+              {isAdminView ? 'All course designs' : 'My Courses'}
+            </CardTitle>
+            <p className="shrink-0 text-sm text-muted-foreground">{courseCountLabel}</p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Input
+              placeholder="Search courses…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-9 min-w-0 flex-1"
+              aria-label="Search courses"
+            />
+            <div className="flex gap-2">
+              <Select value={sortKey} onValueChange={(v: any) => v && setSortKey(v)}>
+                <SelectTrigger size="sm" className="h-9 w-full min-w-0 flex-1 gap-1 sm:w-[160px]" aria-label="Sort">
+                  <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
+                    <span className="shrink-0 text-muted-foreground">Sort</span>
+                    <span className="truncate font-medium">
+                      {sortKey === 'newest'
+                        ? 'Newest'
+                        : sortKey === 'oldest'
+                          ? 'Oldest'
+                          : sortKey === 'title'
+                            ? 'Title'
+                            : 'Students'}
                     </span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All status</SelectItem>
-                    <SelectItem value="published">Published</SelectItem>
-                    <SelectItem value="draft">Draft</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={categoryFilter} onValueChange={(v) => v && setCategoryFilter(v)}>
-                  <SelectTrigger size="sm" className="h-9 w-full gap-1 sm:w-[140px]" aria-label="Category">
-                    <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
-                      <span className="shrink-0 text-muted-foreground">Category</span>
-                      <span className="truncate font-medium">
-                        {categoryFilter === 'all' ? 'All' : categoryFilter}
-                      </span>
-                    </span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All categories</SelectItem>
-                    {categories.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={levelFilter} onValueChange={(v) => v && setLevelFilter(v)}>
-                  <SelectTrigger size="sm" className="h-9 w-full gap-1 sm:w-[120px]" aria-label="Level">
-                    <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
-                      <span className="shrink-0 text-muted-foreground">Level</span>
-                      <span className="truncate font-medium capitalize">
-                        {levelFilter === 'all' ? 'All' : levelFilter}
-                      </span>
-                    </span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All levels</SelectItem>
-                    {levels.map((l) => (
-                      <SelectItem key={l} value={l}>
-                        {l}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={sortKey} onValueChange={(v: any) => v && setSortKey(v)}>
-                  <SelectTrigger size="sm" className="h-9 w-full gap-1 sm:w-[130px]" aria-label="Sort">
-                    <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
-                      <span className="shrink-0 text-muted-foreground">Sort</span>
-                      <span className="truncate font-medium">
-                        {sortKey === 'newest'
-                          ? 'Newest'
-                          : sortKey === 'oldest'
-                            ? 'Oldest'
-                            : sortKey === 'title'
-                              ? 'Title'
-                              : 'Students'}
-                      </span>
-                    </span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="newest">Newest first</SelectItem>
-                    <SelectItem value="oldest">Oldest first</SelectItem>
-                    <SelectItem value="title">Title A–Z</SelectItem>
-                    <SelectItem value="students">Most students</SelectItem>
-                  </SelectContent>
-                </Select>
-                {isAdminView && (
-                  <Select
-                    value={instructorFilter}
-                    onValueChange={(v) => v && setInstructorFilter(v)}
-                  >
-                    <SelectTrigger
-                      size="sm"
-                      className="h-9 w-full gap-1 sm:w-[150px]"
-                      aria-label="Instructor"
-                    >
-                      <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
-                        <span className="shrink-0 text-muted-foreground">Instructor</span>
-                        <span className="truncate font-medium">
-                          {instructorFilter === 'all'
-                            ? 'All'
-                            : instructors.find((i) => i.id === instructorFilter)?.name || 'All'}
-                        </span>
-                      </span>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All instructors</SelectItem>
-                      {instructors.map((i) => (
-                        <SelectItem key={i.id} value={i.id}>
-                          {i.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              </div>
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest first</SelectItem>
+                  <SelectItem value="oldest">Oldest first</SelectItem>
+                  <SelectItem value="title">Title A–Z</SelectItem>
+                  <SelectItem value="students">Most students</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={`h-9 shrink-0 ${filtersOpen || filterChips.length > 0 ? 'border-bhutan-yellow bg-bhutan-yellow/15' : ''}`}
+                aria-expanded={filtersOpen}
+                aria-controls="course-filters"
+                data-testid="course-filter-toggle"
+                onClick={() => setFiltersOpen((open) => !open)}
+              >
+                <ListFilter className="size-4" />
+                Filter
+                {filterChips.length > 0 ? (
+                  <span className="rounded-full bg-bhutan-yellow px-1.5 text-xs font-semibold text-bhutan-black">
+                    {filterChips.length}
+                  </span>
+                ) : null}
+              </Button>
             </div>
           </div>
+          {filtersOpen && (
+            <div id="course-filters" className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
+              <Select value={statusFilter} onValueChange={(v: any) => v && setStatusFilter(v)}>
+                <SelectTrigger size="sm" className="h-9 w-full gap-1 sm:w-[140px]" aria-label="Status">
+                  <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
+                    <span className="shrink-0 text-muted-foreground">Status</span>
+                    <span className="truncate font-medium capitalize">
+                      {statusFilter === 'all' ? 'All' : statusFilter}
+                    </span>
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All status</SelectItem>
+                  <SelectItem value="published">Published</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={categoryFilter} onValueChange={(v) => v && setCategoryFilter(v)}>
+                <SelectTrigger size="sm" className="h-9 w-full gap-1 sm:w-[160px]" aria-label="Category">
+                  <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
+                    <span className="shrink-0 text-muted-foreground">Category</span>
+                    <span className="truncate font-medium">
+                      {categoryFilter === 'all' ? 'All' : categoryFilter}
+                    </span>
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All categories</SelectItem>
+                  {categories.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={levelFilter} onValueChange={(v) => v && setLevelFilter(v)}>
+                <SelectTrigger size="sm" className="h-9 w-full gap-1 sm:w-[140px]" aria-label="Level">
+                  <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
+                    <span className="shrink-0 text-muted-foreground">Level</span>
+                    <span className="truncate font-medium capitalize">
+                      {levelFilter === 'all' ? 'All' : levelFilter}
+                    </span>
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All levels</SelectItem>
+                  {levels.map((l) => (
+                    <SelectItem key={l} value={l}>
+                      {l}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {isAdminView && (
+                <Select value={instructorFilter} onValueChange={(v) => v && setInstructorFilter(v)}>
+                  <SelectTrigger size="sm" className="h-9 w-full gap-1 sm:w-[170px]" aria-label="Instructor">
+                    <span className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-left">
+                      <span className="shrink-0 text-muted-foreground">Instructor</span>
+                      <span className="truncate font-medium">
+                        {instructorFilter === 'all'
+                          ? 'All'
+                          : instructors.find((i) => i.id === instructorFilter)?.name || 'All'}
+                      </span>
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All instructors</SelectItem>
+                    {instructors.map((i) => (
+                      <SelectItem key={i.id} value={i.id}>
+                        {i.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          )}
+          {filterChips.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              {filterChips.map((chip) => (
+                <button
+                  key={chip.id}
+                  type="button"
+                  onClick={chip.clear}
+                  className="inline-flex h-7 items-center gap-1 rounded-full border border-border bg-background px-2.5 text-xs font-medium hover:bg-muted"
+                >
+                  {chip.label}
+                  <X className="size-3" />
+                  <span className="sr-only">Remove {chip.label} filter</span>
+                </button>
+              ))}
+              <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={clearFilters}>
+                Clear all
+              </Button>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-3 lg:space-y-4 px-4 sm:px-6">
           {filteredCourses.length === 0 ? (
@@ -712,110 +867,179 @@ export default function TeacherDashboard() {
               </Button>
             </div>
           ) : (
-            filteredCourses.map((course) => (
+            <>
               <div
-                key={course.id}
-                className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 lg:p-4 rounded-lg bg-background/50 hover:bg-background transition-colors border border-border/50 gap-3"
+                data-testid="course-bulk-bar"
+                className="flex flex-col gap-2 border-b border-border/60 pb-3 sm:flex-row sm:items-center sm:justify-between"
               >
-                <div className="flex items-center gap-3 lg:gap-4 w-full sm:w-auto min-w-0">
-                  <div className="w-12 h-12 lg:w-16 lg:h-12 rounded bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {course.thumbnail_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={resolveMediaUrl(course.thumbnail_url) || course.thumbnail_url}
-                        alt={course.title}
-                        className="w-full h-full object-cover rounded"
-                      />
-                    ) : (
-                      <BookOpen className="w-5 h-5 lg:w-6 lg:h-6 text-bhutan-yellow" />
-                    )}
+                <div className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={allVisibleSelected}
+                    indeterminate={someVisibleSelected}
+                    onCheckedChange={(checked) => toggleAllVisible(checked)}
+                    aria-label={
+                      selectedVisible.length === 0
+                        ? 'Select all courses'
+                        : `${selectedVisible.length} selected. Select all courses`
+                    }
+                    disabled={bulkWorking !== null || deleting}
+                    data-testid="course-select-all"
+                  />
+                  <span>
+                    {selectedVisible.length === 0
+                      ? 'Select all'
+                      : `${selectedVisible.length} selected`}
+                  </span>
+                </div>
+                {selectedVisible.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={bulkWorking !== null || deleting}
+                      onClick={() => void setSelectedPublished(true)}
+                    >
+                      {bulkWorking === 'publish' ? <Loader2 className="size-4 animate-spin" /> : null}
+                      Publish
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={bulkWorking !== null || deleting}
+                      onClick={() => void setSelectedPublished(false)}
+                    >
+                      {bulkWorking === 'unpublish' ? <Loader2 className="size-4 animate-spin" /> : null}
+                      Unpublish
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      disabled={bulkWorking !== null || deleting}
+                      onClick={() => setDeleteTargets(selectedVisible)}
+                    >
+                      <Trash2 className="size-4" />
+                      Delete
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={bulkWorking !== null || deleting}
+                      onClick={() => setSelectedIds(new Set())}
+                    >
+                      Clear
+                    </Button>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-sm lg:text-base truncate">{course.title}</h3>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <Badge variant="outline" className="text-xs">
-                        {course.category}
-                      </Badge>
-                      <Badge variant="secondary" className="text-xs">
-                        {(course as any).is_published ? 'Published' : 'Draft'}
-                      </Badge>
-                      {isAdminView && course.instructor_name && (
-                        <Badge variant="outline" className="text-xs">
-                          {course.instructor_name}
-                        </Badge>
+                )}
+              </div>
+              {filteredCourses.map((course) => {
+                const studentCount = Number(course.enrollment_count) || 0
+                const pending = pendingByCourse[course.id] || 0
+                const ungraded = gradeCounts[course.id] || 0
+                const meta = [
+                  course.category,
+                  course.is_published ? 'Published' : 'Draft',
+                  isAdminView ? course.instructor_name : null,
+                  `${studentCount} ${studentCount === 1 ? 'student' : 'students'}`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+                return (
+                  <div
+                    key={course.id}
+                    data-testid="course-row"
+                    className="flex items-center gap-3 rounded-lg border border-border/50 bg-background/50 p-3 transition-colors hover:bg-background"
+                  >
+                    <Checkbox
+                      checked={selectedIds.has(course.id)}
+                      onCheckedChange={(checked) => toggleCourseSelected(course.id, checked)}
+                      aria-label={`Select ${course.title}`}
+                      disabled={bulkWorking !== null || deleting}
+                    />
+                    <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20">
+                      {course.thumbnail_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={resolveMediaUrl(course.thumbnail_url) || course.thumbnail_url}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <BookOpen className="size-5 text-bhutan-yellow" />
                       )}
                     </div>
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        href={`/teach/courses/${course.id}/studio`}
+                        className="block truncate text-sm font-semibold hover:underline lg:text-base"
+                      >
+                        {course.title}
+                      </Link>
+                      <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 sm:flex-nowrap">
+                        <p className="min-w-0 truncate text-xs text-muted-foreground">{meta}</p>
+                        {pending > 0 && (
+                          <Badge className="shrink-0 bg-amber-500 text-black hover:bg-amber-500">
+                            {pending} {pending === 1 ? 'request' : 'requests'}
+                          </Badge>
+                        )}
+                        {ungraded > 0 && (
+                          <Badge className="shrink-0 bg-amber-500 text-black hover:bg-amber-500">
+                            {ungraded} to grade
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        className="inline-flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-muted sm:size-8"
+                        aria-label={`Actions for ${course.title}`}
+                      >
+                        <MoreVertical className="size-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-44">
+                        <DropdownMenuItem onClick={() => router.push(`/teach/courses/${course.id}/students`)}>
+                          <Users />
+                          Students
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => router.push(`/teach/courses/${course.id}/grading`)}>
+                          <ClipboardCheck />
+                          Grade
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => router.push(`/teach/courses/${course.id}/certificate`)}>
+                          <Award />
+                          Certificate
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem variant="destructive" onClick={() => setDeleteTargets([course])}>
+                          <Trash2 />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                </div>
-                <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => router.push(`/teach/courses/${course.id}/students`)}
-                    className="w-full sm:w-auto"
-                  >
-                    <Users className="w-4 h-4 mr-1" />
-                    Students
-                    {pendingByCourse[course.id] > 0 && (
-                      <Badge className="ml-1.5 bg-amber-500 text-black hover:bg-amber-500">
-                        {pendingByCourse[course.id]}
-                      </Badge>
-                    )}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => router.push(`/teach/courses/${course.id}/grading`)}
-                    className="w-full sm:w-auto"
-                  >
-                    <ClipboardCheck className="w-4 h-4 mr-1" />
-                    Grade
-                    {(gradeCounts[course.id] || 0) > 0 && (
-                      <Badge className="ml-1.5 bg-amber-500 text-black hover:bg-amber-500">
-                        {gradeCounts[course.id]}
-                      </Badge>
-                    )}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => router.push(`/teach/courses/${course.id}/certificate`)}
-                    className="w-full sm:w-auto"
-                  >
-                    <Award className="w-4 h-4 mr-1" />
-                    Certificate
-                  </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => router.push(`/teach/courses/${course.id}/studio`)}
-                    className="w-full sm:w-auto"
-                  >
-                    <Edit className="w-4 h-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => setDeleteTarget(course)}
-                    className="w-full sm:w-auto"
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    Delete
-                  </Button>
-                </div>
-              </div>
-            ))
+                )
+              })}
+            </>
           )}
         </CardContent>
       </Card>
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}>
+      <AlertDialog
+        open={deleteTargets.length > 0}
+        onOpenChange={(open) => !open && !deleting && setDeleteTargets([])}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this course?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {deleteTargets.length > 1 ? `Delete ${deleteTargets.length} courses?` : 'Delete this course?'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteTarget?.title ? `"${deleteTarget.title}"` : 'This course'} and its lessons,
-              enrollments, and student progress will be permanently removed.
+              {deleteTargets.length > 1
+                ? `${deleteTargets.length} courses and their lessons, enrollments, and student progress will be permanently removed.`
+                : `${deleteTargets[0]?.title ? `"${deleteTargets[0].title}"` : 'This course'} and its lessons, enrollments, and student progress will be permanently removed.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -825,11 +1049,11 @@ export default function TeacherDashboard() {
               disabled={deleting}
               onClick={(event) => {
                 event.preventDefault()
-                void confirmDeleteCourse()
+                void confirmDeleteCourses()
               }}
             >
               {deleting ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
-              Delete course
+              {deleteTargets.length > 1 ? 'Delete courses' : 'Delete course'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

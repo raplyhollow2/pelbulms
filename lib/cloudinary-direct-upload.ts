@@ -15,6 +15,8 @@ export type DirectUploadProgress = (percent: number) => void
 export type DirectVideoUploadResult = {
   url: string
   publicId: string
+  /** Rounded seconds from Cloudinary, when the upload response includes them. */
+  duration: number | null
 }
 
 export type DirectImageUploadResult = {
@@ -117,9 +119,15 @@ export async function uploadVideoDirectToCloudinary(
   })
 
   const publicId = result.public_id as string
+  const rawDuration = result.duration
+  const duration =
+    typeof rawDuration === 'number' && Number.isFinite(rawDuration) && rawDuration > 0
+      ? Math.round(rawDuration)
+      : null
   return {
     publicId,
     url: makeMediaRef('video', publicId),
+    duration,
   }
 }
 

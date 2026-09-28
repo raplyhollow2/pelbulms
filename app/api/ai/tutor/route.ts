@@ -1,21 +1,21 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { runText } from '@/lib/ai/dispatch'
-import { parseLessonBlocks, readCourseAiMetadata } from '@/lib/lesson-blocks'
 import { getRequestUser } from '@/lib/request-user'
+import { answerCourseTutor, asAssistantDb, isAssistantTask } from '@/lib/ai/course-assistant'
 
 export async function POST(request: NextRequest) {
-  const auth = await createSupabaseServerClient()
   const user = await getRequestUser(request)
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json().catch(() => ({}))
-  const courseId = body.courseId as string
-  const lessonId = body.lessonId as string | undefined
-  const question = String(body.question || '').trim()
-  if (!courseId || !question) {
-    return NextResponse.json({ error: 'courseId and question are required' }, { status: 400 })
+  const courseId = typeof body.courseId === 'string' ? body.courseId : ''
+  const lessonId = typeof body.lessonId === 'string' ? body.lessonId : null
+  const activityId = typeof body.activityId === 'string' ? body.activityId : null
+  const question = typeof body.question === 'string' ? body.question : ''
+  const task = isAssistantTask(body.task) ? body.task : 'chat'
+  if (!courseId) {
+    return NextResponse.json({ error: 'courseId is required' }, { status: 400 })
   }
 
   const service = await createServiceClient()
@@ -25,82 +25,36 @@ export async function POST(request: NextRequest) {
     .eq('user_id', user.id)
     .eq('course_id', courseId)
     .maybeSingle()
-  const status = (enrollment as any)?.status
+  const status = enrollment?.status
   if (!enrollment || (status !== 'active' && status !== 'completed')) {
     return NextResponse.json({ error: 'Enroll in this course to use the tutor' }, { status: 403 })
   }
 
-  const { data: course } = await service
-    .from('courses')
-    .select('title, description, metadata, instructor_id')
-    .eq('id', courseId)
-    .maybeSingle()
-  const tutor = readCourseAiMetadata((course as any)?.metadata).tutor
-  const { data: modules } = await service
-    .from('modules')
-    .select('id, title')
-    .eq('course_id', courseId)
-    .order('order_index')
-  const moduleIds = (modules || []).map((m: any) => m.id)
-  let lessonTitles = ''
-  if (moduleIds.length) {
-    const { data: lessons } = await service
-      .from('lessons')
-      .select('title, module_id')
-      .in('module_id', moduleIds)
-      .order('order_index')
-    lessonTitles = (lessons || [])
-      .map((l: any) => `- ${l.title}`)
-      .join('\n')
-      .slice(0, 4000)
-  }
-
-  let lessonContext = ''
-  if (lessonId) {
-    const { data: lesson } = await service
-      .from('lessons')
-      .select('title, description, content')
-      .eq('id', lessonId)
-      .maybeSingle()
-    if (lesson) {
-      const blocks = parseLessonBlocks((lesson as any).content)
-      const text = blocks
-        .map((b: any) => (b.type === 'text' ? b.html : b.type === 'flipcards' ? JSON.stringify(b.cards) : b.type))
-        .join('\n')
-        .replace(/<[^>]+>/g, ' ')
-        .slice(0, 6000)
-      lessonContext = `Current lesson: ${(lesson as any).title}\n${(lesson as any).description || ''}\n${text}`
-    }
-  }
-
-  const name = tutor?.name || 'Course tutor'
-  const extra = tutor?.instructions || 'Answer only from this course. If the question is off-topic, politely redirect.'
-
   try {
-    const answer = (
-      await runText({
-        feature: 'tutor',
-        userId: user.id,
-        prompt: `You are ${name}, the AI tutor trained on this Pelbu LMS course.
-${extra}
-
-Course: ${(course as any)?.title}
-Description: ${(course as any)?.description || ''}
-Outline:
-${(modules || []).map((m: any) => m.title).join('\n')}
-Lessons:
-${lessonTitles}
-
-${lessonContext}
-
-Student question: ${question}`,
-      })
-    ).text
-    return NextResponse.json({ answer, tutorName: name })
-  } catch (e: any) {
-    return NextResponse.json(
-      { error: e?.message || 'Tutor unavailable. A superadmin needs to configure AI.' },
-      { status: e?.status || 500 }
-    )
+    const result = await answerCourseTutor(asAssistantDb(service), runText, {
+      userId: user.id,
+      courseId,
+      lessonId,
+      activityId,
+      task,
+      question,
+    })
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status })
+    }
+    return NextResponse.json({
+      answer: result.answer,
+      tutorName: result.tutorName,
+      userMessage: result.userMessage,
+      assistantMessage: result.assistantMessage,
+      artifact: result.artifact,
+    })
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Tutor unavailable. A superadmin needs to configure AI.'
+    const status =
+      error && typeof error === 'object' && 'status' in error && typeof error.status === 'number'
+        ? error.status
+        : 500
+    return NextResponse.json({ error: message }, { status })
   }
 }

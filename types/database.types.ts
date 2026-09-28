@@ -74,6 +74,7 @@ export interface Database {
           average_rating: number
           rating_count: number
           metadata: Json
+          forum_scope: string
           created_at: string
           updated_at: string
         }
@@ -103,6 +104,7 @@ export interface Database {
           average_rating?: number
           rating_count?: number
           metadata?: Json
+          forum_scope?: string
           created_at?: string
           updated_at?: string
         }
@@ -132,6 +134,7 @@ export interface Database {
           average_rating?: number
           rating_count?: number
           metadata?: Json
+          forum_scope?: string
           created_at?: string
           updated_at?: string
         }

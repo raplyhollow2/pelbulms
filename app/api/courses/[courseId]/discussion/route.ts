@@ -7,6 +7,7 @@ import { getYoutubeId } from '@/lib/video-url'
 import { getRequestUser } from '@/lib/request-user'
 
 const BUCKET = 'course-media'
+const REACTIONS = ['like', 'love', 'care', 'haha', 'wow', 'sad', 'angry'] as const
 
 async function getSessionUser(request: NextRequest) {
   const session = await createSupabaseServerClient()
@@ -85,6 +86,46 @@ async function filterTaggedCourseMembers(
   return unique.filter((id) => enrolledSet.has(id))
 }
 
+function emptyReactions() {
+  return { total: 0, counts: {} as Record<string, number>, mine: null as string | null }
+}
+
+async function readForumScope(db: any, courseId: string): Promise<'course' | 'lesson'> {
+  const { data } = await db.from('courses').select('forum_scope').eq('id', courseId).maybeSingle()
+  return data?.forum_scope === 'lesson' ? 'lesson' : 'course'
+}
+
+async function lessonInCourse(db: any, courseId: string, lessonId: string | null) {
+  if (!lessonId) return null
+  const { data: lesson } = await db
+    .from('lessons')
+    .select('id, title, module_id')
+    .eq('id', lessonId)
+    .maybeSingle()
+  if (!lesson?.module_id) return null
+  const { data: moduleRow } = await db
+    .from('modules')
+    .select('course_id')
+    .eq('id', lesson.module_id)
+    .maybeSingle()
+  if (moduleRow?.course_id !== courseId) return null
+  return { id: lesson.id as string, title: (lesson.title as string) || 'Lesson' }
+}
+
+function summarizeReactions(
+  rows: { user_id: string; reaction: string }[],
+  userId: string
+) {
+  const summary = emptyReactions()
+  for (const row of rows) {
+    if (!REACTIONS.includes(row.reaction as (typeof REACTIONS)[number])) continue
+    summary.counts[row.reaction] = (summary.counts[row.reaction] || 0) + 1
+    summary.total += 1
+    if (row.user_id === userId) summary.mine = row.reaction
+  }
+  return summary
+}
+
 async function notifyTagged(
   db: any,
   opts: {
@@ -121,7 +162,8 @@ async function notifyTagged(
 }
 
 /**
- * GET /api/courses/[courseId]/discussion?lessonId=&moduleId=
+ * GET /api/courses/[courseId]/discussion?lessonId=
+ * Scope comes from courses.forum_scope. Posts always live on the course forum.
  */
 export async function GET(
   request: NextRequest,
@@ -135,7 +177,6 @@ export async function GET(
     }
 
     const lessonId = request.nextUrl.searchParams.get('lessonId')
-    const moduleId = request.nextUrl.searchParams.get('moduleId')
     const admin = await tryCreateServiceClient()
     const readDb = admin || session
 
@@ -143,10 +184,12 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden — enroll in this course to view discussion' }, { status: 403 })
     }
 
+    const scope = await readForumScope(readDb, courseId)
+
     const { data: forumId, error: forumError } = await session.rpc('ensure_discussion_forum', {
       p_course_id: courseId,
-      p_module_id: moduleId || null,
-      p_lesson_id: lessonId || null,
+      p_module_id: null,
+      p_lesson_id: null,
     })
 
     if (forumError || !forumId) {
@@ -163,14 +206,24 @@ export async function GET(
       .maybeSingle()
 
     if (!forum || forum.is_enabled === false) {
-      return NextResponse.json({ enabled: false, forumId, threads: [] })
+      return NextResponse.json({ enabled: false, forumId, scope, threads: [] })
     }
 
-    const { data: threadRows, error: threadError } = await session
+    if (scope === 'lesson' && !lessonId) {
+      return NextResponse.json({ enabled: true, forumId, scope, threads: [] })
+    }
+
+    let threadQuery = session
       .from('threads')
       .select('*')
       .eq('forum_id', forumId)
       .order('created_at', { ascending: false })
+
+    if (scope === 'lesson' && lessonId) {
+      threadQuery = threadQuery.contains('metadata', { source_lesson_id: lessonId })
+    }
+
+    const { data: threadRows, error: threadError } = await threadQuery
 
     if (threadError) {
       return NextResponse.json({ error: threadError.message }, { status: 400 })
@@ -219,6 +272,29 @@ export async function GET(
       }
     }
 
+    const reactionsByThread: Record<string, ReturnType<typeof emptyReactions>> = {}
+    if (list.length > 0) {
+      const { data: reactionRows, error: reactionError } = await readDb
+        .from('thread_reactions')
+        .select('thread_id, user_id, reaction')
+        .in(
+          'thread_id',
+          list.map((t: any) => t.id)
+        )
+      if (reactionError) {
+        console.warn('[discussion] reactions:', reactionError.message)
+      } else {
+        const grouped: Record<string, { user_id: string; reaction: string }[]> = {}
+        for (const row of reactionRows || []) {
+          if (!grouped[row.thread_id]) grouped[row.thread_id] = []
+          grouped[row.thread_id].push(row)
+        }
+        for (const thread of list) {
+          reactionsByThread[thread.id] = summarizeReactions(grouped[thread.id] || [], user.id)
+        }
+      }
+    }
+
     const threads = list.map((t: any) => {
       const taggedIds: string[] = Array.isArray(t.metadata?.tagged_user_ids)
         ? t.metadata.tagged_user_ids
@@ -235,12 +311,14 @@ export async function GET(
         video_url: t.metadata?.video_url || null,
         youtube_url: t.metadata?.youtube_url || null,
         link_preview: t.metadata?.link_preview || null,
+        lesson_title: t.metadata?.source_lesson_title || null,
         tagged_users: taggedIds.map((id) => ({
           id,
           full_name: profiles[id]?.full_name || 'Learner',
           avatar_url: profiles[id]?.avatar_url || null,
         })),
         replies: repliesByThread[t.id] || [],
+        reactions: reactionsByThread[t.id] || emptyReactions(),
       }
     })
 
@@ -253,6 +331,7 @@ export async function GET(
     return NextResponse.json({
       enabled: true,
       forumId,
+      scope,
       threads,
       me: me || null,
       audience: 'course_enrolled_only',
@@ -286,13 +365,13 @@ export async function POST(
     let action = 'post'
     let bodyText = ''
     let lessonId: string | null = null
-    let moduleId: string | null = null
     let threadId: string | null = null
     let feeling: string | null = null
     let imageUrl: string | null = null
     let videoUrl: string | null = null
     let youtubeUrl: string | null = null
     let taggedUserIds: string[] = []
+    let reaction: string | null = null
     let file: File | null = null
     let videoFile: File | null = null
 
@@ -301,12 +380,12 @@ export async function POST(
       action = String(form.get('action') || 'post')
       bodyText = String(form.get('body') || '').trim()
       lessonId = (form.get('lessonId') as string) || null
-      moduleId = (form.get('moduleId') as string) || null
       threadId = (form.get('threadId') as string) || null
       feeling = (form.get('feeling') as string) || null
       imageUrl = (form.get('imageUrl') as string) || null
       videoUrl = (form.get('videoUrl') as string) || null
       youtubeUrl = (form.get('youtubeUrl') as string) || null
+      reaction = (form.get('reaction') as string) || null
       try {
         const rawTags = form.get('taggedUserIds')
         if (typeof rawTags === 'string' && rawTags.trim()) {
@@ -327,13 +406,75 @@ export async function POST(
       action = json.action || 'post'
       bodyText = typeof json.body === 'string' ? json.body.trim() : ''
       lessonId = json.lessonId || null
-      moduleId = json.moduleId || null
       threadId = json.threadId || null
       feeling = json.feeling || null
       imageUrl = json.imageUrl || null
       videoUrl = json.videoUrl || null
       youtubeUrl = json.youtubeUrl || null
       taggedUserIds = Array.isArray(json.taggedUserIds) ? json.taggedUserIds : []
+      reaction = typeof json.reaction === 'string' ? json.reaction : null
+    }
+
+    const { data: courseForum } = await readDb
+      .from('forums')
+      .select('id, is_enabled')
+      .eq('course_id', courseId)
+      .is('module_id', null)
+      .is('lesson_id', null)
+      .limit(1)
+      .maybeSingle()
+    if (courseForum && courseForum.is_enabled === false) {
+      return NextResponse.json({ error: 'Discussion is turned off for this course' }, { status: 403 })
+    }
+
+    if (action === 'react') {
+      if (!threadId) {
+        return NextResponse.json({ error: 'threadId is required' }, { status: 400 })
+      }
+      const next =
+        reaction && REACTIONS.includes(reaction as (typeof REACTIONS)[number]) ? reaction : null
+      if (reaction && !next) {
+        return NextResponse.json({ error: 'Unknown reaction' }, { status: 400 })
+      }
+
+      const { data: thread } = await readDb
+        .from('threads')
+        .select('id, forum_id')
+        .eq('id', threadId)
+        .maybeSingle()
+      if (!thread) return NextResponse.json({ error: 'Post not found' }, { status: 404 })
+
+      const { data: forum } = await readDb
+        .from('forums')
+        .select('course_id')
+        .eq('id', thread.forum_id)
+        .maybeSingle()
+      if (!forum || forum.course_id !== courseId) {
+        return NextResponse.json({ error: 'Post is not in this course' }, { status: 403 })
+      }
+
+      const db = admin || session
+      if (!next) {
+        const { error } = await db
+          .from('thread_reactions')
+          .delete()
+          .eq('thread_id', threadId)
+          .eq('user_id', user.id)
+        if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+      } else {
+        const { error } = await db.from('thread_reactions').upsert(
+          {
+            thread_id: threadId,
+            user_id: user.id,
+            reaction: next,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'thread_id,user_id' }
+        )
+        if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+      }
+
+      return NextResponse.json({ success: true, reaction: next })
     }
 
     if (
@@ -403,8 +544,8 @@ export async function POST(
 
     const { data: forumId, error: forumError } = await session.rpc('ensure_discussion_forum', {
       p_course_id: courseId,
-      p_module_id: moduleId || null,
-      p_lesson_id: lessonId || null,
+      p_module_id: null,
+      p_lesson_id: null,
     })
     if (forumError || !forumId) {
       return NextResponse.json(
@@ -412,6 +553,17 @@ export async function POST(
         { status: 400 }
       )
     }
+
+    const { data: forumRow } = await readDb
+      .from('forums')
+      .select('is_enabled')
+      .eq('id', forumId)
+      .maybeSingle()
+    if (!forumRow || forumRow.is_enabled === false) {
+      return NextResponse.json({ error: 'Discussion is turned off for this course' }, { status: 403 })
+    }
+
+    const sourceLesson = await lessonInCourse(readDb, courseId, lessonId)
 
     // Prefer explicit youtube field, else detect from body
     const ytFromBody = firstYoutubeUrl(bodyText)
@@ -444,6 +596,10 @@ export async function POST(
     if (resolvedYoutube) metadata.youtube_url = resolvedYoutube
     if (linkPreview) metadata.link_preview = linkPreview
     if (allowedTags.length) metadata.tagged_user_ids = allowedTags
+    if (sourceLesson) {
+      metadata.source_lesson_id = sourceLesson.id
+      metadata.source_lesson_title = sourceLesson.title
+    }
 
     const { data: newThreadId, error } = await session.rpc('create_discussion_thread', {
       p_forum_id: forumId,

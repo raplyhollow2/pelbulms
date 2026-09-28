@@ -23,6 +23,8 @@ export type ActivityResponsePayload = {
   message?: string
   /** Flashcards studied flag */
   studied?: boolean
+  /** Worksheet field id → learner text */
+  fields?: Record<string, string>
 }
 
 export type ActivityInputMode =
@@ -34,6 +36,7 @@ export type ActivityInputMode =
   | 'glossary'
   | 'chat'
   | 'flashcard'
+  | 'worksheet'
   | 'link_ack'
 
 /** Which learner UI to show for an activity type. */
@@ -57,6 +60,10 @@ export function activityInputMode(type: LessonActivityType): ActivityInputMode {
       return 'chat'
     case 'flashcard':
       return 'flashcard'
+    case 'worksheet':
+      return 'worksheet'
+    case 'prompt':
+      return 'link_ack'
     case 'quiz':
       return 'none'
     case 'file':
@@ -330,6 +337,25 @@ export function validateActivityResponse(
     return { ok: true, source: 'ack', response: { studied: true } }
   }
 
+  if (mode === 'worksheet') {
+    const raw = response.fields
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return { ok: false, error: 'Fill in the template before saving' }
+    }
+    const allowed = new Set((activity.fields || []).map((field) => field.id))
+    const fields: Record<string, string> = {}
+    for (const [key, value] of Object.entries(raw)) {
+      if (allowed.size > 0 && !allowed.has(key)) continue
+      if (typeof value !== 'string') continue
+      const text = value.trim().slice(0, 4000)
+      if (text) fields[key] = text
+    }
+    if (Object.keys(fields).length === 0) {
+      return { ok: false, error: 'Fill in at least one field' }
+    }
+    return { ok: true, source: 'response', response: { fields } }
+  }
+
   return { ok: false, error: 'Unsupported activity response' }
 }
 
@@ -344,6 +370,12 @@ export function summarizeResponse(
   if (response.term) return `${response.term}: ${(response.definition || '').slice(0, 80)}`
   if (response.message) return response.message.slice(0, 160)
   if (response.studied) return 'Marked as studied'
+  if (response.fields) {
+    const parts = Object.values(response.fields)
+      .filter((value) => typeof value === 'string' && value.trim())
+      .map((value) => value.trim())
+    if (parts.length) return parts.join(' · ').slice(0, 160)
+  }
   if (response.fileName || response.fileUrl) return response.fileName || 'File submitted'
   return null
 }

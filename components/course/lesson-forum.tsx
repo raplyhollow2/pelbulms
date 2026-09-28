@@ -34,6 +34,75 @@ type Member = {
   avatar_url?: string | null
 }
 
+const REACTIONS = [
+  { key: 'like', label: 'Like', emoji: '👍', color: 'text-[#0866FF]' },
+  { key: 'love', label: 'Love', emoji: '❤️', color: 'text-[#F33E58]' },
+  { key: 'care', label: 'Care', emoji: '🥰', color: 'text-[#F7B125]' },
+  { key: 'haha', label: 'Haha', emoji: '😆', color: 'text-[#F7B125]' },
+  { key: 'wow', label: 'Wow', emoji: '😮', color: 'text-[#F7B125]' },
+  { key: 'sad', label: 'Sad', emoji: '😢', color: 'text-[#F7B125]' },
+  { key: 'angry', label: 'Angry', emoji: '😡', color: 'text-[#E9710F]' },
+] as const
+
+type ReactionKey = (typeof REACTIONS)[number]['key']
+
+type ThreadReactions = {
+  total: number
+  counts: Partial<Record<ReactionKey, number>>
+  mine: ReactionKey | null
+}
+
+const EMPTY_REACTIONS: ThreadReactions = { total: 0, counts: {}, mine: null }
+
+function reactionByKey(key: ReactionKey | null | undefined) {
+  return REACTIONS.find((reaction) => reaction.key === key) || null
+}
+
+function applyReaction(current: ThreadReactions | undefined, next: ReactionKey | null): ThreadReactions {
+  const prev = current || EMPTY_REACTIONS
+  const counts = { ...prev.counts }
+  let total = prev.total
+  if (prev.mine) {
+    const left = (counts[prev.mine] || 0) - 1
+    if (left > 0) counts[prev.mine] = left
+    else delete counts[prev.mine]
+    total = Math.max(0, total - 1)
+  }
+  if (next) {
+    counts[next] = (counts[next] || 0) + 1
+    total += 1
+  }
+  return { total, counts, mine: next }
+}
+
+function ReactionSummary({ reactions }: { reactions?: ThreadReactions }) {
+  if (!reactions || reactions.total === 0) return null
+  const shown = REACTIONS.filter((reaction) => (reactions.counts[reaction.key] || 0) > 0).slice(0, 3)
+  const others = reactions.mine ? reactions.total - 1 : reactions.total
+  const label =
+    reactions.mine && reactions.total === 1
+      ? 'You'
+      : reactions.mine
+        ? `You and ${others} other${others === 1 ? '' : 's'}`
+        : String(reactions.total)
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5">
+      <span className="flex -space-x-1">
+        {shown.map((reaction) => (
+          <span
+            key={reaction.key}
+            title={reaction.label}
+            className="inline-flex size-5 items-center justify-center rounded-full bg-card text-[13px] ring-2 ring-card"
+          >
+            {reaction.emoji}
+          </span>
+        ))}
+      </span>
+      <span className="truncate">{label}</span>
+    </span>
+  )
+}
+
 type Reply = {
   id: string
   thread_id: string
@@ -55,13 +124,14 @@ type Thread = {
   video_url?: string | null
   youtube_url?: string | null
   link_preview?: LinkPreview | null
+  lesson_title?: string | null
   tagged_users?: Member[]
   replies?: Reply[]
+  reactions?: ThreadReactions
 }
 
 interface LessonForumProps {
   courseId: string
-  moduleId?: string
   lessonId?: string
   userId?: string
 }
@@ -210,10 +280,11 @@ function YoutubeEmbed({ url }: { url: string }) {
 /**
  * Facebook-style discussion feed — course enrolled learners only.
  */
-export function LessonForum({ courseId, moduleId, lessonId, userId }: LessonForumProps) {
+export function LessonForum({ courseId, lessonId, userId }: LessonForumProps) {
   const [loading, setLoading] = useState(true)
   const [enabled, setEnabled] = useState(false)
   const [threads, setThreads] = useState<Thread[]>([])
+  const [scope, setScope] = useState<'course' | 'lesson'>('course')
   const [composerOpen, setComposerOpen] = useState(false)
   const [composer, setComposer] = useState('')
   const [feeling, setFeeling] = useState<string | null>(null)
@@ -234,6 +305,7 @@ export function LessonForum({ courseId, moduleId, lessonId, userId }: LessonForu
   const [memberQuery, setMemberQuery] = useState('')
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
   const [openComments, setOpenComments] = useState<Record<string, boolean>>({})
+  const [openReaction, setOpenReaction] = useState<string | null>(null)
   const [posting, setPosting] = useState(false)
   const [error, setError] = useState('')
   const [me, setMe] = useState<{ full_name?: string | null; avatar_url?: string | null } | null>(
@@ -243,15 +315,17 @@ export function LessonForum({ courseId, moduleId, lessonId, userId }: LessonForu
   const videoInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const reactionHold = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const ignoreReactionClick = useRef(false)
+  const pendingReactions = useRef<Set<string>>(new Set())
   const enrichedIds = useRef<Set<string>>(new Set())
 
   const query = useMemo(() => {
     const params = new URLSearchParams()
     if (lessonId) params.set('lessonId', lessonId)
-    if (moduleId) params.set('moduleId', moduleId)
     const qs = params.toString()
     return `/api/courses/${courseId}/discussion${qs ? `?${qs}` : ''}`
-  }, [courseId, lessonId, moduleId])
+  }, [courseId, lessonId])
 
   useEffect(() => {
     void loadForum()
@@ -367,6 +441,7 @@ export function LessonForum({ courseId, moduleId, lessonId, userId }: LessonForu
       if (!res.ok) throw new Error(data.error || 'Failed to load discussion')
 
       setEnabled(data.enabled !== false)
+      setScope(data.scope === 'lesson' ? 'lesson' : 'course')
       setThreads(Array.isArray(data.threads) ? data.threads : [])
       setMe(data.me || null)
     } catch (e: any) {
@@ -413,7 +488,6 @@ export function LessonForum({ courseId, moduleId, lessonId, userId }: LessonForu
       form.set('action', 'post')
       form.set('body', text)
       if (lessonId) form.set('lessonId', lessonId)
-      if (moduleId) form.set('moduleId', moduleId)
       if (feeling) form.set('feeling', feeling)
       if (youtubeUrl) form.set('youtubeUrl', youtubeUrl)
       if (tagged.length) form.set('taggedUserIds', JSON.stringify(tagged.map((t) => t.id)))
@@ -458,7 +532,6 @@ export function LessonForum({ courseId, moduleId, lessonId, userId }: LessonForu
           threadId,
           body: text,
           lessonId,
-          moduleId,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -471,6 +544,45 @@ export function LessonForum({ courseId, moduleId, lessonId, userId }: LessonForu
       setError(e?.message || 'Failed to comment')
     } finally {
       setPosting(false)
+    }
+  }
+
+  const setThreadReaction = async (threadId: string, next: ReactionKey | null) => {
+    if (!userId || pendingReactions.current.has(threadId)) return
+    pendingReactions.current.add(threadId)
+    setOpenReaction(null)
+    setError('')
+    let previous: ThreadReactions | undefined
+    setThreads((rows) =>
+      rows.map((thread) => {
+        if (thread.id !== threadId) return thread
+        previous = thread.reactions
+        return { ...thread, reactions: applyReaction(thread.reactions, next) }
+      })
+    )
+    try {
+      const res = await fetch(`/api/courses/${courseId}/discussion`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'react',
+          threadId,
+          reaction: next,
+          lessonId,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Could not save reaction')
+    } catch (e: any) {
+      setThreads((rows) =>
+        rows.map((thread) =>
+          thread.id === threadId ? { ...thread, reactions: previous || EMPTY_REACTIONS } : thread
+        )
+      )
+      setError(e?.message || 'Could not save reaction')
+    } finally {
+      pendingReactions.current.delete(threadId)
     }
   }
 
@@ -542,9 +654,11 @@ export function LessonForum({ courseId, moduleId, lessonId, userId }: LessonForu
   const emptyLabel = useMemo(
     () =>
       userId
-        ? 'Be the first to share something with classmates in this course.'
+        ? scope === 'lesson'
+          ? 'Be the first to share something about this lesson.'
+          : 'Be the first to share something with classmates in this course.'
         : 'Sign in to join the feed.',
-    [userId]
+    [scope, userId]
   )
 
   if (loading) {
@@ -582,7 +696,9 @@ export function LessonForum({ courseId, moduleId, lessonId, userId }: LessonForu
     <div className="mx-auto max-w-2xl space-y-4">
       {error && <p className="text-sm text-destructive">{error}</p>}
       <p className="text-xs text-muted-foreground">
-        Visible only to learners enrolled in this course (and course staff).
+        {scope === 'lesson'
+          ? 'Posts for this lesson, visible to enrolled learners and course staff.'
+          : 'Shared course forum, visible to enrolled learners and course staff.'}
       </p>
 
       <div className="rounded-xl border bg-card p-3 shadow-sm sm:p-4">
@@ -942,7 +1058,13 @@ export function LessonForum({ courseId, moduleId, lessonId, userId }: LessonForu
           const comments = thread.replies || []
           const commentsOpen = openComments[thread.id] ?? comments.length > 0
           return (
-            <article key={thread.id} className="rounded-xl border bg-card shadow-sm">
+            <article
+              key={thread.id}
+              className={cn(
+                'rounded-xl border bg-card shadow-sm',
+                openReaction === thread.id && 'relative z-20'
+              )}
+            >
               <header className="flex items-start gap-3 px-4 pt-4">
                 <PersonAvatar name={thread.author_name} src={thread.author_avatar} size="lg" />
                 <div className="min-w-0 flex-1">
@@ -962,7 +1084,10 @@ export function LessonForum({ courseId, moduleId, lessonId, userId }: LessonForu
                       </span>
                     ) : null}
                   </p>
-                  <p className="text-xs text-muted-foreground">{timeAgo(thread.created_at)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {timeAgo(thread.created_at)}
+                    {scope === 'course' && thread.lesson_title ? ` · ${thread.lesson_title}` : ''}
+                  </p>
                 </div>
               </header>
 
@@ -987,8 +1112,14 @@ export function LessonForum({ courseId, moduleId, lessonId, userId }: LessonForu
                 {thread.link_preview ? <LinkPreviewCard preview={thread.link_preview} /> : null}
               </div>
 
-              <div className="flex items-center justify-between border-t px-2 text-xs text-muted-foreground">
-                <span className="px-2 py-2">
+              <div
+                className={cn(
+                  'flex items-center gap-3 border-t px-4 py-1.5 text-xs text-muted-foreground',
+                  (thread.reactions?.total || 0) > 0 && 'justify-between'
+                )}
+              >
+                <ReactionSummary reactions={thread.reactions} />
+                <span>
                   {comments.length === 0
                     ? 'No comments yet'
                     : `${comments.length} comment${comments.length === 1 ? '' : 's'}`}
@@ -1009,15 +1140,100 @@ export function LessonForum({ courseId, moduleId, lessonId, userId }: LessonForu
                   <MessageCircle className="h-4 w-4" />
                   Comment
                 </button>
-                <button
-                  type="button"
-                  className="flex min-h-11 cursor-default items-center justify-center gap-2 rounded-lg text-sm font-medium text-muted-foreground opacity-60"
-                  disabled
-                  title="Coming soon"
+                <div
+                  className="relative"
+                  onPointerEnter={(event) => {
+                    if (!userId || event.pointerType === 'touch') return
+                    setOpenReaction(thread.id)
+                  }}
+                  onPointerLeave={(event) => {
+                    if (event.pointerType === 'touch') return
+                    setOpenReaction((current) => (current === thread.id ? null : current))
+                  }}
+                  onFocus={() => {
+                    if (userId) setOpenReaction(thread.id)
+                  }}
+                  onBlur={(event) => {
+                    const next = event.relatedTarget
+                    if (next instanceof Node && event.currentTarget.contains(next)) return
+                    setOpenReaction((current) => (current === thread.id ? null : current))
+                  }}
                 >
-                  <ThumbsUp className="h-4 w-4" />
-                  Like
-                </button>
+                  {openReaction === thread.id && userId ? (
+                    <div className="absolute bottom-full left-1/2 z-30 -translate-x-1/2 pb-2">
+                      <div
+                        role="menu"
+                        aria-label="Reactions"
+                        className="flex items-end gap-0.5 rounded-full border bg-popover px-2 py-1.5 shadow-lg"
+                      >
+                        {REACTIONS.map((reaction) => (
+                          <button
+                            key={reaction.key}
+                            type="button"
+                            role="menuitem"
+                            title={reaction.label}
+                            aria-label={reaction.label}
+                            className={cn(
+                              'rounded-full px-1 text-[26px] leading-none transition-transform hover:-translate-y-1 hover:scale-125',
+                              thread.reactions?.mine === reaction.key && 'ring-2 ring-[#0866FF]/40'
+                            )}
+                            onClick={() =>
+                              void setThreadReaction(
+                                thread.id,
+                                thread.reactions?.mine === reaction.key ? null : reaction.key
+                              )
+                            }
+                          >
+                            {reaction.emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    disabled={!userId}
+                    aria-pressed={Boolean(thread.reactions?.mine)}
+                    aria-label={
+                      thread.reactions?.mine
+                        ? `${reactionByKey(thread.reactions.mine)?.label || 'Like'}. Choose another reaction or remove it.`
+                        : 'Like. Hover or hold for more reactions.'
+                    }
+                    className={cn(
+                      'flex min-h-11 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-50',
+                      reactionByKey(thread.reactions?.mine)?.color || 'font-medium text-muted-foreground'
+                    )}
+                    onPointerDown={(event) => {
+                      if (!userId || event.pointerType !== 'touch') return
+                      reactionHold.current = setTimeout(() => {
+                        ignoreReactionClick.current = true
+                        setOpenReaction(thread.id)
+                      }, 400)
+                    }}
+                    onPointerUp={() => {
+                      if (reactionHold.current) clearTimeout(reactionHold.current)
+                    }}
+                    onPointerCancel={() => {
+                      if (reactionHold.current) clearTimeout(reactionHold.current)
+                    }}
+                    onClick={() => {
+                      if (ignoreReactionClick.current) {
+                        ignoreReactionClick.current = false
+                        return
+                      }
+                      void setThreadReaction(thread.id, thread.reactions?.mine ? null : 'like')
+                    }}
+                  >
+                    {thread.reactions?.mine ? (
+                      <span className="text-base leading-none">
+                        {reactionByKey(thread.reactions.mine)?.emoji}
+                      </span>
+                    ) : (
+                      <ThumbsUp className="h-4 w-4" />
+                    )}
+                    {reactionByKey(thread.reactions?.mine)?.label || 'Like'}
+                  </button>
+                </div>
               </div>
 
               {commentsOpen && (
