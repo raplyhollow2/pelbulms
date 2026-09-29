@@ -36,7 +36,7 @@ export const canAccessAdmin = (role?: string | null): boolean =>
 export const canAccessTeaching = (role?: string | null): boolean =>
   role === 'instructor' || role === 'admin' || role === 'resource_person' || role === 'superadmin'
 
-/** Default home after login and when opening the learner dashboard. */
+/** Where to send someone right after they sign in. */
 export function homePathForRole(role?: string | null): string {
   if (canAccessAdmin(role)) return '/admin/reports'
   if (role === 'instructor' || role === 'resource_person') return '/teach/dashboard'

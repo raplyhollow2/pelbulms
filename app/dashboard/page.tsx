@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,7 +24,6 @@ import type { Database } from '@/types/database.types'
 import { DashboardCourseCard } from '@/components/dashboard/course-card'
 import { resolveMediaUrl } from '@/lib/media'
 import { resumeLearnPath } from '@/lib/resume-path'
-import { homePathForRole } from '@/lib/roles'
 import {
   Select,
   SelectContent,
@@ -69,7 +67,6 @@ export default function DashboardPage() {
   )
   const [page, setPage] = useState(1)
 
-  const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
@@ -81,7 +78,6 @@ export default function DashboardPage() {
   }, [query, statusFilter])
 
   const fetchDashboardData = async () => {
-    let leaving = false
     try {
       setLoading(true)
       const {
@@ -96,13 +92,6 @@ export default function DashboardPage() {
         .select('*')
         .eq('id', session.user.id)
         .single()
-
-      const destination = homePathForRole(profileData?.role)
-      if (destination !== '/dashboard') {
-        leaving = true
-        router.replace(destination)
-        return
-      }
 
       setUser(session.user)
       setProfile(profileData)
@@ -154,7 +143,7 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
     } finally {
-      if (!leaving) setLoading(false)
+      setLoading(false)
     }
   }
 

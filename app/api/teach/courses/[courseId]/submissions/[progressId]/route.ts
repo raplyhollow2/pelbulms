@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
 import { userCanManageCourse, courseIdByLesson } from '@/lib/course-access'
 import { reconcileLessonCourseCompletion } from '@/lib/lesson-completion-sync'
+import { dismissGradedSubmissionNotifications } from '@/lib/notify-teachers'
 import { getRequestUser } from '@/lib/request-user'
 
 /**
@@ -163,6 +164,18 @@ export async function PATCH(
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+
+    if (updates.status === 'graded' || updates.status === 'returned') {
+      try {
+        await dismissGradedSubmissionNotifications(service, {
+          studentId: (updated as any).user_id,
+          lessonId: (updated as any).lesson_id,
+          activityId: (updated as any).activity_id,
+        })
+      } catch (noticeError) {
+        console.error('[grading] failed to clear grading notices:', noticeError)
+      }
     }
 
     let lessonCompleted: boolean | null = null

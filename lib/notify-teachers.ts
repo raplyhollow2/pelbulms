@@ -306,6 +306,113 @@ export async function notifyStaffOfSubmission(
   return inserted
 }
 
+const GRADED_SUBMISSION_STATUSES = new Set(['graded', 'returned'])
+
+function submissionNoticeKey(studentId: string, lessonId: string, activityId: string) {
+  return `${studentId}:${lessonId}:${activityId}`
+}
+
+/**
+ * Mark unread submission_pending notices as read once that work is graded
+ * or returned. Scope to one inbox with userId, or to one submission so every
+ * staff recipient is cleared after a grade is saved.
+ */
+export async function dismissGradedSubmissionNotifications(
+  service: any,
+  scope: {
+    userId?: string
+    studentId?: string
+    lessonId?: string
+    activityId?: string
+  }
+): Promise<void> {
+  const targeted = Boolean(scope.studentId && scope.lessonId && scope.activityId)
+
+  let query = service
+    .from('notifications')
+    .select('id, metadata')
+    .eq('type', 'submission_pending')
+    .eq('is_read', false)
+    .order('created_at', { ascending: false })
+    .limit(200)
+
+  if (scope.userId) query = query.eq('user_id', scope.userId)
+  if (targeted) {
+    query = query.contains('metadata', {
+      student_id: scope.studentId,
+      lesson_id: scope.lessonId,
+      activity_id: scope.activityId,
+    })
+  }
+
+  const { data: notices, error } = await query
+  if (error) {
+    console.error('[notify-teachers] pending notice lookup failed:', error)
+    return
+  }
+  if (!notices?.length) return
+
+  let resolvedIds: string[] = []
+  if (targeted) {
+    resolvedIds = notices.map((notice: { id: string }) => notice.id)
+  } else {
+    const keys = (notices as Array<{ id: string; metadata?: Record<string, unknown> | null }>)
+      .map((notice) => {
+        const meta = notice.metadata || {}
+        const studentId = typeof meta.student_id === 'string' ? meta.student_id : ''
+        const lessonId = typeof meta.lesson_id === 'string' ? meta.lesson_id : ''
+        const activityId = typeof meta.activity_id === 'string' ? meta.activity_id : ''
+        if (!studentId || !lessonId || !activityId) return null
+        return { id: notice.id, studentId, lessonId, activityId }
+      })
+      .filter((key): key is { id: string; studentId: string; lessonId: string; activityId: string } =>
+        Boolean(key)
+      )
+
+    if (!keys.length) return
+
+    const { data: progress, error: progressError } = await service
+      .from('lesson_activity_progress')
+      .select('user_id, lesson_id, activity_id, status')
+      .in('user_id', [...new Set(keys.map((key) => key.studentId))])
+      .in('activity_id', [...new Set(keys.map((key) => key.activityId))])
+
+    if (progressError) {
+      console.error('[notify-teachers] progress lookup failed:', progressError)
+      return
+    }
+
+    const statusByKey = new Map<string, string | null>()
+    for (const row of progress || []) {
+      statusByKey.set(
+        submissionNoticeKey(row.user_id, row.lesson_id, row.activity_id),
+        row.status ?? null
+      )
+    }
+
+    resolvedIds = keys
+      .filter((key) => {
+        const status = statusByKey.get(
+          submissionNoticeKey(key.studentId, key.lessonId, key.activityId)
+        )
+        if (status === undefined) return true
+        return GRADED_SUBMISSION_STATUSES.has(status)
+      })
+      .map((key) => key.id)
+  }
+
+  if (!resolvedIds.length) return
+
+  const { error: updateError } = await service
+    .from('notifications')
+    .update({ is_read: true, read_at: new Date().toISOString() })
+    .in('id', resolvedIds)
+
+  if (updateError) {
+    console.error('[notify-teachers] dismiss pending notices failed:', updateError)
+  }
+}
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, '&amp;')

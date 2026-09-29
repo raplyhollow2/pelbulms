@@ -1,6 +1,7 @@
 // @ts-nocheck - notifications table not fully in generated Database types
 import { NextResponse } from 'next/server'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { dismissGradedSubmissionNotifications } from '@/lib/notify-teachers'
+import { createSupabaseServerClient, tryCreateServiceClient } from '@/lib/supabase/server'
 import { getRequestUser } from '@/lib/request-user'
 
 /**
@@ -19,6 +20,15 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const unreadOnly = searchParams.get('unread') === '1'
     const limit = Math.min(parseInt(searchParams.get('limit') || '30', 10) || 30, 100)
+
+    try {
+      const service = await tryCreateServiceClient()
+      if (service) {
+        await dismissGradedSubmissionNotifications(service, { userId: user.id })
+      }
+    } catch (reconcileError) {
+      console.error('[notifications] grading reconcile failed:', reconcileError)
+    }
 
     let query = supabase
       .from('notifications')
