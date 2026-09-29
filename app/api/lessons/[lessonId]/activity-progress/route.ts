@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, tryCreateServiceClient } from '@/lib/supabase/server'
-import { courseIdByLesson, userCanManageCourse } from '@/lib/course-access'
+import { courseIdByLesson, courseIsOpenToLearners, userCanManageCourse } from '@/lib/course-access'
 import {
   getMandatoryActivities,
   isActivityRequired,
@@ -50,6 +50,9 @@ async function assertLessonLearnerAccess(
 
   if (!enrollment) {
     return { ok: false as const, status: 403, error: 'Enroll in this course to track activities' }
+  }
+  if (!(await courseIsOpenToLearners(db, courseId))) {
+    return { ok: false as const, status: 403, error: 'This course is no longer available.' }
   }
   return { ok: true as const, courseId }
 }

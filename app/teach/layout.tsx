@@ -52,8 +52,9 @@ export default function TeachLayout({
           const list: string[] = capJson.capabilities || []
           const hasTeach =
             list.includes('*') || list.some((k: string) => k.startsWith('menu.teach.'))
+          const authoritative = capJson.catalogResolved === true || list.length > 0
           if (hasTeach) allowed = true
-          else if (list.length > 0) allowed = false
+          else if (authoritative) allowed = false
         }
       } catch {
         // keep coarse role fallback

@@ -112,20 +112,23 @@ export default function ProfilePage() {
         }
         setCertificates(issuedCertificates)
 
-        if (enrollments && enrollments.length > 0) {
-          const completedEnrollments = enrollments.filter(
+        if (enrollments) {
+          const openEnrollments = enrollments.filter((e: any) => e?.courses?.is_published === true)
+          const completedEnrollments = openEnrollments.filter(
             (e: any) => (e.progress_percentage ?? 0) >= 100 || e.status === 'completed'
           )
           setStats({
-            enrolledCourses: enrollments.length,
+            enrolledCourses: openEnrollments.length,
             completedCourses: completedEnrollments.length,
             certificates: issuedCertificates.length,
-            totalProgress: Math.round(
-              enrollments.reduce(
-                (sum: number, e: any) => sum + (e.progress_percentage || 0),
-                0
-              ) / enrollments.length
-            ),
+            totalProgress: openEnrollments.length
+              ? Math.round(
+                  openEnrollments.reduce(
+                    (sum: number, e: any) => sum + (e.progress_percentage || 0),
+                    0
+                  ) / openEnrollments.length
+                )
+              : 0,
           })
         }
       }

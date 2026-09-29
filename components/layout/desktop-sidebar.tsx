@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import {
   BookOpen,
   ChevronLeft, ChevronRight, LogOut, Search,
@@ -22,8 +22,8 @@ import { resolveMediaUrl } from '@/lib/media'
 import { cn, haptic, warning as hapticWarning, tap as hapticTap } from '@/lib/utils'
 import { useCapabilities } from '@/components/auth/capabilities-provider'
 import { defaultKeysForRole, hasCap } from '@/lib/capability-catalog'
-import { buildAccessNav } from '@/lib/nav-access'
-import { coerceUserRole } from '@/lib/roles'
+import { buildAccessNav, ROLE_PANELS } from '@/lib/nav-access'
+import { coerceUserRole, ROLE_LABELS } from '@/lib/roles'
 
 interface DesktopSidebarProps {
   user?: any
@@ -45,22 +45,19 @@ const STORAGE_KEY = 'pelbu:sidebar-collapsed'
 
 export function DesktopSidebar({ user, siteName = 'Pelbu LMS', profile: profileHint = null }: DesktopSidebarProps) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [collapsed, setCollapsed] = useState(false)
   const { loaded: capsLoaded, has: hasCapKey, role: capRole } = useCapabilities()
   const [userRole, setUserRole] = useState<
     'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
   >('student')
   const [profile, setProfile] = useState<{ full_name?: string; avatar_url?: string } | null>(null)
-  const [canApprove, setCanApprove] = useState(false)
 
   const roleForNav = capsLoaded ? capRole : userRole
   const has = (key: string) =>
     capsLoaded ? hasCapKey(key) : hasCap(defaultKeysForRole(roleForNav), key)
-  const { learn: navigation, teach: teacherNavigation, admin: adminNavigation } =
-    buildAccessNav(has, {
-      showApprovalsShortcut: canApprove || has('admin.approvals.view'),
-    })
-  const canTeach = teacherNavigation.length > 0
+  const panels = buildAccessNav(has)
+  const accountLabel = ROLE_LABELS[roleForNav]
 
   // Sync collapse with layout events (e.g. tablet auto-rail).
   useEffect(() => {
@@ -135,20 +132,6 @@ export function DesktopSidebar({ user, siteName = 'Pelbu LMS', profile: profileH
         }
       }
       setUserRole(role)
-
-      const supabase = createClient()
-
-      if (role === 'superadmin' || role === 'resource_person') {
-        setCanApprove(true)
-      } else {
-        const { data: reviewerRows } = await supabase
-          .from('registration_reviewers')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('is_active', true)
-          .limit(1)
-        setCanApprove(!!(reviewerRows && reviewerRows.length > 0))
-      }
     } catch (error) {
       console.error('Error fetching profile:', error)
     }
@@ -186,10 +169,15 @@ export function DesktopSidebar({ user, siteName = 'Pelbu LMS', profile: profileH
   const renderNav = (items: NavItem[]) =>
     items.map((item) => {
       const itemPath = item.href.split('?')[0]
-      const isActive =
-        itemPath === '/admin'
-          ? pathname === '/admin'
-          : pathname === itemPath || pathname.startsWith(`${itemPath}/`)
+      const wantsApprovals = item.href.includes('tab=approvals')
+      const onUsers = pathname === '/admin/users' || pathname.startsWith('/admin/users/')
+      const isActive = wantsApprovals
+        ? onUsers && searchParams.get('tab') === 'approvals'
+        : itemPath === '/admin/users'
+          ? onUsers && searchParams.get('tab') !== 'approvals'
+          : itemPath === '/admin'
+            ? pathname === '/admin'
+            : pathname === itemPath || pathname.startsWith(`${itemPath}/`)
       const link = (
         <Link
           key={item.href}
@@ -300,6 +288,9 @@ export function DesktopSidebar({ user, siteName = 'Pelbu LMS', profile: profileH
               {!collapsed && (
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{displayName}</p>
+                  <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    {accountLabel}
+                  </p>
                   <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
                 </div>
               )}
@@ -341,26 +332,16 @@ export function DesktopSidebar({ user, siteName = 'Pelbu LMS', profile: profileH
             </Button>
           )}
 
-          {navigation.length > 0 && (
-            <>
-              {sectionLabel("Learner's Dashboard", 'Learn')}
-              {renderNav(navigation)}
-            </>
-          )}
-
-          {canTeach && (
-            <>
-              {sectionLabel("Teacher's Dashboard", 'Teach')}
-              {renderNav(teacherNavigation)}
-            </>
-          )}
-
-          {adminNavigation.length > 0 && (
-            <>
-              {sectionLabel("Superadmin's Dashboard", 'Admin')}
-              {renderNav(adminNavigation)}
-            </>
-          )}
+          {ROLE_PANELS.map((panel) => {
+            const items = panels[panel.id]
+            if (items.length === 0) return null
+            return (
+              <div key={panel.id}>
+                {sectionLabel(panel.label, panel.short)}
+                {renderNav(items)}
+              </div>
+            )
+          })}
         </nav>
 
         {/* Logout */}

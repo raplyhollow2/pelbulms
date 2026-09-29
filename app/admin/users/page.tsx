@@ -211,6 +211,8 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [canManageUsers, setCanManageUsers] = useState(false)
+  const [canAddUsers, setCanAddUsers] = useState(false)
+  const [canEditUsers, setCanEditUsers] = useState(false)
   const [canApproveRegs, setCanApproveRegs] = useState(false)
   const [currentRole, setCurrentRole] = useState<Role>('admin')
   const isSuperAdmin = currentRole === 'superadmin'
@@ -271,6 +273,8 @@ export default function AdminUsersPage() {
       ) as Role
 
       let manage = role === 'admin' || role === 'superadmin'
+      let addUsers = manage
+      let editUsers = manage
       let approve =
         role === 'superadmin' ||
         role === 'admin' ||
@@ -283,8 +287,11 @@ export default function AdminUsersPage() {
           const capJson = await capRes.json()
           const list: string[] = capJson.capabilities || []
           const has = (key: string) => list.includes('*') || list.includes(key)
-          if (list.length > 0) {
+          const authoritative = capJson.catalogResolved === true || list.length > 0
+          if (authoritative) {
             manage = has('admin.users.view')
+            addUsers = has('admin.users.add')
+            editUsers = has('admin.users.edit')
             approve = has('admin.approvals.view')
             canReviewers = has('admin.reviewers.view')
           }
@@ -293,7 +300,7 @@ export default function AdminUsersPage() {
         // coarse role fallback
       }
 
-      if (!approve) {
+      if (!approve && role !== 'admin' && role !== 'superadmin') {
         const { data: reviewerRows } = await supabase
           .from('registration_reviewers')
           .select('id')
@@ -310,6 +317,8 @@ export default function AdminUsersPage() {
 
       setCurrentRole(role)
       setCanManageUsers(manage)
+      setCanAddUsers(addUsers)
+      setCanEditUsers(editUsers)
       setCanApproveRegs(approve)
 
       const requested =
@@ -648,7 +657,7 @@ export default function AdminUsersPage() {
             Manage accounts, review registrations, and assign institute reviewers.
           </p>
         </div>
-        {canManageUsers && activeTab === 'users' && (
+        {canManageUsers && canAddUsers && activeTab === 'users' && (
           <Button
             size="sm"
             className="h-9 w-full shrink-0 gap-2 sm:w-auto"
@@ -969,6 +978,8 @@ export default function AdminUsersPage() {
 
                       {/* Actions */}
                       <div className="mt-3 flex items-center gap-2 md:mt-0 md:justify-end">
+                        {canEditUsers && (
+                        <>
                         <Select
                           value={user.role}
                           onValueChange={(value) => handleUpdateRole(user.id, value as Role)}
@@ -1010,7 +1021,10 @@ export default function AdminUsersPage() {
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
+                        </>
+                        )}
 
+                        {isSuperAdmin && (
                         <AlertDialog>
                           <AlertDialogTrigger
                             render={
@@ -1047,6 +1061,7 @@ export default function AdminUsersPage() {
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
+                        )}
                       </div>
                     </li>
                   )

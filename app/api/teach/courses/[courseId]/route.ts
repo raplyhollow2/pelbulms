@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, tryCreateServiceClient } from '@/lib/supabase/server'
 import { getRequestUser } from '@/lib/request-user'
-import { canAccessAdmin, canAccessTeaching } from '@/lib/roles'
+import { canAccessTeaching } from '@/lib/roles'
 
 /**
  * DELETE /api/teach/courses/[courseId]
- * Course owner (teacher) or admin/superadmin. Related rows cascade.
+ * Course creator or superadmin. Related rows cascade.
  */
 export async function DELETE(
   request: NextRequest,
@@ -26,9 +26,9 @@ export async function DELETE(
     .maybeSingle()
   const role = (profile as { role?: string } | null)?.role || user.role
 
-  if (!canAccessTeaching(role)) {
+  if (!canAccessTeaching(role) && role !== 'superadmin') {
     return NextResponse.json(
-      { error: 'Only teachers and superadmins can delete courses' },
+      { error: 'Only the course creator or a superadmin can delete this course' },
       { status: 403 }
     )
   }
@@ -42,8 +42,11 @@ export async function DELETE(
   if (!course) return NextResponse.json({ error: 'Course not found' }, { status: 404 })
 
   const isOwner = (course as { instructor_id?: string | null }).instructor_id === user.id
-  if (!isOwner && !canAccessAdmin(role)) {
-    return NextResponse.json({ error: 'You can only delete your own courses' }, { status: 403 })
+  if (!isOwner && role !== 'superadmin') {
+    return NextResponse.json(
+      { error: 'Only the course creator or a superadmin can delete this course' },
+      { status: 403 }
+    )
   }
 
   const { error } = await db.from('courses').delete().eq('id', courseId)

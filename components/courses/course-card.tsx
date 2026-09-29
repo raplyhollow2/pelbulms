@@ -8,6 +8,7 @@ import { Progress } from '@/components/ui/progress'
 import { BookOpen, Check, Loader2, Star, Building2 } from 'lucide-react'
 import type { Database } from '@/types/database.types'
 import { resolveMediaUrl } from '@/lib/media'
+import { courseDescriptionPlain } from '@/lib/course-description'
 import { cn } from '@/lib/utils'
 import {
   audienceBadgeForCourse,
@@ -81,7 +82,7 @@ export function CourseCard({
   const thumbSrc = resolveMediaUrl(course.thumbnail_url)
   const modules = moduleCount(course)
   const students = studentCount(course)
-  const brief = (course.description || '').trim() || 'No description available.'
+  const brief = courseDescriptionPlain(course.description) || 'No description available.'
   const instructorName =
     course.profiles?.full_name?.trim() ||
     (course as { instructor_name?: string }).instructor_name ||

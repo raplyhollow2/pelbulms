@@ -96,14 +96,12 @@ export function emptyBlock(type: LessonBlock['type']): LessonBlock {
   }
 }
 
-export function BlockPicker({
-  open,
-  onOpenChange,
+export function BlockCatalog({
   onPick,
+  autoFocusSearch = false,
 }: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
   onPick: (block: LessonBlock) => void
+  autoFocusSearch?: boolean
 }) {
   const [query, setQuery] = useState('')
   const [lastUsed, setLastUsed] = useState<string[]>([])
@@ -118,7 +116,7 @@ export function BlockPicker({
     } catch {
       setLastUsed([])
     }
-  }, [open])
+  }, [])
 
   const remember = (title: string) => {
     const next = [title, ...lastUsed.filter((t) => t !== title)].slice(0, 4)
@@ -129,7 +127,6 @@ export function BlockPicker({
   const pickType = (type: LessonBlock['type'], title: string) => {
     remember(title)
     onPick(emptyBlock(type))
-    onOpenChange(false)
   }
 
   const generateImage = async () => {
@@ -156,7 +153,7 @@ export function BlockPicker({
         onPick({ id: newBlockId(), type: 'image', url: data.url, alt: prompt })
       }
       setImagePrompt('')
-      onOpenChange(false)
+      setImageOpen(false)
     } catch (e: any) {
       setImageError(e?.message || 'Could not generate image')
     } finally {
@@ -177,21 +174,7 @@ export function BlockPicker({
   const lastItems = GROUPS.flatMap((g) => g.items).filter((item) => lastUsed.includes(item.title))
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) {
-          setImageOpen(false)
-          setImageError('')
-        }
-        onOpenChange(next)
-      }}
-    >
-      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Add content</DialogTitle>
-          <DialogDescription>Search, or press / from the studio. Last used stays on top.</DialogDescription>
-        </DialogHeader>
+    <div className="space-y-4">
         {imageOpen ? (
           <div className="space-y-2 rounded-lg border p-3">
             <p className="text-sm font-medium">Describe the picture</p>
@@ -225,7 +208,7 @@ export function BlockPicker({
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            autoFocus
+            autoFocus={autoFocusSearch}
             className="min-h-11 pl-9"
             placeholder="Search blocks…"
             value={query}
@@ -292,6 +275,35 @@ export function BlockPicker({
             </div>
           ))}
         </div>
+    </div>
+  )
+}
+
+export function BlockPicker({
+  open,
+  onOpenChange,
+  onPick,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onPick: (block: LessonBlock) => void
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Add content</DialogTitle>
+          <DialogDescription>Search, or press / from the studio. Last used stays on top.</DialogDescription>
+        </DialogHeader>
+        {open ? (
+          <BlockCatalog
+            autoFocusSearch
+            onPick={(block) => {
+              onPick(block)
+              onOpenChange(false)
+            }}
+          />
+        ) : null}
       </DialogContent>
     </Dialog>
   )

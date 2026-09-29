@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, Fragment } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -21,6 +21,8 @@ import {
 } from '@/components/ui/dialog'
 import { Loader2, Plus, Trash2, Save } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ROLE_LABELS, USER_ROLES, type UserRole } from '@/lib/roles'
+import { panelForMenuKey, ROLE_PANELS } from '@/lib/nav-access'
 
 type Role = {
   id: string
@@ -141,6 +143,30 @@ export function PermissionsMatrix() {
       return ao - bo
     })
   }, [menuCaps])
+
+  const menuGroups = useMemo(() => {
+    return ROLE_PANELS.map((panel) => ({
+      ...panel,
+      rows: menuRows.filter((row) => panelForMenuKey(row.menu_key) === panel.id),
+    })).filter((group) => group.rows.length > 0)
+  }, [menuRows])
+
+  const orderedRoles = useMemo(() => {
+    const panelRank = (slug: string) => {
+      const index = ROLE_PANELS.findIndex((panel) => panel.id === slug)
+      return index >= 0 ? index : 50
+    }
+    const rank = (role: Role) => {
+      if (role.is_system) return panelRank(role.slug)
+      return 100 + panelRank(role.base_archetype)
+    }
+    return [...roles].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name))
+  }, [roles])
+
+  const labelFor = (role: Role) =>
+    role.is_system && (USER_ROLES as string[]).includes(role.slug)
+      ? ROLE_LABELS[role.slug as UserRole]
+      : role.name
 
   const moduleRows = useMemo(() => {
     const byKey = new Map<string, { menu_key: string; label: string; caps: Capability[] }>()
@@ -275,7 +301,7 @@ export function PermissionsMatrix() {
             </Button>
           </div>
           <ul className="max-h-[70vh] overflow-y-auto p-1">
-            {roles.map((role) => (
+            {orderedRoles.map((role) => (
               <li key={role.id}>
                 <button
                   type="button"
@@ -287,7 +313,7 @@ export function PermissionsMatrix() {
                       : 'hover:bg-muted'
                   )}
                 >
-                  <span className="block font-medium">{role.name}</span>
+                  <span className="block font-medium">{labelFor(role)}</span>
                   {!role.is_system && (
                     <span
                       className={cn(
@@ -310,10 +336,10 @@ export function PermissionsMatrix() {
             <>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <h2 className="text-lg font-semibold">{selectedRole.name}</h2>
+                  <h2 className="text-lg font-semibold">{labelFor(selectedRole)}</h2>
                   <p className="text-sm text-muted-foreground">
                     {selectedRole.is_system ? 'System role' : 'Custom role'} · archetype{' '}
-                    {selectedRole.base_archetype}
+                    {ROLE_LABELS[selectedRole.base_archetype as UserRole] || selectedRole.base_archetype}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -401,7 +427,17 @@ export function PermissionsMatrix() {
                           </td>
                         </tr>
                       )}
-                      {menuRows.map((row) => {
+                      {menuGroups.map((group) => (
+                        <Fragment key={group.id}>
+                          <tr className="border-b bg-muted/60">
+                            <td
+                              colSpan={MENU_ACTIONS.length + 2}
+                              className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                            >
+                              {group.label}
+                            </td>
+                          </tr>
+                          {group.rows.map((row) => {
                         const available = MENU_ACTIONS.filter((a) => capForAction(row.caps, a))
                         const allOn =
                           available.length > 0 &&
@@ -452,6 +488,8 @@ export function PermissionsMatrix() {
                           </tr>
                         )
                       })}
+                        </Fragment>
+                      ))}
                     </tbody>
                   </table>
                 </section>

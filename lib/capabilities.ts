@@ -32,6 +32,12 @@ export type ResolvedCapabilities = {
   baseArchetype: UserRole
   /** Empty set means allow-all when allInstitutions is true; otherwise empty = no institutions. */
   capabilityKeys: Set<string>
+  /**
+   * True when a role row was found and its grants are the source of truth.
+   * An empty grant set is intentional. Coarse role defaults apply only when
+   * this is false (roles tables missing).
+   */
+  catalogResolved: boolean
   allInstitutions: boolean
   institutionIds: string[]
 }
@@ -43,14 +49,15 @@ export type CapabilityCheck = RBACCheck & {
 type AdminDb = Awaited<ReturnType<typeof tryCreateServiceClient>> | null
 
 const CAPABILITY_CACHE_MS = 60_000
-const capabilityCache = new Map<string, { at: number; value: ResolvedCapabilities }>()
+const CAPABILITY_CACHE_VERSION = 2
+const capabilityCache = new Map<string, { at: number; version: number; value: ResolvedCapabilities }>()
 
 export function invalidateCapabilityCache() {
   capabilityCache.clear()
 }
 
 function rememberCapabilities(userId: string, value: ResolvedCapabilities) {
-  capabilityCache.set(userId, { at: Date.now(), value })
+  capabilityCache.set(userId, { at: Date.now(), version: CAPABILITY_CACHE_VERSION, value })
   return value
 }
 
@@ -69,7 +76,13 @@ export async function resolveUserCapabilities(
   fallbackRole?: UserRole | null
 ): Promise<ResolvedCapabilities> {
   const hit = capabilityCache.get(userId)
-  if (hit && Date.now() - hit.at < CAPABILITY_CACHE_MS) return hit.value
+  if (
+    hit &&
+    hit.version === CAPABILITY_CACHE_VERSION &&
+    Date.now() - hit.at < CAPABILITY_CACHE_MS
+  ) {
+    return hit.value
+  }
   return rememberCapabilities(userId, await resolveUserCapabilitiesUncached(userId, fallbackRole))
 }
 
@@ -97,6 +110,7 @@ async function resolveUserCapabilitiesUncached(
       roleSlug: 'superadmin',
       baseArchetype: 'superadmin',
       capabilityKeys: new Set(['*']),
+      catalogResolved: true,
       allInstitutions: true,
       institutionIds: [],
     }
@@ -169,6 +183,7 @@ async function resolveUserCapabilitiesUncached(
     roleSlug: roleRow.slug,
     baseArchetype: roleRow.base_archetype as UserRole,
     capabilityKeys: keys,
+    catalogResolved: true,
     allInstitutions,
     institutionIds,
   }
@@ -222,7 +237,6 @@ function coarseFallback(userId: string, userRole: UserRole): ResolvedCapabilitie
       CAP.USERS_VIEW,
       CAP.USERS_ADD,
       CAP.USERS_EDIT,
-      CAP.USERS_DELETE,
       CAP.APPROVALS_VIEW,
       CAP.APPROVALS_EDIT,
       CAP.REPORTS_VIEW,
@@ -251,6 +265,7 @@ function coarseFallback(userId: string, userRole: UserRole): ResolvedCapabilitie
     roleSlug: userRole,
     baseArchetype: userRole,
     capabilityKeys: keys,
+    catalogResolved: false,
     allInstitutions: true,
     institutionIds: [],
   }
@@ -332,11 +347,10 @@ export function capabilityDenied(check: CapabilityCheck) {
   )
 }
 
-/** True when the role actually has catalog grants (so coarse role fallback must not win). */
+/** True when the permission matrix is the source of truth, including an empty grant set. */
 export function catalogGrantsActive(resolved?: ResolvedCapabilities) {
   if (!resolved) return false
-  if (resolved.capabilityKeys.has('*')) return true
-  return resolved.capabilityKeys.size > 0
+  return resolved.catalogResolved === true
 }
 
 /**

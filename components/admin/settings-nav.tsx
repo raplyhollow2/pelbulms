@@ -8,10 +8,10 @@ import { useCapabilities } from '@/components/auth/capabilities-provider'
 import { CAP } from '@/lib/capability-keys'
 
 const ITEMS = [
-  { href: '/admin/settings', label: 'Site', icon: Globe, exact: true, cap: CAP.SETTINGS_VIEW },
-  { href: '/admin/settings/registration', label: 'Registration', icon: ClipboardList, cap: CAP.SETTINGS_VIEW },
+  { href: '/admin/settings', label: 'Site', icon: Globe, exact: true, cap: CAP.SETTINGS_SITE_VIEW },
+  { href: '/admin/settings/registration', label: 'Registration', icon: ClipboardList, cap: CAP.SETTINGS_REGISTRATION_VIEW },
   { href: '/admin/settings/institutions', label: 'Institutions', icon: Building2, cap: CAP.INSTITUTIONS_VIEW },
-  { href: '/admin/settings/marketing', label: 'Marketing', icon: Megaphone, cap: CAP.SETTINGS_VIEW },
+  { href: '/admin/settings/marketing', label: 'Marketing', icon: Megaphone, cap: CAP.SETTINGS_MARKETING_VIEW },
   { href: '/admin/settings/cloudinary', label: 'Cloudinary', icon: Cloud, cap: CAP.SETTINGS_VIEW },
   { href: '/admin/permissions', label: 'Permissions', icon: Shield, cap: CAP.PERMISSIONS_VIEW },
 ]

@@ -19,6 +19,7 @@ import {
   ChevronUp
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { CourseDescription } from '@/components/course/course-description'
 
 interface CourseOverviewProps {
   course: {
@@ -188,12 +189,15 @@ export function CourseOverview({ course }: CourseOverviewProps) {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <p className={cn(
-                "text-sm leading-relaxed transition-all duration-300",
-                !showFullDescription && "line-clamp-3"
-              )}>
-                {course.description || "Master Next.js and build production-ready applications. Learn Server Components, advanced routing, performance optimization, and deployment strategies."}
-              </p>
+              <div className={cn('transition-all duration-300', !showFullDescription && 'line-clamp-3')}>
+                <CourseDescription
+                  text={
+                    course.description ||
+                    'Master Next.js and build production-ready applications. Learn Server Components, advanced routing, performance optimization, and deployment strategies.'
+                  }
+                  className="text-sm leading-relaxed"
+                />
+              </div>
 
               {(course.description?.length > 200 || true) && (
                 <Button

@@ -13,8 +13,8 @@ import { leavePresenceAndSignOut } from '@/components/presence/presence-tracker'
 import { cn, haptic, warning as hapticWarning } from '@/lib/utils'
 import { useCapabilities } from '@/components/auth/capabilities-provider'
 import { defaultKeysForRole, hasCap } from '@/lib/capability-catalog'
-import { buildAccessNav } from '@/lib/nav-access'
-import { coerceUserRole } from '@/lib/roles'
+import { buildAccessNav, ROLE_PANELS } from '@/lib/nav-access'
+import { coerceUserRole, ROLE_LABELS } from '@/lib/roles'
 
 interface MobileNavigationProps {
   user?: any
@@ -28,21 +28,16 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
   const [userRole, setUserRole] = useState<
     'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
   >('student')
-  const [canApprove, setCanApprove] = useState(false)
 
   const roleForNav = capsLoaded ? capRole : userRole
   const has = (key: string) =>
     capsLoaded ? hasCapKey(key) : hasCap(defaultKeysForRole(roleForNav), key)
-  const { learn, teach: teacherNavigation, admin: adminNavigation } = buildAccessNav(has, {
-    showApprovalsShortcut: canApprove || has('admin.approvals.view'),
-  })
-  const mainNavigation = learn.filter((item) =>
+  const panels = buildAccessNav(has)
+  const accountLabel = ROLE_LABELS[roleForNav]
+  const studentNav = panels.student
+  const mainNavigation = studentNav.filter((item) =>
     ['/dashboard', '/courses', '/learn/reports', '/profile'].includes(item.href)
   )
-  const secondaryNavigation = learn.filter((item) =>
-    ['/learn/progress', '/announcements', '/settings'].includes(item.href)
-  )
-  const canTeach = teacherNavigation.length > 0
 
   useEffect(() => {
     if (user) fetchUserRole()
@@ -77,18 +72,6 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
       }
 
       setUserRole(role)
-
-      if (role === 'superadmin' || role === 'resource_person') {
-        setCanApprove(true)
-      } else {
-        const { data: reviewerRows } = await supabase
-          .from('registration_reviewers')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('is_active', true)
-          .limit(1)
-        setCanApprove(!!(reviewerRows && reviewerRows.length > 0))
-      }
     } catch (error) {
       console.error('Error fetching user role:', error)
     }
@@ -213,6 +196,9 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
                 <p className="truncate text-sm font-semibold">
                   {user?.user_metadata?.full_name || user?.email?.split('@')[0]}
                 </p>
+                <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {accountLabel}
+                </p>
                 <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
               </div>
             </div>
@@ -231,66 +217,32 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
               <span className="ml-auto rounded-md bg-background px-1.5 py-0.5 text-[10px] font-medium">Live</span>
             </button>
 
-            {secondaryNavigation.length > 0 && (
-              <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Learner&apos;s Dashboard
-              </p>
-            )}
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              {secondaryNavigation.map((item) => (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  onClick={() => setMenuOpen(false)}
-                  className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-muted/50 active:bg-muted transition-colors"
-                >
-                  <item.icon className="w-5 h-5 text-muted-foreground" />
-                  <span className="text-xs font-medium text-center">{item.name}</span>
-                </Link>
-              ))}
-            </div>
-
-            {canTeach && (
-              <div className="mb-4">
-                <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Teacher&apos;s Dashboard
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {teacherNavigation.map((item) => (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      onClick={() => setMenuOpen(false)}
-                      className="flex flex-col items-center justify-center gap-2 rounded-xl bg-bhutan-yellow/10 p-4 transition-colors active:bg-bhutan-yellow/20"
-                    >
-                      <item.icon className="h-5 w-5 text-bhutan-yellow" />
-                      <span className="text-center text-xs font-medium">{item.name}</span>
-                    </Link>
-                  ))}
+            {ROLE_PANELS.map((panel) => {
+              const items = panels[panel.id].filter(
+                (item) => !mainNavigation.some((main) => main.href === item.href)
+              )
+              if (items.length === 0) return null
+              return (
+                <div key={panel.id} className="mb-4">
+                  <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {panel.label}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {items.map((item) => (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMenuOpen(false)}
+                        className="flex flex-col items-center justify-center gap-2 rounded-xl bg-muted/50 p-4 transition-colors active:bg-muted"
+                      >
+                        <item.icon className="h-5 w-5 text-muted-foreground" />
+                        <span className="text-center text-xs font-medium">{item.name}</span>
+                      </Link>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {adminNavigation.length > 0 && (
-              <div className="mb-4">
-                <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  Superadmin&apos;s Dashboard
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {adminNavigation.map((item) => (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      onClick={() => setMenuOpen(false)}
-                      className="flex flex-col items-center justify-center gap-2 p-4 rounded-xl bg-red-600/10 active:bg-red-600/20 transition-colors"
-                    >
-                      <item.icon className="w-5 h-5 text-red-600" />
-                      <span className="text-xs font-medium text-center">{item.name}</span>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
+              )
+            })}
 
             <Button variant="outline" onClick={handleLogout} className="w-full">
               <LogOut className="w-4 h-4 mr-2" />

@@ -15,6 +15,7 @@ import {
   type LessonBlock,
 } from '@/lib/lesson-blocks'
 import { ScenarioPlayer } from '@/components/learning/scenario-player'
+import { BlockCatalog } from '@/components/teach/block-picker'
 import { resolveMediaUrl } from '@/lib/media'
 import { cn } from '@/lib/utils'
 import {
@@ -24,15 +25,11 @@ import {
   ChevronRight,
   ChevronUp,
   Copy,
-  Image as ImageIcon,
   Italic,
   List,
-  ListChecks,
-  Play,
   Plus,
   Sparkles,
   Trash2,
-  Type,
 } from 'lucide-react'
 
 type StarterType = 'text' | 'image' | 'youtube' | 'quiz'
@@ -44,6 +41,7 @@ export function LessonBlocks({
   editable,
   onChange,
   onInsert,
+  onAddBlock,
   onAskPelbu,
   onOpenLessonOptions,
   highlightItemKey,
@@ -54,14 +52,15 @@ export function LessonBlocks({
   editable?: boolean
   onChange?: (blocks: LessonBlock[]) => void
   onInsert?: (type: StarterType) => void
+  onAddBlock?: (block: LessonBlock) => void
   onAskPelbu?: () => void
   onOpenLessonOptions?: () => void
   highlightItemKey?: string | null
 }) {
   const blocks = parseLessonBlocks(content)
   if (blocks.length === 0) {
-    if (editable && onInsert) {
-      return <EmptyLesson onInsert={onInsert} onAskPelbu={onAskPelbu} />
+    if (editable && (onAddBlock || onInsert)) {
+      return <EmptyLesson onInsert={onInsert} onAddBlock={onAddBlock} onAskPelbu={onAskPelbu} />
     }
     return (
       <p className="text-sm text-muted-foreground">
@@ -170,35 +169,35 @@ export function LessonBlocks({
 
 function EmptyLesson({
   onInsert,
+  onAddBlock,
   onAskPelbu,
 }: {
-  onInsert: (type: StarterType) => void
+  onInsert?: (type: StarterType) => void
+  onAddBlock?: (block: LessonBlock) => void
   onAskPelbu?: () => void
 }) {
-  const starters: { type: StarterType; title: string; hint: string; icon: typeof Type }[] = [
-    { type: 'text', title: 'Text', hint: 'Write the lesson', icon: Type },
-    { type: 'image', title: 'Image', hint: 'Add a picture', icon: ImageIcon },
-    { type: 'youtube', title: 'YouTube', hint: 'Embed a video', icon: Play },
-    { type: 'quiz', title: 'Quiz', hint: 'Check understanding', icon: ListChecks },
-  ]
   return (
     <div className="rounded-xl border border-dashed p-6">
-      <p className="text-sm font-medium">Start this lesson</p>
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-        {starters.map((item) => (
-          <button
-            key={item.type}
-            type="button"
-            onClick={() => onInsert(item.type)}
-            className="flex min-h-16 items-center gap-3 rounded-lg border bg-background px-3 py-2 text-left hover:bg-muted"
-          >
-            <item.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-            <span>
-              <span className="block text-sm font-medium">{item.title}</span>
-              <span className="block text-xs text-muted-foreground">{item.hint}</span>
-            </span>
-          </button>
-        ))}
+      <p className="text-sm font-medium">Resources</p>
+      <div className="mt-4">
+        {onAddBlock ? (
+          <BlockCatalog onPick={onAddBlock} />
+        ) : onInsert ? (
+          <div className="grid gap-2 sm:grid-cols-2">
+            {(
+              [
+                ['text', 'Text'],
+                ['image', 'Image'],
+                ['youtube', 'YouTube'],
+                ['quiz', 'Quiz'],
+              ] as const
+            ).map(([type, title]) => (
+              <Button key={type} type="button" variant="outline" className="min-h-11 justify-start" onClick={() => onInsert(type)}>
+                {title}
+              </Button>
+            ))}
+          </div>
+        ) : null}
       </div>
       {onAskPelbu && (
         <Button type="button" variant="ghost" className="mt-3 min-h-11" onClick={onAskPelbu}>
@@ -592,7 +591,7 @@ function UnlinkedAssessment({
       <p className="text-sm text-muted-foreground">{message}</p>
       {onOpenLessonOptions && (
         <Button type="button" variant="outline" className="min-h-11" onClick={onOpenLessonOptions}>
-          Lesson options
+          Resources
         </Button>
       )}
     </div>

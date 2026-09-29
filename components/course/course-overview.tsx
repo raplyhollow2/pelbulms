@@ -9,6 +9,7 @@ import { Check, Clock, Calendar, Globe, Award, BookOpen, ChevronDown, ChevronUp 
 import { resolveMediaUrl } from '@/lib/media'
 import { LinkedInProfileLink } from '@/components/profile/linkedin-profile-link'
 import { linkedinFromProfile } from '@/lib/social-links'
+import { CourseDescription } from '@/components/course/course-description'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
@@ -146,9 +147,10 @@ export function CourseOverview({
                 expanded ? 'max-h-full' : 'max-h-32 overflow-hidden'
               }`}
             >
-              <p className="whitespace-pre-wrap">
-                {course.description || 'No description provided for this course.'}
-              </p>
+              <CourseDescription
+                text={course.description || 'No description provided for this course.'}
+                className="text-sm text-muted-foreground"
+              />
             </div>
             {(course.description?.length || 0) > 280 && (
               <Button

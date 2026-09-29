@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { runText } from '@/lib/ai/dispatch'
 import { getRequestUser } from '@/lib/request-user'
+import { assertLearnerCourseOpen } from '@/lib/course-access'
 import { answerCourseTutor, asAssistantDb, isAssistantTask } from '@/lib/ai/course-assistant'
 
 export async function POST(request: NextRequest) {
@@ -19,15 +20,15 @@ export async function POST(request: NextRequest) {
   }
 
   const service = await createServiceClient()
-  const { data: enrollment } = await service
-    .from('enrollments')
-    .select('id, status')
-    .eq('user_id', user.id)
-    .eq('course_id', courseId)
-    .maybeSingle()
-  const status = enrollment?.status
-  if (!enrollment || (status !== 'active' && status !== 'completed')) {
-    return NextResponse.json({ error: 'Enroll in this course to use the tutor' }, { status: 403 })
+  const access = await assertLearnerCourseOpen(
+    service,
+    courseId,
+    user.id,
+    user.role,
+    'Enroll in this course to use the tutor'
+  )
+  if (!access.ok) {
+    return NextResponse.json({ error: access.error }, { status: access.status })
   }
 
   try {

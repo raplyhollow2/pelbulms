@@ -68,14 +68,6 @@ export async function GET(request: NextRequest) {
  * Superadmin only. Body: { action: 'assign' | 'revoke', userId, institutionId }
  */
 export async function POST(request: NextRequest) {
-  const rbac = await requireReviewers(request, true)
-  if (!rbac.hasAccess) {
-    return NextResponse.json(
-      { error: rbac.error || 'Access denied' },
-      { status: rbac.error?.includes('Unauthorized') ? 401 : 403 }
-    )
-  }
-
   let body: any
   try {
     body = await request.json()
@@ -84,6 +76,14 @@ export async function POST(request: NextRequest) {
   }
 
   const { action, userId, institutionId } = body || {}
+  const cap = action === 'revoke' ? CAP.REVIEWERS_DELETE : CAP.REVIEWERS_ADD
+  const rbac = await enforceCapability(request, cap, ['superadmin'])
+  if (!rbac.hasAccess) {
+    return NextResponse.json(
+      { error: rbac.error || 'Access denied' },
+      { status: rbac.error?.includes('Unauthorized') ? 401 : 403 }
+    )
+  }
   if (!action || !userId || !institutionId) {
     return NextResponse.json({ error: 'action, userId and institutionId are required' }, { status: 400 })
   }

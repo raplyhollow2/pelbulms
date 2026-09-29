@@ -76,17 +76,20 @@ export default function ProgressPage() {
         .in('status', ['active', 'completed'])
         .order('last_accessed_at', { ascending: false })
 
+      const openEnrollments = ((enrollmentsData || []) as any[]).filter(
+        (row) => row?.courses?.is_published === true
+      )
       if (enrollmentsData) {
-        setEnrollments(enrollmentsData as any)
+        setEnrollments(openEnrollments as any)
 
-        // Calculate course stats
-        const completedCourses = enrollmentsData.filter((e: any) => e.completed_at).length
-        const inProgressCourses = enrollmentsData.filter((e: any) => !e.completed_at).length
-        const averageProgress = enrollmentsData.reduce((sum: number, e: any) => sum + (e.progress_percentage || 0), 0) / (enrollmentsData.length || 1)
+        // Calculate course stats from courses learners can still open
+        const completedCourses = openEnrollments.filter((e: any) => e.completed_at).length
+        const inProgressCourses = openEnrollments.filter((e: any) => !e.completed_at).length
+        const averageProgress = openEnrollments.reduce((sum: number, e: any) => sum + (e.progress_percentage || 0), 0) / (openEnrollments.length || 1)
 
         setOverallStats(prev => ({
           ...prev,
-          totalCourses: enrollmentsData.length,
+          totalCourses: openEnrollments.length,
           completedCourses,
           inProgressCourses,
           averageProgress: Math.round(averageProgress)
@@ -125,8 +128,8 @@ export default function ProgressPage() {
       }
 
       // Fetch all modules and lessons for detailed progress
-      if (enrollmentsData && enrollmentsData.length > 0) {
-        const courseIds = enrollmentsData.map((e: any) => e.course_id)
+      if (openEnrollments.length > 0) {
+        const courseIds = openEnrollments.map((e: any) => e.course_id)
 
         const { data: modulesData } = await supabase
           .from('modules')

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { resolveMediaUrl } from '@/lib/media'
+import { courseDescriptionPlain } from '@/lib/course-description'
 import { resumeLearnPath } from '@/lib/resume-path'
 import { cn } from '@/lib/utils'
 
@@ -56,7 +57,7 @@ export function DashboardCourseCard({
   const started = pct > 0
   const image = resolveMediaUrl(thumbnailUrl)
   const href = resumeLearnPath(id, lastLessonId)
-  const brief = (description || '').trim()
+  const brief = courseDescriptionPlain(description)
   const ctaLabel = completed ? 'Review' : started ? 'Continue learning' : 'Start'
   const ctaClassName = cn(
     'h-9 w-full rounded-full text-sm font-medium',

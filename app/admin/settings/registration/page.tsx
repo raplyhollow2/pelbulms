@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { useCapabilities } from '@/components/auth/capabilities-provider'
+import { CAP } from '@/lib/capability-keys'
 import type { PlatformSettings } from '@/lib/platform-settings'
 
 type FormState = {
@@ -42,6 +44,8 @@ function ToggleRow({
 }
 
 export default function AdminRegistrationSettingsPage() {
+  const { has } = useCapabilities()
+  const canEdit = has(CAP.SETTINGS_REGISTRATION_EDIT)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState<FormState>({
@@ -179,7 +183,7 @@ export default function AdminRegistrationSettingsPage() {
           </div>
         </section>
 
-        <Button onClick={save} disabled={saving} className="h-10">
+        <Button onClick={save} disabled={saving || !canEdit} className="h-10">
           {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           {saving ? 'Saving…' : 'Save registration policy'}
         </Button>

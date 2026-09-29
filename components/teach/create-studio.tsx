@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,7 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Loader2, Paperclip, Send, Sparkles } from 'lucide-react'
+import { ArrowLeft, Loader2, Paperclip, Send, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { slugify, type CourseOutline, type CourseSize } from '@/lib/ai-course-builder'
 import { OutlineCanvas } from '@/components/teach/outline-canvas'
@@ -250,8 +251,21 @@ export function CreateStudio() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-background text-foreground">
-      <div className="mx-auto max-w-4xl px-4 py-10 sm:py-16">
+    <div className="flex min-h-dvh flex-col bg-background text-foreground">
+      <header className="flex items-center gap-2 border-b px-4 py-3">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="min-h-11 min-w-11 shrink-0"
+          aria-label="Back to teacher dashboard"
+          render={<Link href="/teach/dashboard" />}
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <p className="truncate text-sm font-semibold">Create course</p>
+      </header>
+      <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:py-16">
         {phase === 'compose' && (
           <>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Pelbu Coursebox</p>

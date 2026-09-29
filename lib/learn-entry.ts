@@ -3,11 +3,12 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 /**
  * Udemy-style entry: resume last lecture, else first published lesson.
  * Returns null when the learner is not enrolled.
+ * Returns 'closed' when the course is unpublished so enrolled learners are not dropped into a lesson.
  */
 export async function resolveCoursePlayerPath(
   courseId: string,
   userId: string
-): Promise<string | 'empty' | null> {
+): Promise<string | 'empty' | 'closed' | null> {
   const supabase = await createSupabaseServerClient()
 
   const { data: enrollment } = await supabase
@@ -20,6 +21,15 @@ export async function resolveCoursePlayerPath(
   const status = (enrollment as { status?: string } | null)?.status
   if (!enrollment || (status !== 'active' && status !== 'completed')) {
     return null
+  }
+
+  const { data: course } = await supabase
+    .from('courses')
+    .select('is_published')
+    .eq('id', courseId)
+    .maybeSingle()
+  if ((course as { is_published?: boolean } | null)?.is_published !== true) {
+    return 'closed'
   }
 
   const lastLessonId = (enrollment as { last_lesson_id?: string | null }).last_lesson_id

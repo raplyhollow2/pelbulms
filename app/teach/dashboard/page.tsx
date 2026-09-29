@@ -37,6 +37,8 @@ import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 import { resolveMediaUrl } from '@/lib/media'
 import { canAccessAdmin, canAccessTeaching } from '@/lib/roles'
+import { useCapabilities } from '@/components/auth/capabilities-provider'
+import { CAP } from '@/lib/capability-keys'
 import { GradingAlertBanner } from '@/components/teach/grading-alert-banner'
 
 type Course = Database['public']['Tables']['courses']['Row'] & {
@@ -80,6 +82,7 @@ export default function TeacherDashboard() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [bulkWorking, setBulkWorking] = useState<'publish' | 'unpublish' | null>(null)
+  const [unpublishOpen, setUnpublishOpen] = useState(false)
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'published' | 'draft'>('all')
@@ -89,7 +92,15 @@ export default function TeacherDashboard() {
   const [sortKey, setSortKey] = useState<SortKey>('newest')
 
   const supabase = createClient()
+  const { loaded: capsLoaded, has } = useCapabilities()
+  const canCreateCourse = has(CAP.TEACH_CREATE_VIEW)
+  const canOpenMedia = has(CAP.TEACH_MEDIA_VIEW)
   const isAdminView = canAccessAdmin((profile as any)?.role)
+
+  useEffect(() => {
+    if (!capsLoaded) return
+    if (!has(CAP.TEACH_DASHBOARD_VIEW)) router.push('/dashboard')
+  }, [capsLoaded, has, router])
 
   useEffect(() => {
     fetchTeacherData()
@@ -408,7 +419,10 @@ export default function TeacherDashboard() {
     sortKey,
   ])
 
+  const canDeleteCourse = (course: Course) =>
+    (profile as { role?: string } | null)?.role === 'superadmin' || course.instructor_id === user?.id
   const selectedVisible = filteredCourses.filter((course) => selectedIds.has(course.id))
+  const deletableSelected = selectedVisible.filter(canDeleteCourse)
   const allVisibleSelected =
     filteredCourses.length > 0 && selectedVisible.length === filteredCourses.length
   const someVisibleSelected = selectedVisible.length > 0 && !allVisibleSelected
@@ -503,6 +517,7 @@ export default function TeacherDashboard() {
           </p>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
+          {canOpenMedia && (
           <Button
             variant="outline"
             size="sm"
@@ -512,6 +527,8 @@ export default function TeacherDashboard() {
             <HardDrive className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-2" />
             <span className="ml-1 sm:ml-0">Media</span>
           </Button>
+          )}
+          {canCreateCourse && (
           <Button
             onClick={() => router.push('/teach/create')}
             className="flex-1 sm:flex-initial bg-bhutan-yellow hover:bg-bhutan-orange"
@@ -520,6 +537,7 @@ export default function TeacherDashboard() {
             <Plus className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-2" />
             <span className="ml-1 sm:ml-0">Create Course</span>
           </Button>
+          )}
         </div>
       </div>
 
@@ -858,6 +876,7 @@ export default function TeacherDashboard() {
               <p className="text-muted-foreground text-center mb-4 text-sm">
                 Try clearing filters or create a new course.
               </p>
+              {canCreateCourse && (
               <Button
                 onClick={() => router.push('/teach/create')}
                 className="bg-bhutan-yellow hover:bg-bhutan-orange"
@@ -865,6 +884,7 @@ export default function TeacherDashboard() {
                 <Plus className="w-4 h-4 mr-2" />
                 Create Course
               </Button>
+              )}
             </div>
           ) : (
             <>
@@ -908,21 +928,23 @@ export default function TeacherDashboard() {
                       size="sm"
                       variant="outline"
                       disabled={bulkWorking !== null || deleting}
-                      onClick={() => void setSelectedPublished(false)}
+                      onClick={() => setUnpublishOpen(true)}
                     >
                       {bulkWorking === 'unpublish' ? <Loader2 className="size-4 animate-spin" /> : null}
                       Unpublish
                     </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="destructive"
-                      disabled={bulkWorking !== null || deleting}
-                      onClick={() => setDeleteTargets(selectedVisible)}
-                    >
-                      <Trash2 className="size-4" />
-                      Delete
-                    </Button>
+                    {deletableSelected.length > 0 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="destructive"
+                        disabled={bulkWorking !== null || deleting}
+                        onClick={() => setDeleteTargets(deletableSelected)}
+                      >
+                        <Trash2 className="size-4" />
+                        Delete
+                      </Button>
+                    )}
                     <Button
                       type="button"
                       size="sm"
@@ -1012,11 +1034,15 @@ export default function TeacherDashboard() {
                           <Award />
                           Certificate
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem variant="destructive" onClick={() => setDeleteTargets([course])}>
-                          <Trash2 />
-                          Delete
-                        </DropdownMenuItem>
+                        {canDeleteCourse(course) && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem variant="destructive" onClick={() => setDeleteTargets([course])}>
+                              <Trash2 />
+                              Delete
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -1026,6 +1052,32 @@ export default function TeacherDashboard() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={unpublishOpen} onOpenChange={setUnpublishOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Unpublish {selectedVisible.length === 1 ? 'this course' : `${selectedVisible.length} courses`}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Enrolled learners will lose access until you publish again. Their enrollments are kept.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkWorking === 'unpublish'}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+              disabled={bulkWorking === 'unpublish'}
+              onClick={(event) => {
+                event.preventDefault()
+                void setSelectedPublished(false).then(() => setUnpublishOpen(false))
+              }}
+            >
+              Unpublish
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={deleteTargets.length > 0}

@@ -9,9 +9,12 @@ import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import type { PlatformSettings } from '@/lib/platform-settings'
 import { SuperadminGate } from '@/components/admin/superadmin-gate'
+import { useCapabilities } from '@/components/auth/capabilities-provider'
 import { CAP } from '@/lib/capability-keys'
 
 function AdminSiteSettingsPage() {
+  const { has } = useCapabilities()
+  const canEdit = has(CAP.SETTINGS_SITE_EDIT)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
@@ -130,7 +133,7 @@ function AdminSiteSettingsPage() {
         />
       </section>
 
-      <Button onClick={save} disabled={saving} className="h-10">
+      <Button onClick={save} disabled={saving || !canEdit} className="h-10">
         {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
         {saving ? 'Saving…' : 'Save site settings'}
       </Button>
@@ -140,7 +143,7 @@ function AdminSiteSettingsPage() {
 
 export default function GatedAdminSiteSettingsPage() {
   return (
-    <SuperadminGate anyOf={[CAP.SETTINGS_VIEW]}>
+    <SuperadminGate anyOf={[CAP.SETTINGS_SITE_VIEW]}>
       <AdminSiteSettingsPage />
     </SuperadminGate>
   )

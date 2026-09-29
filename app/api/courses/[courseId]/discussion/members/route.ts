@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, tryCreateServiceClient } from '@/lib/supabase/server'
-import { userCanManageCourse, listCourseStaffIds } from '@/lib/course-access'
+import { courseIsOpenToLearners, userCanManageCourse, listCourseStaffIds } from '@/lib/course-access'
 import { getRequestUser } from '@/lib/request-user'
 
 /**
@@ -35,6 +35,9 @@ export async function GET(
 
     if (!canManage && !enrollment) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    if (!canManage && !(await courseIsOpenToLearners(db, courseId))) {
+      return NextResponse.json({ error: 'This course is no longer available.' }, { status: 403 })
     }
 
     const { data: enrollments } = await db

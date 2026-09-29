@@ -22,6 +22,9 @@ export default async function LearnCourseEntryPage({
   }
 
   const playerPath = await resolveCoursePlayerPath(courseId, user.id)
+  if (playerPath === 'closed') {
+    redirect('/dashboard')
+  }
   if (!playerPath) {
     redirect(`/courses/${courseId}`)
   }

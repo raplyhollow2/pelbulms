@@ -50,26 +50,15 @@ function lessonPlayerPath(
   return `/learn/${courseId}/lesson/${targetLessonId}${query}${fragment}`
 }
 
-async function userCanPreviewCourse(
-  supabase: ReturnType<typeof createClient>,
-  courseId: string,
-  userId: string
-) {
-  const db = supabase as any
-  const [{ data: profile }, { data: courseOwner }, { data: staffRow }] = await Promise.all([
-    db.from('profiles').select('role').eq('id', userId).maybeSingle(),
-    db.from('courses').select('instructor_id').eq('id', courseId).maybeSingle(),
-    db
-      .from('course_instructors')
-      .select('id')
-      .eq('course_id', courseId)
-      .eq('user_id', userId)
-      .maybeSingle(),
-  ])
-  const role = (profile as { role?: string } | null)?.role
-  if (role === 'admin' || role === 'superadmin' || role === 'resource_person') return true
-  if ((courseOwner as { instructor_id?: string } | null)?.instructor_id === userId) return true
-  return Boolean(staffRow)
+async function userCanPreviewCourse(courseId: string) {
+  try {
+    const res = await fetch(`/api/teach/courses/${courseId}/preview-access`)
+    if (!res.ok) return false
+    const body = await res.json()
+    return Boolean(body.preview)
+  } catch {
+    return false
+  }
 }
 
 export default function LessonViewPage() {
@@ -247,35 +236,50 @@ export default function LessonViewPage() {
 
       const previewRequested =
         new URLSearchParams(window.location.search).get('preview') === '1'
-      const managing = previewRequested
-        ? await userCanPreviewCourse(supabase, courseId, user.id)
-        : false
+
+      const { data: enrollmentData } = await supabase
+        .from('enrollments')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('course_id', courseId)
+        .maybeSingle()
+
+      const status = (enrollmentData as any)?.status
+      const enrolled =
+        Boolean(enrollmentData) && (status === 'active' || status === 'completed')
+
+      // Course staff can open a draft without enrolling. The Preview button
+      // also forces that read-only view so progress is not written.
+      const canPreview =
+        previewRequested || !enrolled ? await userCanPreviewCourse(courseId) : false
+      const managing = canPreview && (previewRequested || !enrolled)
       previewRef.current = managing
       setStaffPreview(managing)
 
-      // Learners need an active enrollment. Course staff can preview a draft
-      // without enrolling, and that preview does not write learner progress.
-      let enrollmentData: Enrollment | null = null
       if (!managing) {
-        const { data } = await supabase
-          .from('enrollments')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('course_id', courseId)
+        const { data: courseGate } = await supabase
+          .from('courses')
+          .select('id, is_published')
+          .eq('id', courseId)
           .maybeSingle()
-        enrollmentData = data
-
-        const status = (enrollmentData as any)?.status
-        if (!enrollmentData || (status !== 'active' && status !== 'completed')) {
-          if (status === 'pending') {
-            alert('Your enrollment is waiting for the course creator to approve.')
-          } else {
-            alert('You need to enroll in this course first.')
-          }
-          router.push(`/courses/${courseId}`)
+        if ((courseGate as { is_published?: boolean } | null)?.is_published !== true) {
+          alert('This course is no longer available.')
+          router.push('/dashboard')
           return
         }
+      }
 
+      if (managing) {
+        setEnrollment(null)
+      } else if (!enrolled) {
+        if (status === 'pending') {
+          alert('Your enrollment is waiting for the course creator to approve.')
+        } else {
+          alert('You need to enroll in this course first.')
+        }
+        router.push(`/courses/${courseId}`)
+        return
+      } else {
         setEnrollment(enrollmentData)
 
         void (supabase as any)
@@ -287,8 +291,6 @@ export default function LessonViewPage() {
           })
           .eq('id', (enrollmentData as any).id)
           .then(() => undefined, () => undefined)
-      } else {
-        setEnrollment(null)
       }
 
       const [

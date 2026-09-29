@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, tryCreateServiceClient } from '@/lib/supabase/server'
-import { userCanManageCourse } from '@/lib/course-access'
+import { courseIsOpenToLearners, userCanManageCourse } from '@/lib/course-access'
 import { fetchLinkPreview, firstNonYoutubeUrl, firstYoutubeUrl } from '@/lib/link-preview'
 import { getYoutubeId } from '@/lib/video-url'
 import { getRequestUser } from '@/lib/request-user'
@@ -33,7 +33,8 @@ async function assertCourseAccess(db: any, courseId: string, userId: string, rol
     .limit(1)
     .maybeSingle()
 
-  return Boolean(enrollment)
+  if (!enrollment) return false
+  return courseIsOpenToLearners(db, courseId)
 }
 
 function autoTitle(text: string) {

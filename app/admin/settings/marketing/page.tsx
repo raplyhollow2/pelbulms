@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
+import { useCapabilities } from '@/components/auth/capabilities-provider'
+import { CAP } from '@/lib/capability-keys'
 import type { PlatformSettings } from '@/lib/platform-settings'
 import {
   VIDEO_QUALITY_OPTIONS,
@@ -109,6 +111,8 @@ function settingsToForm(s: PlatformSettings): FormState {
 }
 
 export default function AdminMarketingSettingsPage() {
+  const { has } = useCapabilities()
+  const canEdit = has(CAP.SETTINGS_MARKETING_EDIT)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [courses, setCourses] = useState<CourseOpt[]>([])
@@ -715,7 +719,7 @@ export default function AdminMarketingSettingsPage() {
         </section>
       )}
 
-      <Button onClick={save} disabled={saving} className="h-10">
+      <Button onClick={save} disabled={saving || !canEdit} className="h-10">
         {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
         {saving ? 'Saving…' : 'Save marketing settings'}
       </Button>

@@ -34,6 +34,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
+import { useCapabilities } from '@/components/auth/capabilities-provider'
+import { CAP } from '@/lib/capability-keys'
 
 type Institution = {
   id: string
@@ -62,6 +64,10 @@ const EMPTY = {
 }
 
 export default function AdminInstitutionsPage() {
+  const { has } = useCapabilities()
+  const canAdd = has(CAP.INSTITUTIONS_ADD)
+  const canEdit = has(CAP.INSTITUTIONS_EDIT)
+  const canDelete = has(CAP.INSTITUTIONS_DELETE)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
@@ -212,9 +218,11 @@ export default function AdminInstitutionsPage() {
             <Switch checked={showArchived} onCheckedChange={toggleArchived} />
             Show archived
           </label>
+          {canAdd && (
           <Button size="sm" className="h-9 gap-1.5" onClick={openCreate}>
             <Plus className="h-3.5 w-3.5" /> Add institution
           </Button>
+          )}
         </div>
       </div>
 
@@ -243,6 +251,7 @@ export default function AdminInstitutionsPage() {
               <p className="font-mono text-xs text-muted-foreground">{row.slug}</p>
               <p className="text-sm tabular-nums">{row.user_count}</p>
               <div className="flex gap-2 md:justify-end">
+                {canEdit && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -252,7 +261,8 @@ export default function AdminInstitutionsPage() {
                 >
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
-                {row.is_active ? (
+                )}
+                {canDelete && row.is_active && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -262,7 +272,8 @@ export default function AdminInstitutionsPage() {
                   >
                     <Archive className="h-3.5 w-3.5" />
                   </Button>
-                ) : (
+                )}
+                {canDelete && !row.is_active && (
                   <Button
                     variant="outline"
                     size="sm"

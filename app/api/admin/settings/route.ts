@@ -35,12 +35,68 @@ function bustPublicSiteCache() {
   revalidatePath('/api/public/site')
 }
 
-async function requireSettings(request: NextRequest, write: boolean) {
+const SITE_FIELDS = ['site_name', 'tagline', 'support_email', 'maintenance_mode'] as const
+const REGISTRATION_FIELDS = [
+  'require_identity_documents',
+  'require_cid',
+  'require_identity_photo',
+  'require_qualification',
+  'require_student_id',
+  'require_emergency_contact',
+  'require_tos_consent',
+  'collect_hear_about_us',
+] as const
+const MARKETING_FIELDS = [
+  'landing_headline',
+  'landing_description',
+  'hero_video_url',
+  'hero_cta_primary_label',
+  'featured_course_ids',
+  'public_catalog',
+  'hero_rotating_words',
+  'hero_video_start_seconds',
+  'hero_video_end_seconds',
+  'video_quality',
+  'landing_stats',
+  'landing_features',
+  'landing_steps',
+  'landing_faq',
+  'landing_section_titles',
+] as const
+
+function bodyTouches(body: Record<string, unknown>, fields: readonly string[]) {
+  return fields.some((key) => body[key] !== undefined)
+}
+
+async function requireSettingsRead(request: NextRequest) {
   return enforceCapability(
     request,
-    write ? CAP.SETTINGS_EDIT : CAP.SETTINGS_VIEW,
+    [
+      CAP.SETTINGS_VIEW,
+      CAP.SETTINGS_SITE_VIEW,
+      CAP.SETTINGS_REGISTRATION_VIEW,
+      CAP.SETTINGS_MARKETING_VIEW,
+    ],
     ADMIN_ROLES
   )
+}
+
+async function requireSettingsWrite(request: NextRequest, body: Record<string, unknown>) {
+  const needed: string[] = []
+  if (bodyTouches(body, SITE_FIELDS)) needed.push(CAP.SETTINGS_SITE_EDIT)
+  if (bodyTouches(body, REGISTRATION_FIELDS)) needed.push(CAP.SETTINGS_REGISTRATION_EDIT)
+  if (bodyTouches(body, MARKETING_FIELDS)) needed.push(CAP.SETTINGS_MARKETING_EDIT)
+  const known = new Set<string>([...SITE_FIELDS, ...REGISTRATION_FIELDS, ...MARKETING_FIELDS])
+  if (Object.keys(body).some((key) => !known.has(key))) needed.push(CAP.SETTINGS_EDIT)
+  if (needed.length === 0) needed.push(CAP.SETTINGS_EDIT)
+
+  let last = await enforceCapability(request, needed[0], ADMIN_ROLES)
+  if (!last.hasAccess) return last
+  for (const key of needed.slice(1)) {
+    last = await enforceCapability(request, key, ADMIN_ROLES)
+    if (!last.hasAccess) return last
+  }
+  return last
 }
 
 const BOOLEAN_KEYS = [
@@ -71,7 +127,7 @@ const STRING_KEYS = [
  * Admin or superadmin. Returns platform settings plus courses for featured picking.
  */
 export async function GET(request: NextRequest) {
-  const rbac = await requireSettings(request, false)
+  const rbac = await requireSettingsRead(request)
   if (!rbac.hasAccess) return denied(rbac)
 
   const service = await getAdminDb()
@@ -107,15 +163,15 @@ export async function GET(request: NextRequest) {
  * Admin or superadmin. Partial update of the singleton row.
  */
 export async function PATCH(request: NextRequest) {
-  const rbac = await requireSettings(request, true)
-  if (!rbac.hasAccess) return denied(rbac)
-
   let body: Record<string, unknown>
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
+
+  const rbac = await requireSettingsWrite(request, body)
+  if (!rbac.hasAccess) return denied(rbac)
 
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
 

@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
 import { Search, BookOpen, GraduationCap, Home, User, Settings, Loader2, Clock, FileQuestion, TrendingUp } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { courseDescriptionPlain } from '@/lib/course-description'
 import type { Database } from '@/types/database.types'
 
 type Course = Database['public']['Tables']['courses']['Row']
@@ -92,7 +93,7 @@ export function CommandPalette() {
           const courseCommands: CommandItem[] = courses.map((course: any) => ({
             id: course.id,
             title: course.title,
-            description: course.description,
+            description: courseDescriptionPlain(course.description),
             icon: BookOpen,
             action: () => {
               router.push(`/learn/${course.id}`)

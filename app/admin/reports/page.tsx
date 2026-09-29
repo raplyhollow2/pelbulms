@@ -54,8 +54,9 @@ export default function AdminReportsPage() {
         if (capRes.ok) {
           const capJson = await capRes.json()
           const list: string[] = capJson.capabilities || []
+          const authoritative = capJson.catalogResolved === true || list.length > 0
           if (list.includes('*') || list.includes('admin.reports.view')) allowed = true
-          else if (list.length > 0) allowed = false
+          else if (authoritative) allowed = false
         }
       } catch {
         // coarse role

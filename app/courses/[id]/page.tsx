@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 import { CourseActionDeck } from '@/components/courses/course-action-deck'
 import { CurriculumTimeline } from '@/components/courses/curriculum-timeline'
 import { CourseDetailSkeleton } from '@/components/courses/course-detail-skeleton'
+import { CourseDescription } from '@/components/course/course-description'
 import { resumeLearnPath } from '@/lib/resume-path'
 import { postEnrollmentRequest } from '@/lib/request-enrollment'
 import { toast } from 'sonner'
@@ -341,7 +342,7 @@ export default function CourseDetailPage() {
                 )}
               </div>
               <h1 className="text-4xl font-bold mb-2">{course.title}</h1>
-              <p className="text-lg text-muted-foreground">{course.description}</p>
+              <CourseDescription text={course.description} className="text-lg text-muted-foreground" />
             </div>
           </div>
 

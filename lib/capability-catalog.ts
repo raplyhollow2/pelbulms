@@ -27,6 +27,8 @@ export type MenuLink = {
   keywords?: string
   /** Optional command-palette subgroup. */
   group?: string
+  /** Which account this menu belongs to in the sidebar and permissions matrix. */
+  panel?: 'student' | 'instructor' | 'resource_person' | 'admin' | 'superadmin'
 }
 
 /** Sidebar / command-palette rows keyed to capability catalog keys. */
@@ -44,13 +46,14 @@ export const MENU_LINKS: MenuLink[] = [
   { cap: CAP.TEACH_REPORTS_VIEW, name: 'Reports', href: '/teach/reports', section: 'teach', icon: 'BarChart3' },
   { cap: CAP.TEACH_ANNOUNCEMENTS_VIEW, name: 'Announcements', href: '/teach/announcements', section: 'teach', icon: 'Bell' },
 
-  { cap: CAP.DASHBOARD_VIEW, name: 'Overview', href: '/admin?overview=1', section: 'admin', icon: 'LayoutDashboard' },
-  { cap: CAP.USERS_VIEW, name: 'Users', href: '/admin/users', section: 'admin', icon: 'Users' },
-  { cap: CAP.REPORTS_VIEW, name: 'Reports', href: '/admin/reports', section: 'admin', icon: 'BarChart3' },
-  { cap: CAP.INSTITUTIONS_VIEW, name: 'Institutions', href: '/admin/settings/institutions', section: 'admin', icon: 'Building2' },
-  { cap: CAP.SETTINGS_VIEW, name: 'Site admin', href: '/admin/settings', section: 'admin', icon: 'Settings' },
-  { cap: CAP.PERMISSIONS_VIEW, name: 'Permissions', href: '/admin/permissions', section: 'admin', icon: 'Shield' },
-  { cap: CAP.AI_VIEW, name: 'AI', href: '/admin/ai', section: 'admin', icon: 'Sparkles' },
+  { cap: CAP.APPROVALS_VIEW, name: 'Approvals', href: '/admin/users?tab=approvals', section: 'admin', icon: 'Users', panel: 'resource_person' },
+  { cap: CAP.DASHBOARD_VIEW, name: 'Overview', href: '/admin?overview=1', section: 'admin', icon: 'LayoutDashboard', panel: 'admin' },
+  { cap: CAP.USERS_VIEW, name: 'Users', href: '/admin/users', section: 'admin', icon: 'Users', panel: 'admin' },
+  { cap: CAP.REPORTS_VIEW, name: 'Reports', href: '/admin/reports', section: 'admin', icon: 'BarChart3', panel: 'admin' },
+  { cap: CAP.INSTITUTIONS_VIEW, name: 'Institutions', href: '/admin/settings/institutions', section: 'admin', icon: 'Building2', panel: 'admin' },
+  { cap: CAP.SETTINGS_VIEW, name: 'Site admin', href: '/admin/settings', section: 'admin', icon: 'Settings', panel: 'admin' },
+  { cap: CAP.PERMISSIONS_VIEW, name: 'Permissions', href: '/admin/permissions', section: 'admin', icon: 'Shield', panel: 'superadmin' },
+  { cap: CAP.AI_VIEW, name: 'AI', href: '/admin/ai', section: 'admin', icon: 'Sparkles', panel: 'superadmin' },
 ]
 
 export const LEARN_MENU_CAPS: CapabilityKey[] = MENU_LINKS.filter((l) => l.section === 'learn').map(
@@ -86,7 +89,6 @@ export const ADMIN_MENU_CAPS: CapabilityKey[] = [
   CAP.USERS_VIEW,
   CAP.USERS_ADD,
   CAP.USERS_EDIT,
-  CAP.USERS_DELETE,
   CAP.APPROVALS_VIEW,
   CAP.APPROVALS_EDIT,
   CAP.REPORTS_VIEW,

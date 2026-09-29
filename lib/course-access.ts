@@ -37,6 +37,49 @@ export async function userCanManageCourse(
   return Boolean(staff)
 }
 
+/** Learners may open a course only while it is published. */
+export async function courseIsOpenToLearners(
+  service: Service,
+  courseId: string
+): Promise<boolean> {
+  const { data } = await service
+    .from('courses')
+    .select('is_published')
+    .eq('id', courseId)
+    .maybeSingle()
+  return (data as { is_published?: boolean | null } | null)?.is_published === true
+}
+
+/**
+ * Staff may use a draft. Enrolled learners may use a course only while it is published.
+ */
+export async function assertLearnerCourseOpen(
+  service: Service,
+  courseId: string,
+  userId: string,
+  role: UserRole | null | undefined,
+  enrollError: string
+): Promise<{ ok: true } | { ok: false; status: 403; error: string }> {
+  if (await userCanManageCourse(service, courseId, userId, role || undefined)) {
+    return { ok: true }
+  }
+
+  const { data: enrollment } = await service
+    .from('enrollments')
+    .select('id, status')
+    .eq('user_id', userId)
+    .eq('course_id', courseId)
+    .maybeSingle()
+  const status = (enrollment as { status?: string } | null)?.status
+  if (!enrollment || (status !== 'active' && status !== 'completed')) {
+    return { ok: false, status: 403, error: enrollError }
+  }
+  if (!(await courseIsOpenToLearners(service, courseId))) {
+    return { ok: false, status: 403, error: 'This course is no longer available.' }
+  }
+  return { ok: true }
+}
+
 export async function courseIdByLesson(
   service: Service,
   lessonId: string

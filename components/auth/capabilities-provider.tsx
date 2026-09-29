@@ -46,7 +46,9 @@ export function CapabilitiesProvider({ children }: { children: ReactNode }) {
       setRole(roleValue)
       const list: string[] = Array.isArray(json.capabilities) ? json.capabilities : []
       const next = new Set(list)
-      if (!catalogHasLearnMenus(next)) {
+      // A resolved catalog is exact, even when every box is unchecked.
+      // Defaults fill in only when the roles tables could not be read.
+      if (json.catalogResolved !== true && !catalogHasLearnMenus(next)) {
         defaultKeysForRole(roleValue).forEach((k) => next.add(k))
       }
       setKeys(next)

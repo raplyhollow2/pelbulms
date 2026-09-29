@@ -3,9 +3,9 @@
 import { CapabilityGate } from '@/components/auth/capability-gate'
 import { CAP } from '@/lib/capability-keys'
 
-export default function ProfileLayout({ children }: { children: React.ReactNode }) {
+export default function TeachReportsLayout({ children }: { children: React.ReactNode }) {
   return (
-    <CapabilityGate anyOf={[CAP.LEARN_PROFILE_VIEW]} fallback="/dashboard">
+    <CapabilityGate anyOf={[CAP.TEACH_REPORTS_VIEW]} fallback="/teach/dashboard">
       {children}
     </CapabilityGate>
   )

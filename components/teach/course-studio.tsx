@@ -4,27 +4,15 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { createClient } from '@/lib/supabase/client'
 import { syncCourseDuration } from '@/lib/video-duration'
 import { LessonBlocks } from '@/components/course/lesson-blocks'
-import { BlockPicker, emptyBlock } from '@/components/teach/block-picker'
+import { BlockCatalog } from '@/components/teach/block-picker'
 import { AskPelbuRail } from '@/components/ai/ask-pelbu-rail'
-import { parseLessonBlocks, readCourseAiMetadata, type LessonBlock } from '@/lib/lesson-blocks'
+import { parseLessonBlocks, type LessonBlock } from '@/lib/lesson-blocks'
 import {
   Plus,
-  Share2,
-  Palette,
-  Bot,
   Eye,
   Loader2,
   Settings,
@@ -51,7 +39,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { CourseSettingsSheet } from '@/components/teach/course-settings-form'
 import { LessonOptionsPanel } from '@/components/teach/lesson-options-panel'
 import { ModuleOptionsPanel } from '@/components/teach/module-options-panel'
 import {
@@ -107,16 +94,12 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   const [lessons, setLessons] = useState<LessonRow[]>([])
   const [lessonId, setLessonId] = useState<string | null>(null)
   const [blocks, setBlocks] = useState<LessonBlock[]>([])
-  const [pickerOpen, setPickerOpen] = useState(false)
   const [mobileTab, setMobileTab] = useState<'outline' | 'page' | 'ai'>('page')
-  const [themeOpen, setThemeOpen] = useState(false)
-  const [tutorOpen, setTutorOpen] = useState(false)
-  const [shareOpen, setShareOpen] = useState(false)
+  const [lessonPane, setLessonPane] = useState<'content' | 'resources'>('content')
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [publishing, setPublishing] = useState(false)
   const [publishWarn, setPublishWarn] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [pageOptionsId, setPageOptionsId] = useState<string | null>(null)
+  const [unpublishConfirm, setUnpublishConfirm] = useState(false)
   const [moduleOptionsId, setModuleOptionsId] = useState<string | null>(null)
   const [aiOpen, setAiOpen] = useState(false)
   const [lessonQuery, setLessonQuery] = useState('')
@@ -171,7 +154,8 @@ export function CourseStudio({ courseId }: { courseId: string }) {
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
       if (e.key === '/') {
         e.preventDefault()
-        setPickerOpen(true)
+        setLessonPane('resources')
+        setMobileTab('page')
       }
     }
     window.addEventListener('keydown', onKey)
@@ -280,7 +264,6 @@ export function CourseStudio({ courseId }: { courseId: string }) {
       )
     )
     if (moduleOptionsId === moduleId) setModuleOptionsId(null)
-    if (pageOptionsId && remainingLessons.every((row) => row.id !== pageOptionsId)) setPageOptionsId(null)
     if (lessonId && remainingLessons.every((row) => row.id !== lessonId)) {
       setLessonId(remainingLessons[0]?.id || null)
     }
@@ -288,6 +271,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
 
   const commitPublish = async (next: boolean) => {
     setPublishWarn(false)
+    setUnpublishConfirm(false)
     setPublishing(true)
     setCourse((row: any) => (row ? { ...row, is_published: next } : row))
     await (supabase as any)
@@ -299,6 +283,10 @@ export function CourseStudio({ courseId }: { courseId: string }) {
 
   const togglePublish = async () => {
     const next = !course?.is_published
+    if (!next) {
+      setUnpublishConfirm(true)
+      return
+    }
     const hasContent = lessons.some((lesson) =>
       lesson.id === lessonId ? blocks.length > 0 : parseLessonBlocks(lesson.content).length > 0
     )
@@ -328,6 +316,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
       setLessons((rows) => [...rows, data])
       setLessonId(data.id)
       setBlocks([])
+      setLessonPane('resources')
       setMobileTab('page')
     }
   }
@@ -380,7 +369,6 @@ export function CourseStudio({ courseId }: { courseId: string }) {
       )
     )
     void syncCourseDuration(courseId)
-    if (pageOptionsId === id) setPageOptionsId(null)
     if (lessonId === id) {
       const nextRows = remaining.map((row) => ordered.find((item) => item.id === row.id) || row)
       const fallback = ordered[0]?.id || nextRows[0]?.id || null
@@ -394,6 +382,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
 
   const selectLesson = (id: string, source: LessonRow[] = lessons) => {
     setLessonId(id)
+    setLessonPane('content')
     setMobileTab('page')
     const row = source.find((item) => item.id === id)
     setBlocks(row ? parseLessonBlocks(row.content) : [])
@@ -424,19 +413,6 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   for (const list of lessonsByModule.values()) list.sort((a, b) => a.order_index - b.order_index)
   const previewLessonId =
     lessonId || modules.flatMap((mod) => lessonsByModule.get(mod.id) || [])[0]?.id || null
-
-  const meta = readCourseAiMetadata(course?.metadata)
-  const shareUrl =
-    typeof window !== 'undefined' ? `${window.location.origin}/courses/${courseId}` : `/courses/${courseId}`
-
-  const saveMeta = async (patch: any) => {
-    const next = { ...(course?.metadata || {}), ...patch }
-    await (supabase as any)
-      .from('courses')
-      .update({ metadata: next, updated_at: new Date().toISOString() })
-      .eq('id', courseId)
-    setCourse((c: any) => ({ ...c, metadata: next }))
-  }
 
   if (loading) {
     return (
@@ -581,7 +557,6 @@ export function CourseStudio({ courseId }: { courseId: string }) {
                         >
                           Move down
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setPageOptionsId(les.id)}>Lesson options</DropdownMenuItem>
                         <DropdownMenuItem variant="destructive" onClick={() => void deleteLesson(mod.id, les.id)}>
                           <Trash2 /> Delete lesson
                         </DropdownMenuItem>
@@ -638,27 +613,60 @@ export function CourseStudio({ courseId }: { courseId: string }) {
             {modules.length ? 'Select a lesson' : 'Add a section to start'}
           </h2>
         )}
-        <div className="flex shrink-0 items-center gap-2 pt-1">
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 pt-1">
+          {current && (
+            <div className="flex rounded-md border p-0.5" role="tablist" aria-label="Lesson">
+              {(
+                [
+                  ['content', 'Content'],
+                  ['resources', 'Resources'],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={lessonPane === id}
+                  className={`min-h-11 rounded-md px-3 text-sm ${
+                    lessonPane === id ? 'bg-bhutan-yellow font-medium text-black' : 'text-muted-foreground'
+                  }`}
+                  onClick={() => setLessonPane(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
           {saveState !== 'idle' && (
             <p className="text-xs text-muted-foreground">{saveState === 'saving' ? 'Saving…' : 'Saved'}</p>
           )}
-          {current && (
-            <Button type="button" variant="outline" className="min-h-11" onClick={() => setPickerOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add
-            </Button>
-          )}
         </div>
       </div>
-      {current ? (
+      {current && lessonPane === 'resources' ? (
+        <div className="space-y-8">
+          <BlockCatalog
+            onPick={(block) => {
+              void saveBlocks([...blocks, block])
+              setLessonPane('content')
+            }}
+          />
+          <LessonOptionsPanel
+            courseId={courseId}
+            lessonId={current.id}
+            onTitleChange={(title) =>
+              setLessons((rows) => rows.map((row) => (row.id === current.id ? { ...row, title } : row)))
+            }
+          />
+        </div>
+      ) : current ? (
         <LessonBlocks
           content={blocks}
           lessonId={lessonId || undefined}
           editable
           onChange={(next) => void saveBlocks(next)}
-          onInsert={(type) => void saveBlocks([...blocks, emptyBlock(type)])}
+          onAddBlock={(block) => void saveBlocks([...blocks, block])}
           onAskPelbu={openAskPelbu}
-          onOpenLessonOptions={() => lessonId && setPageOptionsId(lessonId)}
+          onOpenLessonOptions={() => setLessonPane('resources')}
         />
       ) : null}
     </div>
@@ -676,7 +684,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   )
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] flex-col">
+    <div className="flex h-dvh flex-col">
       <header className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <Button
@@ -684,7 +692,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
             variant="ghost"
             size="icon"
             className="min-h-11 min-w-11 shrink-0"
-            aria-label="Back to dashboard"
+            aria-label="Back to teacher dashboard"
             render={<Link href="/teach/dashboard" />}
           >
             <ArrowLeft className="h-4 w-4" />
@@ -710,39 +718,35 @@ export function CourseStudio({ courseId }: { courseId: string }) {
             </Badge>
           </div>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger className="inline-flex min-h-11 items-center gap-2 rounded-md border px-3 text-sm">
-            Course
-            <ChevronDown className="h-4 w-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
-              <Settings /> Settings
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setThemeOpen(true)}>
-              <Palette /> Theme
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTutorOpen(true)}>
-              <Bot /> Tutor
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setShareOpen(true)}>
-              <Share2 /> Share
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <Button type="button" variant="outline" className="min-h-11" onClick={openAskPelbu}>
-          <Sparkles className="mr-2 h-4 w-4" /> Ask Pelbu
+        <Button
+          type="button"
+          variant="outline"
+          className="min-h-11"
+          render={<Link href={`/teach/courses/${courseId}/edit`} />}
+        >
+          <Settings className="mr-2 h-4 w-4" /> Settings
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="min-h-11 min-w-11"
+          aria-label="Ask Pelbu"
+          onClick={openAskPelbu}
+        >
+          <Sparkles className="h-4 w-4" />
         </Button>
         <Button
           type="button"
           variant="outline"
           className="min-h-11"
           disabled={!previewLessonId}
-          render={
-            previewLessonId ? (
-              <Link href={`/learn/${courseId}/lesson/${previewLessonId}?preview=1`} />
-            ) : undefined
-          }
+          onClick={() => {
+            if (!previewLessonId) return
+            window.location.assign(
+              `/learn/${courseId}/lesson/${previewLessonId}?preview=1`
+            )
+          }}
         >
           <Eye className="mr-2 h-4 w-4" /> Preview
         </Button>
@@ -793,39 +797,6 @@ export function CourseStudio({ courseId }: { courseId: string }) {
         ) : null}
       </div>
 
-      <BlockPicker
-        open={pickerOpen}
-        onOpenChange={setPickerOpen}
-        onPick={(block) => void saveBlocks([...blocks, block])}
-      />
-
-      <CourseSettingsSheet
-        courseId={courseId}
-        open={settingsOpen}
-        onOpenChange={setSettingsOpen}
-        onUpdated={(patch) => setCourse((current: any) => (current ? { ...current, ...patch } : current))}
-      />
-
-      <Sheet open={!!pageOptionsId} onOpenChange={(next) => !next && setPageOptionsId(null)}>
-        <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-xl">
-          <SheetHeader>
-            <SheetTitle>Lesson options</SheetTitle>
-            <SheetDescription>Video, activities, and gates for this lesson.</SheetDescription>
-          </SheetHeader>
-          <div className="px-4 pb-6">
-            {pageOptionsId && (
-              <LessonOptionsPanel
-                courseId={courseId}
-                lessonId={pageOptionsId}
-                onTitleChange={(title) =>
-                  setLessons((rows) => rows.map((row) => (row.id === pageOptionsId ? { ...row, title } : row)))
-                }
-              />
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
-
       <Sheet open={!!moduleOptionsId} onOpenChange={(next) => !next && setModuleOptionsId(null)}>
         <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-xl">
           <SheetHeader>
@@ -846,37 +817,6 @@ export function CourseStudio({ courseId }: { courseId: string }) {
         </SheetContent>
       </Sheet>
 
-      <Dialog open={themeOpen} onOpenChange={setThemeOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Course theme</DialogTitle>
-            <DialogDescription>Colors apply on the learner player.</DialogDescription>
-          </DialogHeader>
-          <ThemeForm
-            value={meta.theme || {}}
-            onSave={(theme) => {
-              void saveMeta({ theme })
-              setThemeOpen(false)
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={tutorOpen} onOpenChange={setTutorOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>AI tutor</DialogTitle>
-          </DialogHeader>
-          <TutorForm
-            value={meta.tutor || {}}
-            onSave={(tutor) => {
-              void saveMeta({ tutor })
-              setTutorOpen(false)
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-
       <Sheet open={aiOpen} onOpenChange={setAiOpen}>
         <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-md">
           <SheetHeader>
@@ -886,6 +826,29 @@ export function CourseStudio({ courseId }: { courseId: string }) {
           <div className="px-4 pb-6">{aiOpen ? renderRail() : null}</div>
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={unpublishConfirm} onOpenChange={setUnpublishConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unpublish this course?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Enrolled learners will lose access until you publish it again. Their enrollment is kept.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+              onClick={(event) => {
+                event.preventDefault()
+                void commitPublish(false)
+              }}
+            >
+              Unpublish
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={publishWarn} onOpenChange={setPublishWarn}>
         <AlertDialogContent>
@@ -910,139 +873,6 @@ export function CourseStudio({ courseId }: { courseId: string }) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Share</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 text-sm">
-            <p className="break-all rounded-md border p-2">{shareUrl}</p>
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" className="min-h-11" onClick={() => void navigator.clipboard.writeText(shareUrl)}>
-                Copy link
-              </Button>
-              <a className="inline-flex min-h-11 items-center rounded-md border px-3" href={`https://wa.me/?text=${encodeURIComponent(shareUrl)}`} target="_blank" rel="noreferrer">
-                WhatsApp
-              </a>
-              <a className="inline-flex min-h-11 items-center rounded-md border px-3" href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`} target="_blank" rel="noreferrer">
-                Facebook
-              </a>
-              <a className="inline-flex min-h-11 items-center rounded-md border px-3" href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`} target="_blank" rel="noreferrer">
-                LinkedIn
-              </a>
-            </div>
-            {course?.enrollment_mode === 'paid' && (
-              <a className="inline-flex min-h-11 items-center rounded-md border px-3" href={`/courses/${courseId}`}>
-                Sell (Stripe checkout)
-              </a>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
-}
-
-function ThemeForm({
-  value,
-  onSave,
-}: {
-  value: any
-  onSave: (theme: any) => void
-}) {
-  const [theme, setTheme] = useState({
-    primary: value.primary || '#FFC72C',
-    heading: value.heading || '#111111',
-    background: value.background || '#ffffff',
-    body: value.body || '#3f3f46',
-    link: value.link || '#c2410c',
-    logoUrl: value.logoUrl || '',
-  })
-  return (
-    <div className="space-y-3">
-      {(['primary', 'heading', 'background', 'body', 'link'] as const).map((key) => (
-        <div key={key} className="flex items-center justify-between gap-3">
-          <Label className="capitalize">{key}</Label>
-          <Input
-            type="color"
-            className="h-11 w-16"
-            value={theme[key]}
-            onChange={(e) => setTheme({ ...theme, [key]: e.target.value })}
-          />
-        </div>
-      ))}
-      <Input
-        className="min-h-11"
-        placeholder="Logo URL"
-        value={theme.logoUrl}
-        onChange={(e) => setTheme({ ...theme, logoUrl: e.target.value })}
-      />
-      <Button type="button" className="min-h-11 w-full bg-bhutan-yellow text-black" onClick={() => onSave(theme)}>
-        Save theme
-      </Button>
-    </div>
-  )
-}
-
-function TutorForm({
-  value,
-  onSave,
-}: {
-  value: any
-  onSave: (tutor: any) => void
-}) {
-  const [tutor, setTutor] = useState({
-    name: value.name || 'Course tutor',
-    photoUrl: value.photoUrl || '',
-    instructions: value.instructions || 'Answer only from this course.',
-    enabled: value.enabled !== false,
-    starterPrompts: Array.isArray(value.starterPrompts)
-      ? value.starterPrompts.filter((item: unknown) => typeof item === 'string').join('\n')
-      : '',
-  })
-  return (
-    <div className="space-y-3">
-      <Input className="min-h-11" value={tutor.name} onChange={(e) => setTutor({ ...tutor, name: e.target.value })} />
-      <Input
-        className="min-h-11"
-        placeholder="Photo URL"
-        value={tutor.photoUrl}
-        onChange={(e) => setTutor({ ...tutor, photoUrl: e.target.value })}
-      />
-      <Textarea
-        rows={4}
-        value={tutor.instructions}
-        onChange={(e) => setTutor({ ...tutor, instructions: e.target.value })}
-      />
-      <div className="space-y-1.5">
-        <Label htmlFor="tutor-starters">Starter prompts (one per line)</Label>
-        <Textarea
-          id="tutor-starters"
-          rows={4}
-          placeholder={'What skills will I gain from this course?\nHow does this lesson connect to the last one?'}
-          value={tutor.starterPrompts}
-          onChange={(e) => setTutor({ ...tutor, starterPrompts: e.target.value })}
-        />
-      </div>
-      <Button
-        type="button"
-        className="min-h-11 w-full bg-bhutan-yellow text-black"
-        onClick={() =>
-          onSave({
-            name: tutor.name,
-            photoUrl: tutor.photoUrl,
-            instructions: tutor.instructions,
-            enabled: tutor.enabled,
-            starterPrompts: tutor.starterPrompts
-              .split('\n')
-              .map((line) => line.trim())
-              .filter(Boolean)
-              .slice(0, 12),
-          })
-        }
-      >
-        Save tutor
-      </Button>
     </div>
   )
 }

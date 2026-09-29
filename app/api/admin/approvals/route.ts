@@ -4,9 +4,16 @@ import { NextResponse } from 'next/server'
 import {
   getApprovalScope,
   resolveEffectiveRole,
+  isGlobalApproverRole,
 } from '@/lib/approvals-access'
 import { processRegistrationReview } from '@/lib/approve-registration'
 import { getRequestUser } from '@/lib/request-user'
+import {
+  CAP,
+  catalogGrantsActive,
+  hasCapability,
+  resolveUserCapabilities,
+} from '@/lib/capabilities'
 
 /**
  * Secure API for student registration approvals.
@@ -82,14 +89,39 @@ async function loadCaller(request: { headers: Headers }) {
     }
   }
 
-  return { user, profile, effectiveRole, scope, service, supabase }
+  const resolved = await resolveUserCapabilities(user.id, effectiveRole)
+  const assignedReviewer = !isGlobalApproverRole(effectiveRole)
+  if (catalogGrantsActive(resolved)) {
+    const canView = hasCapability(resolved, CAP.APPROVALS_VIEW) || assignedReviewer
+    if (!canView) {
+      return {
+        error: NextResponse.json(
+          { error: 'Forbidden', message: 'Approvals view is not enabled for your role.' },
+          { status: 403 }
+        ),
+      }
+    }
+  }
+
+  return { user, profile, effectiveRole, scope, service, supabase, resolved, assignedReviewer }
 }
 
 export async function POST(request: Request) {
   try {
     const loaded = await loadCaller(request)
     if ('error' in loaded && loaded.error instanceof NextResponse) return loaded.error
-    const { user, scope, service } = loaded as any
+    const { user, scope, service, resolved, assignedReviewer } = loaded as any
+
+    if (
+      catalogGrantsActive(resolved) &&
+      !hasCapability(resolved, CAP.APPROVALS_EDIT) &&
+      !assignedReviewer
+    ) {
+      return NextResponse.json(
+        { error: 'Forbidden', message: 'Approvals edit is not enabled for your role.' },
+        { status: 403 }
+      )
+    }
 
     const body = await request.json()
     const { action, registrationId, reviewNotes, rejectionReason, registrationIds, assignedRole } =

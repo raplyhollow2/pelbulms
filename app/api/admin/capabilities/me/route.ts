@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
       baseArchetype: resolved.baseArchetype,
       allInstitutions: resolved.allInstitutions,
       institutionIds: resolved.institutionIds,
+      catalogResolved: resolved.catalogResolved === true,
       capabilities: resolved.capabilityKeys.has('*')
         ? ['*']
         : Array.from(resolved.capabilityKeys),

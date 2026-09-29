@@ -8,7 +8,15 @@ export default function AdminSettingsLayout({
   children: React.ReactNode
 }) {
   return (
-    <SuperadminGate anyOf={[CAP.SETTINGS_VIEW, CAP.INSTITUTIONS_VIEW]}>
+    <SuperadminGate
+      anyOf={[
+        CAP.SETTINGS_VIEW,
+        CAP.SETTINGS_SITE_VIEW,
+        CAP.SETTINGS_REGISTRATION_VIEW,
+        CAP.SETTINGS_MARKETING_VIEW,
+        CAP.INSTITUTIONS_VIEW,
+      ]}
+    >
       <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-5 sm:px-6 sm:py-8 md:pb-10">
         <header className="space-y-4 border-b border-border/50 pb-5">
           <div className="space-y-1">

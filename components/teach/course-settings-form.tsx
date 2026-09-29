@@ -1,13 +1,15 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,10 +21,17 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import {
-  CheckCircle2,
-  ChevronDown,
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
+  ArrowLeft,
+  Bold,
   Image as ImageIcon,
+  Italic,
   Link as LinkIcon,
+  List,
+  ListOrdered,
   Loader2,
   Plus,
   Trash2,
@@ -57,6 +66,8 @@ import {
   syncCourseInstitutions,
   countCrossInstitutionEnrollments,
 } from '@/lib/course-institution-access'
+import { sanitizeHtml, type CourseTheme, type CourseTutorSettings } from '@/lib/lesson-blocks'
+import { courseDescriptionEditorHtml, courseDescriptionRichClass } from '@/lib/course-description'
 
 type EnrollmentMode = 'auto' | 'approval' | 'invite_code' | 'paid'
 
@@ -92,39 +103,146 @@ const EMPTY: CourseForm = {
   preview_video_url: '',
 }
 
-function Section({
+function SettingsPanel({
   title,
-  open,
-  onToggle,
+  description,
   children,
 }: {
   title: string
-  open: boolean
-  onToggle: () => void
+  description: string
   children: ReactNode
 }) {
   return (
-    <section className="border-b border-border/70">
-      <button
-        type="button"
-        className="flex min-h-11 w-full items-center justify-between py-3 text-left text-sm font-semibold"
-        onClick={onToggle}
-        aria-expanded={open}
-      >
-        {title}
-        <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && <div className="space-y-4 pb-4">{children}</div>}
-    </section>
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-base font-semibold">{title}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function courseShareUrl(courseId: string) {
+  if (typeof window === 'undefined') return `/courses/${courseId}`
+  return `${window.location.origin}/courses/${courseId}`
+}
+
+function DescriptionEditor({ value, onChange }: { value: string; onChange: (html: string) => void }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const focused = useRef(false)
+  const lastPublished = useRef<string | null>(null)
+
+  // Uncontrolled on purpose. React 19 assigns innerHTML again whenever
+  // dangerouslySetInnerHTML is a new object, which wiped each keystroke and format.
+  useLayoutEffect(() => {
+    const node = ref.current
+    if (!node) return
+    if (lastPublished.current === value) return
+    if (focused.current) return
+    node.innerHTML = value.trim() ? courseDescriptionEditorHtml(value) : ''
+    lastPublished.current = value
+  }, [value])
+
+  const publish = () => {
+    const next = sanitizeHtml(ref.current?.innerHTML || '')
+    lastPublished.current = next
+    onChange(next)
+  }
+
+  const apply = (command: string) => {
+    const node = ref.current
+    if (!node) return
+    node.focus()
+    focused.current = true
+    document.execCommand('styleWithCSS', false, 'true')
+    document.execCommand(command)
+    publish()
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-1">
+        <FormatButton label="Bold" onApply={() => apply('bold')}>
+          <Bold />
+        </FormatButton>
+        <FormatButton label="Italic" onApply={() => apply('italic')}>
+          <Italic />
+        </FormatButton>
+        <FormatButton label="Bulleted list" onApply={() => apply('insertUnorderedList')}>
+          <List />
+        </FormatButton>
+        <FormatButton label="Numbered list" onApply={() => apply('insertOrderedList')}>
+          <ListOrdered />
+        </FormatButton>
+        <span className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
+        <FormatButton label="Align left" onApply={() => apply('justifyLeft')}>
+          <AlignLeft />
+        </FormatButton>
+        <FormatButton label="Align center" onApply={() => apply('justifyCenter')}>
+          <AlignCenter />
+        </FormatButton>
+        <FormatButton label="Align right" onApply={() => apply('justifyRight')}>
+          <AlignRight />
+        </FormatButton>
+        <FormatButton label="Justify" onApply={() => apply('justifyFull')}>
+          <AlignJustify />
+        </FormatButton>
+      </div>
+      <div
+        ref={ref}
+        id="settings-description"
+        contentEditable
+        suppressContentEditableWarning
+        role="textbox"
+        aria-multiline="true"
+        aria-label="Description"
+        data-placeholder="Write what this course is about"
+        className={`min-h-28 w-full cursor-text rounded-md border bg-background p-3 text-sm leading-relaxed focus:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)] ${courseDescriptionRichClass}`}
+        onFocus={() => {
+          focused.current = true
+        }}
+        onInput={publish}
+        onBlur={() => {
+          focused.current = false
+          publish()
+        }}
+      />
+    </div>
+  )
+}
+
+function FormatButton({
+  label,
+  onApply,
+  children,
+}: {
+  label: string
+  onApply: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      className={buttonVariants({ variant: 'outline', size: 'icon-sm' })}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onApply}
+    >
+      {children}
+    </button>
   )
 }
 
 export function CourseSettingsForm({
   courseId,
   onUpdated,
+  layout = 'page',
 }: {
   courseId: string
   onUpdated?: (patch: { title?: string; is_published?: boolean }) => void
+  layout?: 'page' | 'sheet'
 }) {
   const router = useRouter()
   const supabase = createClient()
@@ -149,7 +267,8 @@ export function CourseSettingsForm({
   const [crossOrgEnrollmentCount, setCrossOrgEnrollmentCount] = useState(0)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [open, setOpen] = useState({ basics: true, cover: false, access: false, people: false, more: false })
+  const [canDeleteCourse, setCanDeleteCourse] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadingVideo, setUploadingVideo] = useState(false)
   const [videoUploadProgress, setVideoUploadProgress] = useState(0)
@@ -192,6 +311,7 @@ export function CourseSettingsForm({
       const role = (profile as { role?: string } | null)?.role
       const isOwner = (course as { instructor_id?: string }).instructor_id === user.id
       const isStaff = role === 'admin' || role === 'superadmin'
+      setCanDeleteCourse(isOwner || role === 'superadmin')
       if (!isOwner && !isStaff) {
         setError('You can only edit your own courses.')
         setLoading(false)
@@ -312,6 +432,29 @@ export function CourseSettingsForm({
       if (sync.error) throw new Error(sync.error)
       setStatus('saved')
       onUpdated?.({ title: current.title, is_published: current.is_published })
+    } catch (err: any) {
+      setStatus('error')
+      setError(err?.message || 'Could not save settings')
+    }
+  }
+
+  const saveMetadataPatch = async (patch: Record<string, unknown>) => {
+    setStatus('saving')
+    setError('')
+    try {
+      const { data: fresh } = await supabase.from('courses').select('metadata').eq('id', courseId).single()
+      const next = {
+        ...(((fresh as { metadata?: Record<string, unknown> } | null)?.metadata as Record<string, unknown>) ||
+          metadataRef.current),
+        ...patch,
+      }
+      const { error: saveError } = await (supabase as any)
+        .from('courses')
+        .update({ metadata: next, updated_at: new Date().toISOString() })
+        .eq('id', courseId)
+      if (saveError) throw saveError
+      setMetadata(next)
+      setStatus('saved')
     } catch (err: any) {
       setStatus('error')
       setError(err?.message || 'Could not save settings')
@@ -517,17 +660,109 @@ export function CourseSettingsForm({
   }
 
   const embed = getEmbedUrl(courseData.preview_video_url)
+  const saveLabel =
+    status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved' : 'Changes save automatically'
+
+  const addObjective = () => {
+    const value = newObjective.trim()
+    if (!value) return
+    setCourseData({
+      ...courseData,
+      learning_objectives: [...courseData.learning_objectives, value],
+    })
+    setNewObjective('')
+  }
+
+  const copyShareLink = () => {
+    void navigator.clipboard.writeText(courseShareUrl(courseId)).then(
+      () => {
+        setLinkCopied(true)
+        window.setTimeout(() => setLinkCopied(false), 2000)
+      },
+      () => setError('Could not copy the course link'),
+    )
+  }
+
+  const courseTitle = courseData.title || 'Course settings'
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs text-muted-foreground">
-          {status === 'saving' ? 'Saving…' : status === 'saved' ? 'Saved' : 'Changes save automatically'}
-        </p>
+    <div className="space-y-6">
+      <div
+        className={
+          layout === 'page'
+            ? 'sticky top-[calc(3.25rem+env(safe-area-inset-top))] z-20 -mx-4 border-b bg-background/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80'
+            : 'border-b pb-3'
+        }
+      >
+        {layout === 'page' ? (
+          <Button
+            type="button"
+            variant="ghost"
+            className="-ml-2 mb-2 min-h-11"
+            onClick={() => router.push(`/teach/courses/${courseId}/studio`)}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" aria-hidden="true" />
+            Back to studio
+          </Button>
+        ) : null}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            {layout === 'page' ? (
+              <h1 className="text-xl font-semibold">{courseTitle}</h1>
+            ) : (
+              <p className="text-lg font-semibold">{courseTitle}</p>
+            )}
+            <p className="mt-1 text-xs text-muted-foreground">{saveLabel}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">{courseData.is_published ? 'Published' : 'Draft'}</Badge>
+            <Button type="button" variant="outline" className="min-h-11" onClick={copyShareLink}>
+              {linkCopied ? 'Copied' : 'Copy link'}
+            </Button>
+          </div>
+        </div>
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      <Section title="Basics" open={open.basics} onToggle={() => setOpen((s) => ({ ...s, basics: !s.basics }))}>
+      <Tabs defaultValue="details" className="gap-4">
+        <div className={layout === 'sheet' ? 'overflow-x-auto pb-1' : undefined}>
+          <TabsList
+            variant="line"
+            className={
+              layout === 'sheet'
+                ? '!h-auto w-max justify-start gap-1 bg-transparent px-0'
+                : '!h-auto w-full flex-wrap justify-start gap-1 bg-transparent px-0'
+            }
+          >
+            <TabsTrigger value="details" className="min-h-11 flex-none px-3">
+              Details
+            </TabsTrigger>
+            <TabsTrigger value="access" className="min-h-11 flex-none px-3">
+              Access
+            </TabsTrigger>
+            <TabsTrigger value="people" className="min-h-11 flex-none px-3">
+              People
+            </TabsTrigger>
+            <TabsTrigger value="appearance" className="min-h-11 flex-none px-3">
+              Appearance
+            </TabsTrigger>
+            <TabsTrigger value="tutor" className="min-h-11 flex-none px-3">
+              Tutor
+            </TabsTrigger>
+            <TabsTrigger value="share" className="min-h-11 flex-none px-3">
+              Share
+            </TabsTrigger>
+            <TabsTrigger value="tools" className="min-h-11 flex-none px-3">
+              Tools
+            </TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="details">
+          <SettingsPanel
+            title="Details"
+            description="Title, summary, outcomes, and the image students see."
+          >
         <div className="space-y-1.5">
           <Label htmlFor="settings-title">Title</Label>
           <Input
@@ -546,12 +781,9 @@ export function CourseSettingsForm({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="settings-description">Description</Label>
-          <Textarea
-            id="settings-description"
+          <DescriptionEditor
             value={courseData.description}
-            rows={4}
-            className="resize-none"
-            onChange={(e) => setCourseData({ ...courseData, description: e.target.value })}
+            onChange={(description) => setCourseData({ ...courseData, description })}
           />
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -593,65 +825,69 @@ export function CourseSettingsForm({
           </div>
         </div>
         <div className="space-y-2">
-          <Label>Learning objectives</Label>
+          <Label htmlFor="settings-new-outcome">Learning outcomes</Label>
           <div className="flex gap-2">
             <Input
+              id="settings-new-outcome"
               value={newObjective}
-              placeholder="Add a learning objective"
+              placeholder="What learners will be able to do"
+              className="min-h-11"
               onChange={(e) => setNewObjective(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault()
-                  if (!newObjective.trim()) return
-                  setCourseData({
-                    ...courseData,
-                    learning_objectives: [...courseData.learning_objectives, newObjective.trim()],
-                  })
-                  setNewObjective('')
+                  addObjective()
                 }
               }}
             />
-            <Button
-              type="button"
-              className="shrink-0"
-              onClick={() => {
-                if (!newObjective.trim()) return
-                setCourseData({
-                  ...courseData,
-                  learning_objectives: [...courseData.learning_objectives, newObjective.trim()],
-                })
-                setNewObjective('')
-              }}
-            >
-              <Plus className="h-4 w-4" />
+            <Button type="button" className="min-h-11 shrink-0" onClick={addObjective}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Add outcome
             </Button>
           </div>
-          {courseData.learning_objectives.map((objective, index) => (
-            <div key={`${objective}-${index}`} className="flex items-center justify-between gap-2 rounded-lg bg-muted/50 p-3">
-              <span className="flex min-w-0 items-center gap-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
-                <span className="truncate">{objective}</span>
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() =>
-                  setCourseData({
-                    ...courseData,
-                    learning_objectives: courseData.learning_objectives.filter((_, i) => i !== index),
-                  })
-                }
-              >
-                <Trash2 className="h-4 w-4 text-red-600" />
-              </Button>
-            </div>
-          ))}
+          <ol className="space-y-2">
+            {courseData.learning_objectives.map((objective, index) => (
+              <li key={index} className="flex items-start gap-2 rounded-lg bg-muted/50 p-3">
+                <span
+                  className="mt-2.5 w-6 shrink-0 text-sm font-medium tabular-nums text-muted-foreground"
+                  aria-hidden="true"
+                >
+                  {index + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <Label htmlFor={`settings-outcome-${index}`} className="sr-only">
+                    Outcome {index + 1}
+                  </Label>
+                  <Textarea
+                    id={`settings-outcome-${index}`}
+                    value={objective}
+                    rows={2}
+                    className="min-h-11 resize-y bg-background"
+                    onChange={(e) => {
+                      const next = [...courseData.learning_objectives]
+                      next[index] = e.target.value
+                      setCourseData({ ...courseData, learning_objectives: next })
+                    }}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="min-h-11 shrink-0"
+                  aria-label={`Remove outcome: ${objective || index + 1}`}
+                  onClick={() =>
+                    setCourseData({
+                      ...courseData,
+                      learning_objectives: courseData.learning_objectives.filter((_, i) => i !== index),
+                    })
+                  }
+                >
+                  Remove
+                </Button>
+              </li>
+            ))}
+          </ol>
         </div>
-      </Section>
-
-      <Section title="Cover" open={open.cover} onToggle={() => setOpen((s) => ({ ...s, cover: !s.cover }))}>
         <input
           ref={imageInputRef}
           type="file"
@@ -689,12 +925,13 @@ export function CourseSettingsForm({
                 </Button>
                 <Button
                   type="button"
-                  size="icon"
+                  size="sm"
                   variant="destructive"
-                  className="h-8 w-8"
+                  className="min-h-11"
+                  aria-label="Remove cover image"
                   onClick={() => setCourseData({ ...courseData, thumbnail_url: '' })}
                 >
-                  <X className="h-4 w-4" />
+                  Remove
                 </Button>
               </div>
             </div>
@@ -709,6 +946,7 @@ export function CourseSettingsForm({
             <Input
               value={courseData.thumbnail_url}
               placeholder="Or paste an image URL"
+              aria-label="Cover image URL"
               onChange={(e) => setCourseData({ ...courseData, thumbnail_url: e.target.value })}
             />
           </div>
@@ -723,14 +961,14 @@ export function CourseSettingsForm({
                 {embed.type === 'file' ? (
                   <video src={embed.src} controls className="h-full w-full" />
                 ) : (
-                  <iframe src={embed.src} className="h-full w-full" allowFullScreen />
+                  <iframe src={embed.src} title="Course preview video" className="h-full w-full" allowFullScreen />
                 )}
               </div>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="text-destructive"
+                className="min-h-11 text-destructive"
                 onClick={() => setCourseData({ ...courseData, preview_video_url: '' })}
               >
                 <X className="mr-1 h-4 w-4" /> Remove video
@@ -747,6 +985,7 @@ export function CourseSettingsForm({
           <Input
             value={parseMediaRef(courseData.preview_video_url) ? '' : courseData.preview_video_url}
             placeholder="Or paste YouTube / Google Drive / Vimeo URL"
+            aria-label="Preview video URL"
             disabled={!!parseMediaRef(courseData.preview_video_url)}
             onChange={(e) => setCourseData({ ...courseData, preview_video_url: e.target.value })}
           />
@@ -754,13 +993,28 @@ export function CourseSettingsForm({
             <p className="text-xs text-amber-700 dark:text-amber-400">{DRIVE_SHARE_HINT}</p>
           )}
         </div>
-      </Section>
+        {canDeleteCourse ? (
+          <div className="rounded-lg border border-destructive/30 p-4">
+            <p className="text-sm font-medium text-destructive">Delete course</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Removes lessons, enrollments, and student progress. Only the course creator or a superadmin can do this.
+            </p>
+            <Button type="button" variant="destructive" className="mt-3 min-h-11" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" /> Delete course
+            </Button>
+          </div>
+        ) : null}
+          </SettingsPanel>
+        </TabsContent>
 
-      <Section title="Access" open={open.access} onToggle={() => setOpen((s) => ({ ...s, access: !s.access }))}>
+        <TabsContent value="access">
+          <SettingsPanel title="Access" description="Who can find this course and how they join.">
         <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
           <div>
             <Label htmlFor="settings-published">Published</Label>
-            <p className="text-xs text-muted-foreground">Visible and enrollable</p>
+            <p className="text-xs text-muted-foreground">
+              Visible in the catalog. Turning this off also hides the course from enrolled learners until you publish it again.
+            </p>
           </div>
           <Switch
             id="settings-published"
@@ -808,6 +1062,7 @@ export function CourseSettingsForm({
               <button
                 key={mode}
                 type="button"
+                aria-pressed={courseData.enrollment_mode === mode}
                 className={`rounded-lg border p-3 text-left ${
                   courseData.enrollment_mode === mode ? 'border-bhutan-yellow bg-bhutan-yellow/10' : ''
                 }`}
@@ -850,6 +1105,7 @@ export function CourseSettingsForm({
                   key={scope}
                   type="button"
                   disabled={forumScopeSaving}
+                  aria-pressed={forumScope === scope}
                   className={`rounded-lg border p-3 text-left disabled:opacity-60 ${
                     forumScope === scope ? 'border-bhutan-yellow bg-bhutan-yellow/10' : ''
                   }`}
@@ -862,36 +1118,57 @@ export function CourseSettingsForm({
             </div>
           </div>
         )}
-      </Section>
+          </SettingsPanel>
+        </TabsContent>
 
-      <Section title="People" open={open.people} onToggle={() => setOpen((s) => ({ ...s, people: !s.people }))}>
-        <CourseStaffPanel courseId={courseId} />
-      </Section>
+        <TabsContent value="people">
+          <SettingsPanel title="People" description="Teachers and staff who can manage this course.">
+            <CourseStaffPanel courseId={courseId} />
+          </SettingsPanel>
+        </TabsContent>
 
-      <Section title="More" open={open.more} onToggle={() => setOpen((s) => ({ ...s, more: !s.more }))}>
-        <div className="flex flex-wrap gap-2">
-          {has(CAP.MODULE_FLASHCARDS_CONFIGURE) && (
-            <Button type="button" variant="outline" render={<Link href={`/teach/courses/${courseId}/flashcards`} />}>
-              Manage flashcards
-            </Button>
-          )}
-          {has(CAP.MODULE_CERTIFICATES_CONFIGURE) && (
-            <Button type="button" variant="outline" render={<Link href={`/teach/courses/${courseId}/certificate`} />}>
-              Certificate design
-            </Button>
-          )}
-        </div>
-        <GeminiCoursePanel courseId={courseId} />
-        <div className="rounded-lg border border-destructive/30 p-4">
-          <p className="text-sm font-medium text-destructive">Delete course</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Removes lessons, enrollments, and student progress.
-          </p>
-          <Button type="button" variant="destructive" className="mt-3" onClick={() => setDeleteOpen(true)}>
-            <Trash2 className="mr-2 h-4 w-4" /> Delete course
-          </Button>
-        </div>
-      </Section>
+        <TabsContent value="appearance">
+          <SettingsPanel title="Appearance" description="Colors apply on the learner player.">
+            <ThemeForm
+              value={metadata.theme && typeof metadata.theme === 'object' ? (metadata.theme as CourseTheme) : {}}
+              onSave={(theme) => void saveMetadataPatch({ theme })}
+            />
+          </SettingsPanel>
+        </TabsContent>
+
+        <TabsContent value="tutor">
+          <SettingsPanel title="Tutor" description="How the course tutor introduces itself to learners.">
+            <TutorForm
+              value={metadata.tutor && typeof metadata.tutor === 'object' ? (metadata.tutor as CourseTutorSettings) : {}}
+              onSave={(tutor) => void saveMetadataPatch({ tutor })}
+            />
+          </SettingsPanel>
+        </TabsContent>
+
+        <TabsContent value="share">
+          <SettingsPanel title="Share" description="Send learners a link to this course.">
+            <ShareCourse courseId={courseId} paid={courseData.enrollment_mode === 'paid'} />
+          </SettingsPanel>
+        </TabsContent>
+
+        <TabsContent value="tools">
+          <SettingsPanel title="Tools" description="Flashcards, certificates, and course AI.">
+            <div className="flex flex-wrap gap-2">
+              {has(CAP.MODULE_FLASHCARDS_CONFIGURE) && (
+                <Button type="button" variant="outline" className="min-h-11" render={<Link href={`/teach/courses/${courseId}/flashcards`} />}>
+                  Manage flashcards
+                </Button>
+              )}
+              {has(CAP.MODULE_CERTIFICATES_CONFIGURE) && (
+                <Button type="button" variant="outline" className="min-h-11" render={<Link href={`/teach/courses/${courseId}/certificate`} />}>
+                  Certificate design
+                </Button>
+              )}
+            </div>
+            <GeminiCoursePanel courseId={courseId} />
+          </SettingsPanel>
+        </TabsContent>
+      </Tabs>
 
       <AlertDialog open={deleteOpen} onOpenChange={(next) => !deleting && setDeleteOpen(next)}>
         <AlertDialogContent>
@@ -922,6 +1199,146 @@ export function CourseSettingsForm({
   )
 }
 
+function ThemeForm({ value, onSave }: { value: CourseTheme; onSave: (theme: CourseTheme) => void }) {
+  const [theme, setTheme] = useState({
+    primary: value.primary || '#FFC72C',
+    heading: value.heading || '#111111',
+    background: value.background || '#ffffff',
+    body: value.body || '#3f3f46',
+    link: value.link || '#c2410c',
+    logoUrl: value.logoUrl || '',
+  })
+  return (
+    <div className="space-y-3">
+      {(['primary', 'heading', 'background', 'body', 'link'] as const).map((key) => (
+        <div key={key} className="flex items-center justify-between gap-3">
+          <Label className="capitalize">{key}</Label>
+          <Input
+            type="color"
+            className="h-11 w-16"
+            value={theme[key]}
+            onChange={(e) => setTheme({ ...theme, [key]: e.target.value })}
+          />
+        </div>
+      ))}
+      <Input
+        className="min-h-11"
+        placeholder="Logo URL"
+        value={theme.logoUrl}
+        onChange={(e) => setTheme({ ...theme, logoUrl: e.target.value })}
+      />
+      <Button type="button" className="min-h-11 w-full bg-bhutan-yellow text-black" onClick={() => onSave(theme)}>
+        Save theme
+      </Button>
+    </div>
+  )
+}
+
+function TutorForm({
+  value,
+  onSave,
+}: {
+  value: CourseTutorSettings
+  onSave: (tutor: CourseTutorSettings) => void
+}) {
+  const [tutor, setTutor] = useState({
+    name: value.name || 'Course tutor',
+    photoUrl: value.photoUrl || '',
+    instructions: value.instructions || 'Answer only from this course.',
+    enabled: value.enabled !== false,
+    starterPrompts: Array.isArray(value.starterPrompts) ? value.starterPrompts.join('\n') : '',
+  })
+  return (
+    <div className="space-y-3">
+      <Input className="min-h-11" value={tutor.name} onChange={(e) => setTutor({ ...tutor, name: e.target.value })} />
+      <Input
+        className="min-h-11"
+        placeholder="Photo URL"
+        value={tutor.photoUrl}
+        onChange={(e) => setTutor({ ...tutor, photoUrl: e.target.value })}
+      />
+      <Textarea
+        rows={4}
+        value={tutor.instructions}
+        onChange={(e) => setTutor({ ...tutor, instructions: e.target.value })}
+      />
+      <div className="space-y-1.5">
+        <Label htmlFor="tutor-starters">Starter prompts (one per line)</Label>
+        <Textarea
+          id="tutor-starters"
+          rows={4}
+          placeholder={'What skills will I gain from this course?\nHow does this lesson connect to the last one?'}
+          value={tutor.starterPrompts}
+          onChange={(e) => setTutor({ ...tutor, starterPrompts: e.target.value })}
+        />
+      </div>
+      <Button
+        type="button"
+        className="min-h-11 w-full bg-bhutan-yellow text-black"
+        onClick={() =>
+          onSave({
+            name: tutor.name,
+            photoUrl: tutor.photoUrl,
+            instructions: tutor.instructions,
+            enabled: tutor.enabled,
+            starterPrompts: tutor.starterPrompts
+              .split('\n')
+              .map((line) => line.trim())
+              .filter(Boolean)
+              .slice(0, 12),
+          })
+        }
+      >
+        Save tutor
+      </Button>
+    </div>
+  )
+}
+
+function ShareCourse({ courseId, paid }: { courseId: string; paid: boolean }) {
+  const shareUrl =
+    typeof window !== 'undefined' ? `${window.location.origin}/courses/${courseId}` : `/courses/${courseId}`
+  return (
+    <div className="space-y-3 text-sm">
+      <p className="break-all rounded-md border p-2">{shareUrl}</p>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" variant="outline" className="min-h-11" onClick={() => void navigator.clipboard.writeText(shareUrl)}>
+          Copy link
+        </Button>
+        <a
+          className="inline-flex min-h-11 items-center rounded-md border px-3"
+          href={`https://wa.me/?text=${encodeURIComponent(shareUrl)}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          WhatsApp
+        </a>
+        <a
+          className="inline-flex min-h-11 items-center rounded-md border px-3"
+          href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Facebook
+        </a>
+        <a
+          className="inline-flex min-h-11 items-center rounded-md border px-3"
+          href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          LinkedIn
+        </a>
+      </div>
+      {paid && (
+        <a className="inline-flex min-h-11 items-center rounded-md border px-3" href={`/courses/${courseId}`}>
+          Sell (Stripe checkout)
+        </a>
+      )}
+    </div>
+  )
+}
+
 export function CourseSettingsSheet({
   courseId,
   open,
@@ -938,10 +1355,12 @@ export function CourseSettingsSheet({
       <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-xl">
         <SheetHeader>
           <SheetTitle>Course settings</SheetTitle>
-          <SheetDescription>Details, cover, access, and people. Structure stays in the outline.</SheetDescription>
+          <SheetDescription>
+            Details, access, people, appearance, tutor, sharing, and tools. Structure stays in the outline.
+          </SheetDescription>
         </SheetHeader>
         <div className="px-4 pb-6">
-          {open && <CourseSettingsForm courseId={courseId} onUpdated={onUpdated} />}
+          {open && <CourseSettingsForm courseId={courseId} layout="sheet" onUpdated={onUpdated} />}
         </div>
       </SheetContent>
     </Sheet>

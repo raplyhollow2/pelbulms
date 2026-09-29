@@ -25,6 +25,8 @@ export function ResponsiveLayout({ children, user, siteName = 'Pelbu LMS', profi
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const pathname = usePathname()
   const isLearnPlayer = /^\/learn\/[^/]+\/lesson\//.test(pathname || '')
+  const isCourseAuthoring =
+    pathname === '/teach/create' || /^\/teach\/courses\/[^/]+\/studio$/.test(pathname || '')
 
   useEffect(() => {
     const onToggle = (event: Event) => {
@@ -40,7 +42,7 @@ export function ResponsiveLayout({ children, user, siteName = 'Pelbu LMS', profi
     }
   }, [])
 
-  if (isLearnPlayer) {
+  if (isLearnPlayer || isCourseAuthoring) {
     return (
       <div key={pathname} className="min-h-dvh bg-background">
         {children}

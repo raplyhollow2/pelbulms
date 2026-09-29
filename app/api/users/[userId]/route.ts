@@ -388,6 +388,9 @@ export async function DELETE(
 ) {
   const rbac = await requireUsersCap(request, [CAP.USERS_DELETE])
   if (!rbac.hasAccess) return denied(rbac)
+  if (rbac.userRole !== 'superadmin') {
+    return NextResponse.json({ error: 'Only a superadmin can delete users' }, { status: 403 })
+  }
 
   try {
     const { userId } = await params

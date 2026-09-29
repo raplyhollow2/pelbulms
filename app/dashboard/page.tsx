@@ -47,6 +47,7 @@ type EnrollmentRow = {
     thumbnail_url?: string | null
     category?: string | null
     level?: string | null
+    is_published?: boolean | null
   } | null
 }
 
@@ -110,16 +111,18 @@ export default function DashboardPage() {
             description,
             thumbnail_url,
             category,
-            level
+            level,
+            is_published
           )
         `
         )
         .eq('user_id', session.user.id)
         .eq('status', 'active')
 
-      if (enrollmentsData) {
-        setEnrollments(enrollmentsData as any)
-      }
+      const openEnrollments = ((enrollmentsData || []) as EnrollmentRow[]).filter(
+        (row) => row.courses?.is_published === true
+      )
+      setEnrollments(openEnrollments)
 
       const { count: completedLessons } = await supabase
         .from('lesson_progress')
@@ -135,7 +138,7 @@ export default function DashboardPage() {
       const studyHours = Math.floor((completedLessons || 0) * 0.5)
 
       setStats({
-        activeCourses: enrollmentsData?.length || 0,
+        activeCourses: openEnrollments.length,
         completedLessons: completedLessons || 0,
         achievements: achievementsCount || 0,
         studyHours,
