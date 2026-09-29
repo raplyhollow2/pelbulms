@@ -422,6 +422,8 @@ export function CourseStudio({ courseId }: { courseId: string }) {
     lessonsByModule.set(les.module_id, list)
   }
   for (const list of lessonsByModule.values()) list.sort((a, b) => a.order_index - b.order_index)
+  const previewLessonId =
+    lessonId || modules.flatMap((mod) => lessonsByModule.get(mod.id) || [])[0]?.id || null
 
   const meta = readCourseAiMetadata(course?.metadata)
   const shareUrl =
@@ -735,7 +737,12 @@ export function CourseStudio({ courseId }: { courseId: string }) {
           type="button"
           variant="outline"
           className="min-h-11"
-          render={<Link href={lessonId ? `/learn/${courseId}/lesson/${lessonId}` : `/courses/${courseId}`} />}
+          disabled={!previewLessonId}
+          render={
+            previewLessonId ? (
+              <Link href={`/learn/${courseId}/lesson/${previewLessonId}?preview=1`} />
+            ) : undefined
+          }
         >
           <Eye className="mr-2 h-4 w-4" /> Preview
         </Button>

@@ -39,6 +39,39 @@ type Note = Database['public']['Tables']['notes']['Row']
 type LessonProgress = Database['public']['Tables']['lesson_progress']['Row']
 type Quiz = Database['public']['Tables']['quizzes']['Row']
 
+function lessonPlayerPath(
+  courseId: string,
+  targetLessonId: string,
+  preview: boolean,
+  hash?: string
+) {
+  const query = preview ? '?preview=1' : ''
+  const fragment = hash ? `#${hash}` : ''
+  return `/learn/${courseId}/lesson/${targetLessonId}${query}${fragment}`
+}
+
+async function userCanPreviewCourse(
+  supabase: ReturnType<typeof createClient>,
+  courseId: string,
+  userId: string
+) {
+  const db = supabase as any
+  const [{ data: profile }, { data: courseOwner }, { data: staffRow }] = await Promise.all([
+    db.from('profiles').select('role').eq('id', userId).maybeSingle(),
+    db.from('courses').select('instructor_id').eq('id', courseId).maybeSingle(),
+    db
+      .from('course_instructors')
+      .select('id')
+      .eq('course_id', courseId)
+      .eq('user_id', userId)
+      .maybeSingle(),
+  ])
+  const role = (profile as { role?: string } | null)?.role
+  if (role === 'admin' || role === 'superadmin' || role === 'resource_person') return true
+  if ((courseOwner as { instructor_id?: string } | null)?.instructor_id === userId) return true
+  return Boolean(staffRow)
+}
+
 export default function LessonViewPage() {
   const params = useParams()
   const router = useRouter()
@@ -78,6 +111,8 @@ export default function LessonViewPage() {
   const [issuingCert, setIssuingCert] = useState(false)
   const [focusLearningTab, setFocusLearningTab] = useState<string | null>(null)
   const [focusActivityId, setFocusActivityId] = useState<string | null>(null)
+  const [staffPreview, setStaffPreview] = useState(false)
+  const previewRef = useRef(false)
   const [autoAdvanceNotice, setAutoAdvanceNotice] = useState<string | null>(null)
   const [showCompletionDialog, setShowCompletionDialog] = useState(false)
   const lessonProgressIdRef = useRef<string | null>(null)
@@ -157,7 +192,7 @@ export default function LessonViewPage() {
 
   // If sequential unlock is enabled and this lesson isn't open yet, bounce back (no alert spam)
   useEffect(() => {
-    if (loading || !lesson || allLessons.length === 0) return
+    if (staffPreview || loading || !lesson || allLessons.length === 0) return
     const ordered = allLessons.map((l) => l.id)
     const settingsFor = (id: string) => {
       const les = allLessons.find((l) => l.id === id)
@@ -184,7 +219,7 @@ export default function LessonViewPage() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, lessonId, allLessons, progressByLesson, module, allModules])
+  }, [staffPreview, loading, lessonId, allLessons, progressByLesson, module, allModules])
 
   // Auto-save notes every 30 seconds
   useEffect(() => {
@@ -210,36 +245,51 @@ export default function LessonViewPage() {
         return
       }
 
-      // Check enrollment — only active/completed can access lessons
-      const { data: enrollmentData } = await supabase
-        .from('enrollments')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('course_id', courseId)
-        .maybeSingle()
+      const previewRequested =
+        new URLSearchParams(window.location.search).get('preview') === '1'
+      const managing = previewRequested
+        ? await userCanPreviewCourse(supabase, courseId, user.id)
+        : false
+      previewRef.current = managing
+      setStaffPreview(managing)
 
-      const status = (enrollmentData as any)?.status
-      if (!enrollmentData || (status !== 'active' && status !== 'completed')) {
-        if (status === 'pending') {
-          alert('Your enrollment is waiting for the course creator to approve.')
-        } else {
-          alert('You need to enroll in this course first.')
+      // Learners need an active enrollment. Course staff can preview a draft
+      // without enrolling, and that preview does not write learner progress.
+      let enrollmentData: Enrollment | null = null
+      if (!managing) {
+        const { data } = await supabase
+          .from('enrollments')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('course_id', courseId)
+          .maybeSingle()
+        enrollmentData = data
+
+        const status = (enrollmentData as any)?.status
+        if (!enrollmentData || (status !== 'active' && status !== 'completed')) {
+          if (status === 'pending') {
+            alert('Your enrollment is waiting for the course creator to approve.')
+          } else {
+            alert('You need to enroll in this course first.')
+          }
+          router.push(`/courses/${courseId}`)
+          return
         }
-        router.push(`/courses/${courseId}`)
-        return
+
+        setEnrollment(enrollmentData)
+
+        void (supabase as any)
+          .from('enrollments')
+          .update({
+            last_lesson_id: lessonId,
+            last_accessed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', (enrollmentData as any).id)
+          .then(() => undefined, () => undefined)
+      } else {
+        setEnrollment(null)
       }
-
-      setEnrollment(enrollmentData)
-
-      void (supabase as any)
-        .from('enrollments')
-        .update({
-          last_lesson_id: lessonId,
-          last_accessed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', (enrollmentData as any).id)
-        .then(() => undefined, () => undefined)
 
       const [
         lessonResult,
@@ -267,11 +317,10 @@ export default function LessonViewPage() {
           .eq('lesson_id', lessonId)
           .eq('is_deleted', false)
           .order('created_at', { ascending: false }),
-        supabase
-          .from('quizzes')
-          .select('*')
-          .eq('lesson_id', lessonId)
-          .eq('is_published', true)
+        (managing
+          ? supabase.from('quizzes').select('*').eq('lesson_id', lessonId)
+          : supabase.from('quizzes').select('*').eq('lesson_id', lessonId).eq('is_published', true)
+        )
           .limit(1)
           .maybeSingle(),
         fetch(`/api/lessons/${lessonId}/activity-progress`).catch(() => null),
@@ -299,19 +348,21 @@ export default function LessonViewPage() {
 
       const courseData = courseResult.data
       const quizData = quizResult.data
-      const progressData = progressResult.data
+      const progressData = managing ? null : progressResult.data
 
       const instructorId = (courseData as any)?.instructor_id as string | undefined
       const moduleList = (modulesData || []) as Module[]
       const [facilitators, courseLessonsResult, questionsResult] = await Promise.all([
         loadCourseFacilitators(supabase, courseId, instructorId).catch(() => [] as CourseFacilitator[]),
         moduleList.length > 0
-          ? supabase
-              .from('lessons')
-              .select('*')
-              .in('module_id', moduleList.map((m) => m.id))
-              .eq('is_published', true)
-              .order('order_index', { ascending: true })
+          ? (managing
+              ? supabase.from('lessons').select('*').in('module_id', moduleList.map((m) => m.id))
+              : supabase
+                  .from('lessons')
+                  .select('*')
+                  .in('module_id', moduleList.map((m) => m.id))
+                  .eq('is_published', true)
+            ).order('order_index', { ascending: true })
           : Promise.resolve({ data: [] as Lesson[] }),
         quizData
           ? supabase
@@ -379,6 +430,10 @@ export default function LessonViewPage() {
       }
 
       try {
+        if (managing) {
+          setProgressByLesson(new Map())
+          setCompletedLessonIds(new Set())
+        } else {
         const courseProgress = courseProgressResult.data
         const courseProgressError = courseProgressResult.error
 
@@ -442,6 +497,7 @@ export default function LessonViewPage() {
           if (thisLessonCompleted && !ids.includes(lessonId)) ids.push(lessonId)
           setCompletedLessonIds(new Set(ids))
         }
+        }
       } catch (e) {
         console.log('Course progress fetch error (continuing anyway):', e)
       }
@@ -461,7 +517,7 @@ export default function LessonViewPage() {
       }
 
       try {
-        if (activityRes && activityRes.ok) {
+        if (!managing && activityRes && activityRes.ok) {
           const data = await activityRes.json()
           applyActivityProgressPayload(data)
         }
@@ -692,6 +748,7 @@ export default function LessonViewPage() {
 
   // Persist watch progress (throttled by the player). Never un-completes.
   const persistWatchProgress = async (data: VideoProgressData) => {
+    if (previewRef.current) return
     if (!currentUser || !lesson) return
     if (data.percent >= VIDEO_COMPLETE_PERCENT && activeLessonIdRef.current === lessonId) {
       setVideoWatchSatisfied(true)
@@ -733,6 +790,7 @@ export default function LessonViewPage() {
 
   // Set the completed flag for the current lesson and refresh rollups.
   const setLessonCompletedState = async (completed: boolean): Promise<boolean> => {
+    if (previewRef.current) return false
     if (!currentUser || !lesson) return false
     if (completingLessonRef.current) return false
     if (activeLessonIdRef.current !== lessonId) return false
@@ -894,6 +952,10 @@ export default function LessonViewPage() {
   }
 
   const markActivityDone = async (activityId: string) => {
+    if (previewRef.current) {
+      alert('This is a preview. Activity progress is not saved.')
+      return
+    }
     if (!currentUser || !lesson) return
     try {
       setMarkingActivityId(activityId)
@@ -910,6 +972,10 @@ export default function LessonViewPage() {
     activityId: string,
     response: Record<string, unknown>
   ) => {
+    if (previewRef.current) {
+      alert('This is a preview. Submissions are not saved.')
+      return
+    }
     if (!currentUser || !lesson) return
     try {
       setMarkingActivityId(activityId)
@@ -932,7 +998,7 @@ export default function LessonViewPage() {
     attemptsExhausted: boolean
   }) => {
     try {
-      if (outcome?.passed) {
+      if (outcome?.passed && !previewRef.current) {
         await refreshActivityProgress({ action: 'sync' })
       }
     } catch (e) {
@@ -1109,7 +1175,7 @@ export default function LessonViewPage() {
       setAutoAdvanceNotice('Up next — continuing to the next lecture…')
       autoAdvanceTimerRef.current = setTimeout(() => {
         if (activeLessonIdRef.current !== ctx.lessonId) return
-        ctx.router.push(`/learn/${ctx.courseId}/lesson/${nextLesson.id}`)
+        ctx.router.push(lessonPlayerPath(ctx.courseId, nextLesson.id, previewRef.current))
       }, 1600)
     })()
   }, [])
@@ -1221,7 +1287,7 @@ export default function LessonViewPage() {
     }
     if (currentLessonIndex < allLessons.length - 1) {
       const nextLesson = allLessons[currentLessonIndex + 1]
-      router.push(`/learn/${courseId}/lesson/${nextLesson.id}`)
+      router.push(lessonPlayerPath(courseId, nextLesson.id, previewRef.current))
     }
   }
 
@@ -1229,11 +1295,15 @@ export default function LessonViewPage() {
     clearAutoAdvance()
     if (currentLessonIndex > 0) {
       const prevLesson = allLessons[currentLessonIndex - 1]
-      router.push(`/learn/${courseId}/lesson/${prevLesson.id}`)
+      router.push(lessonPlayerPath(courseId, prevLesson.id, previewRef.current))
     }
   }
 
   const goBackToModules = () => {
+    if (previewRef.current) {
+      router.push(`/teach/courses/${courseId}/studio`)
+      return
+    }
     router.push('/dashboard')
   }
 
@@ -1249,6 +1319,7 @@ export default function LessonViewPage() {
   )
 
   const resourcesLocked =
+    !staffPreview &&
     !canViewResourcesAndFlashcards({
       settings: currentGateSettings,
       lessonCompleted: isCompleted,
@@ -1256,7 +1327,7 @@ export default function LessonViewPage() {
     // Keep Resources open while mandatory activities are still required (otherwise Auto can't finish)
     !(mandatoryTotal > 0 && !activityCompleted)
 
-  const canProceedToNext = canGoToNextLesson({
+  const canProceedToNext = staffPreview || canGoToNextLesson({
     settings: currentGateSettings,
     lessonCompleted: isCompleted,
     activityCompleted,
@@ -1264,7 +1335,9 @@ export default function LessonViewPage() {
 
   const orderedLessonIds = allLessons.map((l) => l.id)
   const lockedLessonIds = new Set(
-    orderedLessonIds.filter(
+    staffPreview
+      ? []
+      : orderedLessonIds.filter(
       (id) =>
         !isLessonUnlocked({
           orderedLessonIds,
@@ -1293,7 +1366,7 @@ export default function LessonViewPage() {
       setFocusActivityId(null)
       return
     }
-    router.push(`/learn/${courseId}/lesson/${targetId}`)
+    router.push(lessonPlayerPath(courseId, targetId, previewRef.current))
   }
 
   const tryOpenActivity = (targetId: string, activityId: string) => {
@@ -1305,7 +1378,7 @@ export default function LessonViewPage() {
     }
     const hash = `item-${encodeURIComponent(activityId)}`
     if (targetId !== lessonId) {
-      router.push(`/learn/${courseId}/lesson/${targetId}#${hash}`)
+      router.push(lessonPlayerPath(courseId, targetId, previewRef.current, hash))
       return
     }
     const nextUrl = `${window.location.pathname}${window.location.search}#${hash}`
@@ -1445,6 +1518,11 @@ export default function LessonViewPage() {
         claimHref={`/certificates/${courseId}`}
         onDownload={() => void handleGetCertificate()}
       />
+      {staffPreview ? (
+        <div className="border-b border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm text-amber-950 dark:text-amber-100">
+          Preview. This is the learner lesson, including unpublished pages. Nothing you do here is saved.
+        </div>
+      ) : null}
       <LessonPlayerHeader
         courseTitle={course?.title}
         completedCount={completedCount}
@@ -1566,6 +1644,7 @@ export default function LessonViewPage() {
               onClose={() => setShowQuiz(false)}
               onComplete={(outcome) => void syncAfterQuiz(outcome)}
               onRedoLesson={() => void redoLessonAfterFailedQuiz()}
+              readOnly={staffPreview}
             />
           )}
         </div>

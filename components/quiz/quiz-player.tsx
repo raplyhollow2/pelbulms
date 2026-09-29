@@ -45,6 +45,8 @@ interface QuizPlayerProps {
   onClose?: () => void
   /** Called when learner must redo the lesson after failing all attempts */
   onRedoLesson?: () => void
+  /** Staff lesson preview: score locally and do not store an attempt. */
+  readOnly?: boolean
 }
 
 function parseOptions(raw: unknown): Array<{ text: string; is_correct?: boolean }> {
@@ -95,6 +97,7 @@ export function QuizPlayer({
   onComplete,
   onClose,
   onRedoLesson,
+  readOnly = false,
 }: QuizPlayerProps) {
   const [quiz, setQuiz] = useState<Quiz | null>(null)
   const [questions, setQuestions] = useState<QuizQuestion[]>([])
@@ -160,7 +163,7 @@ export function QuizPlayer({
           loadedQuestions = (qs as any) || []
           setQuestions(loadedQuestions)
         }
-        const used = await loadAttempts()
+        const used = readOnly ? 0 : await loadAttempts()
         const max = Math.max(1, Number(loadedQuiz?.max_attempts) || 3)
         if (used >= max) {
           const {
@@ -294,6 +297,30 @@ export function QuizPlayer({
         data: { user },
       } = await supabase.auth.getUser()
       if (!user) return
+
+      if (readOnly) {
+        const localAttempt = {
+          id: 'preview',
+          user_id: user.id,
+          quiz_id: quizId,
+          score,
+          passed,
+          answers,
+          started_at: new Date().toISOString(),
+          completed_at: new Date().toISOString(),
+        } as QuizAttempt
+        setAttempt(localAttempt)
+        setSubmitted(true)
+        setLastOutcome({
+          attempt: localAttempt,
+          passed,
+          attemptsUsed: 0,
+          maxAttempts,
+          attemptsExhausted: false,
+        })
+        setOutcomeOpen(true)
+        return
+      }
 
       const { data: attemptData, error } = await (supabase as any)
         .from('quiz_attempts')
