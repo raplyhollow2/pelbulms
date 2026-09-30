@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/client'
 import { syncCourseDuration } from '@/lib/video-duration'
 import { LessonBlocks } from '@/components/course/lesson-blocks'
 import { BlockCatalog } from '@/components/teach/block-picker'
+import { LessonResourcesEditor } from '@/components/teach/lesson-resources-editor'
 import { AskPelbuRail } from '@/components/ai/ask-pelbu-rail'
 import { parseLessonBlocks, type LessonBlock } from '@/lib/lesson-blocks'
 import {
@@ -86,6 +87,7 @@ type LessonRow = {
   title: string
   description?: string | null
   content: unknown
+  resources?: unknown
   order_index: number
   is_published?: boolean | null
   is_free?: boolean | null
@@ -148,7 +150,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
     if (moduleIds.length) {
       const { data } = await supabase
         .from('lessons')
-        .select('id, module_id, title, description, content, order_index, is_published, is_free, is_preview')
+        .select('id, module_id, title, description, content, resources, order_index, is_published, is_free, is_preview')
         .in('module_id', moduleIds)
         .order('order_index')
       lessonRows = (data || []) as any
@@ -219,6 +221,18 @@ export function CourseStudio({ courseId }: { courseId: string }) {
     await (supabase as any)
       .from('lessons')
       .update({ content: next, updated_at: new Date().toISOString() })
+      .eq('id', id)
+    setSaveState('saved')
+  }
+
+  const saveResources = async (next: unknown) => {
+    const id = lessonId
+    if (!id) return
+    setLessons((rows) => rows.map((row) => (row.id === id ? { ...row, resources: next } : row)))
+    setSaveState('saving')
+    await (supabase as any)
+      .from('lessons')
+      .update({ resources: next, updated_at: new Date().toISOString() })
       .eq('id', id)
     setSaveState('saved')
   }
@@ -336,7 +350,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
         duration_minutes: 10,
         resources: [],
       })
-      .select('id, module_id, title, description, content, order_index, is_published, is_free, is_preview')
+        .select('id, module_id, title, description, content, resources, order_index, is_published, is_free, is_preview')
       .single()
     if (data) {
       setLessons((rows) => [...rows, data])
@@ -693,6 +707,9 @@ export function CourseStudio({ courseId }: { courseId: string }) {
           <LessonBlocks
             content={blocks}
             lessonId={lessonId || undefined}
+            courseId={courseId}
+            resources={current.resources}
+            onResourcesChange={(next) => void saveResources(next)}
             editable
             onChange={(next) => void saveBlocks(next)}
             onAddBlock={(block) => void saveBlocks([...blocks, block])}
@@ -702,12 +719,20 @@ export function CourseStudio({ courseId }: { courseId: string }) {
             }
           />
           {blocks.length > 0 ? (
-            <div id="lesson-block-catalog">
+            <div id="lesson-block-catalog" className="space-y-6">
               <BlockCatalog
                 onPick={(block) => {
                   void saveBlocks([...blocks, block])
                 }}
               />
+              <div className="border-t pt-4">
+                <LessonResourcesEditor
+                  courseId={courseId}
+                  lessonId={current.id}
+                  resources={Array.isArray(current.resources) ? current.resources : []}
+                  onChange={(next) => void saveResources(next)}
+                />
+              </div>
             </div>
           ) : null}
           <div id="lesson-settings">

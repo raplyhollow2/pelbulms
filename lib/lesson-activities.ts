@@ -464,9 +464,16 @@ export function parseLessonActivities(raw: unknown): LessonActivity[] {
   return items
 }
 
-/** Default required=true for assessments/readings; false for decorative labels. */
+/** Files, pages, and other reading resources are not completion tasks. */
+export function tracksActivityCompletion(activity: LessonActivity | LessonActivityType): boolean {
+  const type = typeof activity === 'string' ? activity : activity.activity
+  return getActivityDef(type)?.category !== 'resources'
+}
+
+/** Default required=true for activities; resources never gate the lesson. */
 export function defaultActivityRequired(type: LessonActivityType): boolean {
-  return type !== 'label' && type !== 'chat' && type !== 'prompt' && type !== 'worksheet'
+  if (!tracksActivityCompletion(type)) return false
+  return type !== 'chat' && type !== 'prompt' && type !== 'worksheet'
 }
 
 export const EMPATHY_MAP_FIELDS: WorksheetField[] = [
@@ -541,6 +548,7 @@ export function parseWorksheetFieldLines(text: string): WorksheetField[] {
 }
 
 export function isActivityRequired(activity: LessonActivity): boolean {
+  if (!tracksActivityCompletion(activity)) return false
   if (typeof activity.required === 'boolean') return activity.required
   return defaultActivityRequired(activity.activity)
 }

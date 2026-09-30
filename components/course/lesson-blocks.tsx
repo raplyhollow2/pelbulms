@@ -1,12 +1,18 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { QuizCreator } from '@/components/quiz/quiz-creator'
+import {
+  uploadImageDirectToCloudinary,
+  uploadVideoDirectToCloudinary,
+} from '@/lib/cloudinary-direct-upload'
 import {
   newBlockId,
   parseLessonBlocks,
@@ -16,6 +22,7 @@ import {
 } from '@/lib/lesson-blocks'
 import { ScenarioPlayer } from '@/components/learning/scenario-player'
 import { BlockCatalog } from '@/components/teach/block-picker'
+import { LessonResourcesEditor } from '@/components/teach/lesson-resources-editor'
 import { resolveMediaUrl } from '@/lib/media'
 import { cn } from '@/lib/utils'
 import {
@@ -27,9 +34,11 @@ import {
   Copy,
   Italic,
   List,
+  Loader2,
   Plus,
   Sparkles,
   Trash2,
+  Upload,
 } from 'lucide-react'
 
 type StarterType = 'text' | 'image' | 'youtube' | 'quiz'
@@ -45,6 +54,9 @@ export function LessonBlocks({
   onAskPelbu,
   onOpenLessonOptions,
   highlightItemKey,
+  courseId,
+  resources,
+  onResourcesChange,
 }: {
   content: unknown
   lessonId?: string
@@ -56,11 +68,24 @@ export function LessonBlocks({
   onAskPelbu?: () => void
   onOpenLessonOptions?: () => void
   highlightItemKey?: string | null
+  courseId?: string
+  resources?: unknown
+  onResourcesChange?: (next: unknown) => void
 }) {
   const blocks = parseLessonBlocks(content)
   if (blocks.length === 0) {
     if (editable && (onAddBlock || onInsert)) {
-      return <EmptyLesson onInsert={onInsert} onAddBlock={onAddBlock} onAskPelbu={onAskPelbu} />
+      return (
+        <EmptyLesson
+          onInsert={onInsert}
+          onAddBlock={onAddBlock}
+          onAskPelbu={onAskPelbu}
+          courseId={courseId}
+          lessonId={lessonId}
+          resources={resources}
+          onResourcesChange={onResourcesChange}
+        />
+      )
     }
     return (
       <p className="text-sm text-muted-foreground">
@@ -171,10 +196,18 @@ function EmptyLesson({
   onInsert,
   onAddBlock,
   onAskPelbu,
+  courseId,
+  lessonId,
+  resources,
+  onResourcesChange,
 }: {
   onInsert?: (type: StarterType) => void
   onAddBlock?: (block: LessonBlock) => void
   onAskPelbu?: () => void
+  courseId?: string
+  lessonId?: string
+  resources?: unknown
+  onResourcesChange?: (next: unknown) => void
 }) {
   return (
     <div className="rounded-xl border border-dashed p-6">
@@ -199,6 +232,16 @@ function EmptyLesson({
           </div>
         ) : null}
       </div>
+      {courseId && lessonId && onResourcesChange ? (
+        <div className="mt-6 border-t pt-4">
+          <LessonResourcesEditor
+            courseId={courseId}
+            lessonId={lessonId}
+            resources={Array.isArray(resources) ? resources : []}
+            onChange={onResourcesChange}
+          />
+        </div>
+      ) : null}
       {onAskPelbu && (
         <Button type="button" variant="ghost" className="mt-3 min-h-11" onClick={onAskPelbu}>
           <Sparkles className="mr-2 h-4 w-4" />
@@ -291,13 +334,7 @@ function BlockView({
     if (!block.assignmentId) {
       return <UnlinkedAssessment message="This assignment is not available yet." />
     }
-    return (
-      <Card>
-        <CardContent className="p-4 text-sm">
-          Assignment attached to this page. Open Learning tools or the assignment tab to submit.
-        </CardContent>
-      </Card>
-    )
+    return <AssignmentSubmit assignmentId={block.assignmentId} />
   }
 
   if (block.type === 'scenario' && lessonId) {
@@ -314,8 +351,6 @@ function BlockView({
 function EditableBlock({
   block,
   lessonId,
-  onTakeQuiz,
-  onOpenLessonOptions,
   onBlockChange,
 }: {
   block: LessonBlock
@@ -329,26 +364,8 @@ function EditableBlock({
   }
 
   if (block.type === 'image') {
-    const src = block.url ? resolveMediaUrl(block.url) || block.url : ''
     return (
-      <div className="space-y-3">
-        <Input
-          className="min-h-11"
-          placeholder="Image URL"
-          value={block.url}
-          onChange={(e) => onBlockChange({ ...block, url: e.target.value })}
-        />
-        <Input
-          className="min-h-11"
-          placeholder="Alt text"
-          value={block.alt || ''}
-          onChange={(e) => onBlockChange({ ...block, alt: e.target.value })}
-        />
-        {src ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt={block.alt || ''} className="w-full rounded-xl object-cover" />
-        ) : null}
-      </div>
+      <ImageBlockEditor block={block} lessonId={lessonId} onBlockChange={onBlockChange} />
     )
   }
 
@@ -368,17 +385,8 @@ function EditableBlock({
   }
 
   if (block.type === 'video') {
-    const src = block.url ? resolveMediaUrl(block.url) || block.url : ''
     return (
-      <div className="space-y-3">
-        <Input
-          className="min-h-11"
-          placeholder="Video URL"
-          value={block.url}
-          onChange={(e) => onBlockChange({ ...block, url: e.target.value })}
-        />
-        {src ? <VideoPlayer src={src} /> : null}
-      </div>
+      <VideoBlockEditor block={block} lessonId={lessonId} onBlockChange={onBlockChange} />
     )
   }
 
@@ -530,45 +538,30 @@ function EditableBlock({
 
   if (block.type === 'hotspot') {
     return (
-      <div className="space-y-3">
-        <Input
-          className="min-h-11"
-          placeholder="Image URL"
-          value={block.imageUrl}
-          onChange={(e) => onBlockChange({ ...block, imageUrl: e.target.value })}
-        />
-        {block.imageUrl ? <HotspotImage imageUrl={block.imageUrl} spots={block.spots} /> : null}
-      </div>
+      <HotspotBlockEditor block={block} lessonId={lessonId} onBlockChange={onBlockChange} />
     )
   }
 
   if (block.type === 'quiz') {
-    if (!block.quizId) {
-      return (
-        <UnlinkedAssessment
-          message="This quiz is not linked yet. Open lesson options to attach an activity."
-          onOpenLessonOptions={onOpenLessonOptions}
-        />
-      )
+    if (!lessonId) {
+      return <UnlinkedAssessment message="Open this lesson in the studio to write the quiz." />
     }
-    return <QuizCard quizId={block.quizId} onTakeQuiz={onTakeQuiz} />
+    return (
+      <QuizCreator
+        lessonId={lessonId}
+        quizId={block.quizId || null}
+        compact
+        onSave={(quiz) => onBlockChange({ ...block, quizId: quiz.id })}
+      />
+    )
   }
 
   if (block.type === 'assignment') {
-    if (!block.assignmentId) {
-      return (
-        <UnlinkedAssessment
-          message="This assignment is not linked yet. Open lesson options to attach an activity."
-          onOpenLessonOptions={onOpenLessonOptions}
-        />
-      )
+    if (!lessonId) {
+      return <UnlinkedAssessment message="Open this lesson in the studio to write the assignment." />
     }
     return (
-      <Card>
-        <CardContent className="p-4 text-sm">
-          Assignment attached to this page. Open Learning tools or the assignment tab to submit.
-        </CardContent>
-      </Card>
+      <AssignmentBlockEditor block={block} lessonId={lessonId} onBlockChange={onBlockChange} />
     )
   }
 
@@ -577,6 +570,437 @@ function EditableBlock({
   }
 
   return null
+}
+
+function MediaPicker({
+  accept,
+  label,
+  busy,
+  onFile,
+}: {
+  accept: string
+  label: string
+  busy: boolean
+  onFile: (file: File) => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={accept}
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          if (file) onFile(file)
+          e.target.value = ''
+        }}
+      />
+      <Button
+        type="button"
+        variant="outline"
+        className="min-h-11"
+        disabled={busy}
+        onClick={() => inputRef.current?.click()}
+      >
+        {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+        {busy ? 'Uploading…' : label}
+      </Button>
+    </>
+  )
+}
+
+function ImageBlockEditor({
+  block,
+  lessonId,
+  onBlockChange,
+}: {
+  block: Extract<LessonBlock, { type: 'image' }>
+  lessonId?: string
+  onBlockChange: (block: LessonBlock) => void
+}) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const src = block.url ? resolveMediaUrl(block.url) || block.url : ''
+
+  const upload = async (file: File) => {
+    setBusy(true)
+    setError('')
+    try {
+      const uploaded = await uploadImageDirectToCloudinary(file, {
+        folder: `lesson-blocks/${lessonId || 'images'}`,
+      })
+      onBlockChange({ ...block, url: uploaded.url, alt: block.alt || file.name.replace(/\.[^.]+$/, '') })
+    } catch (err: any) {
+      setError(err?.message || 'Could not upload image')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <MediaPicker accept="image/jpeg,image/png,image/webp,image/gif,image/avif" label="Upload image" busy={busy} onFile={(file) => void upload(file)} />
+      </div>
+      <Input
+        className="min-h-11"
+        placeholder="Or paste an image URL"
+        value={block.url}
+        onChange={(e) => onBlockChange({ ...block, url: e.target.value })}
+      />
+      <Input
+        className="min-h-11"
+        placeholder="Alt text"
+        value={block.alt || ''}
+        onChange={(e) => onBlockChange({ ...block, alt: e.target.value })}
+      />
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt={block.alt || ''} className="w-full rounded-xl object-cover" />
+      ) : null}
+    </div>
+  )
+}
+
+function VideoBlockEditor({
+  block,
+  lessonId,
+  onBlockChange,
+}: {
+  block: Extract<LessonBlock, { type: 'video' }>
+  lessonId?: string
+  onBlockChange: (block: LessonBlock) => void
+}) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const src = block.url ? resolveMediaUrl(block.url) || block.url : ''
+
+  const upload = async (file: File) => {
+    setBusy(true)
+    setError('')
+    try {
+      const uploaded = await uploadVideoDirectToCloudinary(file, {
+        folder: `course-media/videos/${lessonId || 'blocks'}`,
+      })
+      onBlockChange({ ...block, url: uploaded.url })
+    } catch (err: any) {
+      setError(err?.message || 'Could not upload video')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <MediaPicker accept="video/mp4,video/webm,video/ogg,video/quicktime" label="Upload video" busy={busy} onFile={(file) => void upload(file)} />
+      <Input
+        className="min-h-11"
+        placeholder="Or paste a video URL"
+        value={block.url}
+        onChange={(e) => onBlockChange({ ...block, url: e.target.value })}
+      />
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {src ? <VideoPlayer src={src} /> : null}
+    </div>
+  )
+}
+
+function HotspotBlockEditor({
+  block,
+  lessonId,
+  onBlockChange,
+}: {
+  block: Extract<LessonBlock, { type: 'hotspot' }>
+  lessonId?: string
+  onBlockChange: (block: LessonBlock) => void
+}) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const src = block.imageUrl ? resolveMediaUrl(block.imageUrl) || block.imageUrl : ''
+
+  const upload = async (file: File) => {
+    setBusy(true)
+    setError('')
+    try {
+      const uploaded = await uploadImageDirectToCloudinary(file, {
+        folder: `lesson-blocks/${lessonId || 'hotspots'}`,
+      })
+      onBlockChange({ ...block, imageUrl: uploaded.url })
+    } catch (err: any) {
+      setError(err?.message || 'Could not upload image')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const placeSpot = (event: MouseEvent<HTMLDivElement>) => {
+    if ((event.target as HTMLElement).closest('[data-hotspot-marker]')) return
+    const rect = event.currentTarget.getBoundingClientRect()
+    if (!rect.width || !rect.height) return
+    const x = Math.min(100, Math.max(0, Math.round(((event.clientX - rect.left) / rect.width) * 100)))
+    const y = Math.min(100, Math.max(0, Math.round(((event.clientY - rect.top) / rect.height) * 100)))
+    onBlockChange({
+      ...block,
+      spots: [...block.spots, { x, y, label: `Spot ${block.spots.length + 1}`, html: '' }],
+    })
+  }
+
+  return (
+    <div className="space-y-3">
+      <MediaPicker accept="image/jpeg,image/png,image/webp,image/gif,image/avif" label="Upload image" busy={busy} onFile={(file) => void upload(file)} />
+      <Input
+        className="min-h-11"
+        placeholder="Or paste an image URL"
+        value={block.imageUrl}
+        onChange={(e) => onBlockChange({ ...block, imageUrl: e.target.value })}
+      />
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {src ? (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">Click the picture to mark a point. Learners open each point to read the note.</p>
+          <div className="relative cursor-crosshair overflow-hidden rounded-xl" onClick={placeSpot}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={src} alt="" className="w-full" />
+            {block.spots.map((spot, index) => (
+              <span
+                key={`${spot.x}-${spot.y}-${index}`}
+                data-hotspot-marker
+                className="absolute flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-bhutan-yellow text-xs font-bold text-black shadow"
+                style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
+              >
+                {index + 1}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground">Add a picture, then click it to mark the points you want to explain.</p>
+      )}
+      {block.spots.map((spot, index) => (
+        <div key={`${spot.label}-${index}`} className="space-y-2 rounded-lg border p-3">
+          <p className="text-xs font-medium text-muted-foreground">Point {index + 1}</p>
+          <Input
+            className="min-h-11"
+            aria-label={`Point ${index + 1} label`}
+            placeholder="Label"
+            value={spot.label}
+            onChange={(e) => {
+              const spots = block.spots.map((row, i) => (i === index ? { ...row, label: e.target.value } : row))
+              onBlockChange({ ...block, spots })
+            }}
+          />
+          <Textarea
+            rows={3}
+            aria-label={`Point ${index + 1} explanation`}
+            placeholder="What learners should know about this point"
+            value={spot.html.replace(/<[^>]+>/g, '')}
+            onChange={(e) => {
+              const spots = block.spots.map((row, i) =>
+                i === index ? { ...row, html: `<p>${e.target.value}</p>` } : row
+              )
+              onBlockChange({ ...block, spots })
+            }}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-destructive"
+            onClick={() => onBlockChange({ ...block, spots: block.spots.filter((_, i) => i !== index) })}
+          >
+            Remove point
+          </Button>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function AssignmentBlockEditor({
+  block,
+  lessonId,
+  onBlockChange,
+}: {
+  block: Extract<LessonBlock, { type: 'assignment' }>
+  lessonId: string
+  onBlockChange: (block: LessonBlock) => void
+}) {
+  const [title, setTitle] = useState('Assignment')
+  const [instructions, setInstructions] = useState('')
+  const [maxPoints, setMaxPoints] = useState('100')
+  const [dueDate, setDueDate] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [saved, setSaved] = useState(Boolean(block.assignmentId))
+
+  useEffect(() => {
+    if (!block.assignmentId) return
+    let cancelled = false
+    void (async () => {
+      const res = await fetch(`/api/assignments?id=${encodeURIComponent(block.assignmentId)}`)
+      const data = await res.json().catch(() => ({}))
+      if (cancelled || !res.ok || !data.assignment) return
+      setTitle(data.assignment.title || 'Assignment')
+      setInstructions(data.assignment.instructions || data.assignment.description || '')
+      setMaxPoints(String(data.assignment.max_points || 100))
+      setDueDate(data.assignment.due_date ? String(data.assignment.due_date).slice(0, 16) : '')
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [block.assignmentId])
+
+  const save = async () => {
+    if (!title.trim()) {
+      setError('Give the assignment a title.')
+      return
+    }
+    setSaving(true)
+    setError('')
+    setSaved(false)
+    try {
+      const res = await fetch('/api/assignments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lessonId,
+          assignmentId: block.assignmentId || undefined,
+          title,
+          instructions,
+          maxPoints: Number(maxPoints) || 100,
+          dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Could not save assignment')
+      onBlockChange({ ...block, assignmentId: data.assignment.id })
+      setSaved(true)
+    } catch (err: any) {
+      setError(err?.message || 'Could not save assignment')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1.5">
+        <Label htmlFor={`assignment-title-${block.id}`}>Title</Label>
+        <Input id={`assignment-title-${block.id}`} className="min-h-11" value={title} onChange={(e) => setTitle(e.target.value)} />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor={`assignment-instructions-${block.id}`}>What learners should submit</Label>
+        <Textarea
+          id={`assignment-instructions-${block.id}`}
+          rows={4}
+          value={instructions}
+          onChange={(e) => setInstructions(e.target.value)}
+          placeholder="Describe the work you want collected for review"
+        />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor={`assignment-points-${block.id}`}>Max points</Label>
+          <Input
+            id={`assignment-points-${block.id}`}
+            type="number"
+            min={1}
+            className="min-h-11"
+            value={maxPoints}
+            onChange={(e) => setMaxPoints(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`assignment-due-${block.id}`}>Due date</Label>
+          <Input
+            id={`assignment-due-${block.id}`}
+            type="datetime-local"
+            className="min-h-11"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+          />
+        </div>
+      </div>
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <div className="flex items-center gap-3">
+        <Button type="button" className="min-h-11" disabled={saving} onClick={() => void save()}>
+          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          {block.assignmentId ? 'Update assignment' : 'Save assignment'}
+        </Button>
+        {saved ? <p className="text-sm text-muted-foreground">Learners can submit this from the Resources tab.</p> : null}
+      </div>
+    </div>
+  )
+}
+
+function AssignmentSubmit({ assignmentId }: { assignmentId: string }) {
+  const [title, setTitle] = useState('')
+  const [instructions, setInstructions] = useState('')
+  const [content, setContent] = useState('')
+  const [status, setStatus] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const res = await fetch(`/api/assignments?id=${encodeURIComponent(assignmentId)}`)
+      const data = await res.json().catch(() => ({}))
+      if (cancelled || !res.ok || !data.assignment) return
+      setTitle(data.assignment.title || 'Assignment')
+      setInstructions(data.assignment.instructions || data.assignment.description || '')
+      if (data.submission?.content) {
+        setContent(data.submission.content)
+        setStatus(data.submission.status || 'submitted')
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [assignmentId])
+
+  const submit = async () => {
+    setBusy(true)
+    setError('')
+    try {
+      const res = await fetch(`/api/assignments/${assignmentId}/submissions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Could not submit')
+      setStatus(data.submission?.status || 'submitted')
+    } catch (err: any) {
+      setError(err?.message || 'Could not submit')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-4">
+        <p className="text-sm font-medium">{title || 'Assignment'}</p>
+        {instructions ? <p className="whitespace-pre-wrap text-sm text-muted-foreground">{instructions}</p> : null}
+        <Textarea
+          rows={4}
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="Write your response"
+        />
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {status ? <p className="text-xs text-muted-foreground">Status: {status}</p> : null}
+        <Button type="button" className="min-h-11" disabled={busy || !content.trim()} onClick={() => void submit()}>
+          {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          {status ? 'Submit again' : 'Submit assignment'}
+        </Button>
+      </CardContent>
+    </Card>
+  )
 }
 
 function UnlinkedAssessment({
@@ -798,7 +1222,7 @@ function Carousel({ slides }: { slides: { html: string; imageUrl?: string }[] })
       <div className="overflow-hidden rounded-xl border">
         {slide.imageUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={slide.imageUrl} alt="" className="h-40 w-full object-cover" />
+          <img src={resolveMediaUrl(slide.imageUrl) || slide.imageUrl} alt="" className="h-40 w-full object-cover" />
         )}
         <div className="p-4 text-sm" dangerouslySetInnerHTML={{ __html: sanitizeHtml(slide.html) }} />
       </div>

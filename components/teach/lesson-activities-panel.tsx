@@ -18,6 +18,7 @@ import {
 import {
   getActivityDef,
   isActivityRequired,
+  tracksActivityCompletion,
   parseLessonActivities,
   type LessonActivity,
 } from '@/lib/lesson-activities'
@@ -85,12 +86,14 @@ export function LessonActivitiesPanel({
                       <Badge variant="secondary" className="text-[10px] capitalize">
                         {def?.label || item.activity}
                       </Badge>
-                      <Badge
-                        variant={isActivityRequired(item) ? 'default' : 'outline'}
-                        className="text-[10px]"
-                      >
-                        {isActivityRequired(item) ? 'Mandatory' : 'Optional'}
-                      </Badge>
+                      {tracksActivityCompletion(item) ? (
+                        <Badge
+                          variant={isActivityRequired(item) ? 'default' : 'outline'}
+                          className="text-[10px]"
+                        >
+                          {isActivityRequired(item) ? 'Mandatory' : 'Optional'}
+                        </Badge>
+                      ) : null}
                       {item.quizId && (
                         <Badge variant="outline" className="text-[10px]">
                           Connected
@@ -107,22 +110,24 @@ export function LessonActivitiesPanel({
                         {item.fileName || item.url || item.fileUrl}
                       </p>
                     )}
-                    <div className="mt-2 flex items-center gap-2">
-                      <Switch
-                        id={`req-${item.id}`}
-                        checked={isActivityRequired(item)}
-                        onCheckedChange={(checked) =>
-                          void onChange(
-                            items.map((a) =>
-                              a.id === item.id ? { ...a, required: checked } : a
+                    {tracksActivityCompletion(item) ? (
+                      <div className="mt-2 flex items-center gap-2">
+                        <Switch
+                          id={`req-${item.id}`}
+                          checked={isActivityRequired(item)}
+                          onCheckedChange={(checked) =>
+                            void onChange(
+                              items.map((a) =>
+                                a.id === item.id ? { ...a, required: checked } : a
+                              )
                             )
-                          )
-                        }
-                      />
-                      <Label htmlFor={`req-${item.id}`} className="text-xs text-muted-foreground">
-                        Mandatory for progression
-                      </Label>
-                    </div>
+                          }
+                        />
+                        <Label htmlFor={`req-${item.id}`} className="text-xs text-muted-foreground">
+                          Mandatory for progression
+                        </Label>
+                      </div>
+                    ) : null}
                     {item.activity === 'assignment' ? (
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         <Label htmlFor={`pass-${item.id}`} className="text-xs text-muted-foreground">

@@ -6,6 +6,7 @@ import {
   getMandatoryActivities,
   isActivityRequired,
   parseLessonActivities,
+  tracksActivityCompletion,
   type LessonActivity,
 } from '@/lib/lesson-activities'
 import {
@@ -315,6 +316,12 @@ export async function POST(
       if (activity.activity === 'quiz') {
         return NextResponse.json(
           { error: 'Quizzes complete automatically when you pass' },
+          { status: 400 }
+        )
+      }
+      if (!tracksActivityCompletion(activity)) {
+        return NextResponse.json(
+          { error: 'Resources do not use activity completion' },
           { status: 400 }
         )
       }

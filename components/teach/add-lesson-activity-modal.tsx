@@ -222,7 +222,7 @@ export function AddLessonActivityModal({
               .filter(Boolean)
               .slice(0, 8)
           : undefined,
-        required,
+        required: def?.category === 'resources' ? false : required,
         createdAt: new Date().toISOString(),
       }
       await onAdd(activity)
@@ -634,21 +634,23 @@ export function AddLessonActivityModal({
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
-              <div className="min-w-0">
-                <Label htmlFor="act-required" className="text-sm">
-                  Mandatory
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Learners must finish this before unlocking the next lesson (when gating is on)
-                </p>
+            {def?.category !== 'resources' ? (
+              <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                <div className="min-w-0">
+                  <Label htmlFor="act-required" className="text-sm">
+                    Mandatory
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Learners must finish this before unlocking the next lesson (when gating is on)
+                  </p>
+                </div>
+                <Switch
+                  id="act-required"
+                  checked={required}
+                  onCheckedChange={setRequired}
+                />
               </div>
-              <Switch
-                id="act-required"
-                checked={required}
-                onCheckedChange={setRequired}
-              />
-            </div>
+            ) : null}
 
             {error && <p className="text-sm text-red-600">{error}</p>}
           </div>

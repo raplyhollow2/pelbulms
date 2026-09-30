@@ -20,6 +20,7 @@ import { resolveMediaUrl } from '@/lib/media'
 import {
   getActivityDef,
   isActivityRequired,
+  tracksActivityCompletion,
   parseLessonActivities,
   type LessonActivity,
 } from '@/lib/lesson-activities'
@@ -131,7 +132,8 @@ export function LessonResources({
           const Icon = def?.icon
           const href = activityHref(item)
           const isQuiz = item.activity === 'quiz' && item.quizId
-          const required = item.trackable && isActivityRequired(item)
+          const completable = tracksActivityCompletion(item)
+          const required = item.trackable && completable && isActivityRequired(item)
           const progress = progressById?.[item.id]
           const gate = item.trackable ? activityGateState(item, progress) : 'incomplete'
           const done = gate === 'satisfied'
@@ -168,14 +170,14 @@ export function LessonResources({
                         <Badge variant="outline" className="text-[10px]">
                           Module
                         </Badge>
-                      ) : required ? (
+                      ) : completable && required ? (
                         <Badge className="text-[10px]">Required</Badge>
-                      ) : (
+                      ) : completable ? (
                         <Badge variant="outline" className="text-[10px]">
                           Optional
                         </Badge>
-                      )}
-                      {item.trackable && gate === 'satisfied' && (
+                      ) : null}
+                      {completable && item.trackable && gate === 'satisfied' && (
                         <Badge
                           variant="outline"
                           className="gap-1 border-green-600/40 text-[10px] text-green-700"
@@ -184,12 +186,12 @@ export function LessonResources({
                           {isQuiz || isAssessableActivity(item) ? 'Passed' : 'Done'}
                         </Badge>
                       )}
-                      {item.trackable && gate === 'awaiting_grade' && (
+                      {completable && item.trackable && gate === 'awaiting_grade' && (
                         <Badge className="bg-amber-600 text-[10px] hover:bg-amber-600">
                           Awaiting grade
                         </Badge>
                       )}
-                      {item.trackable && gate === 'below_pass' && (
+                      {completable && item.trackable && gate === 'below_pass' && (
                         <Badge className="bg-red-600 text-[10px] hover:bg-red-600">
                           Below pass
                         </Badge>
