@@ -2,7 +2,7 @@ import { sanitizeHtml } from '@/lib/lesson-blocks'
 
 /** Shared list and paragraph spacing for the editor and the public description. */
 export const courseDescriptionRichClass =
-  '[&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:my-0.5 [&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0'
+  '[&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:my-0.5 [&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_a]:font-medium [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2'
 
 function looksLikeHtml(value: string) {
   return /<[a-z][\s\S]*>/i.test(value)

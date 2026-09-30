@@ -16,7 +16,7 @@ import { CourseLearningTabs } from '@/components/course/course-learning-tabs'
 import { loadCourseFacilitators, type CourseFacilitator } from '@/lib/course-facilitators'
 import { LessonContentStage } from '@/components/learning/lesson-content-stage'
 import { CourseCompletionDialog } from '@/components/learning/course-completion-dialog'
-import { VIDEO_COMPLETE_PERCENT } from '@/lib/lesson-completion-sync'
+import { lessonIsFreePreview, lessonIsPublished } from '@/lib/lesson-visibility'
 import { type VideoProgressData } from '@/components/learning/tracked-video-player'
 import { parseLessonBlocks, readCourseAiMetadata } from '@/lib/lesson-blocks'
 import {
@@ -101,7 +101,9 @@ export default function LessonViewPage() {
   const [focusLearningTab, setFocusLearningTab] = useState<string | null>(null)
   const [focusActivityId, setFocusActivityId] = useState<string | null>(null)
   const [staffPreview, setStaffPreview] = useState(false)
+  const [freePreview, setFreePreview] = useState(false)
   const previewRef = useRef(false)
+  const skipProgressRef = useRef(false)
   const [autoAdvanceNotice, setAutoAdvanceNotice] = useState<string | null>(null)
   const [showCompletionDialog, setShowCompletionDialog] = useState(false)
   const lessonProgressIdRef = useRef<string | null>(null)
@@ -181,7 +183,7 @@ export default function LessonViewPage() {
 
   // If sequential unlock is enabled and this lesson isn't open yet, bounce back (no alert spam)
   useEffect(() => {
-    if (staffPreview || loading || !lesson || allLessons.length === 0) return
+    if (staffPreview || freePreview || loading || !lesson || allLessons.length === 0) return
     const ordered = allLessons.map((l) => l.id)
     const settingsFor = (id: string) => {
       const les = allLessons.find((l) => l.id === id)
@@ -208,7 +210,7 @@ export default function LessonViewPage() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [staffPreview, loading, lessonId, allLessons, progressByLesson, module, allModules])
+  }, [staffPreview, freePreview, loading, lessonId, allLessons, progressByLesson, module, allModules])
 
   // Auto-save notes every 30 seconds
   useEffect(() => {
@@ -254,7 +256,9 @@ export default function LessonViewPage() {
         previewRequested || !enrolled ? await userCanPreviewCourse(courseId) : false
       const managing = canPreview && (previewRequested || !enrolled)
       previewRef.current = managing
+      skipProgressRef.current = managing
       setStaffPreview(managing)
+      setFreePreview(false)
 
       if (!managing) {
         const { data: courseGate } = await supabase
@@ -267,30 +271,6 @@ export default function LessonViewPage() {
           router.push('/dashboard')
           return
         }
-      }
-
-      if (managing) {
-        setEnrollment(null)
-      } else if (!enrolled) {
-        if (status === 'pending') {
-          alert('Your enrollment is waiting for the course creator to approve.')
-        } else {
-          alert('You need to enroll in this course first.')
-        }
-        router.push(`/courses/${courseId}`)
-        return
-      } else {
-        setEnrollment(enrollmentData)
-
-        void (supabase as any)
-          .from('enrollments')
-          .update({
-            last_lesson_id: lessonId,
-            last_accessed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', (enrollmentData as any).id)
-          .then(() => undefined, () => undefined)
       }
 
       const [
@@ -337,6 +317,58 @@ export default function LessonViewPage() {
       }
 
       const lessonRow = lessonData as Lesson
+      const publishedLesson = lessonIsPublished(lessonRow)
+      const freePreviewLesson = publishedLesson && lessonIsFreePreview(lessonRow)
+      const guestPreview = !managing && !enrolled && freePreviewLesson
+
+      if (!managing && !publishedLesson) {
+        const moduleIds = ((modulesResult.data || []) as { id: string }[]).map((row) => row.id)
+        const { data: openLessons } = moduleIds.length
+          ? await supabase
+              .from('lessons')
+              .select('id')
+              .in('module_id', moduleIds)
+              .eq('is_published', true)
+              .order('order_index', { ascending: true })
+              .limit(1)
+          : { data: [] as { id: string }[] }
+        const nextId = openLessons?.[0]?.id
+        alert('This lesson is not published yet.')
+        if (nextId && nextId !== lessonId) {
+          router.replace(`/learn/${courseId}/lesson/${nextId}`)
+        } else {
+          router.push(`/courses/${courseId}`)
+        }
+        return
+      }
+
+      if (!managing && !enrolled && !guestPreview) {
+        if (status === 'pending') {
+          alert('Your enrollment is waiting for the course creator to approve.')
+        } else {
+          alert('You need to enroll in this course first.')
+        }
+        router.push(`/courses/${courseId}`)
+        return
+      }
+
+      skipProgressRef.current = managing || guestPreview
+      setFreePreview(guestPreview)
+      if (managing || guestPreview) {
+        setEnrollment(null)
+      } else {
+        setEnrollment(enrollmentData)
+        void (supabase as any)
+          .from('enrollments')
+          .update({
+            last_lesson_id: lessonId,
+            last_accessed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', (enrollmentData as any).id)
+          .then(() => undefined, () => undefined)
+      }
+
       setLesson(lessonRow)
       setIsCompleted(false)
       setVideoWatchSatisfied(!lessonRow.video_url)
@@ -350,7 +382,7 @@ export default function LessonViewPage() {
 
       const courseData = courseResult.data
       const quizData = quizResult.data
-      const progressData = managing ? null : progressResult.data
+      const progressData = managing || guestPreview ? null : progressResult.data
 
       const instructorId = (courseData as any)?.instructor_id as string | undefined
       const moduleList = (modulesData || []) as Module[]
@@ -359,11 +391,18 @@ export default function LessonViewPage() {
         moduleList.length > 0
           ? (managing
               ? supabase.from('lessons').select('*').in('module_id', moduleList.map((m) => m.id))
-              : supabase
-                  .from('lessons')
-                  .select('*')
-                  .in('module_id', moduleList.map((m) => m.id))
-                  .eq('is_published', true)
+              : guestPreview
+                ? supabase
+                    .from('lessons')
+                    .select('*')
+                    .in('module_id', moduleList.map((m) => m.id))
+                    .eq('is_published', true)
+                    .or('is_free.eq.true,is_preview.eq.true')
+                : supabase
+                    .from('lessons')
+                    .select('*')
+                    .in('module_id', moduleList.map((m) => m.id))
+                    .eq('is_published', true)
             ).order('order_index', { ascending: true })
           : Promise.resolve({ data: [] as Lesson[] }),
         quizData
@@ -519,7 +558,7 @@ export default function LessonViewPage() {
       }
 
       try {
-        if (!managing && activityRes && activityRes.ok) {
+        if (!managing && !guestPreview && activityRes && activityRes.ok) {
           const data = await activityRes.json()
           applyActivityProgressPayload(data)
         }
@@ -750,7 +789,7 @@ export default function LessonViewPage() {
 
   // Persist watch progress (throttled by the player). Never un-completes.
   const persistWatchProgress = async (data: VideoProgressData) => {
-    if (previewRef.current) return
+    if (skipProgressRef.current) return
     if (!currentUser || !lesson) return
     if (data.percent >= VIDEO_COMPLETE_PERCENT && activeLessonIdRef.current === lessonId) {
       setVideoWatchSatisfied(true)
@@ -792,7 +831,7 @@ export default function LessonViewPage() {
 
   // Set the completed flag for the current lesson and refresh rollups.
   const setLessonCompletedState = async (completed: boolean): Promise<boolean> => {
-    if (previewRef.current) return false
+    if (skipProgressRef.current) return false
     if (!currentUser || !lesson) return false
     if (completingLessonRef.current) return false
     if (activeLessonIdRef.current !== lessonId) return false
@@ -954,7 +993,7 @@ export default function LessonViewPage() {
   }
 
   const markActivityDone = async (activityId: string) => {
-    if (previewRef.current) {
+    if (skipProgressRef.current) {
       alert('This is a preview. Activity progress is not saved.')
       return
     }
@@ -974,7 +1013,7 @@ export default function LessonViewPage() {
     activityId: string,
     response: Record<string, unknown>
   ) => {
-    if (previewRef.current) {
+    if (skipProgressRef.current) {
       alert('This is a preview. Submissions are not saved.')
       return
     }
@@ -1000,7 +1039,7 @@ export default function LessonViewPage() {
     attemptsExhausted: boolean
   }) => {
     try {
-      if (outcome?.passed && !previewRef.current) {
+      if (outcome?.passed && !skipProgressRef.current) {
         await refreshActivityProgress({ action: 'sync' })
       }
     } catch (e) {
@@ -1010,6 +1049,7 @@ export default function LessonViewPage() {
 
   const redoLessonAfterFailedQuiz = async () => {
     setShowQuiz(false)
+    if (skipProgressRef.current) return
     if (!currentUser || !lesson) return
     try {
       setSavingProgress(true)
@@ -1306,6 +1346,10 @@ export default function LessonViewPage() {
       router.push(`/teach/courses/${courseId}/studio`)
       return
     }
+    if (freePreview) {
+      router.push(`/courses/${courseId}`)
+      return
+    }
     router.push('/dashboard')
   }
 
@@ -1322,6 +1366,7 @@ export default function LessonViewPage() {
 
   const resourcesLocked =
     !staffPreview &&
+    !freePreview &&
     !canViewResourcesAndFlashcards({
       settings: currentGateSettings,
       lessonCompleted: isCompleted,
@@ -1329,7 +1374,7 @@ export default function LessonViewPage() {
     // Keep Resources open while mandatory activities are still required (otherwise Auto can't finish)
     !(mandatoryTotal > 0 && !activityCompleted)
 
-  const canProceedToNext = staffPreview || canGoToNextLesson({
+  const canProceedToNext = staffPreview || freePreview || canGoToNextLesson({
     settings: currentGateSettings,
     lessonCompleted: isCompleted,
     activityCompleted,
@@ -1524,6 +1569,10 @@ export default function LessonViewPage() {
         <div className="border-b border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm text-amber-950 dark:text-amber-100">
           Preview. This is the learner lesson, including unpublished pages. Nothing you do here is saved.
         </div>
+      ) : freePreview ? (
+        <div className="border-b border-bhutan-yellow/50 bg-bhutan-yellow/15 px-4 py-2 text-sm">
+          Free preview. Enroll to open the rest of this course. Nothing you do here is saved.
+        </div>
       ) : null}
       <LessonPlayerHeader
         courseTitle={course?.title}
@@ -1646,7 +1695,7 @@ export default function LessonViewPage() {
               onClose={() => setShowQuiz(false)}
               onComplete={(outcome) => void syncAfterQuiz(outcome)}
               onRedoLesson={() => void redoLessonAfterFailedQuiz()}
-              readOnly={staffPreview}
+              readOnly={staffPreview || freePreview}
             />
           )}
         </div>

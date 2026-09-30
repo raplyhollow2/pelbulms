@@ -4,7 +4,9 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { DescriptionEditor } from '@/components/course/description-editor'
 import { createClient } from '@/lib/supabase/client'
 import { syncCourseDuration } from '@/lib/video-duration'
 import { LessonBlocks } from '@/components/course/lesson-blocks'
@@ -82,8 +84,11 @@ type LessonRow = {
   id: string
   module_id: string
   title: string
+  description?: string | null
   content: unknown
   order_index: number
+  is_published?: boolean | null
+  is_free?: boolean | null
 }
 
 export function CourseStudio({ courseId }: { courseId: string }) {
@@ -95,7 +100,6 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   const [lessonId, setLessonId] = useState<string | null>(null)
   const [blocks, setBlocks] = useState<LessonBlock[]>([])
   const [mobileTab, setMobileTab] = useState<'outline' | 'page' | 'ai'>('page')
-  const [lessonPane, setLessonPane] = useState<'content' | 'resources'>('content')
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
   const [publishing, setPublishing] = useState(false)
   const [publishWarn, setPublishWarn] = useState(false)
@@ -125,7 +129,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
     if (moduleIds.length) {
       const { data } = await supabase
         .from('lessons')
-        .select('id, module_id, title, content, order_index')
+        .select('id, module_id, title, description, content, order_index, is_published, is_free, is_preview')
         .in('module_id', moduleIds)
         .order('order_index')
       lessonRows = (data || []) as any
@@ -154,8 +158,8 @@ export function CourseStudio({ courseId }: { courseId: string }) {
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
       if (e.key === '/') {
         e.preventDefault()
-        setLessonPane('resources')
         setMobileTab('page')
+        document.getElementById('lesson-block-catalog')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }
     }
     window.addEventListener('keydown', onKey)
@@ -304,19 +308,21 @@ export function CourseStudio({ courseId }: { courseId: string }) {
       .insert({
         module_id: moduleId,
         title: 'New lesson',
+        description: '',
         content: [],
         order_index: existing.length,
         is_published: false,
+        is_free: false,
+        is_preview: false,
         duration_minutes: 10,
         resources: [],
       })
-      .select('id, module_id, title, content, order_index')
+      .select('id, module_id, title, description, content, order_index, is_published, is_free, is_preview')
       .single()
     if (data) {
       setLessons((rows) => [...rows, data])
       setLessonId(data.id)
       setBlocks([])
-      setLessonPane('resources')
       setMobileTab('page')
     }
   }
@@ -328,6 +334,16 @@ export function CourseStudio({ courseId }: { courseId: string }) {
     await (supabase as any)
       .from('lessons')
       .update({ title: next, updated_at: new Date().toISOString() })
+      .eq('id', id)
+    setSaveState('saved')
+  }
+
+  const commitLessonDescription = async (id: string, description: string) => {
+    setLessons((rows) => rows.map((row) => (row.id === id ? { ...row, description } : row)))
+    setSaveState('saving')
+    await (supabase as any)
+      .from('lessons')
+      .update({ description, updated_at: new Date().toISOString() })
       .eq('id', id)
     setSaveState('saved')
   }
@@ -382,7 +398,6 @@ export function CourseStudio({ courseId }: { courseId: string }) {
 
   const selectLesson = (id: string, source: LessonRow[] = lessons) => {
     setLessonId(id)
-    setLessonPane('content')
     setMobileTab('page')
     const row = source.find((item) => item.id === id)
     setBlocks(row ? parseLessonBlocks(row.content) : [])
@@ -536,7 +551,15 @@ export function CourseStudio({ courseId }: { courseId: string }) {
                         }`}
                       />
                       <span className="sr-only">{hasContent ? 'Has content' : 'Empty'}</span>
-                      <span className="line-clamp-2 min-w-0 flex-1 whitespace-normal break-words">{les.title}</span>
+                      <span className="line-clamp-2 min-w-0 flex-1 whitespace-normal break-words">
+                        {les.title}
+                        {les.is_published !== true ? (
+                          <span className="ml-1 text-xs font-normal text-muted-foreground">Draft</span>
+                        ) : null}
+                        {les.is_free === true || (les as { is_preview?: boolean }).is_preview === true ? (
+                          <span className="ml-1 text-xs font-normal text-muted-foreground">Preview</span>
+                        ) : null}
+                      </span>
                     </button>
                     <DropdownMenu>
                       <DropdownMenuTrigger className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md hover:bg-muted">
@@ -614,60 +637,69 @@ export function CourseStudio({ courseId }: { courseId: string }) {
           </h2>
         )}
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 pt-1">
-          {current && (
-            <div className="flex rounded-md border p-0.5" role="tablist" aria-label="Lesson">
-              {(
-                [
-                  ['content', 'Content'],
-                  ['resources', 'Resources'],
-                ] as const
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={lessonPane === id}
-                  className={`min-h-11 rounded-md px-3 text-sm ${
-                    lessonPane === id ? 'bg-bhutan-yellow font-medium text-black' : 'text-muted-foreground'
-                  }`}
-                  onClick={() => setLessonPane(id)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
           {saveState !== 'idle' && (
             <p className="text-xs text-muted-foreground">{saveState === 'saving' ? 'Saving…' : 'Saved'}</p>
           )}
         </div>
       </div>
-      {current && lessonPane === 'resources' ? (
+      {current ? (
         <div className="space-y-8">
-          <BlockCatalog
-            onPick={(block) => {
-              void saveBlocks([...blocks, block])
-              setLessonPane('content')
-            }}
-          />
-          <LessonOptionsPanel
-            courseId={courseId}
-            lessonId={current.id}
-            onTitleChange={(title) =>
-              setLessons((rows) => rows.map((row) => (row.id === current.id ? { ...row, title } : row)))
+          <div>
+            <Label htmlFor={`studio-lesson-description-${current.id}`}>Description</Label>
+            <p className="mb-2 text-sm text-muted-foreground">
+              Students read this on the lesson Resources tab, under the lesson blocks.
+            </p>
+            <DescriptionEditor
+              key={current.id}
+              id={`studio-lesson-description-${current.id}`}
+              value={current.description || ''}
+              placeholder="What students should know about this lesson"
+              ariaLabel="Lesson description"
+              onChange={(description) =>
+                setLessons((rows) =>
+                  rows.map((row) => (row.id === current.id ? { ...row, description } : row))
+                )
+              }
+              onCommit={(description) => void commitLessonDescription(current.id, description)}
+            />
+          </div>
+          <LessonBlocks
+            content={blocks}
+            lessonId={lessonId || undefined}
+            editable
+            onChange={(next) => void saveBlocks(next)}
+            onAddBlock={(block) => void saveBlocks([...blocks, block])}
+            onAskPelbu={openAskPelbu}
+            onOpenLessonOptions={() =>
+              document.getElementById('lesson-settings')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
             }
           />
+          <div id="lesson-block-catalog">
+            <BlockCatalog
+              onPick={(block) => {
+                void saveBlocks([...blocks, block])
+              }}
+            />
+          </div>
+          <div id="lesson-settings">
+            <LessonOptionsPanel
+              courseId={courseId}
+              lessonId={current.id}
+              hideIdentity
+              onTitleChange={(title) =>
+                setLessons((rows) => rows.map((row) => (row.id === current.id ? { ...row, title } : row)))
+              }
+              onDescriptionChange={(description) =>
+                setLessons((rows) => rows.map((row) => (row.id === current.id ? { ...row, description } : row)))
+              }
+              onVisibilityChange={(patch) =>
+                setLessons((rows) =>
+                  rows.map((row) => (row.id === current.id ? { ...row, ...patch } : row))
+                )
+              }
+            />
+          </div>
         </div>
-      ) : current ? (
-        <LessonBlocks
-          content={blocks}
-          lessonId={lessonId || undefined}
-          editable
-          onChange={(next) => void saveBlocks(next)}
-          onAddBlock={(block) => void saveBlocks([...blocks, block])}
-          onAskPelbu={openAskPelbu}
-          onOpenLessonOptions={() => setLessonPane('resources')}
-        />
       ) : null}
     </div>
   )

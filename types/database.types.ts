@@ -266,6 +266,7 @@ export interface Database {
           duration_minutes: number
           order_index: number
           is_free: boolean
+          is_preview: boolean | null
           is_published: boolean
           transcript: string | null
           resources: Json | null
@@ -285,6 +286,7 @@ export interface Database {
           duration_minutes?: number
           order_index?: number
           is_free?: boolean
+          is_preview?: boolean | null
           is_published?: boolean
           transcript?: string | null
           resources?: Json | null
@@ -304,6 +306,7 @@ export interface Database {
           duration_minutes?: number
           order_index?: number
           is_free?: boolean
+          is_preview?: boolean | null
           is_published?: boolean
           transcript?: string | null
           resources?: Json | null

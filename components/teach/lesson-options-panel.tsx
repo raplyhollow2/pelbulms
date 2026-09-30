@@ -9,11 +9,17 @@ import { shouldSyncCourseDuration, syncCourseDuration } from '@/lib/video-durati
 export function LessonOptionsPanel({
   courseId,
   lessonId,
+  hideIdentity = false,
   onTitleChange,
+  onDescriptionChange,
+  onVisibilityChange,
 }: {
   courseId: string
   lessonId: string
+  hideIdentity?: boolean
   onTitleChange?: (title: string) => void
+  onDescriptionChange?: (description: string) => void
+  onVisibilityChange?: (patch: { is_published?: boolean; is_free?: boolean }) => void
 }) {
   const supabase = createClient()
   const [lesson, setLesson] = useState<LessonOptionsValue | null>(null)
@@ -48,6 +54,19 @@ export function LessonOptionsPanel({
       return
     }
     if (typeof updates.title === 'string') onTitleChange?.(updates.title)
+    if (typeof updates.description === 'string') onDescriptionChange?.(updates.description)
+    if (
+      typeof updates.is_published === 'boolean' ||
+      typeof updates.is_free === 'boolean' ||
+      typeof updates.is_preview === 'boolean'
+    ) {
+      onVisibilityChange?.({
+        ...(typeof updates.is_published === 'boolean' ? { is_published: updates.is_published } : {}),
+        ...(typeof updates.is_free === 'boolean' || typeof updates.is_preview === 'boolean'
+          ? { is_free: updates.is_free === true || updates.is_preview === true }
+          : {}),
+      })
+    }
     if (shouldSyncCourseDuration(updates)) void syncCourseDuration(courseId)
   }
 
@@ -66,6 +85,7 @@ export function LessonOptionsPanel({
       <LessonOptionsFields
         courseId={courseId}
         lesson={lesson}
+        hideIdentity={hideIdentity}
         onChange={(updates) => setLesson((current) => (current ? { ...current, ...updates } : current))}
         onCommit={commit}
       />

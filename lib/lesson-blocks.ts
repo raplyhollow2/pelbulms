@@ -49,6 +49,7 @@ export function sanitizeHtml(html: string) {
     .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
     .replace(/\son\w+="[^"]*"/gi, '')
     .replace(/\son\w+='[^']*'/gi, '')
+    .replace(/\shref\s*=\s*(['"])\s*(?:javascript|data|vbscript):[^'"]*\1/gi, ' href="#"')
 }
 
 export function parseLessonBlocks(raw: unknown): LessonBlock[] {

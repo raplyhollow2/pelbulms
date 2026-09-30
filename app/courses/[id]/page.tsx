@@ -24,6 +24,7 @@ import { canAccessTeaching } from '@/lib/roles'
 import { LinkedInProfileLink } from '@/components/profile/linkedin-profile-link'
 import { linkedinFromProfile } from '@/lib/social-links'
 import { loadCourseFacilitators } from '@/lib/course-facilitators'
+import { lessonIsFreePreview } from '@/lib/lesson-visibility'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row']
@@ -193,7 +194,41 @@ export default function CourseDetailPage() {
         fetchLiveStudentCount(courseId),
       ])
 
-      setModules(modulesData || [])
+      const moduleIds = ((modulesData || []) as { id: string }[]).map((row) => row.id)
+      let publishedLessons: {
+        id: string
+        module_id: string
+        title: string
+        description?: string | null
+        duration_minutes?: number | null
+        order_index?: number | null
+        is_free?: boolean | null
+        is_preview?: boolean | null
+      }[] = []
+      if (moduleIds.length > 0) {
+        const { data: lessonRows } = await supabase
+          .from('lessons')
+          .select('id, module_id, title, description, duration_minutes, order_index, is_published, is_free, is_preview')
+          .in('module_id', moduleIds)
+          .eq('is_published', true)
+          .order('order_index', { ascending: true })
+        publishedLessons = (lessonRows || []) as typeof publishedLessons
+      }
+
+      setModules(
+        ((modulesData || []) as { id: string }[]).map((moduleRow) => ({
+          ...moduleRow,
+          lessons: publishedLessons
+            .filter((lesson) => lesson.module_id === moduleRow.id)
+            .map((lesson) => ({
+              id: lesson.id,
+              title: lesson.title,
+              description: lesson.description || undefined,
+              duration_minutes: lesson.duration_minutes || undefined,
+              is_preview: lessonIsFreePreview(lesson),
+            })),
+        }))
+      )
       setCourse({
         ...(courseData as any),
         students_count:
@@ -481,13 +516,24 @@ export default function CourseDetailPage() {
             </CardHeader>
             <CardContent>
               <CurriculumTimeline
-                modules={modules}
+                modules={modules.map((moduleRow) => ({
+                  ...moduleRow,
+                  lessons: (moduleRow.lessons || []).map((lesson: { is_preview?: boolean }) => ({
+                    ...lesson,
+                    is_locked: !isEnrolled && !lesson.is_preview,
+                  })),
+                }))}
                 showProgress={isEnrolled}
                 overallProgress={0}
                 onLessonClick={(lessonId) => {
-                  if (isEnrolled) {
+                  const lesson = modules
+                    .flatMap((moduleRow) => moduleRow.lessons || [])
+                    .find((row: { id: string }) => row.id === lessonId)
+                  if (isEnrolled || lesson?.is_preview) {
                     router.push(`/learn/${courseId}/lesson/${lessonId}`)
+                    return
                   }
+                  toast.message('Enroll to open this lesson. Free preview lessons stay open.')
                 }}
               />
             </CardContent>

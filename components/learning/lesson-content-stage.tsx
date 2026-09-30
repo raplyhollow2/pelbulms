@@ -133,26 +133,17 @@ export function LessonContentStage({
         </div>
       ) : (
         <div className="space-y-3 bg-muted/30 p-4 sm:p-6">
-          {lesson.description || blocks.length === 0 ? (
+          {blocks.length === 0 ? (
             <div className="flex items-center gap-2 text-sm font-medium">
               <FileText className="h-4 w-4 text-bhutan-yellow" />
               Article
             </div>
           ) : null}
-          {lesson.description ? (
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-              {lesson.description}
-            </p>
-          ) : null}
-          {blocks.length > 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Reading, pictures, video embeds, and checks for this lesson are on the Resources tab.
-            </p>
-          ) : !lesson.description ? (
-            <p className="text-sm text-muted-foreground">
-              This lecture has no video yet. Open the Resources tab for files and activities.
-            </p>
-          ) : null}
+          <p className="text-sm text-muted-foreground">
+            {blocks.length > 0
+              ? 'Reading, pictures, video embeds, and checks for this lesson are on the Resources tab.'
+              : 'This lecture has no video yet. Open the Resources tab for the lesson description, files, and activities.'}
+          </p>
         </div>
       )}
     </div>

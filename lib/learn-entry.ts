@@ -39,7 +39,7 @@ export async function resolveCoursePlayerPath(
       .select('id, is_published')
       .eq('id', lastLessonId)
       .maybeSingle()
-    if (lastLesson && (lastLesson as { is_published?: boolean }).is_published !== false) {
+    if (lastLesson && (lastLesson as { is_published?: boolean }).is_published === true) {
       return `/learn/${courseId}/lesson/${lastLessonId}`
     }
   }

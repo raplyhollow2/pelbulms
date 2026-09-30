@@ -591,7 +591,7 @@ function UnlinkedAssessment({
       <p className="text-sm text-muted-foreground">{message}</p>
       {onOpenLessonOptions && (
         <Button type="button" variant="outline" className="min-h-11" onClick={onOpenLessonOptions}>
-          Resources
+          Lesson settings
         </Button>
       )}
     </div>

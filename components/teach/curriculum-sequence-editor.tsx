@@ -37,6 +37,7 @@ import {
   probeYouTubeDuration,
   readLocalVideoDuration,
 } from '@/lib/video-duration'
+import { lessonIsFreePreview, lessonPreviewColumns } from '@/lib/lesson-visibility'
 import { parseMediaRef, resolveMediaUrl } from '@/lib/media'
 import {
   DRIVE_SHARE_HINT,
@@ -439,9 +440,9 @@ export function CurriculumSequenceEditor({
                         </label>
                         <label className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Switch
-                            checked={Boolean(lesson.is_free)}
+                            checked={lessonIsFreePreview(lesson)}
                             onCheckedChange={(checked) =>
-                              void onUpdate(lesson.id, { is_free: checked })
+                              void onUpdate(lesson.id, lessonPreviewColumns(checked === true))
                             }
                           />
                           Preview

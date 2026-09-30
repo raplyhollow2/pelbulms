@@ -365,6 +365,7 @@ export default function ModuleLessonsPage() {
               duration_minutes: lesson.duration_minutes,
               is_published: (lesson as any).is_published,
               is_free: lesson.is_free,
+              is_preview: lesson.is_free,
               resources: (lesson as any).resources ?? [],
               metadata: (lesson as any).metadata || {},
               order_index: lesson.order_index,

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { courseDescriptionPlain } from '@/lib/course-description'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -254,7 +255,7 @@ export function CourseSyllabus({
                               )}
                             </div>
                             <p className="text-xs text-muted-foreground truncate">
-                              {lesson.description || 'No description'}
+                              {courseDescriptionPlain(lesson.description) || 'No description'}
                             </p>
                           </div>
 

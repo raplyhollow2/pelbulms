@@ -168,6 +168,7 @@ export default function LessonEditPage() {
           resources: lesson.resources,
           is_published: (lesson as any).is_published,
           is_free: lesson.is_free,
+          is_preview: lesson.is_free,
           metadata: lesson.metadata,
           updated_at: new Date().toISOString()
         })

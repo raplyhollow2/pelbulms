@@ -31,37 +31,64 @@ import {
 
 const LAST_USED_KEY = 'pelbu:block-picker-last'
 
-const GROUPS: { label: string; items: { type: LessonBlock['type'] | 'ai-image'; title: string; icon: any }[] }[] = [
+type CatalogItem = {
+  type: LessonBlock['type'] | 'ai-image'
+  title: string
+  hint: string
+  icon: any
+}
+
+const GROUPS: { label: string; items: CatalogItem[] }[] = [
   {
     label: 'Text',
     items: [
-      { type: 'text', title: 'Text', icon: Type },
-      { type: 'accordion', title: 'Accordion', icon: ListTree },
+      { type: 'text', title: 'Text', hint: 'Explain a concept learners should read straight through.', icon: Type },
+      {
+        type: 'accordion',
+        title: 'Accordion',
+        hint: 'Tuck extra detail behind headings so a long page stays scannable.',
+        icon: ListTree,
+      },
     ],
   },
   {
     label: 'Interactions',
     items: [
-      { type: 'flipcards', title: 'Flip cards', icon: CreditCard },
-      { type: 'carousel', title: 'Carousel', icon: Images },
-      { type: 'hotspot', title: 'Hotspot', icon: Scan },
+      {
+        type: 'flipcards',
+        title: 'Flip cards',
+        hint: 'Reveal a definition or answer one card at a time.',
+        icon: CreditCard,
+      },
+      { type: 'carousel', title: 'Carousel', hint: 'Walk through steps or examples in order.', icon: Images },
+      { type: 'hotspot', title: 'Hotspot', hint: 'Mark points on an image and explain each one.', icon: Scan },
     ],
   },
   {
     label: 'Assessments',
     items: [
-      { type: 'quiz', title: 'Quiz', icon: ListChecks },
-      { type: 'assignment', title: 'Assignment', icon: ClipboardList },
-      { type: 'flashcards', title: 'Flashcards', icon: Layers },
+      { type: 'quiz', title: 'Quiz', hint: 'Check understanding with scored questions.', icon: ListChecks },
+      {
+        type: 'assignment',
+        title: 'Assignment',
+        hint: 'Collect work learners submit for review.',
+        icon: ClipboardList,
+      },
+      { type: 'flashcards', title: 'Flashcards', hint: 'Drill terms for active recall.', icon: Layers },
     ],
   },
   {
     label: 'Multimedia',
     items: [
-      { type: 'image', title: 'Image', icon: ImageIcon },
-      { type: 'ai-image', title: 'Generate image', icon: Sparkles },
-      { type: 'youtube', title: 'YouTube', icon: Play },
-      { type: 'video', title: 'Upload video', icon: Video },
+      { type: 'image', title: 'Image', hint: 'Show a photo, diagram, or screenshot.', icon: ImageIcon },
+      {
+        type: 'ai-image',
+        title: 'Generate image',
+        hint: 'Create a picture from a short description.',
+        icon: Sparkles,
+      },
+      { type: 'youtube', title: 'YouTube', hint: 'Embed a YouTube video.', icon: Play },
+      { type: 'video', title: 'Upload video', hint: 'Play a video file you upload.', icon: Video },
     ],
   },
 ]
@@ -94,6 +121,35 @@ export function emptyBlock(type: LessonBlock['type']): LessonBlock {
     case 'flashcards':
       return { id, type, cards: [{ front: 'Front', back: 'Back' }] }
   }
+}
+
+function BlockRow({
+  item,
+  disabled,
+  onClick,
+}: {
+  item: CatalogItem
+  disabled: boolean
+  onClick: () => void
+}) {
+  const Icon = item.icon
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      className="h-auto min-h-11 w-full shrink flex-wrap items-center justify-between gap-x-4 gap-y-1 whitespace-normal py-2.5 text-left"
+      disabled={disabled}
+      onClick={onClick}
+    >
+      <span className="flex shrink-0 items-center gap-2">
+        <Icon className="h-4 w-4" />
+        {item.title}
+      </span>
+      <span className="min-w-0 text-sm font-normal text-muted-foreground sm:max-w-[65%] sm:text-right">
+        {item.hint}
+      </span>
+    </Button>
+  )
 }
 
 export function BlockCatalog({
@@ -166,7 +222,9 @@ export function BlockCatalog({
     if (!q) return GROUPS
     const filtered = GROUPS.map((g) => ({
       ...g,
-      items: g.items.filter((item) => item.title.toLowerCase().includes(q)),
+      items: g.items.filter(
+        (item) => item.title.toLowerCase().includes(q) || item.hint.toLowerCase().includes(q)
+      ),
     })).filter((g) => g.items.length)
     return filtered
   }, [query])
@@ -218,28 +276,20 @@ export function BlockCatalog({
         {lastItems.length > 0 && !query && (
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Last used</p>
-            <div className="grid grid-cols-2 gap-2">
-              {lastItems.map((item) => {
-                const Icon = item.icon
-                return (
-                  <Button
-                    key={`last-${item.type}`}
-                    type="button"
-                    variant="outline"
-                    className="min-h-11 justify-start gap-2"
-                    disabled={busy}
-                    onClick={() => {
-                      if (item.type === 'ai-image') {
-                        setImageError('')
-                        setImageOpen(true)
-                      } else pickType(item.type, item.title)
-                    }}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.title}
-                  </Button>
-                )
-              })}
+            <div className="flex flex-col gap-2">
+              {lastItems.map((item) => (
+                <BlockRow
+                  key={`last-${item.type}`}
+                  item={item}
+                  disabled={busy}
+                  onClick={() => {
+                    if (item.type === 'ai-image') {
+                      setImageError('')
+                      setImageOpen(true)
+                    } else pickType(item.type, item.title)
+                  }}
+                />
+              ))}
             </div>
           </div>
         )}
@@ -249,28 +299,20 @@ export function BlockCatalog({
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {group.label}
               </p>
-              <div className="grid grid-cols-2 gap-2">
-                {group.items.map((item) => {
-                  const Icon = item.icon
-                  return (
-                    <Button
-                      key={item.type}
-                      type="button"
-                      variant="outline"
-                      className="min-h-11 justify-start gap-2"
-                      disabled={busy}
-                      onClick={() => {
-                        if (item.type === 'ai-image') {
-                          setImageError('')
-                          setImageOpen(true)
-                        } else pickType(item.type, item.title)
-                      }}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {item.title}
-                    </Button>
-                  )
-                })}
+              <div className="flex flex-col gap-2">
+                {group.items.map((item) => (
+                  <BlockRow
+                    key={item.type}
+                    item={item}
+                    disabled={busy}
+                    onClick={() => {
+                      if (item.type === 'ai-image') {
+                        setImageError('')
+                        setImageOpen(true)
+                      } else pickType(item.type, item.title)
+                    }}
+                  />
+                ))}
               </div>
             </div>
           ))}
@@ -290,7 +332,7 @@ export function BlockPicker({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Add content</DialogTitle>
           <DialogDescription>Search, or press / from the studio. Last used stays on top.</DialogDescription>

@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
-import { Button, buttonVariants } from '@/components/ui/button'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
@@ -21,17 +21,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import {
-  AlignCenter,
-  AlignJustify,
-  AlignLeft,
-  AlignRight,
   ArrowLeft,
-  Bold,
   Image as ImageIcon,
-  Italic,
   Link as LinkIcon,
-  List,
-  ListOrdered,
   Loader2,
   Plus,
   Trash2,
@@ -66,8 +58,8 @@ import {
   syncCourseInstitutions,
   countCrossInstitutionEnrollments,
 } from '@/lib/course-institution-access'
-import { sanitizeHtml, type CourseTheme, type CourseTutorSettings } from '@/lib/lesson-blocks'
-import { courseDescriptionEditorHtml, courseDescriptionRichClass } from '@/lib/course-description'
+import { type CourseTheme, type CourseTutorSettings } from '@/lib/lesson-blocks'
+import { DescriptionEditor } from '@/components/course/description-editor'
 
 type EnrollmentMode = 'auto' | 'approval' | 'invite_code' | 'paid'
 
@@ -126,113 +118,6 @@ function SettingsPanel({
 function courseShareUrl(courseId: string) {
   if (typeof window === 'undefined') return `/courses/${courseId}`
   return `${window.location.origin}/courses/${courseId}`
-}
-
-function DescriptionEditor({ value, onChange }: { value: string; onChange: (html: string) => void }) {
-  const ref = useRef<HTMLDivElement>(null)
-  const focused = useRef(false)
-  const lastPublished = useRef<string | null>(null)
-
-  // Uncontrolled on purpose. React 19 assigns innerHTML again whenever
-  // dangerouslySetInnerHTML is a new object, which wiped each keystroke and format.
-  useLayoutEffect(() => {
-    const node = ref.current
-    if (!node) return
-    if (lastPublished.current === value) return
-    if (focused.current) return
-    node.innerHTML = value.trim() ? courseDescriptionEditorHtml(value) : ''
-    lastPublished.current = value
-  }, [value])
-
-  const publish = () => {
-    const next = sanitizeHtml(ref.current?.innerHTML || '')
-    lastPublished.current = next
-    onChange(next)
-  }
-
-  const apply = (command: string) => {
-    const node = ref.current
-    if (!node) return
-    node.focus()
-    focused.current = true
-    document.execCommand('styleWithCSS', false, 'true')
-    document.execCommand(command)
-    publish()
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-1">
-        <FormatButton label="Bold" onApply={() => apply('bold')}>
-          <Bold />
-        </FormatButton>
-        <FormatButton label="Italic" onApply={() => apply('italic')}>
-          <Italic />
-        </FormatButton>
-        <FormatButton label="Bulleted list" onApply={() => apply('insertUnorderedList')}>
-          <List />
-        </FormatButton>
-        <FormatButton label="Numbered list" onApply={() => apply('insertOrderedList')}>
-          <ListOrdered />
-        </FormatButton>
-        <span className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
-        <FormatButton label="Align left" onApply={() => apply('justifyLeft')}>
-          <AlignLeft />
-        </FormatButton>
-        <FormatButton label="Align center" onApply={() => apply('justifyCenter')}>
-          <AlignCenter />
-        </FormatButton>
-        <FormatButton label="Align right" onApply={() => apply('justifyRight')}>
-          <AlignRight />
-        </FormatButton>
-        <FormatButton label="Justify" onApply={() => apply('justifyFull')}>
-          <AlignJustify />
-        </FormatButton>
-      </div>
-      <div
-        ref={ref}
-        id="settings-description"
-        contentEditable
-        suppressContentEditableWarning
-        role="textbox"
-        aria-multiline="true"
-        aria-label="Description"
-        data-placeholder="Write what this course is about"
-        className={`min-h-28 w-full cursor-text rounded-md border bg-background p-3 text-sm leading-relaxed focus:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)] ${courseDescriptionRichClass}`}
-        onFocus={() => {
-          focused.current = true
-        }}
-        onInput={publish}
-        onBlur={() => {
-          focused.current = false
-          publish()
-        }}
-      />
-    </div>
-  )
-}
-
-function FormatButton({
-  label,
-  onApply,
-  children,
-}: {
-  label: string
-  onApply: () => void
-  children: ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      className={buttonVariants({ variant: 'outline', size: 'icon-sm' })}
-      onMouseDown={(event) => event.preventDefault()}
-      onClick={onApply}
-    >
-      {children}
-    </button>
-  )
 }
 
 export function CourseSettingsForm({
@@ -782,7 +667,9 @@ export function CourseSettingsForm({
         <div className="space-y-1.5">
           <Label htmlFor="settings-description">Description</Label>
           <DescriptionEditor
+            id="settings-description"
             value={courseData.description}
+            placeholder="Write what this course is about"
             onChange={(description) => setCourseData({ ...courseData, description })}
           />
         </div>

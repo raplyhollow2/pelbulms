@@ -9,6 +9,7 @@ import { ReviewsDashboard } from './reviews-dashboard'
 import { LearningTools } from './learning-tools'
 import { LessonResources, type ActivityProgressItem } from './lesson-resources'
 import { LessonBlocks } from './lesson-blocks'
+import { CourseDescription } from './course-description'
 import { parseLessonBlocks } from '@/lib/lesson-blocks'
 import { parseLessonActivities } from '@/lib/lesson-activities'
 import { LessonForum } from './lesson-forum'
@@ -176,6 +177,15 @@ export function CourseLearningTabs({
             onTakeQuiz={onTakeQuiz}
             highlightItemKey={highlightActivityId}
           />
+        ) : null}
+        {currentLesson?.description?.trim() ? (
+          <div className="rounded-xl border bg-card px-4 py-4">
+            <p className="mb-2 text-sm font-medium">Lesson description</p>
+            <CourseDescription
+              text={currentLesson.description}
+              className="text-sm leading-relaxed"
+            />
+          </div>
         ) : null}
         {resourcesLocked ? (
           <LockedPanel title="Activities" />

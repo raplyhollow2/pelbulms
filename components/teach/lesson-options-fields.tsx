@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { DescriptionEditor } from '@/components/course/description-editor'
 import { Switch } from '@/components/ui/switch'
 import { Clock, FileText, Link, Loader2, Lock, Trash2, UploadCloud } from 'lucide-react'
 import { resolveMediaUrl, parseMediaRef } from '@/lib/media'
@@ -26,6 +27,7 @@ import {
   probeYouTubeDuration,
   readLocalVideoDuration,
 } from '@/lib/video-duration'
+import { lessonPreviewColumns } from '@/lib/lesson-visibility'
 
 export type LessonOptionsValue = {
   id: string
@@ -33,6 +35,7 @@ export type LessonOptionsValue = {
   description?: string | null
   is_published?: boolean | null
   is_free?: boolean | null
+  is_preview?: boolean | null
   metadata?: unknown
   video_url?: string | null
   duration_minutes?: number | null
@@ -44,11 +47,12 @@ export type LessonOptionsValue = {
 type Props = {
   courseId: string
   lesson: LessonOptionsValue
+  hideIdentity?: boolean
   onChange: (updates: Partial<LessonOptionsValue>) => void
   onCommit: (updates: Partial<LessonOptionsValue>) => void | Promise<void>
 }
 
-export function LessonOptionsFields({ courseId, lesson, onChange, onCommit }: Props) {
+export function LessonOptionsFields({ courseId, lesson, hideIdentity = false, onChange, onCommit }: Props) {
   const videoInputRef = useRef<HTMLInputElement>(null)
   const youtubeProbeId = useRef(0)
   const [uploadingVideo, setUploadingVideo] = useState(false)
@@ -132,39 +136,44 @@ export function LessonOptionsFields({ courseId, lesson, onChange, onCommit }: Pr
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        <div>
-          <Label htmlFor={`lesson-title-${lesson.id}`} className="text-sm">
-            Page title
-          </Label>
-          <Input
-            id={`lesson-title-${lesson.id}`}
-            value={lesson.title}
-            onChange={(e) => onChange({ title: e.target.value })}
-            onBlur={() => void onCommit({ title: lesson.title })}
-            placeholder="Page title"
-            className="mt-1"
-          />
-        </div>
-        <div>
-          <Label htmlFor={`lesson-description-${lesson.id}`} className="text-sm">
-            Description
-          </Label>
-          <Textarea
-            id={`lesson-description-${lesson.id}`}
-            value={lesson.description || ''}
-            onChange={(e) => onChange({ description: e.target.value })}
-            onBlur={() => void onCommit({ description: lesson.description })}
-            placeholder="Page description..."
-            rows={3}
-            className="mt-1 resize-none"
-          />
-        </div>
+        {!hideIdentity ? (
+          <>
+            <div>
+              <Label htmlFor={`lesson-title-${lesson.id}`} className="text-sm">
+                Page title
+              </Label>
+              <Input
+                id={`lesson-title-${lesson.id}`}
+                value={lesson.title}
+                onChange={(e) => onChange({ title: e.target.value })}
+                onBlur={() => void onCommit({ title: lesson.title })}
+                placeholder="Page title"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor={`lesson-description-${lesson.id}`} className="text-sm">
+                Description
+              </Label>
+              <div className="mt-1">
+                <DescriptionEditor
+                  id={`lesson-description-${lesson.id}`}
+                  value={lesson.description || ''}
+                  placeholder="What students should know about this lesson"
+                  ariaLabel="Lesson description"
+                  onChange={(description) => onChange({ description })}
+                  onCommit={(description) => void onCommit({ description })}
+                />
+              </div>
+            </div>
+          </>
+        ) : null}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex items-center space-x-2">
             <Switch
               id={`lesson-published-${lesson.id}`}
-              checked={Boolean(lesson.is_published)}
-              onCheckedChange={(checked) => commit({ is_published: checked })}
+              checked={lesson.is_published === true}
+              onCheckedChange={(checked) => commit({ is_published: checked === true })}
             />
             <Label htmlFor={`lesson-published-${lesson.id}`} className="text-sm">
               Published
@@ -173,8 +182,8 @@ export function LessonOptionsFields({ courseId, lesson, onChange, onCommit }: Pr
           <div className="flex items-center space-x-2">
             <Switch
               id={`lesson-free-${lesson.id}`}
-              checked={Boolean(lesson.is_free)}
-              onCheckedChange={(checked) => commit({ is_free: checked })}
+              checked={lesson.is_free === true || lesson.is_preview === true}
+              onCheckedChange={(checked) => commit(lessonPreviewColumns(checked === true))}
             />
             <Label htmlFor={`lesson-free-${lesson.id}`} className="text-sm">
               Free preview

@@ -18,6 +18,7 @@ import {
   Lock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { courseDescriptionPlain } from '@/lib/course-description'
 
 interface Lesson {
   id: string
@@ -27,6 +28,7 @@ interface Lesson {
   type?: 'video' | 'reading' | 'quiz' | 'assignment'
   is_completed?: boolean
   is_locked?: boolean
+  is_preview?: boolean
 }
 
 interface Module {
@@ -259,6 +261,11 @@ export function CurriculumTimeline({
                                 Current
                               </Badge>
                             )}
+                            {lesson.is_preview && (
+                              <Badge variant="outline" className="text-xs">
+                                Free preview
+                              </Badge>
+                            )}
                             {lesson.is_completed && (
                               <Badge variant="outline" className="text-xs">
                                 Completed
@@ -266,11 +273,11 @@ export function CurriculumTimeline({
                             )}
                           </div>
 
-                          {lesson.description && (
+                          {courseDescriptionPlain(lesson.description) ? (
                             <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                              {lesson.description}
+                              {courseDescriptionPlain(lesson.description)}
                             </p>
-                          )}
+                          ) : null}
                         </div>
 
                         {/* Type Icon & Duration */}
