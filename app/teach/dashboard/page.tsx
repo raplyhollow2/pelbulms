@@ -162,6 +162,24 @@ export default function TeacherDashboard() {
 
       let enriched: Course[] = (coursesData || []) as Course[]
 
+      if (admin && role === 'admin') {
+        const capsRes = await fetch('/api/admin/capabilities/me')
+        const caps = await capsRes.json().catch(() => ({}))
+        if (capsRes.ok && caps.allInstitutions === false) {
+          const orgIds = Array.isArray(caps.institutionIds) ? caps.institutionIds : []
+          if (!orgIds.length) {
+            enriched = []
+          } else {
+            const { data: links } = await supabase
+              .from('course_institutions')
+              .select('course_id')
+              .in('institution_id', orgIds)
+            const allowed = new Set((links || []).map((row: { course_id?: string }) => row.course_id))
+            enriched = enriched.filter((course) => allowed.has(course.id))
+          }
+        }
+      }
+
       if (admin && enriched.length > 0) {
         const ids = [...new Set(enriched.map((c) => (c as any).instructor_id).filter(Boolean))]
         if (ids.length > 0) {

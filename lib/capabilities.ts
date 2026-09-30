@@ -2,8 +2,9 @@
  * Platform capability catalog + resolver (Phase 1 admin permissions).
  *
  * Capabilities live in DB (`capabilities` / `role_capabilities`). Superadmin
- * always has every capability. Institution scope comes from `roles.all_institutions`
- * + `role_institutions`.
+ * always has every capability. An admin's organizations come from
+ * `institution_access` (role_within_institution = admin). No rows means
+ * that admin is platform-wide. Other roles still use `roles.all_institutions`.
  */
 // @ts-nocheck - roles/capabilities tables not yet in generated Database types
 
@@ -11,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, tryCreateServiceClient } from '@/lib/supabase/server'
 import type { UserRole } from '@/lib/roles'
 import { CAP, type CapabilityKey } from '@/lib/capability-keys'
+import { adminOrganizationIds } from '@/lib/admin-org-scope'
 
 export { CAP, type CapabilityKey, type CapabilityAction, type CapabilityGroup } from '@/lib/capability-keys'
 
@@ -165,8 +167,17 @@ async function resolveUserCapabilitiesUncached(
   }
 
   let institutionIds: string[] = []
-  const allInstitutions = Boolean(roleRow.all_institutions)
-  if (!allInstitutions) {
+  let allInstitutions = Boolean(roleRow.all_institutions)
+  if (userRole === 'admin') {
+    const managed = await adminOrganizationIds(supabase, userId)
+    if (managed) {
+      allInstitutions = false
+      institutionIds = managed
+    } else {
+      allInstitutions = true
+      institutionIds = []
+    }
+  } else if (!allInstitutions) {
     const { data: instRows } = await supabase
       .from('role_institutions')
       .select('institution_id')

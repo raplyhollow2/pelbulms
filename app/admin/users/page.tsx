@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -145,6 +146,45 @@ function getInitials(name?: string | null) {
     .toUpperCase()
 }
 
+function OrganizationChecklist({
+  institutions,
+  selected,
+  onChange,
+}: {
+  institutions: { id: string; name: string; display_name?: string | null }[]
+  selected: string[]
+  onChange: (ids: string[]) => void
+}) {
+  return (
+    <div className="space-y-2 sm:col-span-2">
+      <p className="text-xs font-medium">Organizations</p>
+      <p className="text-xs text-muted-foreground">
+        Choose the organizations this admin may manage. Leave every box clear for a platform-wide admin.
+      </p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {institutions.map((inst) => (
+          <label key={inst.id} className="flex items-center gap-2 text-sm">
+            <Checkbox
+              checked={selected.includes(inst.id)}
+              onCheckedChange={(checked) =>
+                onChange(
+                  checked === true
+                    ? [...selected, inst.id]
+                    : selected.filter((id) => id !== inst.id)
+                )
+              }
+            />
+            {inst.display_name || inst.name}
+          </label>
+        ))}
+        {institutions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No organizations yet.</p>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
 function roleSelectOptions(
   assignableRoles: AssignableRole[],
   isSuperAdmin: boolean,
@@ -229,12 +269,15 @@ export default function AdminUsersPage() {
   // Create form
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [formData, setFormData] = useState({ ...EMPTY_FORM })
+  const [createManagedInstitutionIds, setCreateManagedInstitutionIds] = useState<string[]>([])
   const [formLoading, setFormLoading] = useState(false)
   const [error, setError] = useState('')
 
   // Edit dialog
   const [editingUser, setEditingUser] = useState<Profile | null>(null)
   const [editData, setEditData] = useState({ ...EMPTY_FORM })
+  const [managedInstitutionIds, setManagedInstitutionIds] = useState<string[]>([])
+  const [managedOrgsReady, setManagedOrgsReady] = useState(true)
   const [editLoading, setEditLoading] = useState(false)
   const [editError, setEditError] = useState('')
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
@@ -438,6 +481,7 @@ export default function AdminUsersPage() {
           role_id: formData.role_id || undefined,
           bio: formData.bio || null,
           institution_id: formData.institution_id || null,
+          managed_institution_ids: formData.role === 'admin' ? createManagedInstitutionIds : [],
           phone_number: formData.phone_number || null,
           location: formData.location || null,
         }),
@@ -448,6 +492,7 @@ export default function AdminUsersPage() {
       hapticSuccess()
       await fetchUsers()
       setFormData({ ...EMPTY_FORM })
+      setCreateManagedInstitutionIds([])
       setShowCreateForm(false)
     } catch (err: any) {
       console.error('Error creating user:', err)
@@ -495,6 +540,19 @@ export default function AdminUsersPage() {
       parent_guardian_name: (user as any).parent_guardian_name || '',
       parent_guardian_phone: (user as any).parent_guardian_phone || '',
     })
+    setManagedInstitutionIds([])
+    const isAdmin = (user.role as string) === 'admin'
+    setManagedOrgsReady(!isAdmin)
+    if (isAdmin) {
+      void fetch(`/api/users/${user.id}`)
+        .then(async (res) => {
+          const json = await res.json().catch(() => ({}))
+          if (!res.ok) return
+          setManagedInstitutionIds(json.managed_institution_ids || [])
+          setManagedOrgsReady(true)
+        })
+        .catch(() => undefined)
+    }
   }
 
   const handleSaveEdit = async () => {
@@ -516,6 +574,11 @@ export default function AdminUsersPage() {
           role_id: editData.role_id || undefined,
           avatar_url: editData.avatar_url || null,
           institution_id: editData.institution_id || null,
+          ...(editData.role === 'admin'
+            ? managedOrgsReady
+              ? { managed_institution_ids: managedInstitutionIds }
+              : {}
+            : { managed_institution_ids: [] }),
           account_status: editData.account_status,
           phone_number: editData.phone_number,
           date_of_birth: editData.date_of_birth,
@@ -835,6 +898,13 @@ export default function AdminUsersPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {formData.role === 'admin' ? (
+                    <OrganizationChecklist
+                      institutions={institutions}
+                      selected={createManagedInstitutionIds}
+                      onChange={setCreateManagedInstitutionIds}
+                    />
+                  ) : null}
                   <div className="space-y-1.5">
                     <Label htmlFor="phone_number" className="text-xs font-medium">
                       Mobile number
@@ -1450,6 +1520,13 @@ export default function AdminUsersPage() {
                   </SelectContent>
                 </Select>
               </div>
+              {editData.role === 'admin' ? (
+                <OrganizationChecklist
+                  institutions={institutions}
+                  selected={managedInstitutionIds}
+                  onChange={setManagedInstitutionIds}
+                />
+              ) : null}
 
               <div className="space-y-1.5">
                 <Label htmlFor="edit_institution" className="text-xs font-medium">

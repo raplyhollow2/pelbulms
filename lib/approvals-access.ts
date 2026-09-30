@@ -2,13 +2,14 @@
  * Registration approval access.
  *
  * Who may approve:
- *   1. superadmin / admin — all institutes (student KYC)
- *   2. resource_person — institutes they are assigned to (student KYC)
- *   3. active registration_reviewers row — explicitly assigned helpers
- *   4. Teaching roles (instructor / resource_person) — Superadmin only
- *
- * Regular instructors are NOT auto-approvers unless assigned as reviewers.
+ *   1. superadmin — every organization
+ *   2. admin with no organization membership — every organization
+ *   3. admin assigned in institution_access — those organizations only
+ *   4. resource_person — institutes they are assigned to
+ *   5. active registration_reviewers row — explicitly assigned helpers
  */
+
+import { adminOrganizationIds } from '@/lib/admin-org-scope'
 
 export type ApprovalProfile = {
   id: string
@@ -78,15 +79,30 @@ export async function getApprovalScope(
   role: string,
   profileInstitutionId?: string | null
 ): Promise<ApprovalScope> {
-  const isSuperadmin = isSuperadminRole(role)
-
-  // Platform admins see every institute's student queue
-  if (isGlobalApproverRole(role)) {
+  if (role === 'superadmin') {
     return {
       allowed: true as const,
       isSuper: true as const,
-      isSuperadmin,
+      isSuperadmin: true as const,
       institutionIds: [] as string[],
+    }
+  }
+
+  if (role === 'admin') {
+    const managed = await adminOrganizationIds(supabase, userId)
+    if (!managed) {
+      return {
+        allowed: true as const,
+        isSuper: true as const,
+        isSuperadmin: false as const,
+        institutionIds: [] as string[],
+      }
+    }
+    return {
+      allowed: true as const,
+      isSuper: false as const,
+      isSuperadmin: false as const,
+      institutionIds: managed,
     }
   }
 

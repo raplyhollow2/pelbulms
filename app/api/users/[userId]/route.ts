@@ -4,122 +4,32 @@ import {
   CAP,
   enforceCapability,
   institutionAllowed,
+  invalidateCapabilityCache,
 } from '@/lib/capabilities'
+import { adminOrganizationIds, syncAdminOrganizations } from '@/lib/admin-org-scope'
 import { createServiceClient } from '@/lib/supabase/server'
 import type { UserRole } from '@/lib/roles'
-import { normalizeDzongkhag } from '@/lib/dzongkhags'
-import { CID_RE, PHONE_RE } from '@/lib/profile-fields'
+import { applyProfileDetails, syncRegistrationFromProfile } from '@/lib/profile-fields'
 
 type Role = UserRole
 
 const VALID_ROLES: Role[] = ['student', 'instructor', 'admin', 'resource_person', 'superadmin']
-const GENDERS = new Set(['male', 'female', 'other'])
 
-const PROFILE_TEXT_FIELDS = [
-  'gewog',
-  'village',
-  'education_level',
-  'passport_photo_url',
-  'cid_photo_url',
-  'pelsung_number',
-  'class_name',
-  'emergency_contact_name',
-  'emergency_contact_phone',
-  'parent_guardian_name',
-  'parent_guardian_phone',
-  'headline',
-  'website',
-] as const
-
-function optionalText(value: unknown): string | null | undefined {
-  if (value === undefined) return undefined
-  if (value === null) return null
-  if (typeof value !== 'string') return undefined
-  const trimmed = value.trim()
-  return trimmed || null
+function managedOrganizationIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return [...new Set(value.filter((id) => typeof id === 'string' && id))]
 }
 
-function applyProfileDetails(body: Record<string, unknown>, updates: Record<string, unknown>) {
-  const phone = optionalText(body.phone_number)
-  if (body.phone_number !== undefined) {
-    if (phone === undefined) return 'Invalid phone number'
-    if (phone && !PHONE_RE.test(phone)) return 'Phone must be +975 followed by 8 digits.'
-    updates.phone_number = phone
+function managedOrganizationError(ids: string[], capabilities: any, creatingAdmin: boolean) {
+  const scoped = capabilities && capabilities.allInstitutions === false
+  if (creatingAdmin && scoped && ids.length === 0) {
+    return 'Choose at least one organization for this admin'
   }
-
-  const cid = optionalText(body.cid_number)
-  if (body.cid_number !== undefined) {
-    if (cid === undefined) return 'Invalid CID number'
-    if (cid && !CID_RE.test(cid)) return 'CID number must be exactly 11 digits.'
-    updates.cid_number = cid
+  if (ids.some((id) => !institutionAllowed(id, capabilities))) {
+    return 'Organization outside your permission scope'
   }
-
-  if (body.location !== undefined) {
-    const place = optionalText(body.location)
-    if (place === undefined) return 'Invalid dzongkhag'
-    if (place && !normalizeDzongkhag(place)) return 'Please select a valid dzongkhag.'
-    updates.location = place ? normalizeDzongkhag(place) : null
-  }
-
-  if (body.gender !== undefined) {
-    const gender = optionalText(body.gender)
-    if (gender === undefined) return 'Invalid gender'
-    if (gender && !GENDERS.has(gender)) return 'Invalid gender'
-    updates.gender = gender
-  }
-
-  if (body.date_of_birth !== undefined) {
-    const dob = optionalText(body.date_of_birth)
-    if (dob === undefined) return 'Invalid date of birth'
-    if (dob && !/^\d{4}-\d{2}-\d{2}$/.test(dob)) return 'Date of birth must be YYYY-MM-DD.'
-    updates.date_of_birth = dob
-  }
-
-  for (const key of PROFILE_TEXT_FIELDS) {
-    if (body[key] === undefined) continue
-    const value = optionalText(body[key])
-    if (value === undefined) return `Invalid ${key.replaceAll('_', ' ')}`
-    updates[key] = value
-  }
-
   return null
 }
-
-async function syncRegistrationFromProfile(
-  supabase: Awaited<ReturnType<typeof createServiceClient>>,
-  userId: string,
-  updates: Record<string, unknown>
-) {
-  const reg: Record<string, unknown> = { updated_at: updates.updated_at }
-  const copy = (from: string, to = from, allowNull = true) => {
-    if (updates[from] === undefined) return
-    if (updates[from] === null && !allowNull) return
-    reg[to] = updates[from]
-  }
-  copy('full_name', 'full_name', false)
-  copy('email', 'email', false)
-  copy('phone_number', 'phone_number', false)
-  copy('date_of_birth')
-  copy('gender')
-  copy('cid_number')
-  copy('gewog')
-  copy('village')
-  copy('education_level')
-  copy('passport_photo_url')
-  copy('cid_photo_url')
-  copy('pelsung_number')
-  copy('emergency_contact_name')
-  copy('emergency_contact_phone')
-  copy('parent_guardian_name')
-  copy('parent_guardian_phone')
-  if (updates.location !== undefined) reg.dzongkhag = updates.location
-  if (updates.class_name !== undefined) reg.class = updates.class_name
-  if (Object.keys(reg).length <= 1) return null
-  const { error } = await supabase.from('student_registrations').update(reg as never).eq('user_id', userId)
-  if (error) return error.message || 'Could not sync registration details.'
-  return null
-}
-
 function denied(rbac: { error?: string }) {
   return NextResponse.json(
     { error: rbac.error || 'Access denied' },
@@ -161,7 +71,8 @@ export async function GET(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
-    return NextResponse.json({ user: data })
+    const managed = await adminOrganizationIds(supabase, userId)
+    return NextResponse.json({ user: data, managed_institution_ids: managed || [] })
   } catch (error: any) {
     return NextResponse.json(
       { error: error?.message || 'Failed to fetch user' },
@@ -320,6 +231,15 @@ export async function PATCH(
       updates.role = body.role
     }
 
+    const nextRole = (updates.role as string | undefined) || targetRole
+    const managedIds = managedOrganizationIds(body.managed_institution_ids)
+    if (nextRole === 'admin' && Array.isArray(body.managed_institution_ids)) {
+      const orgError = managedOrganizationError(managedIds, (rbac as any).capabilities, true)
+      if (orgError) {
+        return NextResponse.json({ error: orgError }, { status: 403 })
+      }
+    }
+
     const existingMeta =
       (target as { metadata?: Record<string, unknown> } | null)?.metadata &&
       typeof (target as { metadata?: unknown }).metadata === 'object'
@@ -343,6 +263,17 @@ export async function PATCH(
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+
+    if (nextRole !== 'admin') {
+      await syncAdminOrganizations(supabase, userId, [])
+      invalidateCapabilityCache()
+    } else if (Array.isArray(body.managed_institution_ids)) {
+      const synced = await syncAdminOrganizations(supabase, userId, managedIds)
+      if (synced.error) {
+        return NextResponse.json({ error: synced.error }, { status: 400 })
+      }
+      invalidateCapabilityCache()
     }
 
     const syncError = await syncRegistrationFromProfile(supabase, userId, updates)

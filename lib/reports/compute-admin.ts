@@ -281,7 +281,10 @@ export async function computeApprovalsReports(
   ]
 }
 
-export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
+export async function computeAdminOpsReports(
+  db: Db,
+  options?: { institutionIds?: string[] | null }
+): Promise<ReportBlock[]> {
   const since30 = daysAgo(30)
   const since7 = daysAgo(7)
 
@@ -322,15 +325,33 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
       .limit(8000),
   ])
 
-  const profileList = (profiles || []) as any[]
-  const courseList = (courses || []) as any[]
-  const enrollmentList = (enrollments || []) as any[]
-  const instList = (institutions || []) as any[]
-  const moduleList = (modules || []) as any[]
-  const lessonList = (lessons || []) as any[]
-  const ciList = (courseInstitutions || []) as any[]
-  const accessList = ((institutionAccess || []) as any[]).filter((a) => a.is_active)
-  const regList = (registrations || []) as any[]
+  let profileList = (profiles || []) as any[]
+  let courseList = (courses || []) as any[]
+  let enrollmentList = (enrollments || []) as any[]
+  let instList = (institutions || []) as any[]
+  let moduleList = (modules || []) as any[]
+  let lessonList = (lessons || []) as any[]
+  let ciList = (courseInstitutions || []) as any[]
+  let accessList = ((institutionAccess || []) as any[]).filter((a) => a.is_active)
+  let regList = (registrations || []) as any[]
+  const orgIds = (options?.institutionIds || []).filter(Boolean)
+  if (orgIds.length) {
+    const allowed = new Set(orgIds)
+    profileList = profileList.filter((row) => row.institution_id && allowed.has(row.institution_id))
+    instList = instList.filter((row) => allowed.has(row.id))
+    ciList = ciList.filter((row) => allowed.has(row.institution_id))
+    const courseIds = new Set(ciList.map((row) => row.course_id).filter(Boolean))
+    courseList = courseList.filter((row) => courseIds.has(row.id))
+    enrollmentList = enrollmentList.filter((row) => courseIds.has(row.course_id))
+    moduleList = moduleList.filter((row) => courseIds.has(row.course_id))
+    const moduleIds = new Set(moduleList.map((row) => row.id))
+    lessonList = lessonList.filter((row) => moduleIds.has(row.module_id))
+    accessList = accessList.filter((row) => allowed.has(row.institution_id))
+    regList = regList.filter((row) => row.institution_id && allowed.has(row.institution_id))
+  }
+  const certificateRows = orgIds.length
+    ? ((certificates || []) as any[]).filter((row) => courseList.some((course) => course.id === row.course_id))
+    : ((certificates || []) as any[])
   const assessableKeys = currentAssessableActivityKeys(lessonList)
   const activityList = ((activitySubmissions || []) as any[]).filter((row) =>
     assessableKeys.has(`${row.lesson_id}:${row.activity_id}`)
@@ -564,7 +585,7 @@ export async function computeAdminOpsReports(db: Db): Promise<ReportBlock[]> {
       metrics: [
         { key: 'completionRate', label: 'Completion rate', value: `${completionRate}%` },
         { key: 'completions', label: 'Completions', value: completions },
-        { key: 'certs', label: 'Certificates', value: (certificates || []).length },
+        { key: 'certs', label: 'Certificates', value: certificateRows.length },
       ],
     },
     {

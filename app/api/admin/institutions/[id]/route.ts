@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { enforceCapability, CAP } from '@/lib/rbac'
+import { institutionAllowed } from '@/lib/capabilities'
 import { ADMIN_ROLES } from '@/lib/roles'
 import { getAdminDb } from '@/lib/supabase/server'
 import { uniqueInstitutionSlug } from '@/lib/institution-slug'
@@ -43,6 +44,9 @@ export async function PATCH(
   if (!rbac.hasAccess) return denied(rbac)
 
   const { id } = await params
+  if (!institutionAllowed(id, rbac.capabilities)) {
+    return NextResponse.json({ error: 'Organization outside your permission scope' }, { status: 403 })
+  }
   let body: any
   try {
     body = await request.json()
@@ -116,6 +120,9 @@ export async function DELETE(
   if (!rbac.hasAccess) return denied(rbac)
 
   const { id } = await params
+  if (!institutionAllowed(id, rbac.capabilities)) {
+    return NextResponse.json({ error: 'Organization outside your permission scope' }, { status: 403 })
+  }
   const service = await getAdminDb()
 
   const { data, error } = await service

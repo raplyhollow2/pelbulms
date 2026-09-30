@@ -5,7 +5,9 @@ import {
   enforceCapability,
   filterByInstitutionScope,
   institutionAllowed,
+  invalidateCapabilityCache,
 } from '@/lib/capabilities'
+import { syncAdminOrganizations } from '@/lib/admin-org-scope'
 import { createServiceClient } from '@/lib/supabase/server'
 import type { UserRole } from '@/lib/roles'
 import { normalizeDzongkhag } from '@/lib/dzongkhags'
@@ -14,6 +16,26 @@ import { PHONE_RE } from '@/lib/profile-fields'
 type Role = UserRole
 
 const VALID_ROLES: Role[] = ['student', 'instructor', 'admin', 'resource_person', 'superadmin']
+
+function managedOrganizationIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return [...new Set(value.filter((id) => typeof id === 'string' && id))]
+}
+
+function managedOrganizationError(
+  ids: string[],
+  capabilities: Parameters<typeof institutionAllowed>[1],
+  creatingAdmin: boolean
+) {
+  const scoped = capabilities && capabilities.allInstitutions === false
+  if (creatingAdmin && scoped && ids.length === 0) {
+    return 'Choose at least one organization for this admin'
+  }
+  if (ids.some((id) => !institutionAllowed(id, capabilities))) {
+    return 'Organization outside your permission scope'
+  }
+  return null
+}
 
 async function requireUsersCap(
   request: NextRequest,
@@ -96,6 +118,7 @@ export async function POST(request: NextRequest) {
       avatar_url = null,
       password,
       institution_id = null,
+      managed_institution_ids,
       phone_number = null,
       location = null,
     } = body ?? {}
@@ -151,6 +174,14 @@ export async function POST(request: NextRequest) {
         { error: 'Institution outside your permission scope' },
         { status: 403 }
       )
+    }
+
+    const managedIds = managedOrganizationIds(managed_institution_ids)
+    if (resolvedRole === 'admin') {
+      const orgError = managedOrganizationError(managedIds, (rbac as any).capabilities, true)
+      if (orgError) {
+        return NextResponse.json({ error: orgError }, { status: 403 })
+      }
     }
 
     let normalizedPhone: string | null = null
@@ -212,6 +243,14 @@ export async function POST(request: NextRequest) {
     if (profileError) {
       await supabase.auth.admin.deleteUser(created.user.id)
       return NextResponse.json({ error: profileError.message }, { status: 400 })
+    }
+
+    if (resolvedRole === 'admin') {
+      const synced = await syncAdminOrganizations(supabase, created.user.id, managedIds)
+      if (synced.error) {
+        return NextResponse.json({ error: synced.error }, { status: 400 })
+      }
+      invalidateCapabilityCache()
     }
 
     return NextResponse.json({ user: profile }, { status: 201 })

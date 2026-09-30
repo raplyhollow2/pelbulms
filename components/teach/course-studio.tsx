@@ -108,6 +108,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   const [aiOpen, setAiOpen] = useState(false)
   const [lessonQuery, setLessonQuery] = useState('')
   const [foldedSections, setFoldedSections] = useState<Set<string>>(() => new Set())
+  const [denied, setDenied] = useState(false)
   const outlineOpen = useSyncExternalStore(subscribeOutline, readOutlineOpen, getServerOutlineOpen)
   const titleRef = useRef<HTMLInputElement>(null)
   const focusTitle = useRef(false)
@@ -118,6 +119,24 @@ export function CourseStudio({ courseId }: { courseId: string }) {
 
   const load = async () => {
     setLoading(true)
+    setDenied(false)
+    const capsRes = await fetch('/api/admin/capabilities/me')
+    const caps = await capsRes.json().catch(() => ({}))
+    if (capsRes.ok && caps.role === 'admin' && caps.allInstitutions === false) {
+      const orgIds = new Set<string>(Array.isArray(caps.institutionIds) ? caps.institutionIds : [])
+      const { data: links } = await supabase
+        .from('course_institutions')
+        .select('institution_id')
+        .eq('course_id', courseId)
+      const linked = (links || []).some(
+        (row: { institution_id?: string }) => row.institution_id && orgIds.has(row.institution_id)
+      )
+      if (!linked) {
+        setDenied(true)
+        setLoading(false)
+        return
+      }
+    }
     const { data: courseRow } = await supabase.from('courses').select('*').eq('id', courseId).single()
     const { data: moduleRows } = await supabase
       .from('modules')
@@ -433,6 +452,14 @@ export function CourseStudio({ courseId }: { courseId: string }) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-bhutan-yellow" />
+      </div>
+    )
+  }
+
+  if (denied) {
+    return (
+      <div className="mx-auto max-w-lg px-6 py-16 text-sm text-muted-foreground">
+        This course is outside the organizations you manage.
       </div>
     )
   }

@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server'
 import { enforceCapability, CAP } from '@/lib/rbac'
+import { institutionAllowed } from '@/lib/capabilities'
 import { ADMIN_ROLES } from '@/lib/roles'
 import { getAdminDb } from '@/lib/supabase/server'
 import { uniqueInstitutionSlug } from '@/lib/institution-slug'
@@ -73,6 +74,11 @@ export async function GET(request: NextRequest) {
   }
   if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
+  if (rbac.capabilities && rbac.capabilities.allInstitutions === false) {
+    const allowed = new Set(rbac.capabilities.institutionIds || [])
+    institutions = (institutions || []).filter((row: { id: string }) => allowed.has(row.id))
+  }
+
   const ids = (institutions || []).map((i: { id: string }) => i.id)
   const counts = new Map<string, number>()
   if (ids.length) {
@@ -102,6 +108,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const rbac = await requireInstitutions(request, 'add')
   if (!rbac.hasAccess) return denied(rbac)
+  if (rbac.capabilities && rbac.capabilities.allInstitutions === false) {
+    return NextResponse.json(
+      { error: 'Only a platform admin can add an organization' },
+      { status: 403 }
+    )
+  }
 
   let body: any
   try {

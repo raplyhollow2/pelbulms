@@ -1,6 +1,7 @@
 // @ts-nocheck - course_instructors not in generated Database types yet
 import type { createServiceClient } from '@/lib/supabase/server'
 import type { UserRole } from '@/lib/rbac'
+import { scopedCourseIdsForAdmin } from '@/lib/admin-org-scope'
 
 type Service = Awaited<ReturnType<typeof createServiceClient>>
 
@@ -15,8 +16,14 @@ export async function userCanManageCourse(
   userId: string,
   role?: UserRole
 ): Promise<boolean> {
-  if (role === 'admin' || role === 'superadmin' || role === 'resource_person') {
+  if (role === 'superadmin' || role === 'resource_person') {
     return true
+  }
+
+  if (role === 'admin') {
+    const scoped = await scopedCourseIdsForAdmin(service, userId, role)
+    if (!scoped) return true
+    return scoped.includes(courseId)
   }
 
   const { data: course } = await service

@@ -57,12 +57,12 @@ export async function GET(request: NextRequest) {
     }
 
     const sections: ReportSectionPayload[] = []
+    const institutionIds =
+      scope.allowed && (scope.isSuper || scope.isSuperadmin || caps.allInstitutions)
+        ? null
+        : scope.institutionIds
 
     if (scope.allowed) {
-      const institutionIds =
-        scope.isSuper || scope.isSuperadmin || caps.allInstitutions
-          ? null
-          : scope.institutionIds
       const blocks = await computeApprovalsReports(service as any, {
         institutionIds: institutionIds && institutionIds.length ? institutionIds : null,
       })
@@ -79,7 +79,9 @@ export async function GET(request: NextRequest) {
       role === 'admin' ||
       role === 'superadmin'
     ) {
-      const ops = await computeAdminOpsReports(service as any)
+      const ops = await computeAdminOpsReports(service as any, {
+        institutionIds: institutionIds && institutionIds.length ? institutionIds : null,
+      })
       sections.push({
         section: 'institution-ops',
         title: REPORT_SECTIONS['institution-ops'].title,

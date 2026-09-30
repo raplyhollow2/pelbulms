@@ -3,6 +3,7 @@ import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/
 import { canAccessAdmin, canAccessTeaching } from '@/lib/roles'
 import { currentAssessableActivityKeys } from '@/lib/activity-responses'
 import { getRequestUser } from '@/lib/request-user'
+import { scopedCourseIdsForAdmin } from '@/lib/admin-org-scope'
 
 /**
  * GET /api/teach/grading-summary
@@ -27,7 +28,16 @@ export async function GET(request: Request) {
     }
 
     let courses: { id: string; title: string }[] = []
-    if (canAccessAdmin(role)) {
+    if (role === 'admin') {
+      const scoped = await scopedCourseIdsForAdmin(service, user.id, role)
+      if (!scoped) {
+        const { data } = await service.from('courses').select('id, title')
+        courses = (data || []) as { id: string; title: string }[]
+      } else if (scoped.length) {
+        const { data } = await service.from('courses').select('id, title').in('id', scoped)
+        courses = (data || []) as { id: string; title: string }[]
+      }
+    } else if (canAccessAdmin(role)) {
       const { data } = await service.from('courses').select('id, title')
       courses = (data || []) as { id: string; title: string }[]
     } else {

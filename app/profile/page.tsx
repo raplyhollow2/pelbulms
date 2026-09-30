@@ -6,16 +6,25 @@ import { resolveMediaUrl } from '@/lib/media'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { RoleBadge } from '@/components/auth/role-badge'
 import { Separator } from '@/components/ui/separator'
 import { canAccessTeaching } from '@/lib/roles'
 import { linkedinFromProfile, mergeSocialLinks, normalizeLinkedInUrl } from '@/lib/social-links'
+import { DZONGKHAGS, normalizeDzongkhag } from '@/lib/dzongkhags'
+import { GENDER_OPTIONS } from '@/lib/profile-fields'
 import {
   User,
-  Mail,
   Calendar,
   Shield,
   BookOpen,
@@ -30,6 +39,19 @@ import {
   ShieldCheck,
 } from 'lucide-react'
 
+function storedText(profile: any, key: string, metaKey?: string) {
+  const direct = profile?.[key]
+  if (typeof direct === 'string' && direct.trim()) return direct
+  const meta = profile?.metadata?.[metaKey || key]
+  return typeof meta === 'string' ? meta : ''
+}
+
+function documentSrc(path?: string | null) {
+  if (!path) return ''
+  if (path.startsWith('http')) return path
+  return `/api/register/document?path=${encodeURIComponent(path)}`
+}
+
 export default function ProfilePage() {
   const supabase = createClient()
   const [user, setUser] = useState<any>(null)
@@ -38,6 +60,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [uploadingKyc, setUploadingKyc] = useState<'passport' | 'cid' | null>(null)
   const [error, setError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -49,6 +72,21 @@ export default function ProfilePage() {
     location: '',
     website: '',
     linkedin: '',
+    phone_number: '',
+    date_of_birth: '',
+    gender: '',
+    gewog: '',
+    village: '',
+    cid_number: '',
+    education_level: '',
+    passport_photo_url: '',
+    cid_photo_url: '',
+    pelsung_number: '',
+    class_name: '',
+    emergency_contact_name: '',
+    emergency_contact_phone: '',
+    parent_guardian_name: '',
+    parent_guardian_phone: '',
   })
 
   const [stats, setStats] = useState({
@@ -87,9 +125,26 @@ export default function ProfilePage() {
             bio: safeProfile.bio || '',
             avatar_url: safeProfile.avatar_url || '',
             headline: safeProfile.headline || '',
-            location: safeProfile.location || '',
+            location: normalizeDzongkhag(safeProfile.location) || '',
             website: safeProfile.website || '',
             linkedin: linkedinFromProfile(safeProfile) || '',
+            phone_number: storedText(safeProfile, 'phone_number'),
+            date_of_birth: safeProfile.date_of_birth ? String(safeProfile.date_of_birth).slice(0, 10) : '',
+            gender: GENDER_OPTIONS.some((option) => option.value === safeProfile.gender)
+              ? safeProfile.gender
+              : '',
+            gewog: safeProfile.gewog || '',
+            village: safeProfile.village || '',
+            cid_number: storedText(safeProfile, 'cid_number'),
+            education_level: safeProfile.education_level || '',
+            passport_photo_url: safeProfile.passport_photo_url || '',
+            cid_photo_url: safeProfile.cid_photo_url || '',
+            pelsung_number: storedText(safeProfile, 'pelsung_number'),
+            class_name: storedText(safeProfile, 'class_name', 'class'),
+            emergency_contact_name: safeProfile.emergency_contact_name || '',
+            emergency_contact_phone: safeProfile.emergency_contact_phone || '',
+            parent_guardian_name: safeProfile.parent_guardian_name || '',
+            parent_guardian_phone: safeProfile.parent_guardian_phone || '',
           })
         }
 
@@ -167,6 +222,32 @@ export default function ProfilePage() {
     }
   }
 
+  const handleKycUpload = async (field: 'passport' | 'cid', file: File) => {
+    setUploadingKyc(field)
+    setError('')
+    try {
+      const body = new FormData()
+      body.append('file', file)
+      body.append('field', field)
+      const res = await fetch('/api/register/upload', { method: 'POST', body })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Upload failed')
+      const key = field === 'cid' ? 'cid_photo_url' : 'passport_photo_url'
+      const save = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [key]: data.path }),
+      })
+      const saved = await save.json()
+      if (!save.ok) throw new Error(saved.error || 'Could not save photo')
+      setFormData((prev) => ({ ...prev, [key]: data.path }))
+    } catch (err: any) {
+      setError(err?.message || 'Failed to upload photo')
+    } finally {
+      setUploadingKyc(null)
+    }
+  }
+
   const canShowLinkedIn = canAccessTeaching(profile?.role)
   const linkedinError =
     canShowLinkedIn && formData.linkedin.trim() && !normalizeLinkedInUrl(formData.linkedin)
@@ -188,22 +269,36 @@ export default function ProfilePage() {
         ? mergeSocialLinks(profile?.social_links, { linkedin: formData.linkedin })
         : undefined
 
-      const { error } = await supabase
-        .from('profiles')
-        // @ts-ignore - Supabase types not properly defined
-        .update({
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           full_name: formData.full_name,
           bio: formData.bio,
           avatar_url: formData.avatar_url,
           headline: formData.headline,
-          location: formData.location,
           website: formData.website,
+          phone_number: formData.phone_number,
+          date_of_birth: formData.date_of_birth,
+          gender: formData.gender,
+          location: formData.location,
+          gewog: formData.gewog,
+          village: formData.village,
+          cid_number: formData.cid_number,
+          education_level: formData.education_level,
+          passport_photo_url: formData.passport_photo_url,
+          cid_photo_url: formData.cid_photo_url,
+          pelsung_number: formData.pelsung_number,
+          class_name: formData.class_name,
+          emergency_contact_name: formData.emergency_contact_name,
+          emergency_contact_phone: formData.emergency_contact_phone,
+          parent_guardian_name: formData.parent_guardian_name,
+          parent_guardian_phone: formData.parent_guardian_phone,
           ...(canShowLinkedIn ? { social_links: nextSocial } : {}),
-          updated_at: new Date().toISOString()
-        } as any)
-        .eq('id', user.id)
-
-      if (error) throw error
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to save profile')
 
       if (canShowLinkedIn) {
         setProfile((prev: any) => ({ ...prev, social_links: nextSocial }))
@@ -213,9 +308,9 @@ export default function ProfilePage() {
 
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
-    } catch (error) {
-      console.error('Error updating profile:', error)
-      setError('Failed to save profile')
+    } catch (err: any) {
+      console.error('Error updating profile:', err)
+      setError(err?.message || 'Failed to save profile')
     } finally {
       setSaving(false)
     }
@@ -292,7 +387,7 @@ export default function ProfilePage() {
                   ) : (
                     <>
                       <Camera className="w-4 h-4" />
-                      Change Avatar
+                      Change photo
                     </>
                   )}
                 </Button>
@@ -305,65 +400,271 @@ export default function ProfilePage() {
 
             <Separator />
 
-            {/* Form Fields */}
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Full Name</label>
+                <Label htmlFor="profile_name">Full name</Label>
                 <Input
-                  placeholder="Enter your full name"
+                  id="profile_name"
+                  className="min-h-11"
                   value={formData.full_name}
                   onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Email</label>
-                <div className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-muted-foreground" />
-                  <Input
-                    value={user?.email || ''}
-                    disabled
-                    className="bg-muted"
-                  />
-                </div>
+                <Label htmlFor="profile_email">Email</Label>
+                <Input
+                  id="profile_email"
+                  type="email"
+                  value={user?.email || profile?.email || ''}
+                  disabled
+                  className="min-h-11 bg-muted"
+                />
                 <p className="text-xs text-muted-foreground">
-                  Email cannot be changed
+                  Only a superadmin can change the sign-in email.
                 </p>
               </div>
 
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="profile_phone">Mobile number</Label>
+                  <Input
+                    id="profile_phone"
+                    inputMode="tel"
+                    className="min-h-11"
+                    placeholder="+97517123456"
+                    value={formData.phone_number}
+                    onChange={(e) => setFormData({ ...formData, phone_number: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile_dob">Date of birth</Label>
+                  <Input
+                    id="profile_dob"
+                    type="date"
+                    className="min-h-11"
+                    value={formData.date_of_birth}
+                    onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile_gender">Gender</Label>
+                  <Select
+                    value={formData.gender || '__none__'}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, gender: !value || value === '__none__' ? '' : value })
+                    }
+                  >
+                    <SelectTrigger id="profile_gender" className="min-h-11 w-full">
+                      <SelectValue>
+                        {(value: string | null) =>
+                          GENDER_OPTIONS.find((option) => option.value === value)?.label || 'Not set'
+                        }
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Not set</SelectItem>
+                      {GENDER_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile_dzongkhag">Dzongkhag</Label>
+                  <Select
+                    value={formData.location || '__none__'}
+                    onValueChange={(value) =>
+                      setFormData({
+                        ...formData,
+                        location: !value || value === '__none__' ? '' : value,
+                      })
+                    }
+                  >
+                    <SelectTrigger id="profile_dzongkhag" className="min-h-11 w-full">
+                      <SelectValue>
+                        {(value: string | null) => (!value || value === '__none__' ? 'Not set' : value)}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Not set</SelectItem>
+                      {DZONGKHAGS.map((dzongkhag) => (
+                        <SelectItem key={dzongkhag} value={dzongkhag}>
+                          {dzongkhag}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile_gewog">Gewog</Label>
+                  <Input
+                    id="profile_gewog"
+                    className="min-h-11"
+                    value={formData.gewog}
+                    onChange={(e) => setFormData({ ...formData, gewog: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile_village">Village</Label>
+                  <Input
+                    id="profile_village"
+                    className="min-h-11"
+                    value={formData.village}
+                    onChange={(e) => setFormData({ ...formData, village: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile_cid">CID number</Label>
+                  <Input
+                    id="profile_cid"
+                    inputMode="numeric"
+                    maxLength={11}
+                    className="min-h-11"
+                    value={formData.cid_number}
+                    onChange={(e) =>
+                      setFormData({ ...formData, cid_number: e.target.value.replace(/\D/g, '') })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile_staff_id">Student / staff ID</Label>
+                  <Input
+                    id="profile_staff_id"
+                    className="min-h-11"
+                    value={formData.pelsung_number}
+                    onChange={(e) => setFormData({ ...formData, pelsung_number: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile_class">Class</Label>
+                  <Input
+                    id="profile_class"
+                    className="min-h-11"
+                    value={formData.class_name}
+                    onChange={(e) => setFormData({ ...formData, class_name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile_education">Education level</Label>
+                  <Input
+                    id="profile_education"
+                    className="min-h-11"
+                    value={formData.education_level}
+                    onChange={(e) => setFormData({ ...formData, education_level: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile_emergency_name">Emergency contact</Label>
+                  <Input
+                    id="profile_emergency_name"
+                    className="min-h-11"
+                    value={formData.emergency_contact_name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, emergency_contact_name: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile_emergency_phone">Emergency phone</Label>
+                  <Input
+                    id="profile_emergency_phone"
+                    className="min-h-11"
+                    value={formData.emergency_contact_phone}
+                    onChange={(e) =>
+                      setFormData({ ...formData, emergency_contact_phone: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile_guardian">Parent / guardian</Label>
+                  <Input
+                    id="profile_guardian"
+                    className="min-h-11"
+                    value={formData.parent_guardian_name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, parent_guardian_name: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="profile_guardian_phone">Guardian phone</Label>
+                  <Input
+                    id="profile_guardian_phone"
+                    className="min-h-11"
+                    value={formData.parent_guardian_phone}
+                    onChange={(e) =>
+                      setFormData({ ...formData, parent_guardian_phone: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {([
+                  ['passport', 'Identity photo', formData.passport_photo_url],
+                  ['cid', 'CID photo', formData.cid_photo_url],
+                ] as const).map(([field, label, path]) => (
+                  <div key={field} className="space-y-2">
+                    <Label>{label}</Label>
+                    {path ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={documentSrc(path)}
+                        alt={label}
+                        className="h-28 w-full rounded-lg border object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-28 items-center justify-center rounded-lg border border-dashed text-xs text-muted-foreground">
+                        No photo
+                      </div>
+                    )}
+                    <label className="inline-flex">
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) void handleKycUpload(field, file)
+                          e.target.value = ''
+                        }}
+                      />
+                      <span className="inline-flex min-h-11 cursor-pointer items-center rounded-md border px-3 text-sm">
+                        {uploadingKyc === field ? 'Uploading…' : path ? 'Replace photo' : 'Upload photo'}
+                      </span>
+                    </label>
+                  </div>
+                ))}
+              </div>
+
               <div className="space-y-2">
-                <label className="text-sm font-medium">Headline</label>
+                <Label htmlFor="profile_headline">Headline</Label>
                 <Input
+                  id="profile_headline"
                   className="min-h-11"
                   placeholder="e.g. Lecturer in AI-enhanced pedagogy"
                   value={formData.headline}
                   onChange={(e) => setFormData({ ...formData, headline: e.target.value })}
                 />
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Location</label>
-                  <Input
-                    className="min-h-11"
-                    placeholder="Thimphu, Bhutan"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Website</label>
-                  <Input
-                    className="min-h-11"
-                    placeholder="https://"
-                    value={formData.website}
-                    onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="profile_website">Website</Label>
+                <Input
+                  id="profile_website"
+                  className="min-h-11"
+                  placeholder="https://"
+                  value={formData.website}
+                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                />
               </div>
               {canShowLinkedIn && (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">LinkedIn profile</label>
+                  <Label htmlFor="profile_linkedin">LinkedIn profile</Label>
                   <Input
+                    id="profile_linkedin"
                     className="min-h-11"
                     inputMode="url"
                     autoComplete="url"
@@ -380,8 +681,9 @@ export default function ProfilePage() {
                 </div>
               )}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Bio</label>
+                <Label htmlFor="profile_bio">Bio</Label>
                 <Textarea
+                  id="profile_bio"
                   placeholder="Tell us about yourself..."
                   value={formData.bio}
                   onChange={(e) => setFormData({ ...formData, bio: e.target.value })}

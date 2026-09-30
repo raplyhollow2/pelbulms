@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
 import { canAccessAdmin, canAccessTeaching } from '@/lib/roles'
 import { getRequestUser } from '@/lib/request-user'
+import { scopedCourseIdsForAdmin } from '@/lib/admin-org-scope'
 
 export type EnrollmentRequestRow = {
   enrollmentId: string
@@ -40,6 +41,15 @@ export async function GET(request: Request) {
     const isAdmin = canAccessAdmin(role)
 
     let courseIds: string[] | null = null
+    if (role === 'admin') {
+      const scoped = await scopedCourseIdsForAdmin(service, user.id, role)
+      if (scoped) {
+        if (scoped.length === 0) {
+          return NextResponse.json({ requests: [] as EnrollmentRequestRow[] })
+        }
+        courseIds = scoped
+      }
+    }
     if (!isAdmin) {
       const { data: owned } = await service
         .from('courses')
