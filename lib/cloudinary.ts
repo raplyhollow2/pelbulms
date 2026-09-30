@@ -157,20 +157,17 @@ export type MediaResourceType = 'image' | 'video'
 export function videoQualityTransformation(
   quality: VideoQualityPreference = 'high'
 ): Record<string, unknown>[] {
+  // Not used for lesson playback. Any on-the-fly video transform here, including
+  // q_auto and vc_h264, comes back as fragmented MP4 (ftypiso6) with no byte
+  // ranges, and the native <video> element will not play it.
   switch (quality) {
     case 'auto':
-      return [{ quality: 'auto:eco', video_codec: 'auto' }]
+      return [{ quality: 'auto:eco', fetch_format: 'mp4', video_codec: 'h264', height: 480, crop: 'limit' }]
     case 'max':
-      return [
-        { quality: 'auto:best', video_codec: 'auto' },
-        { height: 1080, crop: 'limit' },
-      ]
+      return [{ quality: 'auto:best', fetch_format: 'mp4', video_codec: 'h264', height: 1080, crop: 'limit' }]
     case 'high':
     default:
-      return [
-        { quality: 'auto:good', video_codec: 'auto' },
-        { height: 720, crop: 'limit' },
-      ]
+      return [{ quality: 'auto:good', fetch_format: 'mp4', video_codec: 'h264', height: 720, crop: 'limit' }]
   }
 }
 
@@ -187,21 +184,29 @@ export function signedUrl(
     resourceType?: MediaResourceType
     transformation?: Record<string, unknown>[]
     videoQuality?: VideoQualityPreference
+    /** Original upload, still delivered as a progressive MP4 when possible. */
+    raw?: boolean
+    /** Set false only for the last-resort original container. */
+    format?: false
   } = {}
 ): string {
   applyAccount(account)
-  const { resourceType = 'image', transformation, videoQuality } = opts
+  const { resourceType = 'image', transformation, videoQuality, raw = false, format } = opts
+  // Video playback is the original progressive upload. On-the-fly transforms
+  // (q_auto, height caps, vc_h264) are fragmented MP4 and will not play.
   const resolved =
-    transformation ??
-    (resourceType === 'video' && videoQuality
-      ? videoQualityTransformation(videoQuality)
-      : defaultTransformation(resourceType))
+    raw || resourceType === 'video'
+      ? transformation
+      : (transformation ??
+        (videoQuality ? videoQualityTransformation(videoQuality) : defaultTransformation(resourceType)))
+  const mp4 = resourceType === 'video' && format !== false
   return cloudinary.url(publicId, {
     resource_type: resourceType,
     type: 'authenticated',
     sign_url: true,
     secure: true,
-    transformation: resolved,
+    ...(mp4 ? { format: 'mp4' } : {}),
+    ...(resolved ? { transformation: resolved } : {}),
   })
 }
 

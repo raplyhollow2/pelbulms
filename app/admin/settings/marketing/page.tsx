@@ -34,6 +34,7 @@ import {
   type LandingStep,
 } from '@/lib/landing-content'
 import { getYoutubeId } from '@/lib/video-url'
+import { YoutubeFrame } from '@/components/course/youtube-frame'
 import {
   Select,
   SelectContent,
@@ -220,14 +221,6 @@ export default function AdminMarketingSettingsPage() {
   const previewId = getYoutubeId(form.hero_video_url)
   const previewStart = parseSecondsInput(form.hero_video_start_seconds, { allowZero: true }) ?? 0
   const previewEnd = parseSecondsInput(form.hero_video_end_seconds, { allowZero: false })
-  const previewParams = new URLSearchParams({
-    rel: '0',
-    modestbranding: '1',
-    start: String(previewStart),
-  })
-  if (previewEnd != null && previewEnd > previewStart) {
-    previewParams.set('end', String(previewEnd))
-  }
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -261,13 +254,17 @@ export default function AdminMarketingSettingsPage() {
             placeholder={DEFAULT_HERO_VIDEO_URL}
           />
           {previewId ? (
-            <div className="mt-2 aspect-video overflow-hidden rounded-lg border border-border/50 bg-black">
-              <iframe
+            <div className="relative mt-2 aspect-video w-full overflow-hidden rounded-lg border border-border/50 bg-black">
+              <YoutubeFrame
                 key={`${previewId}-${previewStart}-${previewEnd ?? 'end'}`}
+                id={previewId}
                 title="Hero video preview"
-                src={`https://www.youtube.com/embed/${previewId}?${previewParams.toString()}`}
-                className="h-full w-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                params={{
+                  rel: 0,
+                  modestbranding: 1,
+                  start: previewStart,
+                  end: previewEnd != null && previewEnd > previewStart ? previewEnd : undefined,
+                }}
               />
             </div>
           ) : (
@@ -330,8 +327,7 @@ export default function AdminMarketingSettingsPage() {
           </Select>
           <p className="text-[11px] text-muted-foreground">
             {VIDEO_QUALITY_OPTIONS.find((o) => o.value === form.video_quality)?.hint}{' '}
-            Applies to lesson playback (Cloudinary) and prefers higher quality for the hero
-            background.
+            Prefers a higher YouTube rendition for the hero. Lesson uploads play the original MP4.
           </p>
         </div>
         <div className="space-y-1.5">

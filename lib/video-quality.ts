@@ -10,9 +10,9 @@ export const VIDEO_QUALITY_OPTIONS: {
   label: string
   hint: string
 }[] = [
-  { value: 'auto', label: 'Auto (save data)', hint: 'Smaller files; Cloudinary picks eco bitrate.' },
-  { value: 'high', label: 'High (recommended)', hint: 'HD up to 720p with good visual quality.' },
-  { value: 'max', label: 'Maximum', hint: 'Best quality up to 1080p; uses more bandwidth.' },
+  { value: 'auto', label: 'Auto (save data)', hint: 'Hero video prefers a smaller YouTube rendition.' },
+  { value: 'high', label: 'High (recommended)', hint: 'Hero video prefers an HD YouTube rendition.' },
+  { value: 'max', label: 'Maximum', hint: 'Hero video prefers the highest YouTube rendition.' },
 ]
 
 export function parseVideoQuality(value: unknown): VideoQualityPreference {

@@ -14,6 +14,7 @@ import {
   UploadCloud,
   Video,
 } from 'lucide-react'
+import { YoutubeFrame } from '@/components/course/youtube-frame'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -366,20 +367,23 @@ export function CurriculumSequenceEditor({
                           </p>
                         )}
                         {lesson.video_url && getYoutubeId(lesson.video_url) ? (
-                          <div className="overflow-hidden rounded-md border">
-                            <iframe
-                              src={`https://www.youtube.com/embed/${getYoutubeId(lesson.video_url)}?rel=0&modestbranding=1`}
-                              className="aspect-video w-full"
-                              allowFullScreen
+                          <div className="relative aspect-video w-full overflow-hidden rounded-md border bg-black">
+                            <YoutubeFrame
+                              id={getYoutubeId(lesson.video_url) || ''}
                               title={lesson.title || 'Lecture video'}
+                              params={{ rel: 0, modestbranding: 1 }}
                             />
                           </div>
                         ) : parseMediaRef(lesson.video_url)?.type === 'video' ? (
-                          <video
-                            src={resolveMediaUrl(lesson.video_url) || undefined}
-                            controls
-                            className="aspect-video w-full rounded-md bg-black"
-                          />
+                          <div className="relative aspect-video w-full overflow-hidden rounded-md bg-black">
+                            <video
+                              src={resolveMediaUrl(lesson.video_url) || undefined}
+                              controls
+                              playsInline
+                              preload="metadata"
+                              className="absolute inset-0 h-full w-full object-cover"
+                            />
+                          </div>
                         ) : null}
                       </div>
                     )}

@@ -6,6 +6,7 @@
  * real minutes and is what the course page clock shows beside the description.
  */
 import { createClient } from '@/lib/supabase/client'
+import { createYoutubeIframe } from '@/lib/video-url'
 
 export type LessonDurationPatch = {
   video_duration: number
@@ -25,7 +26,7 @@ declare global {
       Player: new (
         el: HTMLElement,
         options: {
-          videoId: string
+          videoId?: string
           width?: number
           height?: number
           playerVars?: Record<string, string | number>
@@ -134,6 +135,8 @@ export async function probeYouTubeDuration(videoId: string, timeoutMs = 10000): 
     host.setAttribute('aria-hidden', 'true')
     host.style.cssText =
       'position:fixed;width:200px;height:112px;left:-9999px;top:0;opacity:0;pointer-events:none;'
+    const iframe = createYoutubeIframe(videoId, { autoplay: 0, controls: 0 }, { contain: true })
+    host.appendChild(iframe)
     document.body.appendChild(host)
 
     let player: YtPlayer | null = null
@@ -156,11 +159,7 @@ export async function probeYouTubeDuration(videoId: string, timeoutMs = 10000): 
     }
 
     timer = window.setTimeout(() => finish(null), timeoutMs)
-    player = new Player(host, {
-      videoId,
-      width: 200,
-      height: 112,
-      playerVars: { autoplay: 0, controls: 0, origin: window.location.origin },
+    player = new Player(iframe, {
       events: {
         onReady: (event) => {
           const read = () => {

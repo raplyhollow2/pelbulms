@@ -30,6 +30,7 @@ import {
   describeCompletionBlockers,
   type CompletionBlocker,
 } from '@/lib/activity-responses'
+import { VIDEO_COMPLETE_PERCENT } from '@/lib/lesson-completion-sync'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Module = Database['public']['Tables']['modules']['Row']
@@ -111,6 +112,7 @@ export default function LessonViewPage() {
   const certAutoRequestedRef = useRef(false)
   const congratsShownRef = useRef(false)
   const completingLessonRef = useRef(false)
+  const autoCompleteLockRef = useRef<string | null>(null)
   const activeLessonIdRef = useRef(lessonId)
   const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const congratsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -940,6 +942,8 @@ export default function LessonViewPage() {
     // No mandatory activities ⇒ treated as done (avoids stuck false before/without API row)
     if (!activityCompleted && mandatoryTotal > 0) return
     if (lesson.video_url && !videoWatchSatisfied) return
+    if (autoCompleteLockRef.current === lessonId) return
+    autoCompleteLockRef.current = lessonId
     void setLessonCompletedState(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -1545,7 +1549,7 @@ export default function LessonViewPage() {
 
   return (
     <div
-      className="flex min-h-dvh flex-col bg-background"
+      className="flex h-dvh max-h-dvh flex-col overflow-hidden bg-background"
       style={
         {
           backgroundColor: courseAi.theme?.background,
@@ -1566,11 +1570,11 @@ export default function LessonViewPage() {
         onDownload={() => void handleGetCertificate()}
       />
       {staffPreview ? (
-        <div className="border-b border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm text-amber-950 dark:text-amber-100">
+        <div className="shrink-0 border-b border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm text-amber-950 dark:text-amber-100">
           Preview. This is the learner lesson, including unpublished pages. Nothing you do here is saved.
         </div>
       ) : freePreview ? (
-        <div className="border-b border-bhutan-yellow/50 bg-bhutan-yellow/15 px-4 py-2 text-sm">
+        <div className="shrink-0 border-b border-bhutan-yellow/50 bg-bhutan-yellow/15 px-4 py-2 text-sm">
           Free preview. Enroll to open the rest of this course. Nothing you do here is saved.
         </div>
       ) : null}
@@ -1591,8 +1595,8 @@ export default function LessonViewPage() {
         onToggleComplete={toggleLessonComplete}
       />
 
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div className="min-w-0 flex-1 overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+        <div className="min-w-0 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
           <LessonContentStage
             lesson={lesson}
             lessonId={lessonId}
@@ -1714,7 +1718,7 @@ export default function LessonViewPage() {
           onSelectActivity={tryOpenActivity}
           activeActivityId={focusActivityId}
           completedActivityIds={completedActivityIds}
-          className="border-t lg:h-[calc(100dvh-3.5rem)] lg:w-[380px] lg:shrink-0 lg:border-l lg:border-t-0"
+          className="h-auto max-h-none overflow-visible border-t lg:h-full lg:max-h-full lg:min-h-0 lg:w-[380px] lg:shrink-0 lg:overflow-hidden lg:border-l lg:border-t-0"
         />
       </div>
     </div>

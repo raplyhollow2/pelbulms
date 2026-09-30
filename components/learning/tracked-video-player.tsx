@@ -4,6 +4,9 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { Play } from 'lucide-react'
 import {
   DRIVE_SHARE_HINT,
+  YOUTUBE_EMBED_ALLOW,
+  createYoutubeIframe,
+  pinYoutubeIframe,
   getGoogleDriveEmbedUrl,
   getGoogleDriveFileId,
   getYoutubeId,
@@ -39,6 +42,10 @@ interface TrackedVideoPlayerProps {
 
 const YT_API_SRC = 'https://www.youtube.com/iframe_api'
 
+/** Column-width 16:9. Height comes only from aspect-video; the media is taken out of flow. */
+const FRAME_CLASS = 'relative aspect-video w-full overflow-hidden rounded-xl bg-black'
+const MEDIA_CLASS = 'absolute inset-0 h-full w-full border-0 object-cover'
+
 /** Loads the YouTube IFrame API exactly once and resolves when ready. */
 let ytApiPromise: Promise<any> | null = null
 function loadYouTubeApi(): Promise<any> {
@@ -48,16 +55,30 @@ function loadYouTubeApi(): Promise<any> {
   if (ytApiPromise) return ytApiPromise
 
   ytApiPromise = new Promise((resolve) => {
+    const finish = () => {
+      if (w.YT?.Player) resolve(w.YT)
+    }
     const prev = w.onYouTubeIframeAPIReady
     w.onYouTubeIframeAPIReady = () => {
       if (typeof prev === 'function') prev()
-      resolve(w.YT)
+      finish()
     }
     if (!document.querySelector(`script[src="${YT_API_SRC}"]`)) {
       const tag = document.createElement('script')
       tag.src = YT_API_SRC
       document.head.appendChild(tag)
     }
+    // The API only fires its callback once. If another loader already consumed
+    // it, poll until YT.Player exists.
+    const started = Date.now()
+    const timer = window.setInterval(() => {
+      if (w.YT?.Player) {
+        window.clearInterval(timer)
+        finish()
+      } else if (Date.now() - started > 10000) {
+        window.clearInterval(timer)
+      }
+    }, 50)
   })
   return ytApiPromise
 }
@@ -129,21 +150,27 @@ export function TrackedVideoPlayer({
 
   // ---------- YouTube player ----------
   useEffect(() => {
-    if (!youtubeId) return
+    if (!youtubeId || !containerRef.current) return
     let cancelled = false
+    // Build the iframe ourselves so referrerpolicy is set before YouTube loads.
+    // Keep it outside React so the IFrame API can own the node.
+    const iframe = createYoutubeIframe(
+      youtubeId,
+      {
+        rel: 0,
+        modestbranding: 1,
+      },
+      { contain: true }
+    )
+    containerRef.current.replaceChildren(iframe)
+    pinYoutubeIframe(iframe)
 
     loadYouTubeApi().then((YT) => {
-      if (cancelled || !containerRef.current) return
-      playerRef.current = new YT.Player(containerRef.current, {
-        videoId: youtubeId,
-        playerVars: {
-          rel: 0,
-          modestbranding: 1,
-          enablejsapi: 1,
-          origin: typeof window !== 'undefined' ? window.location.origin : undefined,
-        },
+      if (cancelled || !iframe.isConnected) return
+      playerRef.current = new YT.Player(iframe, {
         events: {
           onReady: (e: any) => {
+            pinYoutubeIframe(iframe)
             const dur = e.target.getDuration?.() || 0
             durationRef.current = dur
             setDuration(dur)
@@ -205,6 +232,7 @@ export function TrackedVideoPlayer({
         /* noop */
       }
       playerRef.current = null
+      containerRef.current?.replaceChildren()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [youtubeId])
@@ -259,7 +287,7 @@ export function TrackedVideoPlayer({
 
   if (!videoUrl) {
     return (
-      <div className={`aspect-video w-full bg-black flex items-center justify-center ${className || ''}`}>
+      <div className={`${FRAME_CLASS} flex items-center justify-center ${className || ''}`}>
         <div className="text-center text-white">
           <Play className="w-16 h-16 mx-auto mb-4 opacity-50" />
           <p className="text-lg opacity-75">No video available</p>
@@ -270,17 +298,19 @@ export function TrackedVideoPlayer({
 
   return (
     <div className={className}>
-      <div className="aspect-video w-full bg-black overflow-hidden relative">
+      <div className={FRAME_CLASS}>
         {youtubeId ? (
-          <div ref={containerRef} className="w-full h-full" />
+          <div ref={containerRef} className="absolute inset-0" />
         ) : directFile ? (
           <video
             ref={videoElRef}
             src={videoUrl}
             controls
+            playsInline
+            preload="metadata"
             controlsList="nodownload"
             onContextMenu={(e) => e.preventDefault()}
-            className="w-full h-full"
+            className={MEDIA_CLASS}
             onLoadedMetadata={handleLoadedMetadata}
             onTimeUpdate={handleTimeUpdate}
             onPause={handlePause}
@@ -291,7 +321,8 @@ export function TrackedVideoPlayer({
           <>
             <iframe
               src={driveEmbedUrl}
-              className="w-full h-full border-0"
+              className={MEDIA_CLASS}
+              referrerPolicy="strict-origin-when-cross-origin"
               allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
               allowFullScreen
               title={title || 'Google Drive video'}
@@ -305,8 +336,9 @@ export function TrackedVideoPlayer({
           // Unknown provider (e.g. Vimeo) - embed without tracking
           <iframe
             src={videoUrl}
-            className="w-full h-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            className={MEDIA_CLASS}
+            referrerPolicy="strict-origin-when-cross-origin"
+            allow={YOUTUBE_EMBED_ALLOW}
             allowFullScreen
             title={title}
           />

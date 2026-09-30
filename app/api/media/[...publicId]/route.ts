@@ -1,9 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCloudinaryAccount, signedUrl } from '@/lib/cloudinary'
-import { getPlatformSettings } from '@/lib/platform-settings'
 import { getRequestUser } from '@/lib/request-user'
 
 export const runtime = 'nodejs'
+
+function isPlayableVideo(response: Response) {
+  if (response.status !== 200 && response.status !== 206) return false
+  if (response.headers.get('x-cld-error')) return false
+  // Fragmented MP4 from an on-the-fly transform advertises accept-ranges: none.
+  // The native player cannot start those files.
+  if ((response.headers.get('accept-ranges') || '').toLowerCase() === 'none') return false
+  const type = (response.headers.get('content-type') || '').toLowerCase()
+  if (!type) return true
+  if (
+    type.includes('mpegurl') ||
+    type.startsWith('text/') ||
+    type.includes('json') ||
+    type.includes('html') ||
+    type.includes('xml')
+  ) {
+    return false
+  }
+  return type.startsWith('video/') || type.includes('octet-stream') || type.includes('mp4')
+}
+
+async function discard(response: Response | null) {
+  if (!response?.body) return
+  try {
+    await response.body.cancel()
+  } catch {
+    /* already closed */
+  }
+}
 // Never cache the proxy response at the edge; access is per-user authenticated.
 export const dynamic = 'force-dynamic'
 
@@ -44,26 +72,51 @@ export async function GET(
     return NextResponse.json({ error: 'Missing media id' }, { status: 400 })
   }
 
-  const settings = resourceType === 'video' ? await getPlatformSettings() : null
   const upstreamUrl = signedUrl(id, account, {
     resourceType,
-    ...(settings ? { videoQuality: settings.video_quality } : {}),
+    // Original progressive upload. Quality transforms are fragmented MP4.
+    ...(resourceType === 'video' ? { raw: true } : {}),
   })
 
-  // Forward Range (for video seeking). Avoid forwarding browser Accept for images.
+  // Forward Range (for video seeking). Ask Cloudinary for a progressive MP4
+  // even when the browser's Accept header would negotiate HLS.
   const forwardHeaders: Record<string, string> = {}
   const range = request.headers.get('range')
   if (range) forwardHeaders['Range'] = range
   if (resourceType === 'video') {
-    const accept = request.headers.get('accept')
-    if (accept) forwardHeaders['Accept'] = accept
+    forwardHeaders['Accept'] = 'video/mp4'
   }
 
-  let upstream: Response
+  let upstream: Response | null
   try {
     upstream = await fetch(upstreamUrl, { headers: forwardHeaders })
   } catch {
+    upstream = null
+  }
+
+  // .mp4 on the original is a remux. If that file is missing or fragmented,
+  // try the uploaded container unchanged.
+  if (resourceType === 'video' && (!upstream || !isPlayableVideo(upstream))) {
+    await discard(upstream)
+    const original = signedUrl(id, account, {
+      resourceType: 'video',
+      raw: true,
+      format: false,
+    })
+    try {
+      upstream = await fetch(original, { headers: forwardHeaders })
+    } catch {
+      upstream = null
+    }
+  }
+
+  if (!upstream) {
     return NextResponse.json({ error: 'Failed to fetch media' }, { status: 502 })
+  }
+
+  if (resourceType === 'video' && !isPlayableVideo(upstream)) {
+    await discard(upstream)
+    return NextResponse.json({ error: 'Media not available' }, { status: 502 })
   }
 
   if (!upstream.ok && upstream.status !== 206) {

@@ -21,6 +21,7 @@ import {
   type LessonBlock,
 } from '@/lib/lesson-blocks'
 import { ScenarioPlayer } from '@/components/learning/scenario-player'
+import { YoutubeFrame } from '@/components/course/youtube-frame'
 import { BlockCatalog } from '@/components/teach/block-picker'
 import { LessonResourcesEditor } from '@/components/teach/lesson-resources-editor'
 import { resolveMediaUrl } from '@/lib/media'
@@ -1088,17 +1089,23 @@ function RichTextEditor({ html, onChange }: { html: string; onChange: (html: str
 
 function YouTubeEmbed({ id }: { id: string }) {
   return (
-    <div className="aspect-video overflow-hidden rounded-xl">
-      <iframe title="YouTube" src={`https://www.youtube.com/embed/${id}`} className="h-full w-full" allowFullScreen />
+    <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-black">
+      <YoutubeFrame id={id} />
     </div>
   )
 }
 
 function VideoPlayer({ src }: { src: string }) {
   return (
-    <video src={src} controls className="w-full rounded-xl">
-      <track kind="captions" />
-    </video>
+    <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-black">
+      <video
+        src={src}
+        controls
+        playsInline
+        preload="metadata"
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+    </div>
   )
 }
 

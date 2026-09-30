@@ -9,30 +9,182 @@ export const MAX_VIDEO_UPLOAD_LABEL = '1GB'
 export const MAX_IMAGE_UPLOAD_BYTES = 25 * 1024 * 1024 // 25MB
 export const MAX_IMAGE_UPLOAD_LABEL = '25MB'
 
-/** Must match signed upload params sent to Cloudinary (compress + cap 1080p). */
-export const VIDEO_EAGER_TRANSFORM = 'q_auto,vc_auto,w_1920,h_1080,c_limit'
+/**
+ * Upload-time derivative only. Do not request this URL for `<video>` playback:
+ * `q_auto` on video is packaged as fragmented MP4 (`ftypiso6`), which the
+ * native player cannot play. Playback uses the original progressive upload.
+ */
+export const VIDEO_EAGER_TRANSFORM = 'c_limit,f_mp4,h_1080,q_auto,vc_h264,w_1920'
 
-/** Same derivative Cloudinary builds at upload time. Playback must request this exact set. */
+/** Same derivative Cloudinary may build at upload time. Not used for playback. */
 export const VIDEO_EAGER_TRANSFORMATION = {
-  quality: 'auto',
-  video_codec: 'auto',
-  width: 1920,
-  height: 1080,
   crop: 'limit',
+  fetch_format: 'mp4',
+  height: 1080,
+  quality: 'auto',
+  video_codec: 'h264',
+  width: 1920,
 } as const
+
+/** Required on every YouTube iframe or the embed shows Error 153. */
+export const YOUTUBE_EMBED_ALLOW =
+  'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share'
+
+/**
+ * Fills a `relative aspect-video overflow-hidden` parent.
+ * The IFrame API overwrites this with pixel width/height; `pinYoutubeIframe` clears those.
+ */
+export const YOUTUBE_IFRAME_CLASS = 'absolute inset-0 h-full w-full border-0 object-cover'
+
+const YOUTUBE_ID = /^[A-Za-z0-9_-]{6,}$/
 
 export function getYoutubeId(url: string): string | null {
   if (!url) return null
-  const patterns = [
-    /(?:youtube\.com\/watch\?v=)([^&]+)/,
-    /(?:youtu\.be\/)([^?&]+)/,
-    /(?:youtube\.com\/embed\/)([^?&]+)/,
-  ]
-  for (const p of patterns) {
-    const m = url.match(p)
-    if (m?.[1]) return m[1]
+  const trimmed = url.trim()
+  try {
+    const withProto = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+    const parsed = new URL(withProto)
+    const host = parsed.hostname.replace(/^www\./, '')
+    if (host === 'youtu.be') {
+      const id = parsed.pathname.split('/').filter(Boolean)[0]
+      return id && YOUTUBE_ID.test(id) ? id : null
+    }
+    if (
+      host === 'youtube.com' ||
+      host === 'm.youtube.com' ||
+      host === 'music.youtube.com' ||
+      host === 'youtube-nocookie.com'
+    ) {
+      const fromQuery = parsed.searchParams.get('v')
+      if (fromQuery && YOUTUBE_ID.test(fromQuery)) return fromQuery
+      const parts = parsed.pathname.split('/').filter(Boolean)
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (parts[i] === 'embed' || parts[i] === 'shorts' || parts[i] === 'live' || parts[i] === 'v') {
+          const id = parts[i + 1]
+          if (id && YOUTUBE_ID.test(id)) return id
+        }
+      }
+    }
+  } catch {
+    /* fall through to the regex */
   }
-  return null
+  const match = trimmed.match(
+    /(?:youtu\.be\/|youtube(?:-nocookie)?\.com\/(?:embed\/|shorts\/|live\/|v\/|watch\?(?:.*&)?v=))([A-Za-z0-9_-]{6,})/
+  )
+  return match?.[1] || null
+}
+
+export function youtubeEmbedSrc(
+  id: string,
+  params?: Record<string, string | number | boolean | null | undefined>
+) {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(params || {})) {
+    if (value == null || value === '') continue
+    query.set(key, String(value))
+  }
+  const qs = query.toString()
+  return `https://www.youtube.com/embed/${encodeURIComponent(id)}${qs ? `?${qs}` : ''}`
+}
+
+/** Drop pixel width/height and lock the iframe to its 16:9 parent. */
+export function fitYoutubeIframe(iframe: HTMLIFrameElement) {
+  iframe.removeAttribute('width')
+  iframe.removeAttribute('height')
+  iframe.style.setProperty('position', 'absolute', 'important')
+  iframe.style.setProperty('inset', '0', 'important')
+  iframe.style.setProperty('width', '100%', 'important')
+  iframe.style.setProperty('height', '100%', 'important')
+  iframe.style.setProperty('max-width', '100%', 'important')
+  iframe.style.setProperty('max-height', '100%', 'important')
+  iframe.style.setProperty('object-fit', 'cover', 'important')
+  iframe.style.setProperty('border', '0', 'important')
+}
+
+const youtubePins = new WeakSet<HTMLIFrameElement>()
+
+/**
+ * Keep clearing the pixel size the IFrame API writes back after attach / onReady.
+ * Safe to call more than once.
+ */
+export function pinYoutubeIframe(iframe: HTMLIFrameElement) {
+  fitYoutubeIframe(iframe)
+  if (youtubePins.has(iframe)) return () => {}
+  youtubePins.add(iframe)
+
+  let applying = false
+  const apply = () => {
+    applying = true
+    fitYoutubeIframe(iframe)
+    applying = false
+  }
+  const locked = () => {
+    if (iframe.getAttribute('width') || iframe.getAttribute('height')) return false
+    if (iframe.style.getPropertyValue('width') !== '100%') return false
+    if (iframe.style.getPropertyValue('height') !== '100%') return false
+    if (iframe.style.getPropertyPriority('width') !== 'important') return false
+    if (iframe.style.getPropertyPriority('height') !== 'important') return false
+    return iframe.style.getPropertyValue('position') === 'absolute'
+  }
+
+  const observer = new MutationObserver(() => {
+    if (applying) return
+    if (!iframe.isConnected) {
+      observer.disconnect()
+      youtubePins.delete(iframe)
+      return
+    }
+    if (!locked()) apply()
+  })
+  observer.observe(iframe, { attributes: true, attributeFilter: ['style', 'width', 'height'] })
+
+  const parent = iframe.parentNode
+  const parentObserver =
+    parent &&
+    new MutationObserver(() => {
+      if (!iframe.isConnected) {
+        observer.disconnect()
+        parentObserver?.disconnect()
+        youtubePins.delete(iframe)
+      }
+    })
+  if (parent && parentObserver) parentObserver.observe(parent, { childList: true })
+
+  return () => {
+    observer.disconnect()
+    parentObserver?.disconnect()
+    youtubePins.delete(iframe)
+  }
+}
+
+/**
+ * Iframe the IFrame API can attach to. Referrer policy is set before src loads.
+ * `contain` locks the player to a 16:9 column frame. The homepage hero leaves
+ * this off so its own cover-crop box stays in charge of size.
+ */
+export function createYoutubeIframe(
+  videoId: string,
+  playerVars: Record<string, string | number | boolean | null | undefined> = {},
+  options?: { contain?: boolean }
+) {
+  const iframe = document.createElement('iframe')
+  iframe.title = 'YouTube'
+  iframe.className = options?.contain ? YOUTUBE_IFRAME_CLASS : 'h-full w-full border-0'
+  iframe.referrerPolicy = 'strict-origin-when-cross-origin'
+  iframe.allow = YOUTUBE_EMBED_ALLOW
+  iframe.allowFullscreen = true
+  iframe.src = youtubeEmbedSrc(videoId, {
+    ...playerVars,
+    enablejsapi: 1,
+    origin: window.location.origin,
+  })
+  if (options?.contain) {
+    fitYoutubeIframe(iframe)
+    queueMicrotask(() => {
+      if (iframe.isConnected) pinYoutubeIframe(iframe)
+    })
+  }
+  return iframe
 }
 
 export function getGoogleDriveFileId(url: string): string | null {

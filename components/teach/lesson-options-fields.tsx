@@ -11,6 +11,7 @@ import { Clock, FileText, Link, Loader2, Lock, Trash2, UploadCloud } from 'lucid
 import { resolveMediaUrl, parseMediaRef } from '@/lib/media'
 import { uploadVideoDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
 import { LessonActivitiesPanel } from '@/components/teach/lesson-activities-panel'
+import { YoutubeFrame } from '@/components/course/youtube-frame'
 import { withGateSettings, readGateSettings } from '@/lib/progression-gates'
 import {
   DRIVE_SHARE_HINT,
@@ -290,12 +291,14 @@ export function LessonOptionsFields({ courseId, lesson, hideIdentity = false, on
         )}
         {parseMediaRef(lesson.video_url)?.type === 'video' && (
           <div className="space-y-2 rounded-lg border p-3">
-            <div className="aspect-video overflow-hidden rounded-lg bg-black">
+            <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black">
               <video
                 src={resolveMediaUrl(lesson.video_url) || undefined}
                 controls
+                playsInline
+                preload="metadata"
                 controlsList="nodownload"
-                className="h-full w-full"
+                className="absolute inset-0 h-full w-full object-cover"
               />
             </div>
             <div className="flex items-center justify-between gap-2">
@@ -310,12 +313,11 @@ export function LessonOptionsFields({ courseId, lesson, hideIdentity = false, on
         )}
         {youtubeId && (
           <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
-            <div className="aspect-video overflow-hidden rounded-lg bg-black">
-              <iframe
-                src={`https://www.youtube.com/embed/${youtubeId}?enablejsapi=1&rel=0&modestbranding=1`}
-                className="h-full w-full"
-                allowFullScreen
+            <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black">
+              <YoutubeFrame
+                id={youtubeId}
                 title={lesson.title || 'Lesson video'}
+                params={{ enablejsapi: 1, rel: 0, modestbranding: 1 }}
               />
             </div>
             <Button type="button" variant="ghost" size="sm" onClick={clearLessonVideo}>
@@ -325,10 +327,10 @@ export function LessonOptionsFields({ courseId, lesson, hideIdentity = false, on
         )}
         {driveEmbed && (
           <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
-            <div className="aspect-video overflow-hidden rounded-lg bg-black">
+            <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black">
               <iframe
                 src={driveEmbed}
-                className="h-full w-full border-0"
+                className="absolute inset-0 h-full w-full border-0 object-cover"
                 allow="autoplay; encrypted-media; fullscreen"
                 allowFullScreen
                 title={lesson.title || 'Drive video'}

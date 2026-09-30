@@ -44,7 +44,7 @@ export function CoursePlayerRail({
   return (
     <aside
       className={cn(
-        'flex h-full max-h-[min(80vh,760px)] flex-col overflow-hidden bg-background lg:max-h-none',
+        'flex h-auto max-h-none flex-col overflow-hidden bg-background lg:h-full lg:max-h-full lg:min-h-0',
         className
       )}
     >
@@ -84,7 +84,7 @@ export function CoursePlayerRail({
           hideHeader
           lessons={lessons}
           currentLessonId={currentLessonId}
-          className="min-h-0 max-h-none flex-1 border-0 lg:max-h-none"
+          className="h-auto max-h-none flex-none border-0 lg:min-h-0 lg:flex-1 lg:max-h-none"
           {...railProps}
         />
       ) : (

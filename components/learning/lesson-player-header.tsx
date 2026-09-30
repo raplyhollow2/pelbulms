@@ -71,7 +71,7 @@ export function LessonPlayerHeader({
   const pct = Math.min(100, Math.max(0, progressPercent))
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
+    <header className="sticky top-0 z-50 shrink-0 border-b bg-background/95 backdrop-blur">
       <div className="flex min-h-14 items-center gap-2 px-2 sm:px-4">
         <Button
           variant="ghost"

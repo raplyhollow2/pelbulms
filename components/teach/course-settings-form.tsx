@@ -41,6 +41,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { resolveMediaUrl, parseMediaRef } from '@/lib/media'
 import { uploadVideoDirectToCloudinary, uploadImageDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
+import { YoutubeFrame } from '@/components/course/youtube-frame'
 import {
   DRIVE_SHARE_HINT,
   getGoogleDriveEmbedUrl,
@@ -844,11 +845,30 @@ export function CourseSettingsForm({
           </Label>
           {courseData.preview_video_url && embed ? (
             <div className="space-y-2">
-              <div className="relative aspect-video overflow-hidden rounded-lg border bg-black">
+              <div className="relative aspect-video w-full overflow-hidden rounded-lg border bg-black">
                 {embed.type === 'file' ? (
-                  <video src={embed.src} controls className="h-full w-full" />
+                  <video
+                    src={embed.src}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                ) : getYoutubeId(courseData.preview_video_url) ? (
+                  <YoutubeFrame
+                    id={getYoutubeId(courseData.preview_video_url) || ''}
+                    title="Course preview video"
+                    params={{ rel: 0, modestbranding: 1 }}
+                  />
                 ) : (
-                  <iframe src={embed.src} title="Course preview video" className="h-full w-full" allowFullScreen />
+                  <iframe
+                    src={embed.src}
+                    title="Course preview video"
+                    className="absolute inset-0 h-full w-full border-0 object-cover"
+                    referrerPolicy="strict-origin-when-cross-origin"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
                 )}
               </div>
               <Button

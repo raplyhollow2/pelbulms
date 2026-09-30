@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { getYoutubeId } from '@/lib/video-url'
+import { YoutubeFrame } from '@/components/course/youtube-frame'
 import type { LinkPreview } from '@/lib/link-preview'
 
 type Member = {
@@ -265,14 +266,8 @@ function YoutubeEmbed({ url }: { url: string }) {
   const id = getYoutubeId(url)
   if (!id) return null
   return (
-    <div className="aspect-video overflow-hidden rounded-xl border bg-black">
-      <iframe
-        title="YouTube video"
-        src={`https://www.youtube.com/embed/${id}?rel=0&modestbranding=1`}
-        className="h-full w-full"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-      />
+    <div className="relative aspect-video w-full overflow-hidden rounded-xl border bg-black">
+      <YoutubeFrame id={id} title="YouTube video" params={{ rel: 0, modestbranding: 1 }} />
     </div>
   )
 }

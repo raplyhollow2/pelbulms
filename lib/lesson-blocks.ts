@@ -1,3 +1,5 @@
+import { getYoutubeId } from '@/lib/video-url'
+
 export type LessonBlock =
   | { id: string; type: 'text'; html: string }
   | { id: string; type: 'image'; url: string; alt?: string }
@@ -170,12 +172,7 @@ function normalizeBlock(item: any): LessonBlock | null {
 }
 
 export function youtubeEmbedId(url: string): string | null {
-  if (!url) return null
-  const m =
-    url.match(/(?:youtube\.com\/watch\?v=)([^&]+)/) ||
-    url.match(/(?:youtu\.be\/)([^?&]+)/) ||
-    url.match(/(?:youtube\.com\/embed\/)([^?&]+)/)
-  return m?.[1] || null
+  return getYoutubeId(url)
 }
 
 export function readCourseAiMetadata(raw: unknown): CourseAiMetadata {

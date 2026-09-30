@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight, LogIn } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { getYoutubeId } from '@/lib/video-url'
+import { createYoutubeIframe, getYoutubeId } from '@/lib/video-url'
 import {
   DEFAULT_HERO_CTA_PRIMARY,
   DEFAULT_HERO_ROTATING_WORDS,
@@ -71,18 +71,28 @@ function loadYouTubeApi(): Promise<any> {
   if (ytApiPromise) return ytApiPromise
 
   ytApiPromise = new Promise((resolve) => {
+    const finish = () => {
+      if (w.YT?.Player) resolve(w.YT)
+    }
     const prev = w.onYouTubeIframeAPIReady
     w.onYouTubeIframeAPIReady = () => {
       if (typeof prev === 'function') prev()
-      resolve(w.YT)
+      finish()
     }
     if (!document.querySelector(`script[src="${YT_API_SRC}"]`)) {
       const tag = document.createElement('script')
       tag.src = YT_API_SRC
       document.head.appendChild(tag)
-    } else if (w.YT?.Player) {
-      resolve(w.YT)
     }
+    const started = Date.now()
+    const timer = window.setInterval(() => {
+      if (w.YT?.Player) {
+        window.clearInterval(timer)
+        finish()
+      } else if (Date.now() - started > 10000) {
+        window.clearInterval(timer)
+      }
+    }, 50)
   })
   return ytApiPromise
 }
@@ -171,12 +181,7 @@ function HeroVideoBackground({
         playerRef.current = null
       }
 
-      // YT.Player replaces the target node; always inject a fresh child.
       host.replaceChildren()
-      const target = document.createElement('div')
-      target.className = 'h-full w-full'
-      host.appendChild(target)
-
       const playerVars: Record<string, number | string> = {
         autoplay: 1,
         mute: 1,
@@ -196,11 +201,10 @@ function HeroVideoBackground({
         playerVars.playlist = videoId
       }
 
-      const player = new YT.Player(target, {
-        videoId,
-        width: '100%',
-        height: '100%',
-        playerVars,
+      const iframe = createYoutubeIframe(videoId, playerVars)
+      host.appendChild(iframe)
+
+      const player = new YT.Player(iframe, {
         events: {
           onReady: (event: any) => {
             try {

@@ -251,8 +251,8 @@ export function CreateStudio() {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-background text-foreground">
-      <header className="flex items-center gap-2 border-b px-4 py-3">
+    <div className="flex h-full min-h-0 flex-col bg-background text-foreground">
+      <header className="flex shrink-0 items-center gap-2 border-b px-4 py-3">
         <Button
           type="button"
           variant="ghost"
@@ -265,7 +265,8 @@ export function CreateStudio() {
         </Button>
         <p className="truncate text-sm font-semibold">Create course</p>
       </header>
-      <div className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:py-16">
+      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:py-16">
         {phase === 'compose' && (
           <>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Pelbu Coursebox</p>
@@ -506,6 +507,7 @@ export function CreateStudio() {
         )}
 
         {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+      </div>
       </div>
     </div>
   )

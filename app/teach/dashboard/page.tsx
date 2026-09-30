@@ -530,7 +530,7 @@ export default function TeacherDashboard() {
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-1 sm:mb-2">
             {isAdminView ? 'Course Design Dashboard' : 'Teacher Dashboard'}
           </h1>
-          <p className="text-sm sm:text-base lg:text-xl text-muted-foreground truncate">
+          <p className="text-sm text-muted-foreground sm:text-base lg:text-xl">
             Welcome back, {profile?.full_name || user?.user_metadata?.full_name || 'Instructor'}!
           </p>
         </div>

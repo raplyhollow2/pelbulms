@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { Play, Pause, X, Volume2, VolumeX } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { YoutubeFrame } from '@/components/course/youtube-frame'
 import { resolveMediaUrl, parseMediaRef } from '@/lib/media'
 import {
   getGoogleDriveEmbedUrl,
@@ -85,7 +86,7 @@ export function VideoPreviewModal({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="w-full gap-0 overflow-hidden bg-background/95 p-0 backdrop-blur-sm sm:max-w-4xl">
         <div className="relative">
-          <div className="relative aspect-video bg-black group">
+          <div className="group relative aspect-video w-full overflow-hidden bg-black">
             {!hasVideo ? (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20">
                 <div className="text-center px-6">
@@ -97,17 +98,16 @@ export function VideoPreviewModal({
                 </div>
               </div>
             ) : youtubeId ? (
-              <iframe
-                src={`https://www.youtube.com/embed/${youtubeId}?rel=0&modestbranding=1`}
-                className="w-full h-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
+              <YoutubeFrame
+                id={youtubeId}
                 title={`${courseTitle} preview`}
+                params={{ rel: 0, modestbranding: 1 }}
               />
             ) : driveEmbed ? (
               <iframe
                 src={driveEmbed}
-                className="w-full h-full border-0"
+                className="absolute inset-0 h-full w-full border-0 object-cover"
+                referrerPolicy="strict-origin-when-cross-origin"
                 allow="autoplay; encrypted-media; fullscreen"
                 allowFullScreen
                 title={`${courseTitle} preview`}
@@ -116,7 +116,7 @@ export function VideoPreviewModal({
               <>
                 <video
                   ref={videoRef}
-                  className="w-full h-full"
+                  className="absolute inset-0 h-full w-full object-cover"
                   src={resolved}
                   muted={isMuted}
                   controls

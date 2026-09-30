@@ -73,7 +73,7 @@ export function LessonContentStage({
   return (
     <div className="relative">
       {hasVideo ? (
-        <div className="relative bg-black">
+        <div className="relative">
           <TrackedVideoPlayer
             key={lessonId}
             videoUrl={videoUrl}

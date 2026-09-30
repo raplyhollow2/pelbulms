@@ -3,6 +3,7 @@ import { checkRBAC } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
 import { cloudinaryClient, getCloudinaryAccount } from '@/lib/cloudinary'
 import { makeMediaRef } from '@/lib/media'
+import { VIDEO_EAGER_TRANSFORMATION } from '@/lib/video-url'
 
 const BUCKET = 'course-media'
 /** Proxy fallback only — prefer direct Cloudinary upload for images/videos. */
@@ -104,9 +105,7 @@ export async function POST(request: NextRequest) {
         // q_auto picks the optimal bitrate, and we cap huge sources at 1080p.
         // eager_async lets big uploads finish quickly; delivery also applies
         // q_auto on the fly via the signed /api/media URL as a safety net.
-        uploadOptions.eager = [
-          { quality: 'auto', video_codec: 'auto', width: 1920, height: 1080, crop: 'limit' },
-        ]
+        uploadOptions.eager = [{ ...VIDEO_EAGER_TRANSFORMATION }]
         uploadOptions.eager_async = true
       } else {
         uploadOptions.transformation = [{ fetch_format: 'auto', quality: 'auto' }]

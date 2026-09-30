@@ -216,7 +216,7 @@ export default function DashboardPage() {
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Learning hub
           </p>
-          <h1 className="truncate text-xl font-semibold tracking-tight sm:text-2xl">
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
             Welcome back, {firstName}
           </h1>
         </div>
