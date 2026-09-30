@@ -210,7 +210,7 @@ function EmptyLesson({
   onResourcesChange?: (next: unknown) => void
 }) {
   return (
-    <div className="rounded-xl border border-dashed p-6">
+    <div className="rounded-xl border-2 border-dashed border-foreground/40 p-6">
       <p className="text-sm font-medium">Resources</p>
       <div className="mt-4">
         {onAddBlock ? (
@@ -1011,7 +1011,7 @@ function UnlinkedAssessment({
   onOpenLessonOptions?: () => void
 }) {
   return (
-    <div className="space-y-3 rounded-lg border border-dashed p-4">
+    <div className="space-y-3 rounded-lg border-2 border-dashed border-foreground/40 p-4">
       <p className="text-sm text-muted-foreground">{message}</p>
       {onOpenLessonOptions && (
         <Button type="button" variant="outline" className="min-h-11" onClick={onOpenLessonOptions}>

@@ -264,7 +264,7 @@ export function DescriptionEditor({
         aria-multiline="true"
         aria-label={ariaLabel}
         data-placeholder={placeholder}
-        className={`min-h-28 w-full cursor-text rounded-md border bg-background p-3 text-sm leading-relaxed focus:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)] ${courseDescriptionRichClass}`}
+        className={`min-h-28 w-full cursor-text rounded-md border-2 border-foreground/30 bg-background p-3 text-sm leading-relaxed focus:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)] ${courseDescriptionRichClass}`}
         onFocus={() => {
           focused.current = true
         }}

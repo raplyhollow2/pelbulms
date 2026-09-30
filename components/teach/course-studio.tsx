@@ -725,7 +725,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
                   void saveBlocks([...blocks, block])
                 }}
               />
-              <div className="border-t pt-4">
+              <div className="border-t-2 border-foreground/30 pt-4">
                 <LessonResourcesEditor
                   courseId={courseId}
                   lessonId={current.id}
@@ -771,7 +771,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
 
   return (
     <div className="flex h-dvh flex-col">
-      <header className="flex flex-wrap items-center gap-2 border-b px-4 py-3">
+      <header className="flex flex-wrap items-center gap-2 border-b-2 border-foreground/25 px-4 py-3">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <Button
             type="button"
@@ -847,7 +847,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
         </Button>
       </header>
 
-      <div className="flex gap-2 border-b px-4 py-2 lg:hidden">
+      <div className="flex gap-2 border-b-2 border-foreground/25 px-4 py-2 lg:hidden">
         {(
           [
             { id: 'outline', label: 'Outline' },
@@ -869,7 +869,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
 
       <div className="flex min-h-0 flex-1">
         <aside
-          className={`min-h-0 shrink-0 overflow-hidden border-r transition-[width] duration-200 ${
+          className={`min-h-0 shrink-0 overflow-hidden border-r-2 border-foreground/25 transition-[width] duration-200 ${
             mobileTab === 'outline' ? 'block w-full' : 'hidden'
           } lg:block ${outlineOpen ? 'lg:w-80' : 'lg:w-0 lg:border-transparent'}`}
         >
@@ -879,7 +879,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
         </aside>
         <main className={`min-w-0 flex-1 overflow-y-auto p-4 ${mobileTab === 'page' ? 'block' : 'hidden'} lg:block`}>{canvas}</main>
         {mobileTab === 'ai' ? (
-          <aside className="w-full overflow-y-auto border-l p-3 lg:hidden">{renderRail()}</aside>
+          <aside className="w-full overflow-y-auto border-l-2 border-foreground/25 p-3 lg:hidden">{renderRail()}</aside>
         ) : null}
       </div>
 
