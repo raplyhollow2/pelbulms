@@ -86,11 +86,36 @@ type LessonRow = {
   module_id: string
   title: string
   description?: string | null
-  content: unknown
+  /** Omitted on the outline list. Present after the open lesson is loaded. */
+  content?: unknown
   resources?: unknown
   order_index: number
   is_published?: boolean | null
   is_free?: boolean | null
+}
+
+const OUTLINE_PAGE = 200
+
+/** Outline rows only. Lesson bodies load one at a time so a long course stays responsive. */
+async function fetchOutlineLessons(supabase: any, moduleIds: string[]): Promise<LessonRow[]> {
+  const rows: LessonRow[] = []
+  for (let i = 0; i < moduleIds.length; i += 40) {
+    const ids = moduleIds.slice(i, i + 40)
+    for (let from = 0; ; from += OUTLINE_PAGE) {
+      const { data, error } = await supabase
+        .from('lessons')
+        .select('id, module_id, title, order_index, is_published, is_free, is_preview')
+        .in('module_id', ids)
+        .order('order_index')
+        .order('id')
+        .range(from, from + OUTLINE_PAGE - 1)
+      if (error) throw error
+      const batch = (data || []) as LessonRow[]
+      rows.push(...batch)
+      if (batch.length < OUTLINE_PAGE) break
+    }
+  }
+  return rows
 }
 
 export function CourseStudio({ courseId }: { courseId: string }) {
@@ -111,6 +136,8 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   const [lessonQuery, setLessonQuery] = useState('')
   const [foldedSections, setFoldedSections] = useState<Set<string>>(() => new Set())
   const [denied, setDenied] = useState(false)
+  const [outlineError, setOutlineError] = useState('')
+  const detailToken = useRef(0)
   const outlineOpen = useSyncExternalStore(subscribeOutline, readOutlineOpen, getServerOutlineOpen)
   const titleRef = useRef<HTMLInputElement>(null)
   const focusTitle = useRef(false)
@@ -118,6 +145,19 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   const lessonRowRefs = useRef(new Map<string, HTMLDivElement>())
 
   const current = lessons.find((l) => l.id === lessonId)
+
+  const hydrateLesson = async (id: string) => {
+    const token = ++detailToken.current
+    const { data, error } = await (supabase as any)
+      .from('lessons')
+      .select('description, content, resources')
+      .eq('id', id)
+      .maybeSingle()
+    if (token !== detailToken.current) return
+    if (error || !data) return
+    setLessons((rows) => rows.map((row) => (row.id === id ? { ...row, ...data } : row)))
+    setBlocks(parseLessonBlocks(data.content))
+  }
 
   const load = async () => {
     setLoading(true)
@@ -147,13 +187,13 @@ export function CourseStudio({ courseId }: { courseId: string }) {
       .order('order_index')
     const moduleIds = (moduleRows || []).map((m: any) => m.id)
     let lessonRows: LessonRow[] = []
+    setOutlineError('')
     if (moduleIds.length) {
-      const { data } = await supabase
-        .from('lessons')
-        .select('id, module_id, title, description, content, resources, order_index, is_published, is_free, is_preview')
-        .in('module_id', moduleIds)
-        .order('order_index')
-      lessonRows = (data || []) as any
+      try {
+        lessonRows = await fetchOutlineLessons(supabase, moduleIds)
+      } catch {
+        setOutlineError('The lesson list could not be loaded. Refresh and try again.')
+      }
     }
     setCourse(courseRow)
     setModules((moduleRows || []) as any)
@@ -164,8 +204,9 @@ export function CourseStudio({ courseId }: { courseId: string }) {
       activeId = prev && lessonRows.some((row) => row.id === prev) ? prev : first || null
       return activeId
     })
-    setBlocks(parseLessonBlocks(lessonRows.find((row) => row.id === activeId)?.content))
+    setBlocks([])
     setLoading(false)
+    if (activeId) void hydrateLesson(activeId)
   }
 
   useEffect(() => {
@@ -196,8 +237,17 @@ export function CourseStudio({ courseId }: { courseId: string }) {
 
   useEffect(() => {
     if (!lessonId) return
-    lessonRowRefs.current.get(lessonId)?.scrollIntoView({ block: 'nearest' })
-  }, [lessonId, outlineOpen])
+    const row = lessonRowRefs.current.get(lessonId)
+    const scroller = outlineScrollRef.current
+    if (!row || !scroller) return
+    const rowRect = row.getBoundingClientRect()
+    const scrollRect = scroller.getBoundingClientRect()
+    if (rowRect.top < scrollRect.top) {
+      scroller.scrollTop -= scrollRect.top - rowRect.top
+    } else if (rowRect.bottom > scrollRect.bottom) {
+      scroller.scrollTop += rowRect.bottom - scrollRect.bottom
+    }
+  }, [lessonId, outlineOpen, lessons.length])
 
   const toggleOutline = (next?: boolean) => {
     writeOutlineOpen(typeof next === 'boolean' ? next : !readOutlineOpen())
@@ -324,9 +374,19 @@ export function CourseStudio({ courseId }: { courseId: string }) {
       setUnpublishConfirm(true)
       return
     }
-    const hasContent = lessons.some((lesson) =>
+    let hasContent = lessons.some((lesson) =>
       lesson.id === lessonId ? blocks.length > 0 : parseLessonBlocks(lesson.content).length > 0
     )
+    if (next && !hasContent && modules.length > 0) {
+      const moduleIds = modules.map((mod) => mod.id)
+      for (let i = 0; i < moduleIds.length && !hasContent; i += 40) {
+        const { data } = await supabase
+          .from('lessons')
+          .select('content')
+          .in('module_id', moduleIds.slice(i, i + 40))
+        hasContent = (data || []).some((row: { content?: unknown }) => parseLessonBlocks(row.content).length > 0)
+      }
+    }
     if (next && !hasContent) {
       setPublishWarn(true)
       return
@@ -433,7 +493,13 @@ export function CourseStudio({ courseId }: { courseId: string }) {
     setLessonId(id)
     setMobileTab('page')
     const row = source.find((item) => item.id === id)
-    setBlocks(row ? parseLessonBlocks(row.content) : [])
+    if (row && row.content !== undefined) {
+      detailToken.current += 1
+      setBlocks(parseLessonBlocks(row.content))
+      return
+    }
+    setBlocks([])
+    void hydrateLesson(id)
   }
 
   const renameLesson = (id: string) => {
@@ -507,6 +573,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
           className="min-h-11 pl-8"
         />
       </div>
+      {outlineError ? <p className="px-1 text-sm text-destructive">{outlineError}</p> : null}
       {modules.length === 0 && (
         <p className="px-1 text-sm text-muted-foreground">Add a section to start the outline.</p>
       )}
@@ -539,10 +606,18 @@ export function CourseStudio({ courseId }: { courseId: string }) {
                 value={mod.title}
                 aria-label="Section title"
                 rows={1}
-                className="field-sizing-content max-h-12 min-h-8 min-w-0 flex-1 resize-none overflow-hidden rounded-md border border-transparent bg-transparent px-1 py-1 text-xs font-semibold leading-snug tracking-wide shadow-none outline-none focus-visible:border-input"
-                onChange={(e) =>
-                  setModules((rows) => rows.map((row) => (row.id === mod.id ? { ...row, title: e.target.value } : row)))
-                }
+                ref={(node) => {
+                  if (!node) return
+                  node.style.height = 'auto'
+                  node.style.height = `${node.scrollHeight}px`
+                }}
+                className="min-h-8 min-w-0 flex-1 resize-none overflow-hidden rounded-md border border-transparent bg-transparent px-1 py-1 text-xs font-semibold leading-snug tracking-wide shadow-none outline-none focus-visible:border-input"
+                onChange={(e) => {
+                  const node = e.target
+                  node.style.height = 'auto'
+                  node.style.height = `${node.scrollHeight}px`
+                  setModules((rows) => rows.map((row) => (row.id === mod.id ? { ...row, title: node.value } : row)))
+                }}
                 onBlur={() => void commitModuleTitle(mod.id, mod.title)}
               />
               <DropdownMenu>
@@ -592,7 +667,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
                         }`}
                       />
                       <span className="sr-only">{hasContent ? 'Has content' : 'Empty'}</span>
-                      <span className="line-clamp-2 min-w-0 flex-1 whitespace-normal break-words">
+                      <span className="min-w-0 flex-1 whitespace-normal break-words">
                         {les.title}
                         {les.is_published !== true ? (
                           <span className="ml-1 text-xs font-normal text-muted-foreground">Draft</span>
@@ -683,7 +758,11 @@ export function CourseStudio({ courseId }: { courseId: string }) {
           )}
         </div>
       </div>
-      {current ? (
+      {current && current.content === undefined ? (
+        <div className="flex min-h-40 items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-bhutan-yellow" />
+        </div>
+      ) : current ? (
         <div className="space-y-8">
           <div>
             <Label htmlFor={`studio-lesson-description-${current.id}`}>Description</Label>
@@ -770,7 +849,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   )
 
   return (
-    <div className="flex h-dvh flex-col">
+    <div className="fixed inset-0 z-20 flex flex-col overflow-hidden bg-background">
       <header className="flex flex-wrap items-center gap-2 border-b-2 border-foreground/25 px-4 py-3">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <Button
@@ -867,17 +946,17 @@ export function CourseStudio({ courseId }: { courseId: string }) {
         ))}
       </div>
 
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         <aside
-          className={`min-h-0 shrink-0 overflow-hidden border-r-2 border-foreground/25 transition-[width] duration-200 ${
-            mobileTab === 'outline' ? 'block w-full' : 'hidden'
-          } lg:block ${outlineOpen ? 'lg:w-80' : 'lg:w-0 lg:border-transparent'}`}
+          className={`min-h-0 shrink-0 flex-col overflow-hidden border-r-2 border-foreground/25 transition-[width] duration-200 ${
+            mobileTab === 'outline' ? 'flex w-full' : 'hidden'
+          } lg:flex ${outlineOpen ? 'lg:w-80' : 'lg:w-0 lg:border-transparent'}`}
         >
-          <div ref={outlineScrollRef} className="h-full overflow-y-auto p-3 lg:w-80">
+          <div ref={outlineScrollRef} className="min-h-0 w-full flex-1 overflow-y-auto overscroll-contain p-3">
             {outline}
           </div>
         </aside>
-        <main className={`min-w-0 flex-1 overflow-y-auto p-4 ${mobileTab === 'page' ? 'block' : 'hidden'} lg:block`}>{canvas}</main>
+        <main className={`min-h-0 min-w-0 flex-1 overflow-y-auto p-4 ${mobileTab === 'page' ? 'block' : 'hidden'} lg:block`}>{canvas}</main>
         {mobileTab === 'ai' ? (
           <aside className="w-full overflow-y-auto border-l-2 border-foreground/25 p-3 lg:hidden">{renderRail()}</aside>
         ) : null}

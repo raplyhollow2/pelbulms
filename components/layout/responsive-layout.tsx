@@ -44,7 +44,7 @@ export function ResponsiveLayout({ children, user, siteName = 'Pelbu LMS', profi
 
   if (isLearnPlayer || isCourseAuthoring) {
     return (
-      <div key={pathname} className="min-h-dvh bg-background">
+      <div key={pathname} className="h-dvh overflow-hidden bg-background">
         {children}
       </div>
     )
