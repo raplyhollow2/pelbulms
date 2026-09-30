@@ -701,13 +701,15 @@ export function CourseStudio({ courseId }: { courseId: string }) {
               document.getElementById('lesson-settings')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
             }
           />
-          <div id="lesson-block-catalog">
-            <BlockCatalog
-              onPick={(block) => {
-                void saveBlocks([...blocks, block])
-              }}
-            />
-          </div>
+          {blocks.length > 0 ? (
+            <div id="lesson-block-catalog">
+              <BlockCatalog
+                onPick={(block) => {
+                  void saveBlocks([...blocks, block])
+                }}
+              />
+            </div>
+          ) : null}
           <div id="lesson-settings">
             <LessonOptionsPanel
               courseId={courseId}

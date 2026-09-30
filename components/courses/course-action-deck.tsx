@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BookOpen, Clock, Users, Star, Play, CheckCircle, Hourglass, Loader2 } from 'lucide-react'
+import { BookOpen, Clock, Users, Star, Play, Hourglass, Loader2 } from 'lucide-react'
 import { VideoPreviewModal } from '@/components/courses/video-preview-modal'
 import { resolveMediaUrl } from '@/lib/media'
 import type { Database, Json } from '@/types/database.types'
@@ -180,20 +180,6 @@ export function CourseActionDeck({
             </span>
           </div>
         </div>
-
-        {course.learning_objectives && course.learning_objectives.length > 0 && (
-          <div className="border-b border-border/50 p-4">
-            <h5 className="mb-2 text-xs font-semibold">What you&apos;ll learn</h5>
-            <ul className="space-y-1.5">
-              {course.learning_objectives.slice(0, 4).map((objective, idx) => (
-                <li key={idx} className="flex items-start gap-2 text-xs">
-                  <CheckCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green-600" />
-                  <span className="line-clamp-2">{objective}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
 
         <div className="space-y-3 p-4">
           {inviteMode && !isEnrolled && !enrollmentPending && (
