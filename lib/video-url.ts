@@ -87,8 +87,68 @@ export function youtubeEmbedSrc(
   return `https://www.youtube.com/embed/${encodeURIComponent(id)}${qs ? `?${qs}` : ''}`
 }
 
+const CONTAINED_STYLE_PROPS = [
+  'position',
+  'inset',
+  'top',
+  'right',
+  'bottom',
+  'left',
+  'width',
+  'height',
+  'max-width',
+  'max-height',
+  'transform',
+  'object-fit',
+] as const
+
+/** Center a 16:9 picture in its parent. Used while the lesson frame is rotated landscape. */
+export function fitContainedMedia(el: HTMLElement) {
+  const parent = el.parentElement
+  if (!parent) return
+  const boxW = parent.clientWidth
+  const boxH = parent.clientHeight
+  if (boxW < 2 || boxH < 2) return
+
+  const ratio = 16 / 9
+  let w = boxW
+  let h = w / ratio
+  if (h > boxH) {
+    h = boxH
+    w = h * ratio
+  }
+  w = Math.round(w)
+  h = Math.round(h)
+  const x = Math.round((boxW - w) / 2)
+  const y = Math.round((boxH - h) / 2)
+
+  el.removeAttribute('width')
+  el.removeAttribute('height')
+  el.style.setProperty('position', 'absolute', 'important')
+  el.style.setProperty('inset', 'auto', 'important')
+  el.style.setProperty('top', `${y}px`, 'important')
+  el.style.setProperty('left', `${x}px`, 'important')
+  el.style.setProperty('right', 'auto', 'important')
+  el.style.setProperty('bottom', 'auto', 'important')
+  el.style.setProperty('width', `${w}px`, 'important')
+  el.style.setProperty('height', `${h}px`, 'important')
+  el.style.setProperty('max-width', 'none', 'important')
+  el.style.setProperty('max-height', 'none', 'important')
+  el.style.setProperty('transform', 'none', 'important')
+  el.style.setProperty('object-fit', 'contain', 'important')
+  el.style.setProperty('border', '0', 'important')
+}
+
+export function clearContainedMedia(el: HTMLElement) {
+  for (const prop of CONTAINED_STYLE_PROPS) el.style.removeProperty(prop)
+}
+
 /** Drop pixel width/height and lock the iframe to its 16:9 parent. */
 export function fitYoutubeIframe(iframe: HTMLIFrameElement) {
+  if (iframe.closest('[data-landscape-fallback]')) {
+    fitContainedMedia(iframe)
+    return
+  }
   iframe.removeAttribute('width')
   iframe.removeAttribute('height')
   iframe.style.setProperty('position', 'absolute', 'important')
@@ -120,6 +180,12 @@ export function pinYoutubeIframe(iframe: HTMLIFrameElement) {
   }
   const locked = () => {
     if (iframe.getAttribute('width') || iframe.getAttribute('height')) return false
+    if (iframe.closest('[data-landscape-fallback]')) {
+      return (
+        iframe.style.getPropertyValue('object-fit') === 'contain' &&
+        iframe.style.getPropertyPriority('width') === 'important'
+      )
+    }
     if (iframe.style.getPropertyValue('width') !== '100%') return false
     if (iframe.style.getPropertyValue('height') !== '100%') return false
     if (iframe.style.getPropertyPriority('width') !== 'important') return false

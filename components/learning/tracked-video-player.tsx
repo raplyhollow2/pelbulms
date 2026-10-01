@@ -8,9 +8,8 @@ import {
   exitLandscapeFullscreen,
   isHandheldDevice,
   isPlayerFullscreen,
-  releaseOrientationLock,
+  lockAppPortrait,
   shouldIgnoreFullscreenExit,
-  tryLockLandscape,
 } from '@/lib/landscape-fullscreen'
 import {
   DRIVE_SHARE_HINT,
@@ -306,8 +305,10 @@ export function TrackedVideoPlayer({
 
   useEffect(() => {
     const media = window.matchMedia(HANDHELD_MEDIA_QUERY)
-    const onMedia = () => setHandheld(media.matches)
+    const onMedia = () => setHandheld(isHandheldDevice())
+    onMedia()
     media.addEventListener('change', onMedia)
+    window.addEventListener('resize', onMedia)
 
     const onFullscreen = () => {
       const frame = frameRef.current
@@ -316,19 +317,20 @@ export function TrackedVideoPlayer({
         setLandscapeFs(true)
         return
       }
-      const active = isPlayerFullscreen(frame)
-      setLandscapeFs(active)
-      if (active) {
-        void tryLockLandscape()
-      } else {
-        void releaseOrientationLock()
+      const active = document.fullscreenElement
+      if (active && (active === frame || frame.contains(active))) {
+        void enterLandscapeFullscreen(frame).then(() => setLandscapeFs(true))
+        return
       }
+      setLandscapeFs(false)
+      void lockAppPortrait()
     }
 
     document.addEventListener('fullscreenchange', onFullscreen)
     document.addEventListener('webkitfullscreenchange', onFullscreen)
     return () => {
       media.removeEventListener('change', onMedia)
+      window.removeEventListener('resize', onMedia)
       document.removeEventListener('fullscreenchange', onFullscreen)
       document.removeEventListener('webkitfullscreenchange', onFullscreen)
       const frame = frameRef.current

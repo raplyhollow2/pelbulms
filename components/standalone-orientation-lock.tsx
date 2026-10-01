@@ -1,12 +1,23 @@
 'use client'
 
 import { useEffect } from 'react'
-import { lockPortraitIfStandalone } from '@/lib/landscape-fullscreen'
+import { isHandheldDevice, lockAppPortrait } from '@/lib/landscape-fullscreen'
 
-/** Keeps an installed app in portrait until a lesson video asks for landscape. */
+/** Phones and tablets stay portrait. Desktop orientation is unchanged. */
 export function StandaloneOrientationLock() {
   useEffect(() => {
-    void lockPortraitIfStandalone()
+    if (!isHandheldDevice()) return
+
+    const lock = () => {
+      void lockAppPortrait()
+    }
+    lock()
+    window.addEventListener('orientationchange', lock)
+    screen.orientation?.addEventListener?.('change', lock)
+    return () => {
+      window.removeEventListener('orientationchange', lock)
+      screen.orientation?.removeEventListener?.('change', lock)
+    }
   }, [])
 
   return null

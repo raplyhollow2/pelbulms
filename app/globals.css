@@ -592,7 +592,7 @@ body {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
-/* iOS lesson video: orientation lock is unavailable, so rotate the frame in portrait. */
+/* Phone/tablet lesson video. Size and rotation come from the player script. */
 html.video-landscape-lock,
 html.video-landscape-lock body {
   overflow: hidden;
@@ -601,27 +601,13 @@ html.video-landscape-lock body {
 html.video-landscape-lock [data-landscape-fallback] {
   position: fixed !important;
   z-index: 2147483000 !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100dvw !important;
-  height: 100dvh !important;
   max-width: none !important;
   max-height: none !important;
   margin: 0 !important;
   aspect-ratio: auto !important;
-  transform: none;
   border-radius: 0 !important;
   background: #000;
-}
-
-@media (hover: none) and (pointer: coarse) and (orientation: portrait) {
-  html.video-landscape-lock [data-landscape-fallback] {
-    left: 100dvw !important;
-    width: 100dvh !important;
-    height: 100dvw !important;
-    transform: rotate(90deg);
-    transform-origin: top left;
-  }
+  overflow: hidden !important;
 }
 
 /* Respect reduced motion everywhere */
