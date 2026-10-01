@@ -270,19 +270,20 @@ export function createYoutubeIframe(
   return iframe
 }
 
+const DRIVE_HOST =
+  /(^|\.)drive\.google\.com$|(^|\.)docs\.google\.com$|(^|\.)drive\.usercontent\.google\.com$/
+
 export function getGoogleDriveFileId(url: string): string | null {
   if (!url) return null
   try {
     const u = new URL(url)
-    if (!/(^|\.)drive\.google\.com$|(^|\.)docs\.google\.com$/.test(u.hostname)) {
-      return null
-    }
-    const fileMatch = u.pathname.match(/\/file\/d\/([^/]+)/)
+    if (!DRIVE_HOST.test(u.hostname)) return null
+    const fileMatch = u.pathname.match(/\/file\/(?:u\/\d+\/)?d\/([^/]+)/)
     if (fileMatch?.[1]) return fileMatch[1]
     const id = u.searchParams.get('id')
     if (id) return id
   } catch {
-    const fileMatch = url.match(/\/file\/d\/([^/]+)/)
+    const fileMatch = url.match(/\/file\/(?:u\/\d+\/)?d\/([^/?#]+)/)
     if (fileMatch?.[1]) return fileMatch[1]
     const idMatch = url.match(/[?&]id=([^&]+)/)
     if (idMatch?.[1]) return idMatch[1]
@@ -306,7 +307,70 @@ export function isGoogleDriveUrl(url: string): boolean {
 export function isDirectVideoFile(url: string): boolean {
   if (/\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(url)) return true
   if (url.includes('/api/media/') && /[?&]type=video/.test(url)) return true
+  // Cloudinary delivery URLs often have no file extension.
+  if (/res\.cloudinary\.com\/[^/]+\/video\//i.test(url)) return true
   return false
+}
+
+/** Player embed for a Vimeo watch URL, including unlisted privacy hashes. */
+export function getVimeoEmbedUrl(url: string): string | null {
+  if (!url) return null
+  const trimmed = url.trim()
+  try {
+    const withProto = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+    const parsed = new URL(withProto)
+    const host = parsed.hostname.replace(/^www\./, '')
+    if (host !== 'vimeo.com' && host !== 'player.vimeo.com') return null
+    const parts = parsed.pathname.split('/').filter(Boolean)
+    let id: string | null = null
+    let hash: string | null = parsed.searchParams.get('h')
+    const videoAt = parts.lastIndexOf('video')
+    if (videoAt >= 0 && /^\d+$/.test(parts[videoAt + 1] || '')) {
+      id = parts[videoAt + 1]
+    } else if (/^\d+$/.test(parts[0] || '')) {
+      id = parts[0]
+      if (parts[1] && /^[A-Za-z0-9]+$/.test(parts[1])) hash = parts[1]
+    } else {
+      id = parts.find((part) => /^\d+$/.test(part)) || null
+    }
+    if (!id) return null
+    const query = new URLSearchParams({ title: '0', byline: '0', portrait: '0' })
+    if (hash) query.set('h', hash)
+    return `https://player.vimeo.com/video/${id}?${query}`
+  } catch {
+    return null
+  }
+}
+
+export type ClassifiedVideo =
+  | { kind: 'youtube'; youtubeId: string }
+  | { kind: 'vimeo'; embedUrl: string }
+  | { kind: 'drive'; fileId: string; embedUrl: string }
+  | { kind: 'file'; src: string }
+  | { kind: 'embed'; src: string }
+
+/**
+ * How the lesson player should render a URL.
+ * YouTube, Vimeo, and direct files report playback themselves.
+ * Drive lessons play in the lesson player so pause, seek, and the ending
+ * move the watch bar with the video.
+ */
+export function classifyVideoUrl(url: string): ClassifiedVideo {
+  const trimmed = url.trim()
+  const youtubeId = getYoutubeId(trimmed)
+  if (youtubeId) return { kind: 'youtube', youtubeId }
+  const vimeoEmbedUrl = getVimeoEmbedUrl(trimmed)
+  if (vimeoEmbedUrl) return { kind: 'vimeo', embedUrl: vimeoEmbedUrl }
+  const driveFileId = getGoogleDriveFileId(trimmed)
+  if (driveFileId) {
+    return {
+      kind: 'drive',
+      fileId: driveFileId,
+      embedUrl: getGoogleDriveEmbedUrl(driveFileId) || '',
+    }
+  }
+  if (isDirectVideoFile(trimmed)) return { kind: 'file', src: trimmed }
+  return { kind: 'embed', src: trimmed }
 }
 
 export const DRIVE_SHARE_HINT =

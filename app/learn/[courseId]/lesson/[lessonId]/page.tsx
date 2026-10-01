@@ -46,7 +46,7 @@ const LESSON_SIDEBAR_COLUMNS =
 const MODULE_COLUMNS =
   'id, course_id, title, description, order_index, is_published, metadata, resources'
 const COURSE_PLAYER_COLUMNS =
-  'id, title, description, level, category, duration_minutes, updated_at, instructor_id, is_published, metadata'
+  'id, title, description, level, category, language, duration_minutes, updated_at, instructor_id, is_published, learning_objectives, requirements, metadata'
 const NOTE_COLUMNS =
   'id, user_id, lesson_id, course_id, content, timestamp, is_deleted, created_at, updated_at'
 const PROGRESS_COLUMNS =

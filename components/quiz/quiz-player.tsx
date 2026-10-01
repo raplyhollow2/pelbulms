@@ -156,17 +156,13 @@ export function QuizPlayer({
           setQuestions(questionsData)
           setTimeRemaining(((quizData as any).time_limit_minutes || 0) * 60)
         } else {
-          const { data: q } = await supabase.from('quizzes').select('*').eq('id', quizId).single()
-          if (!q) return
-          loadedQuiz = q
-          setQuiz(q)
-          setTimeRemaining(((q as any).time_limit_minutes || 0) * 60)
-          const { data: qs } = await supabase
-            .from('quiz_questions')
-            .select('*')
-            .eq('quiz_id', quizId)
-            .order('order_index', { ascending: true })
-          loadedQuestions = (qs as any) || []
+          const res = await fetch(`/api/quizzes/${quizId}/play`)
+          const payload = await res.json().catch(() => ({}))
+          if (!res.ok || !payload.quiz) return
+          loadedQuiz = payload.quiz
+          setQuiz(payload.quiz)
+          setTimeRemaining(((payload.quiz as any).time_limit_minutes || 0) * 60)
+          loadedQuestions = payload.questions || []
           setQuestions(loadedQuestions)
         }
         const used = readOnly ? 0 : await loadAttempts()

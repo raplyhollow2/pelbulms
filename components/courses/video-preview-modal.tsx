@@ -12,6 +12,7 @@ import {
 import { Play, Pause, X, Volume2, VolumeX } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { YoutubeFrame } from '@/components/course/youtube-frame'
+import { DrivePreviewFrame } from '@/components/learning/drive-preview-frame'
 import { resolveMediaUrl, parseMediaRef } from '@/lib/media'
 import {
   getGoogleDriveEmbedUrl,
@@ -104,12 +105,9 @@ export function VideoPreviewModal({
                 params={{ rel: 0, modestbranding: 1 }}
               />
             ) : driveEmbed ? (
-              <iframe
+              <DrivePreviewFrame
                 src={driveEmbed}
                 className="absolute inset-0 h-full w-full border-0 object-cover"
-                referrerPolicy="strict-origin-when-cross-origin"
-                allow="autoplay; encrypted-media; fullscreen"
-                allowFullScreen
                 title={`${courseTitle} preview`}
               />
             ) : isCloudinaryOrFile || resolved ? (

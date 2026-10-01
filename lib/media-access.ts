@@ -2,6 +2,7 @@ import { userCanManageCourse } from '@/lib/course-access'
 import type { UserRole } from '@/lib/roles'
 import { canAccessTeaching } from '@/lib/roles'
 import type { createServiceClient } from '@/lib/supabase/server'
+import { getGoogleDriveFileId } from '@/lib/video-url'
 
 type Service = Awaited<ReturnType<typeof createServiceClient>>
 
@@ -93,6 +94,43 @@ export async function userCanStreamMedia(
     .maybeSingle()
   const hero = (settings as { hero_video_url?: string | null } | null)?.hero_video_url || ''
   if (hero && hero.includes(needle)) return true
+
+  return false
+}
+
+/**
+ * Duration lookups for a Drive lesson. The id is matched exactly after the
+ * search, because `_` in a file id is a LIKE wildcard.
+ */
+export async function userCanReadDriveFile(
+  service: Service,
+  user: { id: string; role: UserRole | null },
+  fileId: string
+): Promise<boolean> {
+  if (!/^[A-Za-z0-9_-]{10,128}$/.test(fileId)) return false
+
+  const { data: lessons } = await service
+    .from('lessons')
+    .select('module_id, video_url, is_published, is_free, is_preview')
+    .ilike('video_url', `%${fileId}%`)
+    .limit(12)
+
+  for (const lesson of lessons || []) {
+    const row = lesson as {
+      module_id?: string
+      video_url?: string | null
+      is_published?: boolean
+      is_free?: boolean
+      is_preview?: boolean
+    }
+    if (getGoogleDriveFileId(row.video_url || '') !== fileId) continue
+    if (!row.module_id) continue
+    const { data: mod } = await service.from('modules').select('course_id').eq('id', row.module_id).maybeSingle()
+    const courseId = (mod as { course_id?: string } | null)?.course_id
+    if (!courseId) continue
+    if (await userCanManageCourse(service, courseId, user.id, user.role || undefined)) return true
+    if (await enrolledOrPreview(service, courseId, user.id, row)) return true
+  }
 
   return false
 }

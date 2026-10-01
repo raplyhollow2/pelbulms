@@ -11,9 +11,15 @@ export async function middleware(req: NextRequest) {
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const pathname = req.nextUrl.pathname
+  const protectedPaths = ['/dashboard', '/courses', '/learn', '/teach', '/profile', '/admin']
+  const isProtectedPath = protectedPaths.some((path) => pathname.startsWith(path))
 
-  // Misconfigured env should never take down every page/API with "Failed to fetch".
+  // Missing Auth config must not open protected pages.
   if (!supabaseUrl || !supabaseAnonKey) {
+    if (isProtectedPath) {
+      return NextResponse.redirect(new URL('/auth/login', req.url))
+    }
     return res
   }
 
@@ -48,7 +54,11 @@ export async function middleware(req: NextRequest) {
     },
   })
 
-  const pathname = req.nextUrl.pathname
+  const redirectToLogin = () => {
+    const redirect = NextResponse.redirect(new URL('/auth/login', req.url))
+    res.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie))
+    return redirect
+  }
 
   // OAuth code exchange lives in the route handler. Do not call getUser()
   // here — the 4s Auth timeout aborts the callback and the session never sticks.
@@ -106,22 +116,13 @@ export async function middleware(req: NextRequest) {
       return redirect
     }
 
-    // Protected routes that require authentication
-    const protectedPaths = ['/dashboard', '/courses', '/learn', '/teach', '/profile', '/admin']
-    const isProtectedPath = protectedPaths.some((path) => pathname.startsWith(path))
-
     // Auth routes that should redirect if already logged in
     const authPaths = ['/auth/login']
     const isAuthPath = authPaths.some((path) => pathname.startsWith(path))
 
-    // Redirect to login if accessing protected route without a session.
-    // If Auth timed out but cookies still exist, allow the page through —
-    // otherwise brief Supabase outages falsely log everyone out.
+    // No verified user means no protected page. A timeout or a stale cookie
+    // must not admit a rejected or suspended account.
     if (isProtectedPath && !user) {
-      const hasAuthCookie = req.cookies
-        .getAll()
-        .some((c) => c.name.includes('auth-token'))
-      if (hasAuthCookie) return forward()
       return redirectTo('/auth/login')
     }
 
@@ -188,7 +189,8 @@ export async function middleware(req: NextRequest) {
 
     return forward()
   } catch (err) {
-    console.warn('[middleware] unexpected failure; allowing request:', err)
+    console.warn('[middleware] unexpected failure; denying protected route:', err)
+    if (isProtectedPath) return redirectToLogin()
     return forward()
   }
 }

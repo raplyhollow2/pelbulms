@@ -12,6 +12,7 @@ import { resolveMediaUrl, parseMediaRef } from '@/lib/media'
 import { uploadVideoDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
 import { LessonActivitiesPanel } from '@/components/teach/lesson-activities-panel'
 import { YoutubeFrame } from '@/components/course/youtube-frame'
+import { DrivePreviewFrame } from '@/components/learning/drive-preview-frame'
 import { withGateSettings, readGateSettings } from '@/lib/progression-gates'
 import {
   DRIVE_SHARE_HINT,
@@ -295,11 +296,9 @@ export function LessonOptionsFields({
         {driveEmbed && (
           <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
             <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black">
-              <iframe
+              <DrivePreviewFrame
                 src={driveEmbed}
                 className="absolute inset-0 h-full w-full border-0 object-cover"
-                allow="autoplay; encrypted-media; fullscreen"
-                allowFullScreen
                 title={lesson.title || 'Drive video'}
               />
             </div>

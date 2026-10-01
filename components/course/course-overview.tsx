@@ -44,6 +44,10 @@ function initialsFor(name: string) {
     .toUpperCase()
 }
 
+function listField(value: string[] | null | undefined) {
+  return Array.isArray(value) ? value.map((item) => item.trim()).filter(Boolean) : []
+}
+
 export function CourseOverview({
   course,
   instructor,
@@ -52,14 +56,10 @@ export function CourseOverview({
 }: CourseOverviewProps) {
   const [expanded, setExpanded] = useState(false)
 
-  const whatYouLearn = Array.isArray((course as any).learning_objectives)
-    ? ((course as any).learning_objectives as string[]).filter(Boolean)
-    : []
-  const requirements = Array.isArray((course as any).requirements)
-    ? ((course as any).requirements as string[]).filter(Boolean)
-    : Array.isArray((course as any).prerequisites)
-      ? ((course as any).prerequisites as string[]).filter(Boolean)
-      : []
+  const whatYouLearn = listField(course.learning_objectives)
+  const requirements = listField(course.requirements).length
+    ? listField(course.requirements)
+    : listField(course.prerequisites)
 
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60)

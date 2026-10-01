@@ -53,8 +53,13 @@ let orientationTransition = false
 let landscapeHeld = false
 let exitRequested = false
 let nativeAttemptAt = 0
-const frameHomes = new WeakMap<HTMLElement, HTMLElement>()
 const SHELL_STYLE_PROPS = ['position', 'top', 'left', 'width', 'height', 'transform', 'transform-origin', 'overflow', 'max-width', 'max-height'] as const
+
+/**
+ * Moving a frame onto document.body reloads its iframe and restarts the video.
+ * Lift clipping on the ancestors instead, and leave the player where React put it.
+ */
+const ancestorClips = new WeakMap<HTMLElement, { el: HTMLElement; inline: Record<string, string> }[]>()
 
 function orientationApi(): OrientationWithLock | null {
   if (typeof screen === 'undefined' || !screen.orientation) return null
@@ -254,15 +259,44 @@ function fitFrameMedia(frame: HTMLElement) {
   })
 }
 
-function attachFrameToBody(frame: HTMLElement) {
-  const parent = frame.parentElement
-  if (parent && parent !== document.body) frameHomes.set(frame, parent)
-  if (frame.parentElement !== document.body) document.body.appendChild(frame)
+function releaseAncestorClipping(frame: HTMLElement) {
+  if (ancestorClips.has(frame)) return
+  const saved: { el: HTMLElement; inline: Record<string, string> }[] = []
+  let node = frame.parentElement
+  while (node && node !== document.body) {
+    const computed = getComputedStyle(node)
+    const inline: Record<string, string> = {}
+    const force = (prop: string, value: string) => {
+      inline[prop] = node!.style.getPropertyValue(prop)
+      node!.style.setProperty(prop, value, 'important')
+    }
+    if (computed.overflowX !== 'visible' || computed.overflowY !== 'visible') {
+      force('overflow', 'visible')
+      force('overflow-x', 'visible')
+      force('overflow-y', 'visible')
+    }
+    if (computed.transform !== 'none') force('transform', 'none')
+    const backdrop = computed.backdropFilter || ''
+    if (computed.filter !== 'none') force('filter', 'none')
+    if (backdrop && backdrop !== 'none') force('backdrop-filter', 'none')
+    if (computed.willChange !== 'auto') force('will-change', 'auto')
+    if (computed.contain !== 'none' && computed.contain !== '') force('contain', 'none')
+    if (Object.keys(inline).length > 0) saved.push({ el: node, inline })
+    node = node.parentElement
+  }
+  ancestorClips.set(frame, saved)
 }
 
-function restoreFrameHome(frame: HTMLElement) {
-  const home = frameHomes.get(frame)
-  if (home?.isConnected && frame.parentElement !== home) home.appendChild(frame)
+function restoreAncestorClipping(frame: HTMLElement) {
+  const saved = ancestorClips.get(frame)
+  if (!saved) return
+  for (const item of saved) {
+    for (const [prop, value] of Object.entries(item.inline)) {
+      if (value) item.el.style.setProperty(prop, value)
+      else item.el.style.removeProperty(prop)
+    }
+  }
+  ancestorClips.delete(frame)
 }
 
 function layoutRotatedFrame(frame: HTMLElement) {
@@ -274,10 +308,10 @@ function layoutRotatedFrame(frame: HTMLElement) {
   fitFrameMedia(frame)
 }
 
-/** Keep the player on document.body so a portrait-locked page cannot clip or rotate it. */
+/** Cover the screen without reparenting, so the video element keeps its current time. */
 export function syncLandscapeFrame(frame: HTMLElement) {
   if (!frame.hasAttribute(FALLBACK_ATTR)) return
-  attachFrameToBody(frame)
+  releaseAncestorClipping(frame)
   layoutRotatedFrame(frame)
 }
 
@@ -313,13 +347,13 @@ function clearFrameLayout(frame: HTMLElement) {
   frame.querySelectorAll('iframe').forEach((node) => {
     if (node instanceof HTMLIFrameElement) fitYoutubeIframe(node)
   })
-  restoreFrameHome(frame)
+  restoreAncestorClipping(frame)
 }
 
 function applyRotatedFrame(frame: HTMLElement) {
   frame.setAttribute(FALLBACK_ATTR, '')
   document.documentElement.classList.add(LANDSCAPE_LOCK_CLASS)
-  attachFrameToBody(frame)
+  releaseAncestorClipping(frame)
   layoutRotatedFrame(frame)
   watchViewport(frame)
   window.requestAnimationFrame(() => {

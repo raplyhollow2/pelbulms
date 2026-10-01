@@ -42,6 +42,7 @@ import { createClient } from '@/lib/supabase/client'
 import { resolveMediaUrl, parseMediaRef } from '@/lib/media'
 import { uploadVideoDirectToCloudinary, uploadImageDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
 import { YoutubeFrame } from '@/components/course/youtube-frame'
+import { DrivePreviewFrame } from '@/components/learning/drive-preview-frame'
 import {
   DRIVE_SHARE_HINT,
   getGoogleDriveEmbedUrl,
@@ -859,6 +860,12 @@ export function CourseSettingsForm({
                     id={getYoutubeId(courseData.preview_video_url) || ''}
                     title="Course preview video"
                     params={{ rel: 0, modestbranding: 1 }}
+                  />
+                ) : getGoogleDriveEmbedUrl(courseData.preview_video_url) ? (
+                  <DrivePreviewFrame
+                    src={embed.src}
+                    title="Course preview video"
+                    className="absolute inset-0 h-full w-full border-0 object-cover"
                   />
                 ) : (
                   <iframe

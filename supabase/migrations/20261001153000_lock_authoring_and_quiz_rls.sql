@@ -1,11 +1,11 @@
--- Live inventory (project lmspelbu / vtqqkexvwprettqnuhuk, 2026-10-01) vs repo:
--- courses_insert_policy, courses_update_policy, courses_delete_policy still
--- WITH CHECK/USING (true) for authenticated (017). 062 only replaced SELECT.
--- lessons_* and modules_* write and select policies are still USING (true).
--- profiles self-update freezes account_status but not role.
--- quiz_questions_select and quizzes_select are USING (true).
--- quiz_attempts allow the learner to INSERT and UPDATE score/passed.
--- This migration is the lock. It does not replay 017.
+-- Lock that replaced migration 017 open writes.
+-- Verified on project lmspelbu (vtqqkexvwprettqnuhuk) on 2026-10-01:
+-- courses, modules, and lessons writes use private.can_manage_course;
+-- profiles_enforce_privileges is installed; quiz_questions learner SELECT
+-- is gone; authenticated has no INSERT or UPDATE on quiz_attempts.
+-- Residual: quizzes_select is still USING (true). Answer keys live on
+-- quiz_questions, which learners cannot read.
+-- This migration does not replay 017.
 
 CREATE SCHEMA IF NOT EXISTS private;
 

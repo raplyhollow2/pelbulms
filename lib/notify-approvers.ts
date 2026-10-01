@@ -96,8 +96,6 @@ export async function notifyApproversOfRegistration(
   )
   const targets = recipientIds.filter((id) => id !== input.registrationUserId)
 
-  if (targets.length === 0) return { notified: 0 }
-
   let institutionLabel = input.institutionName
   if (!institutionLabel) {
     const { data: inst } = await service
@@ -117,6 +115,7 @@ export async function notifyApproversOfRegistration(
     input.applicantEmail ? ` (${input.applicantEmail})` : ''
   } submitted a ${teaching ? 'teaching' : 'student'} registration for ${institutionLabel}.`
 
+  let notified = 0
   const rows = targets.map((user_id) => ({
     user_id,
     type: 'registration_pending',
@@ -132,23 +131,52 @@ export async function notifyApproversOfRegistration(
     },
   }))
 
-  const { error } = await service.from('notifications').insert(rows)
-  if (error) {
-    console.error('[notify] failed to insert registration notifications:', error)
-    return { notified: 0 }
+  if (rows.length > 0) {
+    const { error } = await service.from('notifications').insert(rows)
+    if (error) {
+      console.error('[notify] failed to insert registration notifications:', error)
+    } else {
+      notified = rows.length
+      const { data: recipients } = await service.from('profiles').select('email').in('id', targets)
+      const link = `${publicAppUrl()}/admin/users?tab=approvals`
+      for (const recipient of recipients || []) {
+        const email = (recipient as { email?: string | null }).email
+        if (!email) continue
+        await sendEmail({
+          to: email,
+          subject: title,
+          text: `${message}\n\nReview it in Pelbu LMS: ${link}`,
+        })
+      }
+    }
   }
 
-  const { data: recipients } = await service.from('profiles').select('email').in('id', targets)
-  const link = `${publicAppUrl()}/admin/users?tab=approvals`
-  for (const recipient of recipients || []) {
-    const email = (recipient as { email?: string | null }).email
-    if (!email) continue
+  const applicantTitle = 'Registration submitted'
+  const applicantMessage = `Your ${
+    teaching ? 'teaching' : 'student'
+  } registration for ${institutionLabel} is pending review.`
+  const { error: applicantError } = await service.from('notifications').insert({
+    user_id: input.registrationUserId,
+    type: 'registration_submitted',
+    title: applicantTitle,
+    message: applicantMessage,
+    action_url: '/auth/register',
+    is_read: false,
+    metadata: {
+      institution_id: input.institutionId,
+      requested_role: input.requestedRole || 'student',
+    },
+  })
+  if (applicantError) {
+    console.error('[notify] failed to insert applicant notification:', applicantError)
+  }
+  if (input.applicantEmail) {
     await sendEmail({
-      to: email,
-      subject: title,
-      text: `${message}\n\nReview it in Pelbu LMS: ${link}`,
+      to: input.applicantEmail,
+      subject: applicantTitle,
+      text: `${applicantMessage}\n\nYou can check the status in Pelbu LMS: ${publicAppUrl()}/auth/register`,
     })
   }
 
-  return { notified: rows.length }
+  return { notified }
 }
