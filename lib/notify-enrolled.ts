@@ -2,6 +2,16 @@
  * Notify enrolled students about course events (announcements, etc.).
  */
 
+import { publicAppUrl, sendEmail } from '@/lib/email/send'
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 export async function notifyEnrolledStudents(
   service: any,
   input: {
@@ -50,25 +60,50 @@ export async function notifyStudentOfEnrollmentDecision(
     approved: boolean
   }
 ): Promise<boolean> {
+  const approved = input.approved
+  const title = approved ? 'Enrollment approved' : 'Enrollment not approved'
+  const message = approved
+    ? `You are now enrolled in “${input.courseTitle}”. Start learning anytime.`
+    : `Your request to join “${input.courseTitle}” was not approved by the course creator.`
+  const actionUrl = approved ? `/learn/${input.courseId}` : `/courses/${input.courseId}`
+
   const { error } = await service.from('notifications').insert({
     user_id: input.studentId,
-    type: input.approved ? 'enrollment_approved' : 'enrollment_rejected',
-    title: input.approved ? 'Enrollment approved' : 'Enrollment not approved',
-    message: input.approved
-      ? `You are now enrolled in “${input.courseTitle}”. Start learning anytime.`
-      : `Your request to join “${input.courseTitle}” was not approved by the course creator.`,
-    action_url: input.approved
-      ? `/learn/${input.courseId}`
-      : `/courses/${input.courseId}`,
+    type: approved ? 'enrollment_approved' : 'enrollment_rejected',
+    title,
+    message,
+    action_url: actionUrl,
     is_read: false,
     metadata: {
       course_id: input.courseId,
-      event: input.approved ? 'enrollment_approved' : 'enrollment_rejected',
+      event: approved ? 'enrollment_approved' : 'enrollment_rejected',
     },
   })
   if (error) {
     console.error('[notify-enrolled] decision notify failed:', error)
-    return false
   }
-  return true
+
+  const { data: profile } = await service
+    .from('profiles')
+    .select('email')
+    .eq('id', input.studentId)
+    .maybeSingle()
+
+  const email = (profile as { email?: string | null } | null)?.email
+  if (email) {
+    const link = `${publicAppUrl()}${actionUrl}`
+    const result = await sendEmail({
+      to: email,
+      subject: approved
+        ? `Enrollment approved: ${input.courseTitle}`
+        : `Enrollment not approved: ${input.courseTitle}`,
+      text: `${message}\n\n${approved ? 'Open the course' : 'View the course'}: ${link}`,
+      html: `<p>${escapeHtml(message)}</p><p><a href="${link}">${approved ? 'Start learning' : 'View course'}</a></p>`,
+    })
+    if (!result.sent && result.error) {
+      console.error('[notify-enrolled] decision email failed:', result.error)
+    }
+  }
+
+  return !error
 }

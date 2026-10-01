@@ -274,10 +274,13 @@ export async function DELETE(request: NextRequest) {
     const remaining = await listEmailHosts()
     const next = remaining[0]
     if (next) {
-      await service
+      const { error: defaultError } = await service
         .from('email_hosts' as never)
         .update({ is_default: true, updated_at: new Date().toISOString() } as never)
         .eq('id', next.id)
+      if (defaultError) {
+        return NextResponse.json({ error: defaultError.message }, { status: 400 })
+      }
       invalidateEmailHostCache()
     }
   }
