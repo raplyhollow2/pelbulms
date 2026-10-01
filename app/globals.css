@@ -592,6 +592,14 @@ body {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
+/* Mobile browser: the page stays portrait when the browser viewport turns landscape. */
+html.browser-portrait-lock,
+html.browser-portrait-lock body {
+  overflow: hidden !important;
+  width: 100%;
+  height: 100%;
+}
+
 /* Phone/tablet lesson video. Size and rotation come from the player script. */
 html.video-landscape-lock,
 html.video-landscape-lock body {

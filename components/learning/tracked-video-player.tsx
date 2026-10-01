@@ -10,6 +10,7 @@ import {
   isPlayerFullscreen,
   lockAppPortrait,
   shouldIgnoreFullscreenExit,
+  syncLandscapeFrame,
 } from '@/lib/landscape-fullscreen'
 import {
   DRIVE_SHARE_HINT,
@@ -303,6 +304,12 @@ export function TrackedVideoPlayer({
     setHandheld(isHandheldDevice())
   }, [])
 
+  useLayoutEffect(() => {
+    const frame = frameRef.current
+    if (!frame || !handheld || !landscapeFs) return
+    syncLandscapeFrame(frame)
+  })
+
   useEffect(() => {
     const media = window.matchMedia(HANDHELD_MEDIA_QUERY)
     const onMedia = () => setHandheld(isHandheldDevice())
@@ -318,8 +325,16 @@ export function TrackedVideoPlayer({
         return
       }
       const active = document.fullscreenElement
-      if (active && (active === frame || frame.contains(active))) {
-        void enterLandscapeFullscreen(frame).then(() => setLandscapeFs(true))
+      const ours = !!active && (active === frame || frame.contains(active))
+      if (ours) {
+        setLandscapeFs(true)
+        if (!document.documentElement.classList.contains('video-landscape-lock')) {
+          void enterLandscapeFullscreen(frame)
+        }
+        return
+      }
+      if (document.documentElement.classList.contains('video-landscape-lock')) {
+        void exitLandscapeFullscreen(frame).then(() => setLandscapeFs(false))
         return
       }
       setLandscapeFs(false)

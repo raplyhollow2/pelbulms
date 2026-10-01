@@ -4,6 +4,7 @@ import { CommandPalette } from "@/components/search/command-palette";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { CapabilitiesProvider } from "@/components/auth/capabilities-provider";
+import { PortraitShell } from "@/components/portrait-shell";
 import { StandaloneOrientationLock } from "@/components/standalone-orientation-lock";
 // import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { Inter } from "next/font/google";
@@ -67,9 +68,11 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <CapabilitiesProvider>
             <StandaloneOrientationLock />
-            {children}
-            <CommandPalette />
-            <Toaster richColors position="top-center" />
+            <PortraitShell>
+              {children}
+              <CommandPalette />
+              <Toaster richColors position="top-center" />
+            </PortraitShell>
           </CapabilitiesProvider>
         </ThemeProvider>
         {/* <ServiceWorkerRegistration /> */}
