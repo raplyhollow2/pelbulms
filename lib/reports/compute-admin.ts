@@ -302,22 +302,23 @@ export async function computeAdminOpsReports(
     { data: courseInstructors },
     { data: activitySubmissions },
   ] = await Promise.all([
-    db.from('profiles').select('id, role, institution_id, created_at, account_status'),
-    db.from('courses').select('id, title, instructor_id, is_published, created_at, updated_at'),
+    db.from('profiles').select('id, role, institution_id, created_at, account_status').limit(2000),
+    db.from('courses').select('id, title, instructor_id, is_published, created_at, updated_at').limit(2000),
     db
       .from('enrollments')
-      .select('id, user_id, course_id, status, progress_percentage, last_accessed_at, completed_at, enrolled_at'),
-    db.from('institutions').select('id, name, slug, is_active'),
-    db.from('modules').select('id, course_id'),
+      .select('id, user_id, course_id, status, progress_percentage, last_accessed_at, completed_at, enrolled_at')
+      .limit(2000),
+    db.from('institutions').select('id, name, slug, is_active').limit(2000),
+    db.from('modules').select('id, course_id').limit(2000),
     db.from('lessons').select('id, module_id, resources').limit(8000),
-    db.from('course_institutions').select('course_id, institution_id'),
-    db.from('institution_access').select('institution_id, user_id, role_within_institution, is_active'),
+    db.from('course_institutions').select('course_id, institution_id').limit(2000),
+    db.from('institution_access').select('institution_id, user_id, role_within_institution, is_active').limit(2000),
     db
       .from('student_registrations')
       .select('id, user_id, institution_id, registration_status, submitted_at, reviewed_at')
       .limit(3000),
-    db.from('certificates').select('id, course_id, user_id'),
-    db.from('course_instructors').select('course_id, user_id, role'),
+    db.from('certificates').select('id, course_id, user_id').limit(2000),
+    db.from('course_instructors').select('course_id, user_id, role').limit(2000),
     db
       .from('lesson_activity_progress')
       .select('id, lesson_id, activity_id, status, grade, source, completed')

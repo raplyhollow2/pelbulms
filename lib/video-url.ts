@@ -28,7 +28,7 @@ export const VIDEO_EAGER_TRANSFORMATION = {
 
 /** Required on every YouTube iframe or the embed shows Error 153. */
 export const YOUTUBE_EMBED_ALLOW =
-  'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share'
+  'accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share'
 
 /**
  * Fills a `relative aspect-video overflow-hidden` parent.

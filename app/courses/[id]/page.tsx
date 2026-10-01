@@ -85,20 +85,39 @@ export default function CourseDetailPage() {
       const { data: { user } } = await supabase.auth.getUser()
       setCurrentUser(user)
 
-      let profile: { role?: string; institution_id?: string | null } | null = null
-      if (user) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('role, institution_id')
-          .eq('id', user.id)
-          .maybeSingle()
-        profile = data as any
-      }
+      const paidSession =
+        user && typeof window !== 'undefined'
+          ? new URLSearchParams(window.location.search).get('session_id')
+          : null
 
-      const { data: courseData, error: courseError } = await supabase
+      const profilePromise = user
+        ? supabase
+            .from('profiles')
+            .select('role, institution_id')
+            .eq('id', user.id)
+            .maybeSingle()
+        : Promise.resolve({ data: null })
+
+      const coursePromise = supabase
         .from('courses')
         .select(`
-          *,
+          id,
+          title,
+          description,
+          thumbnail_url,
+          instructor_id,
+          category,
+          level,
+          duration_minutes,
+          learning_objectives,
+          requirements,
+          tags,
+          is_featured,
+          is_published,
+          enrollment_mode,
+          average_rating,
+          metadata,
+          updated_at,
           profiles:instructor_id (
             id,
             full_name,
@@ -110,6 +129,25 @@ export default function CourseDetailPage() {
         .eq('id', courseId)
         .single()
 
+      const enrollmentPromise =
+        user && !paidSession
+          ? supabase
+              .from('enrollments')
+              .select('id, status, last_lesson_id')
+              .eq('user_id', user.id)
+              .eq('course_id', courseId)
+              .limit(1)
+          : Promise.resolve({ data: null as { id: string; status?: string; last_lesson_id?: string | null }[] | null })
+
+      const [profileResult, courseResult, enrollmentResult, audienceInstitutions] = await Promise.all([
+        profilePromise,
+        coursePromise,
+        enrollmentPromise,
+        loadCourseInstitutions(supabase as any, courseId),
+      ])
+      const profile = profileResult.data as { role?: string; institution_id?: string | null } | null
+      const { data: courseData, error: courseError } = courseResult
+
       if (courseError || !courseData) {
         setAccessDenied({ names: [] })
         setCourse(null)
@@ -118,41 +156,34 @@ export default function CourseDetailPage() {
 
       let enrolled = false
       let pending = false
-      if (user) {
-        const paidSession =
-          typeof window !== 'undefined'
-            ? new URLSearchParams(window.location.search).get('session_id')
-            : null
-        if (paidSession) {
-          const paidRes = await fetch('/api/enrollments', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ courseId, sessionId: paidSession }),
-          })
-          if (paidRes.ok) {
-            enrolled = true
-            pending = false
-          }
+      let enrollmentRows = enrollmentResult.data
+      if (user && paidSession) {
+        const paidRes = await fetch('/api/enrollments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ courseId, sessionId: paidSession }),
+        })
+        if (paidRes.ok) {
+          enrolled = true
+          pending = false
         }
-        const { data: enrollmentRows } = await supabase
+        const paidEnrollment = await supabase
           .from('enrollments')
           .select('id, status, last_lesson_id')
           .eq('user_id', user.id)
           .eq('course_id', courseId)
           .limit(1)
-
-        const row = enrollmentRows?.[0] as any
-        if (row) {
-          const status = row.status || 'active'
-          enrolled = status === 'active' || status === 'completed'
-          pending = status === 'pending'
-          setLastLessonId(row.last_lesson_id || null)
-        }
+        enrollmentRows = paidEnrollment.data
+      }
+      if (user && enrollmentRows?.[0]) {
+        const row = enrollmentRows[0] as { status?: string; last_lesson_id?: string | null }
+        const status = row.status || 'active'
+        enrolled = status === 'active' || status === 'completed'
+        pending = status === 'pending'
+        setLastLessonId(row.last_lesson_id || null)
       }
       setIsEnrolled(enrolled)
       setEnrollmentPending(pending)
-
-      const audienceInstitutions = await loadCourseInstitutions(supabase as any, courseId)
       const isOwner = Boolean(user && (courseData as any).instructor_id === user.id)
       const allowed = userCanSeeCourseAudience({
         institutionIds: audienceInstitutions.map((i) => i.id),
@@ -168,31 +199,27 @@ export default function CourseDetailPage() {
         return
       }
 
-      try {
-        const ownerId = (courseData as any).instructor_id as string | null
-        const ordered = await loadCourseFacilitators(supabase, courseId, ownerId)
-        if (ordered.length > 0) {
-          setFacilitators(ordered)
-        } else {
-          setFacilitators(
-            (courseData as any).profiles ? [(courseData as any).profiles] : []
-          )
-        }
-      } catch (staffErr) {
-        console.log('Facilitators fetch error:', staffErr)
+      const ownerId = (courseData as any).instructor_id as string | null
+      const [{ data: modulesData }, liveStudentCount, orderedFacilitators] = await Promise.all([
+        supabase
+          .from('modules')
+          .select('id, title, description, order_index')
+          .eq('course_id', courseId)
+          .order('order_index', { ascending: true }),
+        fetchLiveStudentCount(courseId),
+        loadCourseFacilitators(supabase, courseId, ownerId).catch((staffErr) => {
+          console.log('Facilitators fetch error:', staffErr)
+          return [] as Awaited<ReturnType<typeof loadCourseFacilitators>>
+        }),
+      ])
+
+      if (orderedFacilitators.length > 0) {
+        setFacilitators(orderedFacilitators)
+      } else {
         setFacilitators(
           (courseData as any).profiles ? [(courseData as any).profiles] : []
         )
       }
-
-      const [{ data: modulesData }, liveStudentCount] = await Promise.all([
-        supabase
-          .from('modules')
-          .select('*')
-          .eq('course_id', courseId)
-          .order('order_index', { ascending: true }),
-        fetchLiveStudentCount(courseId),
-      ])
 
       const moduleIds = ((modulesData || []) as { id: string }[]).map((row) => row.id)
       let publishedLessons: {

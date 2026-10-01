@@ -10,6 +10,8 @@ import {
 } from '@/lib/ai/course-structure'
 import type { CourseOutline } from '@/lib/ai-course-builder'
 
+export const maxDuration = 300
+
 const TEACHER_ROLES = ['instructor', 'admin', 'resource_person', 'superadmin'] as const
 
 async function loadCourseOutline(service: { from: (table: string) => any }, courseId: string) {

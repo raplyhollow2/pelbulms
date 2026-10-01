@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getCloudinaryAccount, signedUrl } from '@/lib/cloudinary'
+import { userCanStreamMedia } from '@/lib/media-access'
 import { getRequestUser } from '@/lib/request-user'
+import { createServiceClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
 
@@ -38,8 +40,8 @@ export const dynamic = 'force-dynamic'
 /**
  * GET /api/media/<public_id...>?type=image|video
  *
- * Serves a PRIVATE Cloudinary asset. Requires an authenticated session (this is
- * a closed system, so any signed-in user may view). Instead of redirecting to a
+ * Serves a PRIVATE Cloudinary asset. Requires an authenticated session and a
+ * link to a course the viewer may access. Instead of redirecting to a
  * signed Cloudinary URL (which would be visible in the browser's Network tab),
  * this route fetches the asset SERVER-SIDE and streams the bytes back through
  * our own domain. The browser only ever sees `/api/media/...`; the underlying
@@ -63,13 +65,19 @@ export async function GET(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  if (!id) {
+    return NextResponse.json({ error: 'Missing media id' }, { status: 400 })
+  }
+
+  const service = await createServiceClient()
+  const allowed = await userCanStreamMedia(service, user, id)
+  if (!allowed) {
+    return NextResponse.json({ error: 'You do not have access to this file' }, { status: 403 })
+  }
+
   const account = await getCloudinaryAccount()
   if (!account) {
     return NextResponse.json({ error: 'Media backend not configured' }, { status: 503 })
-  }
-
-  if (!id) {
-    return NextResponse.json({ error: 'Missing media id' }, { status: 400 })
   }
 
   const upstreamUrl = signedUrl(id, account, {

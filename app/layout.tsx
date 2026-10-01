@@ -4,6 +4,7 @@ import { CommandPalette } from "@/components/search/command-palette";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { CapabilitiesProvider } from "@/components/auth/capabilities-provider";
+import { StandaloneOrientationLock } from "@/components/standalone-orientation-lock";
 // import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
@@ -65,6 +66,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <CapabilitiesProvider>
+            <StandaloneOrientationLock />
             {children}
             <CommandPalette />
             <Toaster richColors position="top-center" />

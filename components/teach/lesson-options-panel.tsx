@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { LessonOptionsFields, type LessonOptionsValue } from '@/components/teach/lesson-options-fields'
@@ -10,6 +10,7 @@ export function LessonOptionsPanel({
   courseId,
   lessonId,
   hideIdentity = false,
+  pageItems,
   onTitleChange,
   onDescriptionChange,
   onVisibilityChange,
@@ -17,6 +18,7 @@ export function LessonOptionsPanel({
   courseId: string
   lessonId: string
   hideIdentity?: boolean
+  pageItems?: ReactNode
   onTitleChange?: (title: string) => void
   onDescriptionChange?: (description: string) => void
   onVisibilityChange?: (patch: { is_published?: boolean; is_free?: boolean }) => void
@@ -86,6 +88,7 @@ export function LessonOptionsPanel({
         courseId={courseId}
         lesson={lesson}
         hideIdentity={hideIdentity}
+        pageItems={pageItems}
         onChange={(updates) => setLesson((current) => (current ? { ...current, ...updates } : current))}
         onCommit={commit}
       />

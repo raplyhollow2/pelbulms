@@ -17,18 +17,19 @@ export async function computeSystemPulseReports(db: Db): Promise<ReportBlock[]> 
     { data: invites },
     { data: institutionAccess },
   ] = await Promise.all([
-    db.from('enrollments').select('id, user_id, course_id, status, enrolled_at'),
-    db.from('courses').select('id, title, instructor_id, is_published, created_at'),
-    db.from('lesson_progress').select('id, lesson_id, course_id, user_id'),
-    db.from('lessons').select('id, module_id'),
-    db.from('modules').select('id, course_id, order_index'),
-    db.from('course_institutions').select('course_id, institution_id'),
-    db.from('profiles').select('id, role, institution_id, created_at'),
-    db.from('enrollment_invites').select('id, course_id, used_at, expires_at, created_at'),
+    db.from('enrollments').select('id, user_id, course_id, status, enrolled_at').limit(2000),
+    db.from('courses').select('id, title, instructor_id, is_published, created_at').limit(2000),
+    db.from('lesson_progress').select('id, lesson_id, course_id, user_id').limit(2000),
+    db.from('lessons').select('id, module_id').limit(2000),
+    db.from('modules').select('id, course_id, order_index').limit(2000),
+    db.from('course_institutions').select('course_id, institution_id').limit(2000),
+    db.from('profiles').select('id, role, institution_id, created_at').limit(2000),
+    db.from('enrollment_invites').select('id, course_id, used_at, expires_at, created_at').limit(2000),
     db
       .from('institution_access')
       .select('user_id, institution_id, is_active, role_within_institution')
-      .eq('is_active', true),
+      .eq('is_active', true)
+      .limit(2000),
   ])
 
   const enrollmentList = (enrollments || []) as any[]

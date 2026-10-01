@@ -62,6 +62,11 @@ function parseOptions(raw: unknown): Array<{ text: string; is_correct?: boolean 
   return []
 }
 
+function hasLocalAnswerKey(question: QuizQuestion): boolean {
+  if (question.correct_answer) return true
+  return parseOptions(question.options).some((opt) => opt?.is_correct === true)
+}
+
 function isAnswerCorrect(question: QuizQuestion, userAnswer: any): boolean {
   if (question.question_type === 'multiple_choice') {
     const options = parseOptions(question.options).map((opt: any) =>
@@ -119,6 +124,7 @@ export function QuizPlayer({
   } | null>(null)
   const [outcomeOpen, setOutcomeOpen] = useState(false)
   const [lastOutcome, setLastOutcome] = useState<QuizOutcome | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const supabase = createClient()
 
@@ -226,7 +232,8 @@ export function QuizPlayer({
     if (userAnswer === undefined) return
 
     const autoGradable =
-      q.question_type === 'multiple_choice' || q.question_type === 'true_false'
+      (q.question_type === 'multiple_choice' || q.question_type === 'true_false') &&
+      hasLocalAnswerKey(q)
 
     if (!autoGradable) {
       advanceOrReview()
@@ -322,45 +329,37 @@ export function QuizPlayer({
         return
       }
 
-      const { data: attemptData, error } = await (supabase as any)
-        .from('quiz_attempts')
-        .insert({
-          user_id: user.id,
-          quiz_id: quizId,
-          started_at: new Date().toISOString(),
-          completed_at: new Date().toISOString(),
-          score,
-          passed,
-          time_spent_seconds: Math.max(
+      const res = await fetch(`/api/quizzes/${quizId}/attempts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          answers,
+          startedAt: new Date().toISOString(),
+          timeSpentSeconds: Math.max(
             0,
             ((quiz as any)?.time_limit_minutes * 60 || 0) - timeRemaining
           ),
-          answers,
-          feedback: {
-            correctCount,
-            totalQuestions: questions.length,
-            earnedPoints,
-            totalPoints,
-          },
-        })
-        .select()
-        .single()
+        }),
+      })
+      const payload = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(payload.error || 'Failed to submit quiz')
 
-      if (error) throw error
-
-      const used = attemptsUsed + 1
+      const attemptData = payload.attempt as QuizAttempt
+      const used = Number(payload.attemptsUsed) || attemptsUsed + 1
+      const serverPassed = Boolean(payload.passed)
       setAttemptsUsed(used)
       setAttempt(attemptData)
       setSubmitted(true)
+      setSubmitError(null)
 
-      const exhausted = !passed && used >= maxAttempts
+      const exhausted = Boolean(payload.attemptsExhausted)
       if (exhausted) setAttemptsExhausted(true)
 
       const outcome: QuizOutcome = {
         attempt: attemptData,
-        passed,
+        passed: serverPassed,
         attemptsUsed: used,
-        maxAttempts,
+        maxAttempts: Number(payload.maxAttempts) || maxAttempts,
         attemptsExhausted: exhausted,
       }
       setLastOutcome(outcome)
@@ -368,7 +367,7 @@ export function QuizPlayer({
       onComplete?.(outcome)
     } catch (error) {
       console.error('Error submitting quiz:', error)
-      alert('Failed to submit quiz. Please try again.')
+      setSubmitError(error instanceof Error ? error.message : 'Failed to submit quiz. Please try again.')
     } finally {
       setSubmitting(false)
     }
@@ -430,7 +429,10 @@ export function QuizPlayer({
           <div className="flex flex-wrap gap-2">
             <Button
               className="bg-bhutan-yellow text-black hover:bg-bhutan-orange"
-              onClick={() => onRedoLesson?.() || onClose?.()}
+              onClick={() => {
+                if (onRedoLesson) onRedoLesson()
+                else onClose?.()
+              }}
             >
               Redo lesson
             </Button>
@@ -552,6 +554,7 @@ export function QuizPlayer({
             submitted && !attempt?.passed && attemptsUsed < maxAttempts ? retakeQuiz : undefined
           }
           remainingAttempts={Math.max(0, maxAttempts - attemptsUsed)}
+          submitError={submitError}
         />
       )}
 
@@ -767,6 +770,7 @@ function QuizResults({
   onClose,
   onRetake,
   remainingAttempts,
+  submitError,
 }: any) {
   const answeredCount = Object.keys(answers).length
   const allAnswered = answeredCount === questions.length
@@ -805,6 +809,7 @@ function QuizResults({
                 )
               })}
             </div>
+            {submitError ? <p className="text-sm text-destructive">{submitError}</p> : null}
             <div className="flex gap-3">
               <Button variant="outline" onClick={onClose} disabled={submitting}>
                 Cancel

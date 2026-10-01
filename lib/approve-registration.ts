@@ -267,6 +267,16 @@ export async function processRegistrationReview(
       institution_id: String(reg.institution_id),
     })
 
+    const applicantEmail = (reg as { email?: string | null }).email
+    if (applicantEmail) {
+      const { sendEmail, publicAppUrl } = await import('@/lib/email/send')
+      await sendEmail({
+        to: applicantEmail,
+        subject: 'Your Pelbu LMS registration is approved',
+        text: `Hello ${reg.full_name || 'there'},\n\nYour registration is approved. Sign in to continue: ${publicAppUrl()}`,
+      })
+    }
+
     return {
       success: true,
       message: `Registration approved as ${finalRole}`,

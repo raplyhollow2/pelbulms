@@ -22,8 +22,6 @@ import {
 } from '@/lib/lesson-blocks'
 import { ScenarioPlayer } from '@/components/learning/scenario-player'
 import { YoutubeFrame } from '@/components/course/youtube-frame'
-import { BlockCatalog } from '@/components/teach/block-picker'
-import { LessonResourcesEditor } from '@/components/teach/lesson-resources-editor'
 import { resolveMediaUrl } from '@/lib/media'
 import { cn } from '@/lib/utils'
 import {
@@ -55,9 +53,6 @@ export function LessonBlocks({
   onAskPelbu,
   onOpenLessonOptions,
   highlightItemKey,
-  courseId,
-  resources,
-  onResourcesChange,
 }: {
   content: unknown
   lessonId?: string
@@ -69,22 +64,15 @@ export function LessonBlocks({
   onAskPelbu?: () => void
   onOpenLessonOptions?: () => void
   highlightItemKey?: string | null
-  courseId?: string
-  resources?: unknown
-  onResourcesChange?: (next: unknown) => void
 }) {
   const blocks = parseLessonBlocks(content)
   if (blocks.length === 0) {
-    if (editable && (onAddBlock || onInsert)) {
+    if (editable && (onAddBlock || onInsert || onAskPelbu || onOpenLessonOptions)) {
       return (
         <EmptyLesson
           onInsert={onInsert}
-          onAddBlock={onAddBlock}
           onAskPelbu={onAskPelbu}
-          courseId={courseId}
-          lessonId={lessonId}
-          resources={resources}
-          onResourcesChange={onResourcesChange}
+          onOpenLessonOptions={onOpenLessonOptions}
         />
       )
     }
@@ -195,60 +183,54 @@ export function LessonBlocks({
 
 function EmptyLesson({
   onInsert,
-  onAddBlock,
   onAskPelbu,
-  courseId,
-  lessonId,
-  resources,
-  onResourcesChange,
+  onOpenLessonOptions,
 }: {
   onInsert?: (type: StarterType) => void
-  onAddBlock?: (block: LessonBlock) => void
   onAskPelbu?: () => void
-  courseId?: string
-  lessonId?: string
-  resources?: unknown
-  onResourcesChange?: (next: unknown) => void
+  onOpenLessonOptions?: () => void
 }) {
   return (
     <div className="rounded-xl border-2 border-dashed border-foreground/40 p-6">
-      <p className="text-sm font-medium">Resources</p>
-      <div className="mt-4">
-        {onAddBlock ? (
-          <BlockCatalog onPick={onAddBlock} />
-        ) : onInsert ? (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {(
-              [
-                ['text', 'Text'],
-                ['image', 'Image'],
-                ['youtube', 'YouTube'],
-                ['quiz', 'Quiz'],
-              ] as const
-            ).map(([type, title]) => (
-              <Button key={type} type="button" variant="outline" className="min-h-11 justify-start" onClick={() => onInsert(type)}>
-                {title}
-              </Button>
-            ))}
-          </div>
-        ) : null}
-      </div>
-      {courseId && lessonId && onResourcesChange ? (
-        <div className="mt-6 border-t pt-4">
-          <LessonResourcesEditor
-            courseId={courseId}
-            lessonId={lessonId}
-            resources={Array.isArray(resources) ? resources : []}
-            onChange={onResourcesChange}
-          />
+      <p className="text-sm font-medium">No page content yet</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Add text, media, quizzes, assignments, and files from Activities & resources below.
+      </p>
+      {onInsert ? (
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {(
+            [
+              ['text', 'Text'],
+              ['image', 'Image'],
+              ['youtube', 'YouTube'],
+              ['quiz', 'Quiz'],
+            ] as const
+          ).map(([type, title]) => (
+            <Button
+              key={type}
+              type="button"
+              variant="outline"
+              className="min-h-11 justify-start"
+              onClick={() => onInsert(type)}
+            >
+              {title}
+            </Button>
+          ))}
         </div>
       ) : null}
-      {onAskPelbu && (
-        <Button type="button" variant="ghost" className="mt-3 min-h-11" onClick={onAskPelbu}>
-          <Sparkles className="mr-2 h-4 w-4" />
-          Ask Pelbu
-        </Button>
-      )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {onOpenLessonOptions ? (
+          <Button type="button" variant="outline" className="min-h-11" onClick={onOpenLessonOptions}>
+            Activities & resources
+          </Button>
+        ) : null}
+        {onAskPelbu ? (
+          <Button type="button" variant="ghost" className="min-h-11" onClick={onAskPelbu}>
+            <Sparkles className="mr-2 h-4 w-4" />
+            Ask Pelbu
+          </Button>
+        ) : null}
+      </div>
     </div>
   )
 }

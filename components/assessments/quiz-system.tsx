@@ -573,7 +573,7 @@ export function QuizSystem() {
                   {selectedQuiz.questions[currentQuestion].type === 'coding' && (
                     <div className="space-y-2">
                       <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm">
-                        <pre>// Write your code here</pre>
+                        <pre>{'// Write your code here'}</pre>
                       </div>
                       <Textarea
                         placeholder="Write your code solution..."

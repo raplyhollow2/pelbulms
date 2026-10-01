@@ -1,7 +1,17 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
-import { Play } from 'lucide-react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Maximize, Minimize, Play } from 'lucide-react'
+import {
+  HANDHELD_MEDIA_QUERY,
+  enterLandscapeFullscreen,
+  exitLandscapeFullscreen,
+  isHandheldDevice,
+  isPlayerFullscreen,
+  releaseOrientationLock,
+  shouldIgnoreFullscreenExit,
+  tryLockLandscape,
+} from '@/lib/landscape-fullscreen'
 import {
   DRIVE_SHARE_HINT,
   YOUTUBE_EMBED_ALLOW,
@@ -99,6 +109,7 @@ export function TrackedVideoPlayer({
   const directFile = !youtubeId && !driveFileId && isDirectVideoFile(videoUrl)
 
   const containerRef = useRef<HTMLDivElement>(null)
+  const frameRef = useRef<HTMLDivElement>(null)
   const videoElRef = useRef<HTMLVideoElement>(null)
   const playerRef = useRef<any>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -116,6 +127,8 @@ export function TrackedVideoPlayer({
 
   const [duration, setDuration] = useState(0)
   const [watchedPercent, setWatchedPercent] = useState(0)
+  const [handheld, setHandheld] = useState(false)
+  const [landscapeFs, setLandscapeFs] = useState(false)
 
   const fireEnded = useCallback(() => {
     if (endedFiredRef.current) return
@@ -159,6 +172,8 @@ export function TrackedVideoPlayer({
       {
         rel: 0,
         modestbranding: 1,
+        // Our button owns fullscreen on phones and tablets so it can lock landscape.
+        ...(isHandheldDevice() ? { fs: 0 } : {}),
       },
       { contain: true }
     )
@@ -285,6 +300,56 @@ export function TrackedVideoPlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useLayoutEffect(() => {
+    setHandheld(isHandheldDevice())
+  }, [])
+
+  useEffect(() => {
+    const media = window.matchMedia(HANDHELD_MEDIA_QUERY)
+    const onMedia = () => setHandheld(media.matches)
+    media.addEventListener('change', onMedia)
+
+    const onFullscreen = () => {
+      const frame = frameRef.current
+      if (!frame || !isHandheldDevice()) return
+      if (shouldIgnoreFullscreenExit(frame)) {
+        setLandscapeFs(true)
+        return
+      }
+      const active = isPlayerFullscreen(frame)
+      setLandscapeFs(active)
+      if (active) {
+        void tryLockLandscape()
+      } else {
+        void releaseOrientationLock()
+      }
+    }
+
+    document.addEventListener('fullscreenchange', onFullscreen)
+    document.addEventListener('webkitfullscreenchange', onFullscreen)
+    return () => {
+      media.removeEventListener('change', onMedia)
+      document.removeEventListener('fullscreenchange', onFullscreen)
+      document.removeEventListener('webkitfullscreenchange', onFullscreen)
+      const frame = frameRef.current
+      if (frame && isPlayerFullscreen(frame)) {
+        void exitLandscapeFullscreen(frame)
+      }
+    }
+  }, [])
+
+  const toggleLandscape = useCallback(() => {
+    const frame = frameRef.current
+    if (!frame) return
+    if (isPlayerFullscreen(frame)) {
+      void exitLandscapeFullscreen(frame).then(() => setLandscapeFs(false))
+      return
+    }
+    void enterLandscapeFullscreen(frame).then(() => {
+      setLandscapeFs(isPlayerFullscreen(frame))
+    })
+  }, [])
+
   if (!videoUrl) {
     return (
       <div className={`${FRAME_CLASS} flex items-center justify-center ${className || ''}`}>
@@ -298,7 +363,7 @@ export function TrackedVideoPlayer({
 
   return (
     <div className={className}>
-      <div className={FRAME_CLASS}>
+      <div ref={frameRef} className={FRAME_CLASS}>
         {youtubeId ? (
           <div ref={containerRef} className="absolute inset-0" />
         ) : directFile ? (
@@ -308,7 +373,7 @@ export function TrackedVideoPlayer({
             controls
             playsInline
             preload="metadata"
-            controlsList="nodownload"
+            controlsList={handheld ? 'nodownload nofullscreen' : 'nodownload'}
             onContextMenu={(e) => e.preventDefault()}
             className={MEDIA_CLASS}
             onLoadedMetadata={handleLoadedMetadata}
@@ -343,6 +408,15 @@ export function TrackedVideoPlayer({
             title={title}
           />
         )}
+        <button
+          type="button"
+          aria-label={landscapeFs ? 'Exit full screen' : 'Full screen'}
+          aria-pressed={landscapeFs}
+          onClick={toggleLandscape}
+          className={`absolute right-2 top-2 z-20 h-11 w-11 items-center justify-center rounded-full bg-black/70 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${handheld ? 'flex' : 'hidden'}`}
+        >
+          {landscapeFs ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
+        </button>
       </div>
 
       {/* Watch progress bar (tracking-aware providers only) */}

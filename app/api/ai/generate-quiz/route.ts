@@ -7,6 +7,8 @@ import { runJsonText } from '@/lib/ai/dispatch'
 
 const TEACHER_ROLES = ['instructor', 'admin', 'resource_person', 'superadmin'] as const
 
+export const maxDuration = 300
+
 type GeneratedQuiz = {
   title?: string
   questions: Array<{

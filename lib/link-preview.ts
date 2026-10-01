@@ -1,3 +1,5 @@
+import { lookup } from 'node:dns/promises'
+import { isIP } from 'node:net'
 import { getYoutubeId } from '@/lib/video-url'
 
 const URL_RE = /https?:\/\/[^\s<>"')\]]+/gi
@@ -67,28 +69,84 @@ function absoluteUrl(base: string, maybeRelative: string | null): string | null 
  * Fetch Open Graph / Twitter card metadata for a public URL.
  * Best-effort — returns null on failure (timeouts, blocked sites, etc.).
  */
-export async function fetchLinkPreview(rawUrl: string): Promise<LinkPreview | null> {
+const BLOCKED_HOSTS = new Set([
+  'localhost',
+  'metadata.google.internal',
+  'metadata.google.com',
+])
+
+function isPrivateIp(ip: string) {
+  const normalized = ip.toLowerCase().replace(/^\[|\]$/g, '')
+  if (normalized.includes(':')) {
+    return (
+      normalized === '::1' ||
+      normalized === '::' ||
+      normalized.startsWith('fc') ||
+      normalized.startsWith('fd') ||
+      normalized.startsWith('fe80')
+    )
+  }
+  const parts = normalized.split('.').map((part) => Number(part))
+  if (parts.length !== 4 || parts.some((part) => Number.isNaN(part))) return true
+  const [a, b] = parts
+  if (a === 10 || a === 127 || a === 0) return true
+  if (a === 169 && b === 254) return true
+  if (a === 172 && b >= 16 && b <= 31) return true
+  if (a === 192 && b === 168) return true
+  if (a === 100 && b >= 64 && b <= 127) return true
+  return false
+}
+
+async function publicHttpUrl(raw: string): Promise<URL | null> {
   let url: URL
   try {
-    url = new URL(rawUrl)
+    url = new URL(raw)
   } catch {
     return null
   }
   if (!['http:', 'https:'].includes(url.protocol)) return null
+  const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase()
+  if (!host || BLOCKED_HOSTS.has(host) || host.endsWith('.local') || host.endsWith('.internal')) {
+    return null
+  }
+  if (isIP(host)) return isPrivateIp(host) ? null : url
+  try {
+    const records = await lookup(host, { all: true })
+    if (!records.length || records.some((record) => isPrivateIp(record.address))) return null
+  } catch {
+    return null
+  }
+  return url
+}
+
+export async function fetchLinkPreview(rawUrl: string): Promise<LinkPreview | null> {
+  let url = await publicHttpUrl(rawUrl)
+  if (!url) return null
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 6000)
   try {
-    const res = await fetch(url.toString(), {
-      signal: controller.signal,
-      redirect: 'follow',
-      headers: {
+    let res: Response | null = null
+    for (let hop = 0; hop < 3; hop++) {
+      res = await fetch(url.toString(), {
+        signal: controller.signal,
+        redirect: 'manual',
+        headers: {
         'User-Agent':
           'Mozilla/5.0 (compatible; PelbuLMS/1.0; +https://pelbu.bt) AppleWebKit/537.36',
         Accept: 'text/html,application/xhtml+xml',
       },
-    })
-    if (!res.ok) {
+      })
+      const location = res.headers.get('location')
+      if (res.status >= 300 && res.status < 400 && location) {
+        const next = await publicHttpUrl(new URL(location, url).toString())
+        if (!next) return null
+        url = next
+        continue
+      }
+      break
+    }
+    if (!res || !res.ok) {
       return { url: url.toString(), title: url.hostname, siteName: url.hostname }
     }
     const contentType = res.headers.get('content-type') || ''

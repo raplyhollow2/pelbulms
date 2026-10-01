@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -49,11 +49,20 @@ type Props = {
   courseId: string
   lesson: LessonOptionsValue
   hideIdentity?: boolean
+  /** Lesson-page picker and file uploads, rendered inside Activities & resources */
+  pageItems?: ReactNode
   onChange: (updates: Partial<LessonOptionsValue>) => void
   onCommit: (updates: Partial<LessonOptionsValue>) => void | Promise<void>
 }
 
-export function LessonOptionsFields({ courseId, lesson, hideIdentity = false, onChange, onCommit }: Props) {
+export function LessonOptionsFields({
+  courseId,
+  lesson,
+  hideIdentity = false,
+  pageItems,
+  onChange,
+  onCommit,
+}: Props) {
   const videoInputRef = useRef<HTMLInputElement>(null)
   const youtubeProbeId = useRef(0)
   const [uploadingVideo, setUploadingVideo] = useState(false)
@@ -189,48 +198,6 @@ export function LessonOptionsFields({ courseId, lesson, hideIdentity = false, on
             <Label htmlFor={`lesson-free-${lesson.id}`} className="text-sm">
               Free preview
             </Label>
-          </div>
-        </div>
-        <div className="space-y-3 rounded-lg border p-4">
-          <div>
-            <p className="text-sm font-medium">Progression lock</p>
-            <p className="text-xs text-muted-foreground">Off by default. Turn on only what you need.</p>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <Label htmlFor={`gate-resources-${lesson.id}`} className="text-sm">
-                Resources and flashcards after lesson complete
-              </Label>
-            </div>
-            <Switch
-              id={`gate-resources-${lesson.id}`}
-              checked={Boolean(gates.gateResourcesUntilComplete)}
-              onCheckedChange={(checked) =>
-                commit({
-                  metadata: withGateSettings(lesson.metadata, {
-                    gateResourcesUntilComplete: checked,
-                  }),
-                })
-              }
-            />
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <Label htmlFor={`gate-next-${lesson.id}`} className="text-sm">
-                Block next until mandatory activities are done
-              </Label>
-            </div>
-            <Switch
-              id={`gate-next-${lesson.id}`}
-              checked={Boolean(gates.gateNextUntilActivitiesDone)}
-              onCheckedChange={(checked) =>
-                commit({
-                  metadata: withGateSettings(lesson.metadata, {
-                    gateNextUntilActivitiesDone: checked,
-                  }),
-                })
-              }
-            />
           </div>
         </div>
       </div>
@@ -408,6 +375,53 @@ export function LessonOptionsFields({ courseId, lesson, hideIdentity = false, on
           courseId={courseId}
           lessonId={lesson.id}
           resources={lesson.resources}
+          pageItems={pageItems}
+          policies={
+            <div className="space-y-3 rounded-lg border p-4">
+              <div>
+                <p className="text-sm font-medium">Policies</p>
+                <p className="text-xs text-muted-foreground">
+                  Off by default. These rules apply to the activities on this lesson.
+                </p>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <Label htmlFor={`gate-resources-${lesson.id}`} className="text-sm">
+                    Resources and flashcards after lesson complete
+                  </Label>
+                </div>
+                <Switch
+                  id={`gate-resources-${lesson.id}`}
+                  checked={Boolean(gates.gateResourcesUntilComplete)}
+                  onCheckedChange={(checked) =>
+                    commit({
+                      metadata: withGateSettings(lesson.metadata, {
+                        gateResourcesUntilComplete: checked,
+                      }),
+                    })
+                  }
+                />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <Label htmlFor={`gate-next-${lesson.id}`} className="text-sm">
+                    Block next until mandatory activities are done
+                  </Label>
+                </div>
+                <Switch
+                  id={`gate-next-${lesson.id}`}
+                  checked={Boolean(gates.gateNextUntilActivitiesDone)}
+                  onCheckedChange={(checked) =>
+                    commit({
+                      metadata: withGateSettings(lesson.metadata, {
+                        gateNextUntilActivitiesDone: checked,
+                      }),
+                    })
+                  }
+                />
+              </div>
+            </div>
+          }
           onChange={async (next) => {
             onChange({ resources: next })
             await onCommit({ resources: next })

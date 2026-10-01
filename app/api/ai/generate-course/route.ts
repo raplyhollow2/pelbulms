@@ -15,6 +15,8 @@ import { createDraftCourse, persistFilledLesson } from '@/lib/ai-course-persist'
 
 const TEACHER_ROLES = ['instructor', 'admin', 'resource_person', 'superadmin'] as const
 
+export const maxDuration = 300
+
 export async function POST(request: NextRequest) {
   const rbac = await checkRBAC(request, [...TEACHER_ROLES])
   if (!rbac.hasAccess) {

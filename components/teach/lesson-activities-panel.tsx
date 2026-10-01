@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -28,6 +28,10 @@ type Props = {
   lessonId: string
   resources: unknown
   onChange: (next: LessonActivity[]) => void | Promise<void>
+  /** Lesson-page items (text, media, checks, files) shown in this section */
+  pageItems?: ReactNode
+  /** Unlock and completion rules for these activities */
+  policies?: ReactNode
 }
 
 export function LessonActivitiesPanel({
@@ -35,18 +39,20 @@ export function LessonActivitiesPanel({
   lessonId,
   resources,
   onChange,
+  pageItems,
+  policies,
 }: Props) {
   const [open, setOpen] = useState(false)
   const [editingQuiz, setEditingQuiz] = useState<LessonActivity | null>(null)
   const items = parseLessonActivities(resources)
 
   return (
-    <div className="space-y-3">
+    <div id="lesson-activities" className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-sm font-medium">Activities & resources</p>
           <p className="text-xs text-muted-foreground">
-            Files, links, and quizzes students see on the Resources tab
+            Page content, files, and checks students see on the Resources tab
           </p>
         </div>
         <Button
@@ -60,10 +66,14 @@ export function LessonActivitiesPanel({
         </Button>
       </div>
 
+      {pageItems}
+
       {items.length === 0 ? (
-        <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
-          No activities yet. Click <strong>Add activity</strong> to attach a file or quiz.
-        </p>
+        pageItems ? null : (
+          <p className="rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
+            No activities yet. Click <strong>Add activity</strong> to attach a file or quiz.
+          </p>
+        )
       ) : (
         <ul className="space-y-2">
           {items.map((item) => {
@@ -198,6 +208,8 @@ export function LessonActivitiesPanel({
           })}
         </ul>
       )}
+
+      {policies}
 
       <AddLessonActivityModal
         open={open}

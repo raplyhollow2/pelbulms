@@ -109,8 +109,11 @@ function isRetryable(error: unknown) {
   )
 }
 
+const DEFAULT_AI_HOURLY_CAP = 40
+
 async function assertHourlyCap(userId: string | null | undefined, provider: LlmProvider, cap: number | null | undefined) {
-  if (!userId || !cap || cap <= 0) return
+  if (!userId) return
+  const limit = cap && cap > 0 ? Math.min(cap, DEFAULT_AI_HOURLY_CAP) : DEFAULT_AI_HOURLY_CAP
   const service = await tryCreateServiceClient()
   if (!service) return
   const since = new Date(Date.now() - 60 * 60 * 1000).toISOString()
@@ -118,15 +121,14 @@ async function assertHourlyCap(userId: string | null | undefined, provider: LlmP
     .from('ai_runs')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
-    .eq('provider', provider)
     .gte('created_at', since)
   if (error) {
     console.warn('[ai] hourly cap check skipped', error.message)
     return
   }
-  if ((count || 0) >= cap) {
+  if ((count || 0) >= limit) {
     throw new AiDispatchError(
-      `${PROVIDER_LABELS[provider]} is limited to ${cap} requests per person each hour. Try again later.`,
+      `${PROVIDER_LABELS[provider]} is limited to ${limit} requests per person each hour. Try again later.`,
       429
     )
   }
