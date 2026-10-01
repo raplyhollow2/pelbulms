@@ -1,8 +1,16 @@
+import {
+  formatFromAddress,
+  getDefaultEmailHost,
+  type EmailHost,
+} from '@/lib/email/hosts'
+
 const PLACEHOLDER_HOSTS = new Set([
   'your-vercel-app.vercel.app',
   'example.com',
   'example.org',
 ])
+
+const E2E_EMAIL_RE = /@pelbu-e2e\.test$/i
 
 function usableOrigin(value: string | undefined | null): string | null {
   if (!value?.trim()) return null
@@ -28,44 +36,159 @@ export function publicAppUrl(requestOrigin?: string | null): string {
   )
 }
 
-const E2E_EMAIL_RE = /@pelbu-e2e\.test$/i
-
-export async function sendEmail(opts: {
+export type OutboundEmail = {
   to: string
   subject: string
   text: string
   html?: string
-}): Promise<{ sent: boolean; error?: string }> {
-  const to = opts.to?.trim()
-  if (!to) return { sent: false, error: 'No recipient' }
-  if (E2E_EMAIL_RE.test(to)) {
-    return { sent: false }
-  }
-  if (!process.env.RESEND_API_KEY) {
-    return { sent: false, error: 'RESEND_API_KEY is not configured' }
-  }
+}
 
+function safeError(message: string, secret: string) {
+  const cleaned = secret ? message.split(secret).join('••••') : message
+  return cleaned.slice(0, 240)
+}
+
+function friendlySmtpError(message: string, host: EmailHost) {
+  const lower = message.toLowerCase()
+  const rejected =
+    lower.includes('535') ||
+    lower.includes('badcredentials') ||
+    lower.includes('username and password not accepted') ||
+    lower.includes('authentication unsuccessful')
+  if (rejected && host.provider === 'gmail_smtp') {
+    return 'Gmail rejected this login. Use a Google app password, not your Gmail account password. Turn on 2-Step Verification, create an app password, and paste that 16-character password here.'
+  }
+  if (rejected) {
+    return 'The mail server rejected this username or password.'
+  }
+  return safeError(message, host.secret)
+}
+
+function smtpOptions(host: EmailHost) {
+  return {
+    host: host.smtpHost || undefined,
+    port: host.smtpPort || undefined,
+    secure: host.smtpSecure,
+    auth: {
+      user: host.smtpUsername || '',
+      pass: host.secret,
+    },
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 15_000,
+  }
+}
+
+async function deliverResend(
+  apiKey: string,
+  from: string,
+  opts: OutboundEmail
+): Promise<{ sent: boolean; error?: string }> {
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM || 'Pelbu LMS <noreply@pelbu.bt>',
-        to: [to],
+        from,
+        to: [opts.to],
         subject: opts.subject,
         text: opts.text,
         ...(opts.html ? { html: opts.html } : {}),
       }),
+      signal: AbortSignal.timeout(15_000),
     })
     if (!res.ok) {
       const detail = await res.text().catch(() => '')
-      return { sent: false, error: `Email failed (${res.status})${detail ? `: ${detail.slice(0, 180)}` : ''}` }
+      return {
+        sent: false,
+        error: safeError(
+          `Email failed (${res.status})${detail ? `: ${detail.slice(0, 180)}` : ''}`,
+          apiKey
+        ),
+      }
     }
     return { sent: true }
-  } catch (e: any) {
-    return { sent: false, error: e?.message || 'Email send failed' }
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'Email send failed'
+    return { sent: false, error: safeError(message, apiKey) }
   }
+}
+
+async function deliverSmtp(
+  host: EmailHost,
+  opts: OutboundEmail
+): Promise<{ sent: boolean; error?: string }> {
+  try {
+    const nodemailer = await import('nodemailer')
+    const transporter = nodemailer.createTransport(smtpOptions(host))
+    await transporter.sendMail({
+      from: formatFromAddress(host.fromName, host.fromEmail),
+      to: opts.to,
+      subject: opts.subject,
+      text: opts.text,
+      ...(opts.html ? { html: opts.html } : {}),
+    })
+    return { sent: true }
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'SMTP send failed'
+    return { sent: false, error: friendlySmtpError(message, host) }
+  }
+}
+
+export async function deliverWithHost(
+  host: EmailHost,
+  opts: OutboundEmail
+): Promise<{ sent: boolean; error?: string }> {
+  if (host.provider === 'resend') {
+    return deliverResend(host.secret, formatFromAddress(host.fromName, host.fromEmail), opts)
+  }
+  return deliverSmtp(host, opts)
+}
+
+/** Check credentials without sending mail. Returns an error message, or null on success. */
+export async function verifyEmailHost(host: EmailHost): Promise<string | null> {
+  if (!host.secret) return 'A secret is required'
+  if (host.provider === 'resend') {
+    try {
+      const res = await fetch('https://api.resend.com/domains', {
+        headers: { Authorization: `Bearer ${host.secret}` },
+        signal: AbortSignal.timeout(10_000),
+      })
+      if (!res.ok) {
+        return res.status === 401 || res.status === 403
+          ? 'Resend rejected this API key'
+          : `Resend check failed (${res.status})`
+      }
+      return null
+    } catch (e: unknown) {
+      return e instanceof Error ? safeError(e.message, host.secret) : 'Resend check failed'
+    }
+  }
+
+  try {
+    const nodemailer = await import('nodemailer')
+    const transporter = nodemailer.createTransport(smtpOptions(host))
+    await transporter.verify()
+    return null
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'SMTP connection failed'
+    return friendlySmtpError(message, host)
+  }
+}
+
+export async function sendEmail(opts: OutboundEmail): Promise<{ sent: boolean; error?: string }> {
+  const to = opts.to?.trim()
+  if (!to) return { sent: false, error: 'No recipient' }
+  if (E2E_EMAIL_RE.test(to)) return { sent: false }
+
+  const host = await getDefaultEmailHost()
+  if (host) return deliverWithHost(host, { ...opts, to })
+
+  const apiKey = (process.env.RESEND_API_KEY || '').trim()
+  if (!apiKey) return { sent: false, error: 'RESEND_API_KEY is not configured' }
+  const from = (process.env.RESEND_FROM || '').trim() || 'Pelbu LMS <noreply@pelbu.bt>'
+  return deliverResend(apiKey, from, { ...opts, to })
 }

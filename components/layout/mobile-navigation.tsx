@@ -81,7 +81,7 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
     hapticWarning()
     try {
       await leavePresenceAndSignOut()
-      window.location.href = '/'
+      window.location.replace('/')
     } catch (error) {
       console.error('Error logging out:', error)
     }

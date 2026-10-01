@@ -4,7 +4,7 @@
  * the screen turns landscape, and leaving fullscreen locks portrait again.
  */
 
-import { clearContainedMedia, fitContainedMedia, fitYoutubeIframe } from '@/lib/video-url'
+import { clearContainedMedia, fitFilledMedia, fitYoutubeIframe } from '@/lib/video-url'
 
 /** Phones, and tablets including iPad widths. Desktop pointers are excluded. */
 export const HANDHELD_MEDIA_QUERY =
@@ -15,7 +15,23 @@ export const LANDSCAPE_LOCK_CLASS = 'video-landscape-lock'
 const FALLBACK_ATTR = 'data-landscape-fallback'
 const IGNORE_EXIT_ATTR = 'data-landscape-ignore-exit'
 
-const FRAME_STYLE_PROPS = ['top', 'left', 'width', 'height', 'transform', 'transform-origin', 'background'] as const
+const FRAME_STYLE_PROPS = [
+  'position',
+  'top',
+  'left',
+  'width',
+  'height',
+  'transform',
+  'transform-origin',
+  'background',
+  'aspect-ratio',
+  'max-width',
+  'max-height',
+  'margin',
+  'border-radius',
+  'z-index',
+  'overflow',
+] as const
 
 type OrientationWithLock = ScreenOrientation & {
   lock?: (
@@ -34,6 +50,9 @@ type FullscreenDocument = Document & {
 
 const viewportWatchers = new WeakMap<HTMLElement, () => void>()
 let orientationTransition = false
+let landscapeHeld = false
+let exitRequested = false
+let nativeAttemptAt = 0
 const frameHomes = new WeakMap<HTMLElement, HTMLElement>()
 const SHELL_STYLE_PROPS = ['position', 'top', 'left', 'width', 'height', 'transform', 'transform-origin', 'overflow', 'max-width', 'max-height'] as const
 
@@ -67,6 +86,11 @@ export function isCssLandscape(element: HTMLElement): boolean {
 
 export function shouldIgnoreFullscreenExit(element: HTMLElement): boolean {
   return element.hasAttribute(IGNORE_EXIT_ATTR) || element.hasAttribute(FALLBACK_ATTR)
+}
+
+/** True while a lesson video should stay landscape until the user leaves fullscreen. */
+export function isLandscapeHeld(): boolean {
+  return landscapeHeld && !exitRequested
 }
 
 export function isPlayerFullscreen(element: HTMLElement | null): boolean {
@@ -157,8 +181,20 @@ function visualViewportBox() {
   }
 }
 
+function pinFrameChrome(el: HTMLElement) {
+  el.style.setProperty('position', 'fixed', 'important')
+  el.style.setProperty('aspect-ratio', 'auto', 'important')
+  el.style.setProperty('max-width', 'none', 'important')
+  el.style.setProperty('max-height', 'none', 'important')
+  el.style.setProperty('margin', '0', 'important')
+  el.style.setProperty('border-radius', '0', 'important')
+  el.style.setProperty('z-index', '2147483000', 'important')
+  el.style.setProperty('background', '#000', 'important')
+}
+
 function placeRotatedCover(el: HTMLElement) {
   const { width, height, offsetLeft, offsetTop } = visualViewportBox()
+  pinFrameChrome(el)
   el.style.setProperty('transform-origin', 'top left', 'important')
   el.style.setProperty('top', `${offsetTop}px`, 'important')
   el.style.setProperty('left', `${offsetLeft + width}px`, 'important')
@@ -169,6 +205,7 @@ function placeRotatedCover(el: HTMLElement) {
 
 function placeFilledCover(el: HTMLElement) {
   const { width, height, offsetLeft, offsetTop } = visualViewportBox()
+  pinFrameChrome(el)
   el.style.setProperty('transform-origin', 'top left', 'important')
   el.style.setProperty('top', `${offsetTop}px`, 'important')
   el.style.setProperty('left', `${offsetLeft}px`, 'important')
@@ -177,24 +214,9 @@ function placeFilledCover(el: HTMLElement) {
   el.style.setProperty('transform', 'none', 'important')
 }
 
-/** Mobile browsers ignore the manifest lock. Keep the page in a portrait frame anyway. */
+/** Clears a leftover page rotation. The page itself is not turned anymore. */
 export function syncBrowserPortraitShell(shell: HTMLElement) {
-  if (!isHandheldDevice() || videoLandscapeActive()) {
-    clearPortraitShell(shell)
-    return
-  }
-  const { width, height } = visualViewportBox()
-  const landscape = width > height
-  document.documentElement.classList.toggle('browser-portrait-lock', landscape)
-  if (!landscape) {
-    clearPortraitShell(shell)
-    return
-  }
-  placeRotatedCover(shell)
-  shell.style.setProperty('position', 'fixed', 'important')
-  shell.style.setProperty('overflow', 'auto', 'important')
-  shell.style.setProperty('max-width', 'none', 'important')
-  shell.style.setProperty('max-height', 'none', 'important')
+  clearPortraitShell(shell)
 }
 
 function clearPortraitShell(shell: HTMLElement) {
@@ -226,11 +248,9 @@ function clearMediaHosts(frame: HTMLElement) {
 
 function fitFrameMedia(frame: HTMLElement) {
   stretchMediaHosts(frame)
-  frame.querySelectorAll('video').forEach((node) => {
-    if (node instanceof HTMLElement) fitContainedMedia(node)
-  })
-  frame.querySelectorAll('iframe').forEach((node) => {
-    if (node instanceof HTMLIFrameElement) fitYoutubeIframe(node)
+  frame.querySelectorAll('video, iframe').forEach((node) => {
+    if (node instanceof HTMLVideoElement) fitFilledMedia(node)
+    else if (node instanceof HTMLIFrameElement) fitYoutubeIframe(node)
   })
 }
 
@@ -305,6 +325,24 @@ function applyRotatedFrame(frame: HTMLElement) {
   window.requestAnimationFrame(() => {
     if (frame.hasAttribute(FALLBACK_ATTR)) layoutRotatedFrame(frame)
   })
+  window.setTimeout(() => {
+    if (frame.hasAttribute(FALLBACK_ATTR)) layoutRotatedFrame(frame)
+  }, 350)
+}
+
+async function ensureNativeLandscape(element: HTMLElement): Promise<void> {
+  const active = currentFullscreenElement()
+  if (active && (active === element || element.contains(active))) {
+    await tryLockLandscape()
+    return
+  }
+  const now = Date.now()
+  if (now - nativeAttemptAt < 900) return
+  nativeAttemptAt = now
+  element.setAttribute(IGNORE_EXIT_ATTR, '')
+  await requestElementFullscreen(element)
+  element.removeAttribute(IGNORE_EXIT_ATTR)
+  await tryLockLandscape()
 }
 
 function clearCssFallback(element?: HTMLElement | null) {
@@ -327,48 +365,47 @@ function clearCssFallback(element?: HTMLElement | null) {
   }
 }
 
+export function isDeviceLandscape(): boolean {
+  if (typeof window === 'undefined') return false
+  if (window.matchMedia('(orientation: landscape)').matches) return true
+  const type = screen.orientation?.type
+  return !!type && type.startsWith('landscape')
+}
+
 export async function enterLandscapeFullscreen(element: HTMLElement): Promise<void> {
   if (!isHandheldDevice()) {
     await requestElementFullscreen(element)
     return
   }
-  if (orientationTransition || element.hasAttribute(FALLBACK_ATTR)) return
+  if (orientationTransition || exitRequested) return
+  if (element.hasAttribute(FALLBACK_ATTR)) {
+    layoutRotatedFrame(element)
+    await ensureNativeLandscape(element)
+    if (!exitRequested) layoutRotatedFrame(element)
+    return
+  }
   orientationTransition = true
+  landscapeHeld = true
   try {
-    document.documentElement.classList.add(LANDSCAPE_LOCK_CLASS)
-    element.style.setProperty('background', '#000', 'important')
-    const entered = await requestElementFullscreen(element)
-    const locked = await tryLockLandscape()
-    if (locked) {
-      element.removeAttribute(FALLBACK_ATTR)
-      for (const prop of FRAME_STYLE_PROPS) element.style.removeProperty(prop)
-      element.style.setProperty('background', '#000', 'important')
-      fitFrameMedia(element)
-      watchViewport(element)
-      return
-    }
-
-    // Safari cannot turn the screen. Drop the portrait fullscreen and rotate the player instead.
-    if (entered || currentFullscreenElement()) {
-      element.setAttribute(IGNORE_EXIT_ATTR, '')
-      await exitDocumentFullscreen(element)
-      element.removeAttribute(IGNORE_EXIT_ATTR)
-    }
     applyRotatedFrame(element)
+    await ensureNativeLandscape(element)
+    if (!exitRequested && element.hasAttribute(FALLBACK_ATTR)) layoutRotatedFrame(element)
   } finally {
     orientationTransition = false
   }
 }
 
 export async function exitLandscapeFullscreen(element?: HTMLElement | null): Promise<void> {
-  if (orientationTransition) return
+  exitRequested = true
+  landscapeHeld = false
   orientationTransition = true
   try {
     document.documentElement.classList.remove(LANDSCAPE_LOCK_CLASS)
-    await exitDocumentFullscreen(element)
     clearCssFallback(element)
+    await exitDocumentFullscreen(element)
     await lockAppPortrait()
   } finally {
     orientationTransition = false
+    exitRequested = false
   }
 }

@@ -14,6 +14,7 @@ export default function AdminSettingsLayout({
         CAP.SETTINGS_SITE_VIEW,
         CAP.SETTINGS_REGISTRATION_VIEW,
         CAP.SETTINGS_MARKETING_VIEW,
+        CAP.SETTINGS_EMAILS_VIEW,
         CAP.INSTITUTIONS_VIEW,
       ]}
     >
@@ -25,7 +26,7 @@ export default function AdminSettingsLayout({
             </p>
             <h1 className="text-2xl font-semibold tracking-tight">Site administration</h1>
             <p className="max-w-2xl text-sm text-muted-foreground">
-              Configure the LMS, registration requirements, institutions, marketing, and Cloudinary.
+              Configure the LMS, registration requirements, institutions, marketing, email hosts, and Cloudinary.
             </p>
           </div>
           <AdminSettingsNav />

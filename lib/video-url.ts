@@ -100,9 +100,10 @@ const CONTAINED_STYLE_PROPS = [
   'max-height',
   'transform',
   'object-fit',
+  'border',
 ] as const
 
-/** Center a 16:9 picture in its parent. Used while the lesson frame is rotated landscape. */
+/** Center a 16:9 picture in its parent. */
 export function fitContainedMedia(el: HTMLElement) {
   const parent = el.parentElement
   if (!parent) return
@@ -143,10 +144,25 @@ export function clearContainedMedia(el: HTMLElement) {
   for (const prop of CONTAINED_STYLE_PROPS) el.style.removeProperty(prop)
 }
 
+/** Edge-to-edge picture inside the fullscreen frame. */
+export function fitFilledMedia(el: HTMLElement) {
+  el.removeAttribute('width')
+  el.removeAttribute('height')
+  el.style.setProperty('position', 'absolute', 'important')
+  el.style.setProperty('inset', '0', 'important')
+  el.style.setProperty('width', '100%', 'important')
+  el.style.setProperty('height', '100%', 'important')
+  el.style.setProperty('max-width', 'none', 'important')
+  el.style.setProperty('max-height', 'none', 'important')
+  el.style.setProperty('transform', 'none', 'important')
+  el.style.setProperty('object-fit', 'contain', 'important')
+  el.style.setProperty('border', '0', 'important')
+}
+
 /** Drop pixel width/height and lock the iframe to its 16:9 parent. */
 export function fitYoutubeIframe(iframe: HTMLIFrameElement) {
   if (iframe.closest('[data-landscape-fallback]')) {
-    fitContainedMedia(iframe)
+    fitFilledMedia(iframe)
     return
   }
   iframe.removeAttribute('width')
@@ -183,6 +199,7 @@ export function pinYoutubeIframe(iframe: HTMLIFrameElement) {
     if (iframe.closest('[data-landscape-fallback]')) {
       return (
         iframe.style.getPropertyValue('object-fit') === 'contain' &&
+        iframe.style.getPropertyValue('width') === '100%' &&
         iframe.style.getPropertyPriority('width') === 'important'
       )
     }

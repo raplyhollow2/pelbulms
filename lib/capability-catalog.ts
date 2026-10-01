@@ -51,9 +51,9 @@ export const MENU_LINKS: MenuLink[] = [
   { cap: CAP.USERS_VIEW, name: 'Users', href: '/admin/users', section: 'admin', icon: 'Users', panel: 'admin' },
   { cap: CAP.REPORTS_VIEW, name: 'Reports', href: '/admin/reports', section: 'admin', icon: 'BarChart3', panel: 'admin' },
   { cap: CAP.INSTITUTIONS_VIEW, name: 'Institutions', href: '/admin/settings/institutions', section: 'admin', icon: 'Building2', panel: 'admin' },
-  { cap: CAP.SETTINGS_VIEW, name: 'Site admin', href: '/admin/settings', section: 'admin', icon: 'Settings', panel: 'admin' },
   { cap: CAP.PERMISSIONS_VIEW, name: 'Permissions', href: '/admin/permissions', section: 'admin', icon: 'Shield', panel: 'superadmin' },
   { cap: CAP.AI_VIEW, name: 'AI', href: '/admin/ai', section: 'admin', icon: 'Sparkles', panel: 'superadmin' },
+  { cap: CAP.SETTINGS_VIEW, name: 'Site admin', href: '/admin/settings', section: 'admin', icon: 'Settings', panel: 'superadmin' },
 ]
 
 export const LEARN_MENU_CAPS: CapabilityKey[] = MENU_LINKS.filter((l) => l.section === 'learn').map(
@@ -96,8 +96,6 @@ export const ADMIN_MENU_CAPS: CapabilityKey[] = [
   CAP.INSTITUTIONS_ADD,
   CAP.INSTITUTIONS_EDIT,
   CAP.INSTITUTIONS_DELETE,
-  CAP.SETTINGS_VIEW,
-  CAP.SETTINGS_EDIT,
 ]
 
 /** Activity picker / course-editor → module configure key. */

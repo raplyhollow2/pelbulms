@@ -1,5 +1,5 @@
 import { isKycExemptRole } from '@/lib/kyc'
-import { homePathForRole } from '@/lib/roles'
+import { canAccessAdmin, homePathForRole } from '@/lib/roles'
 
 type ProfileRow = {
   account_status?: string | null
@@ -8,6 +8,23 @@ type ProfileRow = {
 
 type RegistrationRow = {
   registration_status?: string | null
+}
+
+/**
+ * Where a still-signed-in visitor should go instead of the public hero.
+ * Returns null only for an admin homepage preview.
+ */
+export function publicHomeRedirectForSession(opts: {
+  accountStatus?: string | null
+  role?: string | null
+  preview?: boolean
+}): string | null {
+  if (opts.preview && canAccessAdmin(opts.role)) return null
+  if (opts.accountStatus === 'rejected' || opts.accountStatus === 'suspended') {
+    return '/auth/access-denied'
+  }
+  if (opts.accountStatus === 'pending') return '/auth/register'
+  return homePathForRole(opts.role)
 }
 
 /**

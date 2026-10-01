@@ -231,7 +231,7 @@ export default function AdminMarketingSettingsPage() {
             Customise the public homepage hero, features, steps, and FAQ.
           </p>
         </div>
-        <Button variant="outline" size="sm" className="gap-1.5" render={<Link href="/" target="_blank" />}>
+        <Button variant="outline" size="sm" className="gap-1.5" render={<Link href="/?preview=1" target="_blank" />}>
           Preview homepage
           <ExternalLink className="h-3.5 w-3.5" />
         </Button>

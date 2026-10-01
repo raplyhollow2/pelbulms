@@ -55,6 +55,8 @@ export const CAP = {
   SETTINGS_REGISTRATION_EDIT: 'admin.settings.registration.edit',
   SETTINGS_MARKETING_VIEW: 'admin.settings.marketing.view',
   SETTINGS_MARKETING_EDIT: 'admin.settings.marketing.edit',
+  SETTINGS_EMAILS_VIEW: 'admin.settings.emails.view',
+  SETTINGS_EMAILS_EDIT: 'admin.settings.emails.edit',
   PERMISSIONS_VIEW: 'admin.permissions.view',
   PERMISSIONS_EDIT: 'admin.permissions.edit',
   AI_VIEW: 'admin.ai.view',

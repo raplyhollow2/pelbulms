@@ -96,7 +96,9 @@ export function panelForMenuKey(menuKey: string): RolePanel {
     menuKey === 'permissions' ||
     menuKey === 'ai' ||
     menuKey === 'reviewers' ||
-    menuKey === 'courses'
+    menuKey === 'courses' ||
+    menuKey === 'settings' ||
+    menuKey.startsWith('settings.')
   ) {
     return 'superadmin'
   }

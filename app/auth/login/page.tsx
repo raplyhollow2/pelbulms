@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { BookOpen, Loader2, AlertCircle, Fingerprint, Home } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { SignedInPublicGuard } from '@/components/auth/signed-in-public-guard'
 import { createClient } from '@/lib/supabase/client'
 import { startSocialOAuth, registerNativeGoogleCompletion, type SocialProvider } from '@/lib/oauth'
 
@@ -108,6 +109,7 @@ function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-yellow-50 via-orange-50 to-white p-4 dark:from-gray-900 dark:to-black">
+      <SignedInPublicGuard />
       <div className="w-full max-w-md space-y-8">
         <div className="space-y-4 text-center">
           <Link

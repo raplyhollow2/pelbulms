@@ -51,7 +51,7 @@ export type CapabilityCheck = RBACCheck & {
 type AdminDb = Awaited<ReturnType<typeof tryCreateServiceClient>> | null
 
 const CAPABILITY_CACHE_MS = 60_000
-const CAPABILITY_CACHE_VERSION = 2
+const CAPABILITY_CACHE_VERSION = 3
 const capabilityCache = new Map<string, { at: number; version: number; value: ResolvedCapabilities }>()
 
 export function invalidateCapabilityCache() {
@@ -255,8 +255,6 @@ function coarseFallback(userId: string, userRole: UserRole): ResolvedCapabilitie
       CAP.INSTITUTIONS_ADD,
       CAP.INSTITUTIONS_EDIT,
       CAP.INSTITUTIONS_DELETE,
-      CAP.SETTINGS_VIEW,
-      CAP.SETTINGS_EDIT,
     ].forEach((k) => keys.add(k))
   } else if (userRole === 'student') {
     add([

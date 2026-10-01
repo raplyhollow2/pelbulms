@@ -4,9 +4,12 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { Maximize, Minimize, Play } from 'lucide-react'
 import {
   HANDHELD_MEDIA_QUERY,
+  LANDSCAPE_LOCK_CLASS,
   enterLandscapeFullscreen,
   exitLandscapeFullscreen,
+  isDeviceLandscape,
   isHandheldDevice,
+  isLandscapeHeld,
   isPlayerFullscreen,
   lockAppPortrait,
   shouldIgnoreFullscreenExit,
@@ -308,7 +311,7 @@ export function TrackedVideoPlayer({
     const frame = frameRef.current
     if (!frame || !handheld || !landscapeFs) return
     syncLandscapeFrame(frame)
-  })
+  }, [handheld, landscapeFs])
 
   useEffect(() => {
     const media = window.matchMedia(HANDHELD_MEDIA_QUERY)
@@ -324,17 +327,16 @@ export function TrackedVideoPlayer({
         setLandscapeFs(true)
         return
       }
-      const active = document.fullscreenElement
-      const ours = !!active && (active === frame || frame.contains(active))
-      if (ours) {
+      if (isPlayerFullscreen(frame)) {
         setLandscapeFs(true)
-        if (!document.documentElement.classList.contains('video-landscape-lock')) {
-          void enterLandscapeFullscreen(frame)
+        if (!document.documentElement.classList.contains(LANDSCAPE_LOCK_CLASS)) {
+          void enterLandscapeFullscreen(frame).then(() => setLandscapeFs(isPlayerFullscreen(frame)))
         }
         return
       }
-      if (document.documentElement.classList.contains('video-landscape-lock')) {
-        void exitLandscapeFullscreen(frame).then(() => setLandscapeFs(false))
+      if (isLandscapeHeld()) {
+        setLandscapeFs(true)
+        void enterLandscapeFullscreen(frame).then(() => setLandscapeFs(isPlayerFullscreen(frame)))
         return
       }
       setLandscapeFs(false)
@@ -343,11 +345,31 @@ export function TrackedVideoPlayer({
 
     document.addEventListener('fullscreenchange', onFullscreen)
     document.addEventListener('webkitfullscreenchange', onFullscreen)
+
+    const orientMedia = window.matchMedia('(orientation: landscape)')
+    const onOrientation = () => {
+      window.setTimeout(() => {
+        const frame = frameRef.current
+        if (!frame || !isHandheldDevice() || !isDeviceLandscape()) return
+        if (isPlayerFullscreen(frame)) {
+          syncLandscapeFrame(frame)
+          return
+        }
+        void enterLandscapeFullscreen(frame).then(() => setLandscapeFs(true))
+      }, 50)
+    }
+    window.addEventListener('orientationchange', onOrientation)
+    screen.orientation?.addEventListener?.('change', onOrientation)
+    orientMedia.addEventListener('change', onOrientation)
+
     return () => {
       media.removeEventListener('change', onMedia)
       window.removeEventListener('resize', onMedia)
       document.removeEventListener('fullscreenchange', onFullscreen)
       document.removeEventListener('webkitfullscreenchange', onFullscreen)
+      window.removeEventListener('orientationchange', onOrientation)
+      screen.orientation?.removeEventListener?.('change', onOrientation)
+      orientMedia.removeEventListener('change', onOrientation)
       const frame = frameRef.current
       if (frame && isPlayerFullscreen(frame)) {
         void exitLandscapeFullscreen(frame)

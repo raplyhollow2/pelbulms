@@ -1,11 +1,15 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 import { ArrowRight, BookOpen } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { SignedInPublicGuard } from '@/components/auth/signed-in-public-guard'
 import { LandingHero, LandingStatsStrip } from '@/components/landing/landing-hero'
+import { publicHomeRedirectForSession } from '@/lib/auth-destination'
 import { getPlatformSettings } from '@/lib/platform-settings'
+import { cookies } from 'next/headers'
 import { tryCreateServiceClient, createSupabaseServerClient } from '@/lib/supabase/server'
 import {
   DEFAULT_LANDING_FAQ,
@@ -218,7 +222,43 @@ function resolveFaq(
   ]
 }
 
-export default async function Home() {
+function isPreviewRequest(preview: string | string[] | undefined) {
+  return preview === '1' || (Array.isArray(preview) && preview.includes('1'))
+}
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ preview?: string | string[] }>
+}) {
+  const params = await searchParams
+  const preview = isPreviewRequest(params?.preview)
+  let destination: string | null = null
+  const cookieStore = await cookies()
+  const hasAuthCookie = cookieStore.getAll().some((cookie) => cookie.name.includes('auth-token'))
+  if (hasAuthCookie) {
+    try {
+      const supabase = await createSupabaseServerClient()
+      const auth = await Promise.race([
+        supabase.auth.getUser(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+      ])
+      if (auth && !auth.error && auth.data.user) {
+        const meta = auth.data.user.app_metadata ?? {}
+        destination = publicHomeRedirectForSession({
+          accountStatus: typeof meta.account_status === 'string' ? meta.account_status : null,
+          role: typeof meta.role === 'string' ? meta.role : null,
+          preview,
+        })
+      } else if (!auth) {
+        destination = publicHomeRedirectForSession({ preview })
+      }
+    } catch {
+      destination = publicHomeRedirectForSession({ preview })
+    }
+  }
+  if (destination) redirect(destination)
+
   const settings = await getPlatformSettings()
   const siteName = settings.site_name || FALLBACK_NAME
   const requireIdentity = settings.require_identity_documents
@@ -256,6 +296,7 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-background">
+      <SignedInPublicGuard allowPreview={preview} />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd(siteName, description, faq)) }}

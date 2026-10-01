@@ -592,7 +592,7 @@ body {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
-/* Mobile browser: the page stays portrait when the browser viewport turns landscape. */
+/* Leftover from an older page-rotation experiment. The page is no longer turned. */
 html.browser-portrait-lock,
 html.browser-portrait-lock body {
   overflow: hidden !important;

@@ -372,7 +372,7 @@ export default function RegisterPage() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
-    router.push('/')
+    window.location.replace('/')
   }
 
   if (loading) {
