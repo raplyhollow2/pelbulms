@@ -3,6 +3,7 @@ import { checkRBAC } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
 import { cloudinaryClient, getCloudinaryAccount } from '@/lib/cloudinary'
 import { makeMediaRef } from '@/lib/media'
+import { canAccessAdmin } from '@/lib/roles'
 
 const BUCKET = 'avatars'
 const MAX_BYTES = 5 * 1024 * 1024 // 5MB
@@ -23,7 +24,7 @@ async function ensureBucket(supabase: Awaited<ReturnType<typeof createServiceCli
  * POST /api/users/avatar
  * Upload a profile picture to storage and (optionally) attach it to a user.
  * Multipart form-data: { file: File, userId?: string }
- * Admins may set any user's avatar; other authenticated users only their own.
+ * Admin and superadmin may set any user's avatar; other signed-in users only their own.
  */
 export async function POST(request: NextRequest) {
   const rbac = await checkRBAC(request, ['student', 'instructor', 'admin'])
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
 
-    if (targetUserId !== rbac.userId && rbac.userRole !== 'admin') {
+    if (targetUserId !== rbac.userId && !canAccessAdmin(rbac.userRole)) {
       return NextResponse.json(
         { error: 'You can only update your own avatar' },
         { status: 403 }

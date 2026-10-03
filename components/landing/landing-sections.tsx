@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, Star } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { resolveLandingIcon } from '@/lib/landing-icons'
 import { resolveMediaUrl } from '@/lib/media'
@@ -11,7 +11,30 @@ import type {
   LandingStep,
 } from '@/lib/landing-content'
 
-const TILES = ['bg-teal-600', 'bg-sky-700', 'bg-bhutan-orange', 'bg-violet-600']
+import { LandingSection } from '@/components/landing/landing-section'
+
+const TILES = [
+  {
+    surface: 'bg-bhutan-yellow text-bhutan-black',
+    copy: 'text-bhutan-black/80',
+    button: 'bg-bhutan-black text-white hover:bg-bhutan-black/90',
+  },
+  {
+    surface: 'bg-bhutan-orange text-white',
+    copy: 'text-white/90',
+    button: 'bg-bhutan-yellow text-black hover:bg-bhutan-yellow/90',
+  },
+  {
+    surface: 'bg-bhutan-red text-white',
+    copy: 'text-white/90',
+    button: 'bg-bhutan-yellow text-black hover:bg-bhutan-yellow/90',
+  },
+  {
+    surface: 'bg-bhutan-black text-white',
+    copy: 'text-white/90',
+    button: 'bg-bhutan-yellow text-black hover:bg-bhutan-yellow/90',
+  },
+]
 
 export function LandingStats({
   eyebrow,
@@ -22,7 +45,7 @@ export function LandingStats({
 }) {
   if (!stats.length) return null
   return (
-    <section className="mx-auto max-w-6xl px-4 py-8 sm:px-5">
+    <LandingSection>
       {eyebrow ? (
         <p className="mb-4 text-center text-xs font-semibold uppercase tracking-widest text-bhutan-orange">
           {eyebrow}
@@ -36,7 +59,7 @@ export function LandingStats({
           </div>
         ))}
       </dl>
-    </section>
+    </LandingSection>
   )
 }
 
@@ -53,7 +76,7 @@ export function LandingPrograms({
 }) {
   if (!features.length) return null
   return (
-    <section id="features" className="mx-auto max-w-6xl px-4 py-8 sm:px-5">
+    <LandingSection id="features">
       <div className="mx-auto max-w-2xl text-center">
         {eyebrow ? (
           <p className="text-xs font-semibold uppercase tracking-widest text-bhutan-orange">{eyebrow}</p>
@@ -61,29 +84,32 @@ export function LandingPrograms({
         <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">{title}</h2>
         {subtitle ? <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p> : null}
       </div>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {features.map((feature, index) => {
           const Icon = resolveLandingIcon(feature.icon)
+          const tile = TILES[index % TILES.length]
           return (
             <article
               key={`${feature.title}-${index}`}
-              className={`flex flex-col rounded-2xl p-5 text-white ${TILES[index % TILES.length]}`}
+              className={`flex min-w-0 flex-col rounded-2xl p-5 ${tile.surface}`}
             >
               <Icon className="h-8 w-8" />
               <h3 className="mt-4 text-lg font-bold">{feature.title}</h3>
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-white/90">{feature.description}</p>
-              <Button
-                size="sm"
-                className="mt-4 h-9 w-fit rounded-full bg-white font-semibold text-neutral-900 hover:bg-bhutan-yellow"
-                render={<Link href="/auth/login" />}
-              >
-                {feature.cta_label || 'Learn more'}
-              </Button>
+              <p className={`mt-2 flex-1 text-sm leading-relaxed ${tile.copy}`}>{feature.description}</p>
+              {feature.cta_label ? (
+                <Button
+                  size="sm"
+                  className={`mt-4 h-9 w-fit rounded-full font-semibold ${tile.button}`}
+                  render={<Link href="/auth/login" />}
+                >
+                  {feature.cta_label}
+                </Button>
+              ) : null}
             </article>
           )
         })}
       </div>
-    </section>
+    </LandingSection>
   )
 }
 
@@ -96,13 +122,13 @@ export function LandingCampus({
 }) {
   if (!cards.length) return null
   return (
-    <section className="mx-auto max-w-6xl px-4 py-8 sm:px-5">
+    <LandingSection>
       <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">{title}</h2>
-      <div className="-mx-4 mt-6 flex gap-4 overflow-x-auto px-4 pb-2 snap-x snap-mandatory lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0">
+      <div className="mt-6 flex min-w-0 snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0">
         {cards.map((card) => {
           const image = resolveMediaUrl(card.image_url)
           return (
-            <article key={card.title} className="w-72 shrink-0 snap-start overflow-hidden rounded-2xl border border-border/60 bg-card lg:w-auto">
+            <article key={card.title} className="w-72 min-w-0 shrink-0 snap-start overflow-hidden rounded-2xl border border-border/60 bg-card lg:w-auto">
               <div className="aspect-video bg-neutral-200">
                 {image ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -119,7 +145,7 @@ export function LandingCampus({
           )
         })}
       </div>
-    </section>
+    </LandingSection>
   )
 }
 
@@ -136,7 +162,7 @@ export function LandingJourney({
 }) {
   if (!steps.length) return null
   return (
-    <section className="mx-auto max-w-6xl px-4 py-8 sm:px-5">
+    <LandingSection>
       <div className="mx-auto max-w-2xl text-center">
         {eyebrow ? (
           <p className="text-xs font-semibold uppercase tracking-widest text-bhutan-orange">{eyebrow}</p>
@@ -144,7 +170,7 @@ export function LandingJourney({
         <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">{title}</h2>
         {subtitle ? <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p> : null}
       </div>
-      <ol className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <ol className="mt-8 grid min-w-0 grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {steps.map((step, index) => (
           <li key={`${step.title}-${index}`} className="text-center">
             <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-bhutan-yellow text-sm font-bold text-black">
@@ -155,40 +181,11 @@ export function LandingJourney({
           </li>
         ))}
       </ol>
-    </section>
+    </LandingSection>
   )
 }
 
-export function LandingQuotes({
-  title,
-  quotes,
-}: {
-  title: string
-  quotes: LandingQuote[]
-}) {
-  if (!quotes.length) return null
-  return (
-    <section className="mx-auto max-w-6xl px-4 py-8 sm:px-5">
-      <h2 className="text-center text-2xl font-bold tracking-tight sm:text-3xl">{title}</h2>
-      <div className="-mx-4 mt-6 flex gap-4 overflow-x-auto px-4 pb-2 snap-x snap-mandatory lg:mx-0 lg:grid lg:grid-cols-4 lg:overflow-visible lg:px-0">
-        {quotes.map((quote) => (
-          <figure key={`${quote.name}-${quote.quote.slice(0, 24)}`} className="w-72 shrink-0 snap-start rounded-2xl border border-border/60 bg-card p-4 lg:w-auto">
-            <div className="flex gap-0.5 text-bhutan-yellow">
-              {Array.from({ length: quote.stars }).map((_, index) => (
-                <Star key={index} className="h-3.5 w-3.5 fill-current" />
-              ))}
-            </div>
-            <blockquote className="mt-3 text-sm leading-relaxed">“{quote.quote}”</blockquote>
-            <figcaption className="mt-4 text-sm font-semibold">
-              {quote.name}
-              {quote.role ? <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{quote.role}</span> : null}
-            </figcaption>
-          </figure>
-        ))}
-      </div>
-    </section>
-  )
-}
+export { LandingQuotes } from '@/components/landing/landing-quotes'
 
 export function LandingJoin({
   images,
@@ -203,7 +200,8 @@ export function LandingJoin({
 }) {
   const photos = images.map((url) => resolveMediaUrl(url)).filter((url): url is string => Boolean(url))
   return (
-    <section className={`mx-auto grid max-w-6xl gap-4 px-4 py-8 sm:px-5 ${photos.length ? 'lg:grid-cols-2' : ''}`}>
+    <LandingSection>
+      <div className={`grid min-w-0 gap-4 ${photos.length ? 'lg:grid-cols-2' : ''}`}>
       {photos.length > 0 ? (
         <div className="grid grid-cols-2 gap-2">
           {photos.map((src) => (
@@ -224,6 +222,7 @@ export function LandingJoin({
           <ArrowRight className="h-4 w-4" />
         </Button>
       </div>
-    </section>
+      </div>
+    </LandingSection>
   )
 }

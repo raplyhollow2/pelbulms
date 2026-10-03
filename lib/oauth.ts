@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 
-export type SocialProvider = 'google' | 'facebook' | 'apple'
+export type SocialProvider = 'google'
 
 declare global {
   interface Window {

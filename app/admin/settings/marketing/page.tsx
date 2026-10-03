@@ -313,7 +313,7 @@ export default function AdminMarketingSettingsPage() {
         <div>
           <h3 className="text-sm font-semibold">Hero</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Headline and buttons sit beside the video on desktop. On a phone the video fills the frame behind the card. Clear the video URL to use an uploaded image instead.
+            The video fills the first screen behind the card. On a phone the card sits along the bottom. Clear the video URL to use an uploaded image instead.
           </p>
         </div>
         <div className="space-y-1.5">
@@ -460,7 +460,7 @@ export default function AdminMarketingSettingsPage() {
           onChange={(url) => setForm((f) => ({ ...f, hero_image_url: url }))}
         />
         <div className="space-y-1.5">
-          <Label htmlFor="hero_glass_opacity">Frosted card opacity ({form.hero_glass_opacity}%)</Label>
+          <Label htmlFor="hero_glass_opacity">Frosted glass opacity ({form.hero_glass_opacity}%)</Label>
           <input
             id="hero_glass_opacity"
             type="range"
@@ -472,7 +472,7 @@ export default function AdminMarketingSettingsPage() {
             className="w-full"
           />
           <p className="text-[11px] text-muted-foreground">
-            How solid the headline card looks over the video. Save before the preview updates.
+            How solid the top bar and the headline card look over the video. Save before the preview updates.
           </p>
         </div>
       </section>
@@ -559,7 +559,7 @@ export default function AdminMarketingSettingsPage() {
       {/* Features */}
       <ListEditorSection
         title="Programs"
-        hint="Colored tiles. Each button links to sign in. Remove every card to hide the block."
+        hint="Colored tiles. A button appears only when you set a label, and it links to sign in. Remove every card to hide the block."
         onAdd={() =>
           setForm((f) => ({
             ...f,

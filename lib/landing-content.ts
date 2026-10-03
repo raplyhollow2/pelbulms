@@ -23,6 +23,8 @@ export type LandingQuote = {
   name: string
   role: string
   stars: number
+  avatar_url?: string | null
+  course_id?: string | null
 }
 
 export type LandingStep = {
@@ -75,19 +77,19 @@ export const DEFAULT_LANDING_FEATURES: LandingFeature[] = [
     icon: 'Lock',
     title: 'Private video lessons',
     description:
-      'Lessons stream through our own servers with signed, expiring links — never downloadable or exposed in the browser.',
+      'Lessons play through Pelbu’s servers. The file address stays on the server, and each viewing link expires.',
   },
   {
     icon: 'BarChart3',
     title: 'Real progress tracking',
     description:
-      'Watch-time is measured per lesson. Courses complete automatically when a lesson is fully watched.',
+      'Watch-time is counted per lesson and playback resumes where you stopped. A lesson completes at 90% watched, after its required activities, and the next lesson can stay locked until then. Your dashboard keeps a day streak and exportable reports.',
   },
   {
     icon: 'BadgeCheck',
     title: 'Verified certificates',
     description:
-      'Auto-issued PDF certificates with a public verification page and unique code for employers.',
+      'Finishing a course issues a PDF with a unique code and a public page anyone can use to confirm it.',
   },
   {
     icon: 'ScanFace',
@@ -96,16 +98,28 @@ export const DEFAULT_LANDING_FEATURES: LandingFeature[] = [
       'Every account is verified with CID and passport photo, then approved by an assigned reviewer.',
   },
   {
-    icon: 'GraduationCap',
-    title: 'Effortless authoring',
+    icon: 'BookOpen',
+    title: 'Quizzes and practice',
     description:
-      'Teachers build courses, modules, lessons, quizzes and exams in a streamlined, autosaving workflow.',
+      'Graded quizzes, file assignments, flashcards, polls, and branching scenarios, with private notes and a lesson forum beside the video.',
   },
   {
     icon: 'Sparkles',
-    title: 'Built for mobile',
+    title: 'A tutor in the course',
     description:
-      'An app-like experience with offline support, installable PWA, and a fast, luxurious interface.',
+      'Enrolled learners can ask questions, recap the last lesson, summarize notes, and generate a worksheet. Teachers can draft an outline and quizzes with the same assistant.',
+  },
+  {
+    icon: 'GraduationCap',
+    title: 'Effortless authoring',
+    description:
+      'Teachers build modules, lessons, quizzes, and exams in an autosaving editor.',
+  },
+  {
+    icon: 'Smartphone',
+    title: 'Made for your phone',
+    description:
+      'Install Pelbu from the browser. Fullscreen video turns landscape on a phone and returns to portrait when you leave it.',
   },
 ]
 

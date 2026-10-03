@@ -74,6 +74,8 @@ export async function GET(request: Request) {
       }
 
       if (data.session) {
+        const next = safeAuthNext(requestUrl.searchParams.get('next'))
+        if (next) return NextResponse.redirect(`${requestUrl.origin}${next}`)
         const destination = await destinationFor(data.session.user.id, requestUrl.origin)
         return NextResponse.redirect(destination)
       }
@@ -88,4 +90,9 @@ export async function GET(request: Request) {
   // If there's no code, redirect to login
   console.log('No code received in callback')
   return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=no_code`)
+}
+
+function safeAuthNext(value: string | null) {
+  if (value === '/auth/reset-password') return value
+  return null
 }

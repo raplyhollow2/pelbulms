@@ -7,6 +7,7 @@ import { ArrowRight } from 'lucide-react'
 import { SignedInPublicGuard } from '@/components/auth/signed-in-public-guard'
 import { LandingHero } from '@/components/landing/landing-hero'
 import { LandingCatalog, type LandingCourse } from '@/components/landing/landing-catalog'
+import { LandingSection } from '@/components/landing/landing-section'
 import {
   LandingCampus,
   LandingJoin,
@@ -27,6 +28,7 @@ import {
   DEFAULT_LANDING_STEPS_NO_KYC,
   type LandingFaqItem,
   type LandingFeature,
+  type LandingQuote,
   type LandingStep,
 } from '@/lib/landing-content'
 import { resolveMediaUrl } from '@/lib/media'
@@ -153,6 +155,76 @@ function toLandingCourse(row: {
   }
 }
 
+async function loadLiveReviews(): Promise<LandingQuote[]> {
+  try {
+    const service = await tryCreateServiceClient()
+    if (!service) return []
+    const { data, error } = await service
+      .from('reviews')
+      .select('user_id, course_id, rating, comment, created_at')
+      .order('created_at', { ascending: false })
+      .limit(24)
+    if (error || !data?.length) return []
+
+    const rows = data as {
+      user_id: string
+      course_id: string
+      rating: number
+      comment: string | null
+    }[]
+    const userIds = [...new Set(rows.map((row) => row.user_id).filter(Boolean))]
+    const courseIds = [...new Set(rows.map((row) => row.course_id).filter(Boolean))]
+    const [{ data: profiles }, { data: courses }] = await Promise.all([
+      userIds.length
+        ? service.from('profiles').select('id, full_name, avatar_url').in('id', userIds)
+        : Promise.resolve({ data: [] }),
+      courseIds.length
+        ? service.from('courses').select('id, title, is_published').in('id', courseIds)
+        : Promise.resolve({ data: [] }),
+    ])
+    const people = new Map(
+      ((profiles || []) as { id: string; full_name: string | null; avatar_url: string | null }[]).map(
+        (profile) => [
+          profile.id,
+          {
+            name: profile.full_name?.trim() || '',
+            avatar_url: resolveMediaUrl(profile.avatar_url),
+          },
+        ]
+      )
+    )
+    const courseById = new Map(
+      ((courses || []) as { id: string; title: string | null; is_published: boolean | null }[]).map(
+        (course) => [course.id, course]
+      )
+    )
+
+    return rows
+      .flatMap((row) => {
+        const quote = (row.comment || '').trim()
+        const course = courseById.get(row.course_id)
+        const person = people.get(row.user_id)
+        const name = person?.name || ''
+        const role = course?.title?.trim() || ''
+        if (!quote || !name || !role || course?.is_published === false) return []
+        const stars = Math.min(5, Math.max(1, Math.round(Number(row.rating) || 0)))
+        return [
+          {
+            quote,
+            name,
+            role,
+            stars,
+            avatar_url: person?.avatar_url || null,
+            course_id: row.course_id,
+          },
+        ]
+      })
+      .slice(0, 12)
+  } catch {
+    return []
+  }
+}
+
 async function loadPublishedCourses() {
   try {
     const service = await tryCreateServiceClient()
@@ -172,21 +244,27 @@ async function loadPublishedCourses() {
   }
 }
 
+function withAccessCard(features: LandingFeature[], requireIdentity: boolean): LandingFeature[] {
+  if (requireIdentity) return features
+  return features.map((feature) =>
+    feature.title === 'Bhutan KYC access'
+      ? {
+          ...feature,
+          icon: 'ShieldCheck',
+          title: 'Trusted access',
+          description:
+            'Learners request a seat and the course creator approves it. A course can be limited to selected institutions or opened with an invite code.',
+        }
+      : feature
+  )
+}
+
 function resolveFeatures(
   custom: LandingFeature[] | null,
   requireIdentity: boolean
 ): LandingFeature[] {
-  if (custom !== null) return custom
-  return DEFAULT_LANDING_FEATURES.map((f) =>
-    f.title === 'Bhutan KYC access' && !requireIdentity
-      ? {
-          ...f,
-          title: 'Trusted learner accounts',
-          description:
-            'Every learner registers with a real profile and institution so certificates stay trustworthy.',
-        }
-      : f
-  )
+  const source = custom !== null ? custom : DEFAULT_LANDING_FEATURES
+  return withAccessCard(source, requireIdentity)
 }
 
 function resolveSteps(custom: LandingStep[] | null, requireIdentity: boolean): LandingStep[] {
@@ -285,7 +363,10 @@ export default async function Home({
     (requireIdentity
       ? FALLBACK_DESCRIPTION
       : `${siteName} is Bhutan’s learning platform for students, teachers and institutions.`)
-  const published = settings.public_catalog ? await loadPublishedCourses() : []
+  const [published, liveReviews] = await Promise.all([
+    settings.public_catalog ? loadPublishedCourses() : Promise.resolve([] as LandingCourse[]),
+    loadLiveReviews(),
+  ])
   const publishedById = new Map(published.map((course) => [course.id, course]))
   const featured = settings.featured_course_ids
     .map((id) => publishedById.get(id))
@@ -324,7 +405,7 @@ export default async function Home({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd(siteName, description, faq)) }}
       />
 
-      <main>
+      <main className="min-w-0 overflow-x-clip">
         <LandingHero
           siteName={siteName}
           tagline={settings.tagline}
@@ -366,7 +447,7 @@ export default async function Home({
           steps={steps}
         />
 
-        <LandingQuotes title={titles.quotes_title || 'Hear from the community'} quotes={settings.landing_quotes} />
+        <LandingQuotes title={titles.quotes_title || 'Hear from the community'} quotes={liveReviews} />
 
         <LandingJoin
           images={settings.landing_gallery}
@@ -375,7 +456,8 @@ export default async function Home({
           buttonLabel={settings.hero_cta_primary_label || 'Create your account'}
         />
 
-        <section id="faq" className="mx-auto max-w-3xl px-5 py-20 md:py-28">
+        <LandingSection id="faq">
+          <div className="mx-auto max-w-3xl">
           <div className="text-center">
             <p className="text-sm font-semibold uppercase tracking-widest text-bhutan-orange">
               {titles.faq_eyebrow}
@@ -384,7 +466,7 @@ export default async function Home({
               {titles.faq_title}
             </h2>
           </div>
-          <div className="mt-10 divide-y divide-border/60 rounded-2xl border border-border/60 bg-card/50 backdrop-blur">
+          <div className="mt-6 divide-y divide-border/60 rounded-2xl border border-border/60 bg-card/50 backdrop-blur">
             {faq.map((f) => (
               <details
                 key={f.question}
@@ -398,10 +480,11 @@ export default async function Home({
               </details>
             ))}
           </div>
-        </section>
+          </div>
+        </LandingSection>
       </main>
 
-      <footer className="border-t border-border/50">
+      <footer>
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-8 text-sm text-muted-foreground sm:flex-row">
           <p>
             © {new Date().getFullYear()} {siteName} · Empowering education in Bhutan.

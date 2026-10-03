@@ -26,9 +26,11 @@ function BookGlyph({ className }: { className?: string }) {
 export function LandingNav({
   siteName,
   courses,
+  glassOpacity = 70,
 }: {
   siteName: string
   courses: LandingCourse[]
+  glassOpacity?: number
 }) {
   const router = useRouter()
   const rootRef = useRef<HTMLElement>(null)
@@ -85,8 +87,14 @@ export function LandingNav({
     router.push(q ? `/courses?q=${encodeURIComponent(q)}` : '/courses')
   }
 
+  const glass = Math.min(90, Math.max(20, Math.round(glassOpacity))) / 100
+
   return (
-    <header ref={rootRef} className="relative z-30 border-b border-border/60 bg-background">
+    <header
+      ref={rootRef}
+      className="absolute inset-x-0 top-0 z-30 border-b border-white/50 shadow-sm backdrop-blur-xl"
+      style={{ backgroundColor: `rgb(255 255 255 / ${glass})` }}
+    >
       <div className="mx-auto flex w-full max-w-6xl items-center gap-2 px-4 py-3 sm:gap-3 sm:px-5">
         <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-bhutan-yellow to-bhutan-orange shadow-brand">

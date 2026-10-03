@@ -3,9 +3,11 @@
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { BookOpen, Loader2, AlertCircle, Fingerprint, Home } from 'lucide-react'
+import { BookOpen, Loader2, AlertCircle, Fingerprint, Home, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { SignedInPublicGuard } from '@/components/auth/signed-in-public-guard'
 import { createClient } from '@/lib/supabase/client'
 import { startSocialOAuth, registerNativeGoogleCompletion, type SocialProvider } from '@/lib/oauth'
@@ -19,26 +21,36 @@ const GoogleIcon = ({ className }: { className?: string }) => (
   </svg>
 )
 
-const FacebookIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="#1877F2" aria-hidden="true">
-    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-  </svg>
-)
+type Busy = null | 'passkey' | 'email' | SocialProvider
+type EmailMode = 'signin' | 'signup'
 
-const AppleIcon = ({ className }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-  </svg>
-)
-
-type Busy = null | 'passkey' | SocialProvider
+function explainEmailAuthError(message: string, mode: EmailMode) {
+  const lower = message.toLowerCase()
+  if (lower.includes('invalid login credentials') || lower.includes('invalid credentials')) {
+    return 'That email and password do not match. If you first joined with Google, this account has no password yet. Use Continue with Google, or choose Forgot password.'
+  }
+  if (lower.includes('already registered') || lower.includes('already been registered')) {
+    return 'This email already has an account. Sign in with Google, or choose Forgot password.'
+  }
+  if (lower.includes('email not confirmed')) {
+    return 'Confirm this email before signing in. Open the message we sent, then come back and sign in with the password you chose.'
+  }
+  if (mode === 'signup' && lower.includes('signups not allowed')) {
+    return 'Email sign-up is turned off for this site. Use Continue with Google.'
+  }
+  return message
+}
 
 function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [busy, setBusy] = useState<Busy>(null)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [siteName, setSiteName] = useState('Pelbu LMS')
+  const [emailMode, setEmailMode] = useState<EmailMode>('signin')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
 
   useEffect(() => {
     const urlError = searchParams.get('error')
@@ -69,6 +81,96 @@ function LoginPage() {
       cancelled = true
     }
   }, [])
+
+  const handleEmailAuth = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setBusy('email')
+    setError('')
+    setNotice('')
+
+    const trimmedEmail = email.trim()
+    if (!trimmedEmail || !password) {
+      setError('Enter your email and password.')
+      setBusy(null)
+      return
+    }
+    if (password.length < 8) {
+      setError('Use a password of at least 8 characters.')
+      setBusy(null)
+      return
+    }
+
+    try {
+      const supabase = createClient()
+      if (emailMode === 'signup') {
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: trimmedEmail,
+          password,
+          options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        })
+        if (signUpError) {
+          setError(explainEmailAuthError(signUpError.message, 'signup'))
+          setBusy(null)
+          return
+        }
+        const alreadyRegistered = (data.user?.identities?.length ?? 0) === 0
+        if (alreadyRegistered) {
+          setError(explainEmailAuthError('User already registered', 'signup'))
+          setBusy(null)
+          return
+        }
+        if (!data.session) {
+          setNotice('Check your email to confirm your account, then sign in here.')
+          setEmailMode('signin')
+          setBusy(null)
+          return
+        }
+      } else {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: trimmedEmail,
+          password,
+        })
+        if (signInError) {
+          setError(explainEmailAuthError(signInError.message, 'signin'))
+          setBusy(null)
+          return
+        }
+      }
+      window.location.assign('/dashboard')
+    } catch (err) {
+      console.error('Email auth error:', err)
+      setError('Email sign-in failed. Please try again.')
+      setBusy(null)
+    }
+  }
+
+  const handlePasswordLink = async () => {
+    const trimmedEmail = email.trim()
+    setError('')
+    setNotice('')
+    if (!trimmedEmail) {
+      setError('Enter your email, then choose Forgot password.')
+      return
+    }
+    setBusy('email')
+    try {
+      const supabase = createClient()
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+        redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset-password`,
+      })
+      if (resetError) {
+        setError(resetError.message)
+        setBusy(null)
+        return
+      }
+      setNotice('Check your email and open the reset link. Choose a new password there to enter the LMS.')
+      setBusy(null)
+    } catch (err) {
+      console.error('Password link error:', err)
+      setError('Could not send the password link. Please try again.')
+      setBusy(null)
+    }
+  }
 
   const handlePasskeySignIn = async () => {
     setBusy('passkey')
@@ -123,7 +225,7 @@ function LoginPage() {
           </Link>
           <h1 className="text-3xl font-bold">Welcome to {siteName}</h1>
           <p className="text-muted-foreground">
-            Sign in with the Google account you use for school or work
+            Sign in with Google, or use your email and password
           </p>
         </div>
 
@@ -131,7 +233,7 @@ function LoginPage() {
           <CardHeader>
             <CardTitle>Sign in to continue</CardTitle>
             <CardDescription>
-              Choose a Google account, or another sign-in method
+              Use Google, or type your email and password
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -151,52 +253,93 @@ function LoginPage() {
                 Continue with Google
               </Button>
 
-              <Button
-                type="button"
-                onClick={() => handleOAuthSignIn('facebook')}
-                disabled={disabled}
-                variant="outline"
-                className="h-12 w-full text-base font-medium"
-              >
-                {busy === 'facebook' ? (
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                ) : (
-                  <FacebookIcon className="mr-2 h-5 w-5" />
-                )}
-                Continue with Facebook
-              </Button>
-
-              <Button
-                type="button"
-                onClick={() => handleOAuthSignIn('apple')}
-                disabled={disabled}
-                variant="outline"
-                className="h-12 w-full text-base font-medium"
-              >
-                {busy === 'apple' ? (
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                ) : (
-                  <AppleIcon className="mr-2 h-5 w-5" />
-                )}
-                Continue with Apple
-              </Button>
-
               <div className="relative py-1">
                 <div className="absolute inset-0 flex items-center">
                   <span className="w-full border-t" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
-                    Or
-                  </span>
+                  <span className="bg-background px-2 text-muted-foreground">Or</span>
                 </div>
               </div>
+
+              <form className="space-y-3" onSubmit={handleEmailAuth}>
+                <div className="space-y-1.5">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    disabled={disabled}
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    autoComplete={emailMode === 'signup' ? 'new-password' : 'current-password'}
+                    placeholder="At least 8 characters"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    disabled={disabled}
+                    minLength={8}
+                    required
+                  />
+                  {emailMode === 'signin' ? (
+                    <p className="text-right text-sm">
+                      <button
+                        type="button"
+                        className="text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                        onClick={handlePasswordLink}
+                        disabled={disabled}
+                      >
+                        Forgot password?
+                      </button>
+                    </p>
+                  ) : null}
+                </div>
+                <Button
+                  type="submit"
+                  disabled={disabled}
+                  className="h-12 w-full bg-bhutan-yellow text-base font-medium text-black hover:bg-bhutan-orange"
+                >
+                  {busy === 'email' ? (
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  ) : (
+                    <Mail className="mr-2 h-5 w-5" />
+                  )}
+                  {emailMode === 'signup' ? 'Create account' : 'Sign in with email'}
+                </Button>
+                <p className="text-center text-sm text-muted-foreground">
+                  {emailMode === 'signup' ? 'Already have an account?' : 'New here?'}{' '}
+                  <button
+                    type="button"
+                    className="font-medium text-foreground underline underline-offset-4"
+                    onClick={() => {
+                      setEmailMode((mode) => (mode === 'signin' ? 'signup' : 'signin'))
+                      setError('')
+                      setNotice('')
+                    }}
+                  >
+                    {emailMode === 'signup' ? 'Sign in' : 'Create an account'}
+                  </button>
+                </p>
+              </form>
+
+              {notice ? (
+                <p className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-foreground">{notice}</p>
+              ) : null}
 
               <Button
                 type="button"
                 onClick={handlePasskeySignIn}
                 disabled={disabled}
-                className="h-12 w-full bg-bhutan-yellow text-base font-medium text-black hover:bg-bhutan-orange"
+                variant="outline"
+                className="h-12 w-full text-base font-medium"
               >
                 {busy === 'passkey' ? (
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -220,7 +363,7 @@ function LoginPage() {
         </Card>
 
         <div className="space-y-2 text-center text-sm text-muted-foreground">
-          <p>Google will let you pick which account to use, just like on desktop.</p>
+          <p>Google opens your account picker. Email uses the address and password you type here.</p>
           <div className="flex items-center justify-center gap-2 text-xs">
             <span className="h-2 w-2 rounded-full bg-green-500"></span>
             <span>Secure authentication powered by Supabase Auth</span>

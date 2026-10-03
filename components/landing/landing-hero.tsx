@@ -364,28 +364,25 @@ export function LandingHero({
       : `${siteName} is Bhutan's learning platform — world-class courses, progress tracking, and recognised certificates.`)
 
   return (
-    <div className="bg-background text-foreground">
-      <LandingNav siteName={siteName} courses={courses} />
+    <div className="relative h-[100svh] bg-background text-foreground">
+      <section className="absolute inset-0 overflow-hidden bg-neutral-100">
+        <div className="absolute inset-0 overflow-hidden">
+          {resolvedVideo ? (
+            <HeroVideoBackground
+              videoUrl={resolvedVideo}
+              startSeconds={videoStartSeconds ?? 0}
+              endSeconds={videoEndSeconds ?? null}
+              preferredQuality={videoQuality}
+            />
+          ) : fallbackImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={fallbackImage} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-bhutan-yellow/40 to-bhutan-orange/30" />
+          )}
+        </div>
 
-      <section className="px-4 pb-6 pt-4 sm:px-5">
-        <div className="relative mx-auto min-h-[32rem] max-w-6xl overflow-hidden bg-neutral-100 lg:min-h-[28rem]">
-          <div className="absolute inset-0 overflow-hidden">
-            {resolvedVideo ? (
-              <HeroVideoBackground
-                videoUrl={resolvedVideo}
-                startSeconds={videoStartSeconds ?? 0}
-                endSeconds={videoEndSeconds ?? null}
-                preferredQuality={videoQuality}
-              />
-            ) : fallbackImage ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={fallbackImage} alt="" className="absolute inset-0 h-full w-full object-cover" />
-            ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-bhutan-yellow/40 to-bhutan-orange/30" />
-            )}
-          </div>
-
-          <div className="relative z-10 flex min-h-[32rem] items-end p-3 sm:p-4 lg:min-h-[28rem] lg:p-8">
+        <div className="relative z-10 flex h-full items-end p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4 lg:p-10">
             <div
               className="w-full max-w-sm rounded-lg border border-white/50 p-3.5 text-neutral-900 shadow-2xl backdrop-blur-xl sm:p-4"
               style={{ backgroundColor: `rgb(255 255 255 / ${glass})` }}
@@ -433,8 +430,8 @@ export function LandingHero({
               </div>
             </div>
           </div>
-        </div>
       </section>
+      <LandingNav siteName={siteName} courses={courses} glassOpacity={glassOpacity} />
     </div>
   )
 }
