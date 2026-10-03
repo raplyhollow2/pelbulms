@@ -5,13 +5,18 @@ import {
   DEFAULT_HERO_VIDEO_URL,
   DEFAULT_LANDING_STATS,
   parseHeroRotatingWords,
+  parseLandingCampus,
   parseLandingFaq,
   parseLandingFeatures,
+  parseLandingGallery,
+  parseLandingQuotes,
   parseLandingSectionTitles,
   parseLandingStats,
   parseLandingSteps,
+  type LandingCampusCard,
   type LandingFaqItem,
   type LandingFeature,
+  type LandingQuote,
   type LandingSectionTitles,
   type LandingStat,
   type LandingStep,
@@ -55,11 +60,18 @@ export type PlatformSettings = {
   video_quality: VideoQualityPreference
   hero_rotating_words: string[]
   hero_cta_primary_label: string | null
+  hero_cta_secondary_label: string | null
+  hero_image_url: string | null
+  /** Frosted hero card white fill, 20–90. */
+  hero_glass_opacity: number
   landing_stats: LandingStat[]
-  /** null = use built-in defaults (KYC-aware on homepage) */
+  /** null = use built-in defaults (KYC-aware on homepage). [] = hide the block. */
   landing_features: LandingFeature[] | null
   landing_steps: LandingStep[] | null
   landing_faq: LandingFaqItem[] | null
+  landing_campus: LandingCampusCard[]
+  landing_quotes: LandingQuote[]
+  landing_gallery: string[]
   landing_section_titles: LandingSectionTitles
   updated_at: string | null
 }
@@ -100,10 +112,16 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   video_quality: 'high',
   hero_rotating_words: [...DEFAULT_HERO_ROTATING_WORDS],
   hero_cta_primary_label: DEFAULT_HERO_CTA_PRIMARY,
+  hero_cta_secondary_label: null,
+  hero_image_url: null,
+  hero_glass_opacity: 70,
   landing_stats: [...DEFAULT_LANDING_STATS],
   landing_features: null,
   landing_steps: null,
   landing_faq: null,
+  landing_campus: [],
+  landing_quotes: [],
+  landing_gallery: [],
   landing_section_titles: {},
   updated_at: null,
 }
@@ -111,14 +129,17 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
 export function parsePlatformSettings(row: Record<string, unknown> | null | undefined): PlatformSettings {
   if (!row) return { ...DEFAULT_PLATFORM_SETTINGS, hero_rotating_words: [...DEFAULT_HERO_ROTATING_WORDS], landing_stats: [...DEFAULT_LANDING_STATS] }
   const featured = row.featured_course_ids
-  const heroUrl =
-    typeof row.hero_video_url === 'string' && row.hero_video_url.trim()
-      ? row.hero_video_url.trim()
-      : DEFAULT_HERO_VIDEO_URL
+  const rawHero = typeof row.hero_video_url === 'string' ? row.hero_video_url.trim() : ''
+  const heroImage = typeof row.hero_image_url === 'string' ? row.hero_image_url.trim() : ''
+  const heroUrl = rawHero || (heroImage ? null : DEFAULT_HERO_VIDEO_URL)
   const cta =
     typeof row.hero_cta_primary_label === 'string' && row.hero_cta_primary_label.trim()
       ? row.hero_cta_primary_label.trim()
       : DEFAULT_HERO_CTA_PRIMARY
+  const secondaryCta =
+    typeof row.hero_cta_secondary_label === 'string' && row.hero_cta_secondary_label.trim()
+      ? row.hero_cta_secondary_label.trim()
+      : null
   const startSec = parseOptionalNonNegInt(row.hero_video_start_seconds)
   const endSec = parseOptionalPositiveInt(row.hero_video_end_seconds)
   const clip =
@@ -152,13 +173,25 @@ export function parsePlatformSettings(row: Record<string, unknown> | null | unde
     video_quality: parseVideoQuality(row.video_quality),
     hero_rotating_words: parseHeroRotatingWords(row.hero_rotating_words),
     hero_cta_primary_label: cta,
+    hero_cta_secondary_label: secondaryCta,
+    hero_image_url: heroImage || null,
+    hero_glass_opacity: parseGlassOpacity(row.hero_glass_opacity),
     landing_stats: parseLandingStats(row.landing_stats),
     landing_features: parseLandingFeatures(row.landing_features),
     landing_steps: parseLandingSteps(row.landing_steps),
     landing_faq: parseLandingFaq(row.landing_faq),
+    landing_campus: parseLandingCampus(row.landing_campus),
+    landing_quotes: parseLandingQuotes(row.landing_quotes),
+    landing_gallery: parseLandingGallery(row.landing_gallery),
     landing_section_titles: parseLandingSectionTitles(row.landing_section_titles),
     updated_at: typeof row.updated_at === 'string' ? row.updated_at : null,
   }
+}
+
+function parseGlassOpacity(raw: unknown): number {
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isFinite(n)) return 70
+  return Math.min(90, Math.max(20, Math.round(n)))
 }
 
 function parseIdentityFlags(row: Record<string, unknown>) {
@@ -218,10 +251,16 @@ export function toPublicSite(settings: PlatformSettings) {
     video_quality: settings.video_quality,
     hero_rotating_words: settings.hero_rotating_words,
     hero_cta_primary_label: settings.hero_cta_primary_label,
+    hero_cta_secondary_label: settings.hero_cta_secondary_label,
+    hero_image_url: settings.hero_image_url,
+    hero_glass_opacity: settings.hero_glass_opacity,
     landing_stats: settings.landing_stats,
     landing_features: settings.landing_features,
     landing_steps: settings.landing_steps,
     landing_faq: settings.landing_faq,
+    landing_campus: settings.landing_campus,
+    landing_quotes: settings.landing_quotes,
+    landing_gallery: settings.landing_gallery,
     landing_section_titles: settings.landing_section_titles,
   }
 }

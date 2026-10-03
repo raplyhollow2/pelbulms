@@ -11,8 +11,11 @@ import {
   invalidatePlatformSettingsCache,
 } from '@/lib/platform-settings'
 import {
+  normalizeLandingCampusInput,
   normalizeLandingFaqInput,
   normalizeLandingFeaturesInput,
+  normalizeLandingGalleryInput,
+  normalizeLandingQuotesInput,
   normalizeLandingSectionTitlesInput,
   normalizeLandingStatsInput,
   normalizeLandingStepsInput,
@@ -51,6 +54,9 @@ const MARKETING_FIELDS = [
   'landing_description',
   'hero_video_url',
   'hero_cta_primary_label',
+  'hero_cta_secondary_label',
+  'hero_image_url',
+  'hero_glass_opacity',
   'featured_course_ids',
   'public_catalog',
   'hero_rotating_words',
@@ -61,6 +67,9 @@ const MARKETING_FIELDS = [
   'landing_features',
   'landing_steps',
   'landing_faq',
+  'landing_campus',
+  'landing_quotes',
+  'landing_gallery',
   'landing_section_titles',
 ] as const
 
@@ -300,6 +309,58 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'landing_section_titles must be an object' }, { status: 400 })
     }
     updates.landing_section_titles = titles
+  }
+
+  if (body.landing_campus !== undefined) {
+    const campus = normalizeLandingCampusInput(body.landing_campus)
+    if (campus === null) {
+      return NextResponse.json(
+        { error: 'landing_campus must be an array of {image_url, title, description}' },
+        { status: 400 }
+      )
+    }
+    updates.landing_campus = campus
+  }
+
+  if (body.landing_quotes !== undefined) {
+    const quotes = normalizeLandingQuotesInput(body.landing_quotes)
+    if (quotes === null) {
+      return NextResponse.json(
+        { error: 'landing_quotes must be an array of {quote, name, role, stars}' },
+        { status: 400 }
+      )
+    }
+    updates.landing_quotes = quotes
+  }
+
+  if (body.landing_gallery !== undefined) {
+    const gallery = normalizeLandingGalleryInput(body.landing_gallery)
+    if (gallery === null) {
+      return NextResponse.json({ error: 'landing_gallery must be an array of image URLs' }, { status: 400 })
+    }
+    updates.landing_gallery = gallery
+  }
+
+  if (body.hero_cta_secondary_label !== undefined) {
+    updates.hero_cta_secondary_label =
+      typeof body.hero_cta_secondary_label === 'string' && body.hero_cta_secondary_label.trim()
+        ? body.hero_cta_secondary_label.trim()
+        : null
+  }
+
+  if (body.hero_image_url !== undefined) {
+    updates.hero_image_url =
+      typeof body.hero_image_url === 'string' && body.hero_image_url.trim()
+        ? body.hero_image_url.trim()
+        : null
+  }
+
+  if (body.hero_glass_opacity !== undefined) {
+    const n = typeof body.hero_glass_opacity === 'number' ? body.hero_glass_opacity : Number(body.hero_glass_opacity)
+    if (!Number.isFinite(n)) {
+      return NextResponse.json({ error: 'hero_glass_opacity must be a number from 20 to 90' }, { status: 400 })
+    }
+    updates.hero_glass_opacity = Math.min(90, Math.max(20, Math.round(n)))
   }
 
   const service = await getAdminDb()

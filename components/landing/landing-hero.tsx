@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, LogIn } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { createYoutubeIframe, getYoutubeId } from '@/lib/video-url'
 import {
@@ -11,6 +11,8 @@ import {
   DEFAULT_HERO_VIDEO_URL,
   type LandingStat,
 } from '@/lib/landing-content'
+import { LandingNav } from '@/components/landing/landing-nav'
+import type { LandingCourse } from '@/components/landing/landing-catalog'
 
 function useTypewriter(words: string[]) {
   const [index, setIndex] = useState(0)
@@ -146,6 +148,34 @@ function HeroVideoBackground({
 
     let cancelled = false
     const host = mountRef.current
+    const panel = host.parentElement
+    const fit = () => {
+      if (!panel) return
+      const cw = panel.clientWidth
+      const ch = panel.clientHeight
+      if (!cw || !ch) return
+      let width = cw
+      let height = (width * 9) / 16
+      if (height < ch) {
+        height = ch
+        width = (height * 16) / 9
+      }
+      host.style.width = `${Math.ceil(width)}px`
+      host.style.height = `${Math.ceil(height)}px`
+      host.style.left = `${(cw - width) / 2}px`
+      host.style.top = `${(ch - height) / 2}px`
+      host.style.transform = 'none'
+      const iframe = host.querySelector('iframe')
+      if (iframe instanceof HTMLIFrameElement) {
+        iframe.setAttribute('width', String(Math.ceil(width)))
+        iframe.setAttribute('height', String(Math.ceil(height)))
+        iframe.style.width = `${Math.ceil(width)}px`
+        iframe.style.height = `${Math.ceil(height)}px`
+      }
+    }
+    fit()
+    const observer = typeof ResizeObserver !== 'undefined' && panel ? new ResizeObserver(fit) : null
+    observer?.observe(panel)
 
     const restartClip = (player: any) => {
       try {
@@ -208,6 +238,11 @@ function HeroVideoBackground({
         events: {
           onReady: (event: any) => {
             try {
+              const w = host.clientWidth
+              const h = host.clientHeight
+              if (w && h && typeof event.target.setSize === 'function') {
+                event.target.setSize(w, h)
+              }
               event.target.mute()
               applyQuality(event.target)
               event.target.seekTo(start, true)
@@ -242,6 +277,7 @@ function HeroVideoBackground({
 
     return () => {
       cancelled = true
+      observer?.disconnect()
       if (pollRef.current) {
         clearInterval(pollRef.current)
         pollRef.current = null
@@ -270,9 +306,10 @@ function HeroVideoBackground({
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
       <div className="absolute inset-0 bg-cover bg-center" style={baseStyle} />
-      <div className="absolute left-1/2 top-1/2 aspect-video h-[max(100%,56.25vw)] w-[max(100%,177.78vh)] -translate-x-1/2 -translate-y-1/2 scale-[1.2] overflow-hidden">
-        <div ref={mountRef} className="h-full w-full [&_iframe]:h-full [&_iframe]:w-full [&_iframe]:border-0" />
-      </div>
+      <div
+        ref={mountRef}
+        className="absolute"
+      />
     </div>
   )
 }
@@ -288,7 +325,12 @@ export function LandingHero({
   videoQuality = 'high',
   rotatingWords,
   ctaLabel,
+  secondaryCtaLabel,
+  showCatalog = false,
+  glassOpacity = 70,
   requireIdentity = true,
+  fallbackImage,
+  courses = [],
 }: {
   siteName?: string
   tagline?: string | null
@@ -300,106 +342,100 @@ export function LandingHero({
   videoQuality?: 'auto' | 'high' | 'max'
   rotatingWords?: string[]
   ctaLabel?: string | null
+  secondaryCtaLabel?: string | null
+  showCatalog?: boolean
+  glassOpacity?: number
   requireIdentity?: boolean
+  fallbackImage?: string | null
+  courses?: LandingCourse[]
 }) {
   const words = rotatingWords?.length ? rotatingWords : DEFAULT_HERO_ROTATING_WORDS
   const typed = useTypewriter(words)
-  const resolvedVideo = videoUrl?.trim() || DEFAULT_HERO_VIDEO_URL
+  const resolvedVideo = videoUrl?.trim() || ''
   const primaryCta = ctaLabel?.trim() || DEFAULT_HERO_CTA_PRIMARY
+  const secondaryCta = secondaryCtaLabel?.trim() || 'Browse courses'
+  const glass = Math.min(90, Math.max(20, Math.round(glassOpacity))) / 100
 
   const defaultHeadlinePrefix = 'Advanced learning for'
   const resolvedDescription =
     description ||
     (requireIdentity
-      ? `${siteName} is Bhutan's private learning platform — identity-verified access, world-class courses, progress tracking, and recognised certificates. Built for students, teachers and institutions shaping the nation's future.`
-      : `${siteName} is Bhutan's learning platform — world-class courses, progress tracking, and recognised certificates. Built for students, teachers and institutions shaping the nation's future.`)
+      ? `${siteName} is Bhutan's private learning platform — identity-verified access, world-class courses, progress tracking, and recognised certificates.`
+      : `${siteName} is Bhutan's learning platform — world-class courses, progress tracking, and recognised certificates.`)
 
   return (
-    <section className="relative isolate flex min-h-[100svh] flex-col overflow-hidden bg-[#0a0a0a] text-white">
-      <HeroVideoBackground
-        videoUrl={resolvedVideo}
-        startSeconds={videoStartSeconds ?? 0}
-        endSeconds={videoEndSeconds ?? null}
-        preferredQuality={videoQuality}
-      />
+    <div className="bg-background text-foreground">
+      <LandingNav siteName={siteName} courses={courses} />
 
-      {/* Soft cinematic scrim — above video, below content */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 z-[1] bg-[linear-gradient(180deg,rgba(10,10,10,0.75)_0%,rgba(10,10,10,0.5)_42%,rgba(10,10,10,0.82)_100%),radial-gradient(60rem_36rem_at_80%_-10%,rgba(255,199,44,0.2),transparent_60%),radial-gradient(50rem_32rem_at_-5%_80%,rgba(255,107,53,0.18),transparent_55%)]"
-      />
-
-      <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-5 sm:py-5">
-        <Link href="/" className="flex min-w-0 items-center gap-2.5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-bhutan-yellow to-bhutan-orange shadow-brand">
-            <BookGlyph className="h-5 w-5 text-white" />
-          </span>
-          <span className="truncate text-base font-semibold tracking-tight text-white sm:text-lg">{siteName}</span>
-        </Link>
-        <nav className="flex shrink-0 items-center gap-1.5">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 rounded-full text-white/90 hover:bg-white/10 hover:text-white"
-            render={<Link href="/auth/login" />}
-          >
-            <LogIn className="h-4 w-4" />
-            Sign in
-          </Button>
-        </nav>
-      </header>
-
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center px-4 pb-16 pt-8 sm:px-5 sm:pb-20 sm:pt-10 md:pb-28 md:pt-16">
-        <div className="max-w-2xl">
-          {(tagline || requireIdentity) && (
-            <p className="reveal reveal-1 text-sm font-medium tracking-wide text-white/70">
-              {tagline ||
-                (requireIdentity
-                  ? 'A verified, closed learning network for Bhutan'
-                  : 'A learning network for Bhutan')}
-            </p>
-          )}
-
-          <h1 className="reveal reveal-2 mt-4 text-[2.125rem] font-semibold leading-[1.08] tracking-tight text-white sm:text-5xl md:text-6xl lg:text-7xl">
-            {headline ? (
-              headline
+      <section className="px-4 pb-6 pt-4 sm:px-5">
+        <div className="relative mx-auto min-h-[32rem] max-w-6xl overflow-hidden bg-neutral-100 lg:min-h-[28rem]">
+          <div className="absolute inset-0 overflow-hidden">
+            {resolvedVideo ? (
+              <HeroVideoBackground
+                videoUrl={resolvedVideo}
+                startSeconds={videoStartSeconds ?? 0}
+                endSeconds={videoEndSeconds ?? null}
+                preferredQuality={videoQuality}
+              />
+            ) : fallbackImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={fallbackImage} alt="" className="absolute inset-0 h-full w-full object-cover" />
             ) : (
-              <>
-                {defaultHeadlinePrefix}
-                <span className="mt-1 block">
-                  <span className="bg-gradient-to-r from-bhutan-yellow via-bhutan-orange to-[#ff8f6b] bg-clip-text text-transparent">
-                    {typed || '\u00A0'}
-                  </span>
-                  <span className="caret-blink ml-0.5 inline-block h-[0.9em] w-[3px] translate-y-[2px] rounded-full bg-bhutan-orange align-middle" />
-                </span>
-              </>
+              <div className="absolute inset-0 bg-gradient-to-br from-bhutan-yellow/40 to-bhutan-orange/30" />
             )}
-          </h1>
+          </div>
 
-          {headline && words.length > 0 ? (
-            <p className="reveal reveal-2 mt-3 text-xl font-medium tracking-tight text-bhutan-yellow sm:text-2xl md:text-3xl">
-              <span>{typed || '\u00A0'}</span>
-              <span className="caret-blink ml-0.5 inline-block h-[0.85em] w-[3px] translate-y-[2px] rounded-full bg-bhutan-orange align-middle" />
-            </p>
-          ) : null}
-
-          <p className="reveal reveal-3 mt-5 max-w-xl text-base leading-relaxed text-white/80 sm:text-lg">
-            {resolvedDescription}
-          </p>
-
-          <div className="reveal reveal-4 mt-8">
-            <Button
-              size="lg"
-              className="group h-12 w-full gap-2 rounded-full bg-gradient-to-r from-bhutan-yellow to-bhutan-orange px-7 text-sm font-semibold text-black shadow-brand hover:opacity-95 sm:w-auto"
-              render={<Link href="/auth/login" />}
+          <div className="relative z-10 flex min-h-[32rem] items-end p-3 sm:p-4 lg:min-h-[28rem] lg:p-8">
+            <div
+              className="w-full max-w-sm rounded-lg border border-white/50 p-3.5 text-neutral-900 shadow-2xl backdrop-blur-xl sm:p-4"
+              style={{ backgroundColor: `rgb(255 255 255 / ${glass})` }}
             >
-              {primaryCta}
-              <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
-            </Button>
+              {(tagline || requireIdentity) && (
+                <p className="text-xs font-semibold uppercase tracking-widest text-bhutan-orange">
+                  {tagline ||
+                    (requireIdentity
+                      ? 'A verified learning network for Bhutan'
+                      : 'A learning network for Bhutan')}
+                </p>
+              )}
+              <h1 className="mt-2 text-xl font-bold leading-tight tracking-tight text-neutral-900 sm:text-2xl">
+                {headline ? (
+                  headline
+                ) : (
+                  <>
+                    <span className="block">{defaultHeadlinePrefix}</span>
+                    <span className="mt-1 block text-bhutan-orange">{typed || '\u00A0'}</span>
+                  </>
+                )}
+              </h1>
+              <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-neutral-600">
+                {resolvedDescription}
+              </p>
+              <div className="mt-3 flex flex-nowrap items-center gap-1.5">
+                <Button
+                  size="sm"
+                  className="h-8 shrink gap-1 rounded-full bg-bhutan-yellow px-3 text-xs font-bold text-black hover:bg-bhutan-orange"
+                  render={<Link href="/auth/login" />}
+                >
+                  {primaryCta}
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+                {showCatalog ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 shrink rounded-full border-white/70 bg-white/60 px-3 text-xs font-bold text-neutral-900 hover:bg-white/80"
+                    render={<Link href="#courses" />}
+                  >
+                    {secondaryCta}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   )
 }
 
@@ -429,21 +465,5 @@ export function LandingStatsStrip({
         </dl>
       </div>
     </section>
-  )
-}
-
-function BookGlyph({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className}>
-      <path
-        d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11a2 2 0 0 1 2 2v13a1.5 1.5 0 0 0-1.5-1.5H5.5A1.5 1.5 0 0 1 4 16V5.5Z"
-        fill="currentColor"
-        opacity="0.9"
-      />
-      <path
-        d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13a2 2 0 0 0-2 2v13a1.5 1.5 0 0 1 1.5-1.5h6A1.5 1.5 0 0 0 20 16V5.5Z"
-        fill="currentColor"
-      />
-    </svg>
   )
 }

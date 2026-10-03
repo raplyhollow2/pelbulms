@@ -1,16 +1,19 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BookOpen, Clock, Users, Star, ArrowLeft, CheckCircle, Hourglass, Building2 } from 'lucide-react'
+import { CheckCircle, Hourglass, Building2, Star, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { CourseActionDeck } from '@/components/courses/course-action-deck'
 import { CurriculumTimeline } from '@/components/courses/curriculum-timeline'
 import { CourseDetailSkeleton } from '@/components/courses/course-detail-skeleton'
+import { CourseCard } from '@/components/courses/course-card'
 import { CourseDescription } from '@/components/course/course-description'
+import { ReviewsDashboard } from '@/components/course/reviews-dashboard'
+import { courseDescriptionPlain } from '@/lib/course-description'
 import { resumeLearnPath } from '@/lib/resume-path'
 import { postEnrollmentRequest } from '@/lib/request-enrollment'
 import { toast } from 'sonner'
@@ -28,6 +31,9 @@ import { lessonIsFreePreview } from '@/lib/lesson-visibility'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row']
+type RelatedCourse = Course & {
+  profiles?: Pick<Profile, 'full_name' | 'avatar_url' | 'bio'> | null
+}
 
 async function fetchLiveStudentCount(courseId: string): Promise<number | null> {
   try {
@@ -62,6 +68,8 @@ export default function CourseDetailPage() {
     >
   >([])
   const [modules, setModules] = useState<any[]>([])
+  const [relatedCourses, setRelatedCourses] = useState<RelatedCourse[]>([])
+  const [instructorCourses, setInstructorCourses] = useState<RelatedCourse[]>([])
   const [loading, setLoading] = useState(true)
   const [accessDenied, setAccessDenied] = useState<{ names: string[] } | null>(null)
   const [isEnrolled, setIsEnrolled] = useState(false)
@@ -108,6 +116,8 @@ export default function CourseDetailPage() {
           instructor_id,
           category,
           level,
+          language,
+          price,
           duration_minutes,
           learning_objectives,
           requirements,
@@ -116,6 +126,7 @@ export default function CourseDetailPage() {
           is_published,
           enrollment_mode,
           average_rating,
+          rating_count,
           metadata,
           updated_at,
           profiles:instructor_id (
@@ -200,7 +211,9 @@ export default function CourseDetailPage() {
       }
 
       const ownerId = (courseData as any).instructor_id as string | null
-      const [{ data: modulesData }, liveStudentCount, orderedFacilitators] = await Promise.all([
+      const category = (courseData as { category?: string | null }).category
+      const [{ data: modulesData }, liveStudentCount, orderedFacilitators, siblingResult] =
+        await Promise.all([
         supabase
           .from('modules')
           .select('id, title, description, order_index')
@@ -211,6 +224,19 @@ export default function CourseDetailPage() {
           console.log('Facilitators fetch error:', staffErr)
           return [] as Awaited<ReturnType<typeof loadCourseFacilitators>>
         }),
+        supabase
+          .from('courses')
+          .select(`
+            *,
+            profiles:instructor_id (
+              full_name,
+              avatar_url,
+              bio
+            )
+          `)
+          .eq('is_published', true)
+          .neq('id', courseId)
+          .limit(24),
       ])
 
       if (orderedFacilitators.length > 0) {
@@ -256,6 +282,35 @@ export default function CourseDetailPage() {
             })),
         }))
       )
+      const siblingRows = ((siblingResult as { data?: RelatedCourse[] | null }).data || []) as RelatedCourse[]
+      let siblingStats: Record<string, { modules?: number; students?: number }> = {}
+      if (siblingRows.length > 0) {
+        try {
+          const statsRes = await fetch('/api/courses/catalog-stats', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ courseIds: siblingRows.map((item) => item.id) }),
+          })
+          if (statsRes.ok) {
+            const statsJson = (await statsRes.json()) as {
+              stats?: Record<string, { modules?: number; students?: number }>
+            }
+            siblingStats = statsJson.stats || {}
+          }
+        } catch {
+          siblingStats = {}
+        }
+      }
+      const siblings = siblingRows.map((item) => ({
+        ...item,
+        modules_count: siblingStats[item.id]?.modules,
+        students_count:
+          typeof siblingStats[item.id]?.students === 'number'
+            ? siblingStats[item.id]?.students
+            : item.enrollment_count,
+      }))
+      setRelatedCourses(category ? siblings.filter((item) => item.category === category) : [])
+      setInstructorCourses(ownerId ? siblings.filter((item) => item.instructor_id === ownerId) : [])
       setCourse({
         ...(courseData as any),
         students_count:
@@ -341,7 +396,7 @@ export default function CourseDetailPage() {
     const restrictedNames = accessDenied?.names?.filter(Boolean) || []
     return (
       <div className="container mx-auto px-4 py-8">
-        <div className="mx-auto max-w-md text-center py-12 space-y-4">
+        <div className="mx-auto max-w-md space-y-4 py-12 text-center">
           <Building2 className="mx-auto h-10 w-10 text-muted-foreground" />
           <div className="space-y-2">
             <p className="font-medium">
@@ -357,8 +412,7 @@ export default function CourseDetailPage() {
                   : 'This course may have been removed or is no longer published.'}
             </p>
           </div>
-          <Button variant="outline" onClick={() => router.push('/courses')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
+          <Button variant="outline" render={<Link href="/courses" />}>
             Back to Courses
           </Button>
         </div>
@@ -366,261 +420,440 @@ export default function CourseDetailPage() {
     )
   }
 
+  const lead = courseDescriptionPlain(course.description)
+  const objectives = (course.learning_objectives || []).map((item) => item.trim()).filter(Boolean)
+  const requirements = (course.requirements || []).map((item) => item.trim()).filter(Boolean)
+  const tags = (course.tags || []).map((item) => item.trim()).filter(Boolean)
+  const rating = Number(course.average_rating) || 0
+  const ratingCount = Number(course.rating_count) || 0
+  const hasRating = rating > 0 && ratingCount > 0
+  const studentCount = course.students_count || 0
+  const updatedLabel = course.updated_at
+    ? new Date(course.updated_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    : null
+  const leadInstructor = facilitators[0]
+  const lessonCount = modules.reduce(
+    (sum: number, moduleRow: { lessons?: unknown[] }) => sum + (moduleRow.lessons?.length || 0),
+    0
+  )
+  const previewCount = modules.reduce(
+    (sum: number, moduleRow: { lessons?: { is_preview?: boolean }[] }) =>
+      sum + (moduleRow.lessons || []).filter((lesson) => lesson.is_preview).length,
+    0
+  )
+  const instructorCourseIds = new Set(instructorCourses.map((item) => item.id))
+  const moreInCategory = relatedCourses.filter((item) => !instructorCourseIds.has(item.id))
+  const deckProps = {
+    course,
+    isEnrolled,
+    enrollmentPending,
+    enrolling,
+    onEnroll: handleEnroll,
+    onLearn: () => router.push(resumeLearnPath(courseId, lastLessonId)),
+    inviteMode: course.enrollment_mode === 'invite_code',
+    inviteCode,
+    onInviteCodeChange: setInviteCode,
+    lessonCount,
+    previewCount,
+  }
+
+  const detailBody = (
+    <CourseDetailBody
+      objectives={objectives}
+      tags={tags}
+      modules={modules}
+      isEnrolled={isEnrolled}
+      onLessonClick={(lessonId) => {
+        const lesson = modules
+          .flatMap((moduleRow) => moduleRow.lessons || [])
+          .find((row: { id: string }) => row.id === lessonId)
+        if (isEnrolled || lesson?.is_preview) {
+          router.push(`/learn/${courseId}/lesson/${lessonId}`)
+          return
+        }
+        toast.message('Enroll to open this lesson. Free preview lessons stay open.')
+      }}
+      requirements={requirements}
+      lead={lead}
+      description={course.description}
+      category={course.category}
+      moreInCategory={moreInCategory}
+      facilitators={facilitators}
+      instructorCourses={instructorCourses}
+      instructorName={leadInstructor?.full_name}
+      showReviews={hasRating || isEnrolled}
+      courseId={courseId}
+      userId={currentUser?.id}
+    />
+  )
+
+  const pendingNotice = enrollmentPending ? (
+    <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+      <Hourglass className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+      <div>
+        <p className="font-medium text-amber-900 dark:text-amber-100">Enrollment request pending</p>
+        <p className="text-sm text-muted-foreground">
+          Your request was sent to the course creator and course admins. You can start learning once they approve it.
+        </p>
+      </div>
+    </div>
+  ) : null
+
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-5 pb-28 sm:px-5 sm:py-7 md:px-6 md:py-8 md:pb-24 lg:px-8 lg:pb-8">
-      <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="min-w-0 space-y-8">
-        {/* Back Button */}
-        <Button
-          variant="ghost"
-          onClick={() => router.push('/courses')}
-          className="mb-4"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Courses
-        </Button>
+    <>
+    <div className="pb-24 lg:hidden">
+      <div className="mx-auto max-w-lg md:max-w-2xl">
+        <CourseActionDeck {...deckProps} variant="media" />
 
-        {enrollmentPending && (
-          <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
-            <Hourglass className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-            <div>
-              <p className="font-medium text-amber-900 dark:text-amber-100">Enrollment request pending</p>
-              <p className="text-sm text-muted-foreground">
-                Your request was sent to the course creator and course admins. You can start learning once they approve it.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Course Header */}
-        <div className="space-y-4" data-hero-section>
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-3">
-                <Badge variant="outline" className="text-xs">{course.category}</Badge>
-                <Badge variant="secondary" className="text-xs capitalize">{course.level}</Badge>
-                {course.is_featured && (
-                  <Badge className="text-xs bg-bhutan-yellow text-bhutan-black">⭐ Featured</Badge>
-                )}
-              </div>
-              <h1 className="text-4xl font-bold mb-2">{course.title}</h1>
-              <CourseDescription text={course.description} className="text-lg text-muted-foreground" />
-            </div>
-          </div>
-
-          {/* Course Stats */}
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-              <span>{course.duration_minutes ? `${Math.floor(course.duration_minutes / 60)}h ${course.duration_minutes % 60}m` : 'Self-paced'}</span>
-            </div>
-            {course.tags && course.tags.length > 0 && (
-              <div className="flex items-center gap-2">
-                <Star className="w-4 h-4 text-muted-foreground" />
-                <div className="flex gap-1">
-                  {course.tags.slice(0, 3).map((tag: any) => (
-                    <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+        <div className="bg-[#1c1d1f] px-4 py-5 text-white" data-hero-section>
+          <nav className="mb-3 flex flex-wrap items-center gap-1 text-xs text-white/70">
+            <Link href="/courses" className="underline-offset-2 hover:underline">
+              Courses
+            </Link>
+            {course.category && (
+              <>
+                <span aria-hidden>›</span>
+                <Link
+                  href={`/courses?category=${encodeURIComponent(course.category)}`}
+                  className="underline-offset-2 hover:underline"
+                >
+                  {course.category}
+                </Link>
+              </>
+            )}
+          </nav>
+          <h1 className="text-2xl font-bold leading-tight">{course.title}</h1>
+          {lead && <p className="mt-2 line-clamp-4 text-sm leading-relaxed text-white/85">{lead}</p>}
+          <div className="mt-3 space-y-1.5 text-xs text-white/80">
+            {hasRating && (
+              <p className="flex flex-wrap items-center gap-1.5">
+                <span className="font-bold text-amber-400">{rating.toFixed(1)}</span>
+                <span className="inline-flex" aria-hidden>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      className={`h-3.5 w-3.5 ${
+                        star <= Math.round(rating) ? 'fill-amber-400 text-amber-400' : 'text-white/25'
+                      }`}
+                    />
                   ))}
-                </div>
-              </div>
+                </span>
+                <span>({ratingCount.toLocaleString()} ratings)</span>
+              </p>
+            )}
+            <p className="flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5" />
+              {studentCount.toLocaleString()} {studentCount === 1 ? 'student' : 'students'}
+            </p>
+            {leadInstructor?.full_name && (
+              <p>
+                Created by{' '}
+                <Link href={`/instructors/${leadInstructor.id}`} className="font-semibold text-bhutan-yellow">
+                  {leadInstructor.full_name}
+                </Link>
+              </p>
+            )}
+            {(updatedLabel || course.language) && (
+              <p>
+                {updatedLabel ? `Last updated ${updatedLabel}` : ''}
+                {updatedLabel && course.language ? ' · ' : ''}
+                {course.language || ''}
+              </p>
             )}
           </div>
         </div>
 
-        {/* Instructors / facilitators */}
-        {facilitators.length > 0 && (
-          <Card className="glass">
-            <CardHeader>
-              <CardTitle className="text-lg">
-                {facilitators.length > 1 ? 'Instructors' : 'Your Instructor'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {facilitators.map((person) => {
-                const linkedin = linkedinFromProfile(person)
-                return (
-                <div
-                  key={person.id}
-                  className="flex items-start gap-4"
+        <div className="space-y-8 px-4 py-5">
+
+        {pendingNotice}
+
+        <CourseActionDeck {...deckProps} variant="purchase" />
+        {detailBody}
+        </div>
+        </div>
+    </div>
+
+    <div className="relative mx-auto hidden max-w-6xl grid-cols-[minmax(0,1fr)_22rem] gap-8 px-8 pb-16 lg:grid">
+      <div className="min-w-0">
+        <div className="relative -mx-8 bg-[#1c1d1f] px-8 py-8 text-white before:absolute before:inset-y-0 before:left-full before:w-[calc(22rem+2rem)] before:bg-[#1c1d1f] before:content-['']">
+          {course.is_featured && (
+            <p className="mb-3 inline-flex rounded bg-bhutan-yellow px-2 py-0.5 text-xs font-bold text-black">
+              Featured
+            </p>
+          )}
+          <nav className="mb-3 flex flex-wrap items-center gap-1 text-sm text-white/70">
+            <Link href="/courses" className="underline-offset-2 hover:underline">
+              Courses
+            </Link>
+            {course.category && (
+              <>
+                <span aria-hidden>›</span>
+                <Link
+                  href={`/courses?category=${encodeURIComponent(course.category)}`}
+                  className="underline-offset-2 hover:underline"
                 >
-                  <a
-                    href={`/instructors/${person.id}`}
-                    className="w-16 h-16 rounded-full overflow-hidden bg-bhutan-yellow/30 flex items-center justify-center shrink-0"
-                  >
-                    {person.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={person.avatar_url}
-                        alt={person.full_name || 'Instructor'}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="font-bold text-lg">
-                        {(person.full_name || 'IN')
-                          .split(/\s+/)
-                          .map((n) => n[0])
-                          .join('')
-                          .slice(0, 2)
-                          .toUpperCase()}
-                      </span>
-                    )}
-                  </a>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <a
-                        href={`/instructors/${person.id}`}
-                        className="font-semibold text-lg hover:text-bhutan-orange transition-colors"
-                      >
-                        {person.full_name}
-                      </a>
-                      {person.staffRole && person.staffRole !== 'owner' && (
-                        <Badge variant="outline" className="text-[10px] capitalize">
-                          {String(person.staffRole).replace(/_/g, ' ')}
-                        </Badge>
-                      )}
-                      {person.staffRole === 'owner' && facilitators.length > 1 && (
-                        <Badge variant="secondary" className="text-[10px]">
-                          Lead
-                        </Badge>
-                      )}
-                    </div>
-                    {course.category && person.staffRole === 'owner' && (
-                      <Badge variant="outline" className="mt-1 text-xs">
-                        {course.category}
+                  {course.category}
+                </Link>
+              </>
+            )}
+          </nav>
+          <h1 className="text-3xl font-bold leading-tight">{course.title}</h1>
+          {lead && <p className="mt-3 max-w-3xl text-base leading-relaxed text-white/85">{lead}</p>}
+          <div className="mt-4 space-y-1.5 text-sm text-white/80">
+            {hasRating && (
+              <p className="flex flex-wrap items-center gap-1.5">
+                <span className="font-bold text-amber-400">{rating.toFixed(1)}</span>
+                <span className="inline-flex" aria-hidden>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      className={`h-3.5 w-3.5 ${
+                        star <= Math.round(rating) ? 'fill-amber-400 text-amber-400' : 'text-white/25'
+                      }`}
+                    />
+                  ))}
+                </span>
+                <span>({ratingCount.toLocaleString()} ratings)</span>
+              </p>
+            )}
+            <p className="flex items-center gap-1.5">
+              <Users className="h-4 w-4" />
+              {studentCount.toLocaleString()} {studentCount === 1 ? 'student' : 'students'}
+            </p>
+            {leadInstructor?.full_name && (
+              <p>
+                Created by{' '}
+                <Link href={`/instructors/${leadInstructor.id}`} className="font-semibold text-bhutan-yellow">
+                  {leadInstructor.full_name}
+                </Link>
+              </p>
+            )}
+            {(updatedLabel || course.language) && (
+              <p>
+                {updatedLabel ? `Last updated ${updatedLabel}` : ''}
+                {updatedLabel && course.language ? ' · ' : ''}
+                {course.language || ''}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="space-y-8 py-8">
+          {pendingNotice}
+          {detailBody}
+        </div>
+      </div>
+      <aside className="sticky top-24 z-10 self-start pt-8">
+        <CourseActionDeck {...deckProps} variant="sidebar" />
+      </aside>
+    </div>
+    </>
+  )
+}
+
+type Facilitator = Pick<Profile, 'id' | 'full_name' | 'avatar_url' | 'bio'> & {
+  staffRole?: string
+  social_links?: unknown
+}
+
+function CourseDetailBody({
+  objectives,
+  tags,
+  modules,
+  isEnrolled,
+  onLessonClick,
+  requirements,
+  lead,
+  description,
+  category,
+  moreInCategory,
+  facilitators,
+  instructorCourses,
+  instructorName,
+  showReviews,
+  courseId,
+  userId,
+}: {
+  objectives: string[]
+  tags: string[]
+  modules: any[]
+  isEnrolled: boolean
+  onLessonClick: (lessonId: string) => void
+  requirements: string[]
+  lead: string
+  description: string | null
+  category: string | null
+  moreInCategory: RelatedCourse[]
+  facilitators: Facilitator[]
+  instructorCourses: RelatedCourse[]
+  instructorName?: string | null
+  showReviews: boolean
+  courseId: string
+  userId?: string
+}) {
+  return (
+    <>
+      {objectives.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-xl font-bold">What you&apos;ll learn</h2>
+          <ul className="grid gap-2 rounded-lg border p-4 sm:grid-cols-2">
+            {objectives.map((objective) => (
+              <li key={objective} className="flex items-start gap-2 text-sm">
+                <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
+                <span>{objective}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {tags.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-xl font-bold">Explore related topics</h2>
+          <div className="flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <Link
+                key={tag}
+                href={`/courses?q=${encodeURIComponent(tag)}`}
+                className="rounded-full border px-3 py-1.5 text-sm font-medium hover:border-bhutan-orange hover:text-bhutan-orange"
+              >
+                {tag}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {modules.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-xl font-bold">Course content</h2>
+          <CurriculumTimeline
+            modules={modules.map((moduleRow) => ({
+              ...moduleRow,
+              lessons: (moduleRow.lessons || []).map((lesson: { is_preview?: boolean }) => ({
+                ...lesson,
+                is_locked: !isEnrolled && !lesson.is_preview,
+              })),
+            }))}
+            showProgress={false}
+            onLessonClick={onLessonClick}
+          />
+        </section>
+      )}
+
+      {requirements.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-xl font-bold">Requirements</h2>
+          <ul className="space-y-2">
+            {requirements.map((requirement) => (
+              <li key={requirement} className="flex items-start gap-2 text-sm">
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-foreground" />
+                <span>{requirement}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {lead && (
+        <section className="space-y-3">
+          <h2 className="text-xl font-bold">Description</h2>
+          <CourseDescription text={description} className="text-sm leading-relaxed" />
+        </section>
+      )}
+
+      {moreInCategory.length > 0 && category && (
+        <section className="space-y-3">
+          <h2 className="text-xl font-bold">More courses in {category}</h2>
+          <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
+            {moreInCategory.map((item) => (
+              <div key={item.id} className="w-64 shrink-0">
+                <CourseCard course={normalizeRelatedProfile(item)} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {facilitators.length > 0 && (
+        <section className="space-y-4">
+          <h2 className="text-xl font-bold">{facilitators.length > 1 ? 'Instructors' : 'Instructor'}</h2>
+          {facilitators.map((person) => {
+            const linkedin = linkedinFromProfile(person)
+            return (
+              <div key={person.id} className="flex items-start gap-3">
+                <Link
+                  href={`/instructors/${person.id}`}
+                  className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-bhutan-yellow/30"
+                >
+                  {person.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={person.avatar_url}
+                      alt={person.full_name || 'Instructor'}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="text-lg font-bold">
+                      {(person.full_name || 'IN')
+                        .split(/\s+/)
+                        .map((name) => name[0])
+                        .join('')
+                        .slice(0, 2)
+                        .toUpperCase()}
+                    </span>
+                  )}
+                </Link>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      href={`/instructors/${person.id}`}
+                      className="text-base font-semibold text-bhutan-orange underline-offset-2 hover:underline"
+                    >
+                      {person.full_name}
+                    </Link>
+                    {person.staffRole && person.staffRole !== 'owner' && (
+                      <Badge variant="outline" className="text-[10px] capitalize">
+                        {String(person.staffRole).replace(/_/g, ' ')}
                       </Badge>
                     )}
-                    {person.bio && (
-                      <p className="text-sm text-muted-foreground mt-2 line-clamp-3">
-                        {person.bio}
-                      </p>
-                    )}
-                    {linkedin && (
-                      <div className="mt-2">
-                        <LinkedInProfileLink url={linkedin} />
-                      </div>
-                    )}
-                    <a
-                      href={`/instructors/${person.id}`}
-                      className="text-xs text-bhutan-yellow mt-2 inline-block"
-                    >
-                      View full profile →
-                    </a>
                   </div>
+                  {person.bio && (
+                    <p className="mt-1 line-clamp-4 text-sm text-muted-foreground">{person.bio}</p>
+                  )}
+                  {linkedin && (
+                    <div className="mt-2">
+                      <LinkedInProfileLink url={linkedin} />
+                    </div>
+                  )}
                 </div>
-                )
-              })}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Learning Objectives */}
-        {course.learning_objectives && course.learning_objectives.length > 0 && (
-          <Card className="glass">
-            <CardHeader>
-              <CardTitle className="text-lg">What You'll Learn</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
-                {course.learning_objectives.map((objective, index) => (
-                  <li key={index} className="flex items-start gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm">{objective}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Course Modules - Timeline */}
-        {modules.length > 0 && (
-          <Card className="glass">
-            <CardHeader>
-              <CardTitle className="text-lg">Course Curriculum</CardTitle>
-              <CardDescription>
-                {modules.length} modules • {course.duration_minutes ? `${Math.floor(course.duration_minutes / 60)} hours` : 'Self-paced'} content
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CurriculumTimeline
-                modules={modules.map((moduleRow) => ({
-                  ...moduleRow,
-                  lessons: (moduleRow.lessons || []).map((lesson: { is_preview?: boolean }) => ({
-                    ...lesson,
-                    is_locked: !isEnrolled && !lesson.is_preview,
-                  })),
-                }))}
-                showProgress={isEnrolled}
-                overallProgress={0}
-                onLessonClick={(lessonId) => {
-                  const lesson = modules
-                    .flatMap((moduleRow) => moduleRow.lessons || [])
-                    .find((row: { id: string }) => row.id === lessonId)
-                  if (isEnrolled || lesson?.is_preview) {
-                    router.push(`/learn/${courseId}/lesson/${lessonId}`)
-                    return
-                  }
-                  toast.message('Enroll to open this lesson. Free preview lessons stay open.')
-                }}
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Requirements */}
-        {course.requirements && course.requirements.length > 0 && (
-          <Card className="glass">
-            <CardHeader>
-              <CardTitle className="text-lg">Requirements</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
-                {course.requirements.map((requirement, index) => (
-                  <li key={index} className="flex items-start gap-2 text-sm">
-                    <div className="w-1.5 h-1.5 rounded-full bg-bhutan-yellow mt-1.5 flex-shrink-0" />
-                    <span>{requirement}</span>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        )}
-        </div>
-
-        {course && (
-          <aside className="hidden min-w-0 lg:block">
-            <CourseActionDeck
-              course={course}
-              isEnrolled={isEnrolled}
-              enrollmentPending={enrollmentPending}
-              enrolling={enrolling}
-              onEnroll={handleEnroll}
-              onLearn={() => router.push(resumeLearnPath(courseId, lastLessonId))}
-              inviteMode={(course as any).enrollment_mode === 'invite_code'}
-              inviteCode={inviteCode}
-              onInviteCodeChange={setInviteCode}
-              variant="sidebar"
-            />
-          </aside>
-        )}
-      </div>
-
-      {course && (
-        <div className="lg:hidden">
-          <CourseActionDeck
-            course={course}
-            isEnrolled={isEnrolled}
-            enrollmentPending={enrollmentPending}
-            enrolling={enrolling}
-            onEnroll={handleEnroll}
-            onLearn={() => router.push(resumeLearnPath(courseId, lastLessonId))}
-            inviteMode={(course as any).enrollment_mode === 'invite_code'}
-            inviteCode={inviteCode}
-            onInviteCodeChange={setInviteCode}
-            variant="mobile"
-          />
-        </div>
+              </div>
+            )
+          })}
+        </section>
       )}
-    </div>
+
+      {instructorCourses.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-xl font-bold">More courses by {instructorName || 'this instructor'}</h2>
+          <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
+            {instructorCourses.map((item) => (
+              <div key={item.id} className="w-64 shrink-0">
+                <CourseCard course={normalizeRelatedProfile(item)} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {showReviews && <ReviewsDashboard courseId={courseId} userId={userId} />}
+    </>
   )
+}
+
+function normalizeRelatedProfile(course: RelatedCourse): RelatedCourse {
+  const profiles = course.profiles as RelatedCourse['profiles'] | NonNullable<RelatedCourse['profiles']>[] | null
+  return {
+    ...course,
+    profiles: Array.isArray(profiles) ? profiles[0] || null : profiles || null,
+  }
 }

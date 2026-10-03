@@ -1,24 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { Button } from '@/components/ui/button'
-import {
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  BookOpen,
-  FileText,
-  Video,
-  CheckCircle,
-  Circle,
-  Play,
-  Lock,
-} from 'lucide-react'
+import { ChevronDown, Play, Lock, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { courseDescriptionPlain } from '@/lib/course-description'
+import { formatLectureDuration } from '@/lib/lesson-kind'
 
 interface Lesson {
   id: string
@@ -48,285 +35,143 @@ interface CurriculumTimelineProps {
   overallProgress?: number
 }
 
+function moduleSeconds(module: Module) {
+  return (module.lessons || []).reduce((sum, lesson) => sum + (lesson.duration_minutes || 0), 0)
+}
+
 export function CurriculumTimeline({
   modules,
   currentLessonId,
   onLessonClick,
-  showProgress = true,
+  showProgress = false,
   overallProgress = 0,
 }: CurriculumTimelineProps) {
   const [expandedModules, setExpandedModules] = useState<Set<string>>(
-    new Set(modules.slice(0, 2).map(m => m.id))
+    new Set(modules.slice(0, 1).map((moduleRow) => moduleRow.id))
   )
 
+  const lectureCount = modules.reduce((sum, moduleRow) => sum + (moduleRow.lessons?.length || 0), 0)
+  const totalLabel = formatLectureDuration(
+    modules.reduce((sum, moduleRow) => sum + moduleSeconds(moduleRow), 0)
+  )
+  const allExpanded = modules.length > 0 && modules.every((moduleRow) => expandedModules.has(moduleRow.id))
+
   const toggleModule = (moduleId: string) => {
-    setExpandedModules(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(moduleId)) {
-        newSet.delete(moduleId)
-      } else {
-        newSet.add(moduleId)
-      }
-      return newSet
+    setExpandedModules((prev) => {
+      const next = new Set(prev)
+      if (next.has(moduleId)) next.delete(moduleId)
+      else next.add(moduleId)
+      return next
     })
   }
 
-  const getModuleProgress = (module: Module) => {
-    if (!module.lessons || module.lessons.length === 0) return 0
-    const completed = module.lessons.filter(l => l.is_completed).length
-    return Math.round((completed / module.lessons.length) * 100)
+  const toggleAll = () => {
+    setExpandedModules(allExpanded ? new Set() : new Set(modules.map((moduleRow) => moduleRow.id)))
   }
 
-  const getLessonIcon = (lesson: Lesson) => {
-    if (lesson.is_locked) return <Lock className="w-4 h-4 text-muted-foreground" />
-    if (lesson.is_completed) return <CheckCircle className="w-4 h-4 text-green-600" />
-    if (lesson.id === currentLessonId) return <Play className="w-4 h-4 text-bhutan-yellow" />
-    return <Circle className="w-4 h-4 text-muted-foreground" />
-  }
-
-  const getTypeIcon = (type?: string) => {
-    switch (type) {
-      case 'video': return <Video className="w-4 h-4" />
-      case 'reading': return <FileText className="w-4 h-4" />
-      case 'quiz': return <BookOpen className="w-4 h-4" />
-      default: return <BookOpen className="w-4 h-4" />
-    }
-  }
-
-  const getTotalDuration = (module: Module) => {
-    if (!module.lessons) return '0m'
-    const totalMinutes = module.lessons.reduce((sum, lesson) => sum + (lesson.duration_minutes || 0), 0)
-    if (totalMinutes === 0) return 'Self-paced'
-    const hours = Math.floor(totalMinutes / 60)
-    const minutes = totalMinutes % 60
-    return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
-  }
+  const summary = [
+    `${modules.length} ${modules.length === 1 ? 'section' : 'sections'}`,
+    `${lectureCount} ${lectureCount === 1 ? 'lecture' : 'lectures'}`,
+    totalLabel,
+  ]
+    .filter(Boolean)
+    .join(' • ')
 
   return (
-    <div className="space-y-4">
-      {/* Overall Progress */}
+    <div className="space-y-3">
       {showProgress && (
-        <Card className="glass">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">Your Progress</span>
-              <span className="text-sm font-bold text-bhutan-yellow">{overallProgress}%</span>
-            </div>
-            <Progress value={overallProgress} className="h-2" />
-            <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
-              <span>{modules.reduce((sum, m) => sum + (m.lessons?.length || 0), 0)} lessons</span>
-              <span>{Math.round(modules.reduce((sum, m) => sum + (m.lessons?.filter(l => l.is_completed).length || 0), 0))} completed</span>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="rounded-lg border p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-sm font-medium">Your progress</span>
+            <span className="text-sm font-bold text-bhutan-orange">{overallProgress}%</span>
+          </div>
+          <Progress value={overallProgress} className="h-2" />
+        </div>
       )}
 
-      {/* Timeline */}
-      <div>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm text-muted-foreground">{summary}</p>
+        {modules.length > 0 && (
+          <button
+            type="button"
+            onClick={toggleAll}
+            className="shrink-0 text-sm font-semibold text-bhutan-orange"
+          >
+            {allExpanded ? 'Collapse all' : 'Expand all'}
+          </button>
+        )}
+      </div>
+
+      <div className="overflow-hidden rounded-lg border">
         {modules.map((module, moduleIndex) => {
           const isExpanded = expandedModules.has(module.id)
-          const moduleProgress = getModuleProgress(module)
-          const duration = getTotalDuration(module)
-          const isLast = moduleIndex === modules.length - 1
-          const showLessons = isExpanded && !module.is_locked && !!module.lessons?.length
-          const railClass = cn(
-            "w-0.5",
-            module.is_locked
-              ? "bg-border"
-              : moduleProgress === 100
-                ? "bg-green-500/45"
-                : "bg-bhutan-yellow/55"
-          )
+          const lessons = module.lessons || []
+          const duration = formatLectureDuration(moduleSeconds(module))
 
           return (
-            <div key={module.id} className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-3">
-              <div className="relative flex items-center justify-center">
-                {moduleIndex > 0 && (
-                  <div aria-hidden className={cn("absolute left-1/2 top-0 h-1/2 -translate-x-1/2", railClass)} />
-                )}
-                {!isLast && (
-                  <div aria-hidden className={cn("absolute left-1/2 top-1/2 bottom-0 -translate-x-1/2", railClass)} />
-                )}
-                <div className={cn(
-                  "relative z-10 flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold shadow-sm",
-                  module.is_locked
-                    ? "bg-muted text-muted-foreground"
-                    : moduleProgress === 100
-                      ? "bg-green-600 text-white"
-                      : "bg-bhutan-yellow text-black"
-                )}>
-                  {moduleProgress === 100 ? (
-                    <CheckCircle className="h-4 w-4" />
-                  ) : (
-                    moduleIndex + 1
-                  )}
-                </div>
-              </div>
-
-              <div className="min-w-0">
-              <div
-                className={cn(
-                  "flex items-start gap-4 rounded-lg border p-4 transition-all duration-200 cursor-pointer",
-                  "hover:border-bhutan-yellow/50 hover:shadow-lg",
-                  module.is_locked && "opacity-60 cursor-not-allowed hover:border-border",
-                  isExpanded && "border-bhutan-yellow/30 shadow-md",
-                  moduleProgress === 100 && "border-green-500/30"
-                )}
-                onClick={() => !module.is_locked && toggleModule(module.id)}
+            <div key={module.id} className={moduleIndex > 0 ? 'border-t' : undefined}>
+              <button
+                type="button"
+                className="flex w-full items-start gap-3 bg-muted/70 px-3 py-3 text-left"
+                aria-expanded={isExpanded}
+                onClick={() => toggleModule(module.id)}
               >
-                {/* Module Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-semibold">{module.title}</h4>
-                    {module.is_locked && (
-                      <Lock className="w-4 h-4 text-muted-foreground" />
-                    )}
-                  </div>
-
-                  {module.description && (
-                    <p className="text-sm text-muted-foreground mb-2 line-clamp-1">
-                      {module.description}
-                    </p>
+                <ChevronDown
+                  className={cn(
+                    'mt-0.5 h-4 w-4 shrink-0 transition-transform',
+                    isExpanded ? 'rotate-0' : '-rotate-90'
                   )}
+                />
+                <span className="min-w-0 flex-1 text-sm font-semibold">{module.title}</span>
+                <span className="shrink-0 text-right text-xs text-muted-foreground">
+                  {lessons.length} {lessons.length === 1 ? 'lecture' : 'lectures'}
+                  {duration ? ` • ${duration}` : ''}
+                </span>
+              </button>
 
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <BookOpen className="w-3 h-3" />
-                      <span>{module.lessons?.length || 0} lessons</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      <span>{duration}</span>
-                    </div>
-                    {moduleProgress > 0 && (
-                      <Badge variant="outline" className="text-xs">
-                        {moduleProgress}% complete
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-
-                {/* Expand/Collapse Icon */}
-                {!module.is_locked && (
-                  <div className="flex-shrink-0">
-                    {isExpanded ? (
-                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                    )}
-                  </div>
-                )}
-              </div>
-              </div>
-
-              {showLessons && (
-                <div className="flex justify-center self-stretch">
-                  {!isLast && <div aria-hidden className={cn("h-full", railClass)} />}
-                </div>
-              )}
-              {showLessons && (
-                <div className="mt-3 space-y-2">
-                  {module.lessons?.map((lesson) => {
+              {isExpanded && lessons.length > 0 && (
+                <ul>
+                  {lessons.map((lesson) => {
                     const isCurrent = lesson.id === currentLessonId
-                    const isLocked = lesson.is_locked
-
+                    const lessonDuration = formatLectureDuration(lesson.duration_minutes)
                     return (
-                      <div
-                        key={lesson.id}
-                        className={cn(
-                          "relative flex items-center gap-3 p-3 rounded-lg border border-border/50 transition-all duration-200",
-                          "hover:border-bhutan-yellow/30",
-                          isCurrent && "border-bhutan-yellow/50 bg-bhutan-yellow/5",
-                          isLocked && "opacity-60 cursor-not-allowed",
-                          !isLocked && !isCurrent && "cursor-pointer"
-                        )}
-                        onClick={() => !isLocked && onLessonClick?.(lesson.id)}
-                      >
-                        {/* Icon */}
-                        <div className="flex-shrink-0">
-                          {getLessonIcon(lesson)}
-                        </div>
-
-                        {/* Lesson Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className={cn(
-                              "text-sm font-medium",
-                              isCurrent && "text-bhutan-yellow"
-                            )}>
-                              {lesson.title}
-                            </span>
-                            {isCurrent && (
-                              <Badge className="bg-bhutan-yellow text-black text-xs">
-                                Current
-                              </Badge>
-                            )}
-                            {lesson.is_preview && (
-                              <Badge variant="outline" className="text-xs">
-                                Free preview
-                              </Badge>
-                            )}
-                            {lesson.is_completed && (
-                              <Badge variant="outline" className="text-xs">
-                                Completed
-                              </Badge>
-                            )}
-                          </div>
-
-                          {courseDescriptionPlain(lesson.description) ? (
-                            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                              {courseDescriptionPlain(lesson.description)}
-                            </p>
-                          ) : null}
-                        </div>
-
-                        {/* Type Icon & Duration */}
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-shrink-0">
-                          <div className="flex items-center gap-1">
-                            {getTypeIcon(lesson.type)}
-                          </div>
-                          {lesson.duration_minutes && (
-                            <span>{lesson.duration_minutes}m</span>
+                      <li key={lesson.id} className="border-t">
+                        <button
+                          type="button"
+                          className={cn(
+                            'flex w-full items-start gap-3 px-3 py-3 text-left',
+                            isCurrent && 'bg-bhutan-yellow/10'
                           )}
-                        </div>
-                      </div>
+                          onClick={() => onLessonClick?.(lesson.id)}
+                        >
+                          {lesson.is_locked ? (
+                            <Lock className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                          ) : lesson.type === 'reading' ? (
+                            <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                          ) : (
+                            <Play className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm">{lesson.title}</span>
+                            {lesson.is_preview && (
+                              <Badge variant="outline" className="mt-1 text-[10px]">
+                                Preview
+                              </Badge>
+                            )}
+                          </span>
+                          {lessonDuration && (
+                            <span className="shrink-0 text-xs text-muted-foreground">{lessonDuration}</span>
+                          )}
+                        </button>
+                      </li>
                     )
                   })}
-                </div>
-              )}
-              {!isLast && (
-                <div className="flex h-4 justify-center">
-                  <div aria-hidden className={cn("h-full", railClass)} />
-                </div>
+                </ul>
               )}
             </div>
           )
         })}
       </div>
-
-      {/* Legend */}
-      <Card className="glass-strong">
-        <CardContent className="p-4">
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-green-600" />
-              <span>Completed</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Play className="w-4 h-4 text-bhutan-yellow" />
-              <span>Current</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Circle className="w-4 h-4 text-muted-foreground" />
-              <span>Not Started</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Lock className="w-4 h-4 text-muted-foreground" />
-              <span>Locked</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }

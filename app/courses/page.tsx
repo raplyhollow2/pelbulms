@@ -323,6 +323,29 @@ export default function CoursesPage() {
     }
   }
 
+  useEffect(() => {
+    setSearchTerm(searchParams.get('q') || '')
+    setSelectedCategory(searchParams.get('category') || 'All')
+  }, [searchParams])
+
+  const writeCatalogQuery = useCallback(
+    (updates: { q?: string | null; category?: string | null }) => {
+      const params = new URLSearchParams(searchParams.toString())
+      if ('q' in updates) {
+        const raw = updates.q ?? ''
+        if (raw.trim()) params.set('q', raw)
+        else params.delete('q')
+      }
+      if ('category' in updates) {
+        if (updates.category && updates.category !== 'All') params.set('category', updates.category)
+        else params.delete('category')
+      }
+      const qs = params.toString()
+      router.replace(qs ? `/courses?${qs}` : '/courses', { scroll: false })
+    },
+    [router, searchParams]
+  )
+
   // Filter courses based on search and filters
   useEffect(() => {
     let filtered = courses
@@ -405,10 +428,13 @@ export default function CoursesPage() {
     }
   }
 
-  const categories = [
-    'All',
-    ...Array.from(new Set(courses.map((c: any) => c.category).filter(Boolean))),
-  ]
+  const discoveredCategories = Array.from(
+    new Set(courses.map((c: any) => c.category).filter(Boolean))
+  ) as string[]
+  const categories =
+    selectedCategory !== 'All' && !discoveredCategories.includes(selectedCategory)
+      ? ['All', selectedCategory, ...discoveredCategories]
+      : ['All', ...discoveredCategories]
   const levels = [
     'All',
     ...Array.from(new Set(courses.map((c: any) => c.level).filter(Boolean))),
@@ -446,7 +472,10 @@ export default function CoursesPage() {
               type="search"
               placeholder="Search courses…"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value)
+                writeCatalogQuery({ q: e.target.value })
+              }}
               className="h-9 pl-9 glass-strong"
               aria-label="Search courses"
             />
@@ -467,7 +496,11 @@ export default function CoursesPage() {
         <div className="grid min-w-0 grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <Select
             value={selectedCategory}
-            onValueChange={(v) => v && setSelectedCategory(v)}
+            onValueChange={(v) => {
+              if (!v) return
+              setSelectedCategory(v)
+              writeCatalogQuery({ category: v })
+            }}
           >
             <SelectTrigger
               size="sm"
@@ -627,7 +660,13 @@ export default function CoursesPage() {
                   setSearchTerm('')
                   setSelectedCategory('All')
                   setSelectedLevel('All')
-                  setInstitutionFilter('All')
+                  setSelectedInstitution('All')
+                  const params = new URLSearchParams(searchParams.toString())
+                  params.delete('q')
+                  params.delete('category')
+                  params.delete('institution')
+                  const qs = params.toString()
+                  router.replace(qs ? `/courses?${qs}` : '/courses', { scroll: false })
                 }}
               >
                 Clear Filters

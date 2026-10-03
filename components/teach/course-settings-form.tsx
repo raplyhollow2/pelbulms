@@ -72,6 +72,7 @@ type CourseForm = {
   category: string
   level: string
   language: string
+  price: number
   duration_minutes: number
   learning_objectives: string[]
   is_published: boolean
@@ -88,6 +89,7 @@ const EMPTY: CourseForm = {
   category: '',
   level: 'beginner',
   language: 'English',
+  price: 0,
   duration_minutes: 0,
   learning_objectives: [],
   is_published: false,
@@ -212,6 +214,7 @@ export function CourseSettingsForm({
         category: row.category || '',
         level: row.level || 'beginner',
         language: row.language || 'English',
+        price: Number(row.price) || 0,
         duration_minutes: row.duration_minutes || 0,
         learning_objectives: row.learning_objectives || [],
         is_published: Boolean(row.is_published),
@@ -298,7 +301,10 @@ export function CourseSettingsForm({
           category: current.category || 'General',
           level: current.level,
           language: current.language,
-          price: 0,
+          price:
+            current.enrollment_mode === 'paid'
+              ? Math.max(0, Number(current.price) || 0)
+              : 0,
           duration_minutes: current.duration_minutes || null,
           prerequisites: preservedRef.current.prerequisites.length ? preservedRef.current.prerequisites : null,
           learning_objectives: current.learning_objectives.length ? current.learning_objectives : null,
@@ -988,6 +994,28 @@ export function CourseSettingsForm({
             ))}
           </div>
         </div>
+        {courseData.enrollment_mode === 'paid' && (
+          <div className="space-y-2">
+            <Label htmlFor="settings-price">Price (USD)</Label>
+            <Input
+              id="settings-price"
+              type="number"
+              min={0}
+              step="0.01"
+              inputMode="decimal"
+              value={courseData.price}
+              onChange={(event) =>
+                setCourseData({
+                  ...courseData,
+                  price: event.target.value === '' ? 0 : Number(event.target.value),
+                })
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              Learners see this amount on the course page. Other enrollment modes stay free.
+            </p>
+          </div>
+        )}
         {has(CAP.MODULE_FORUMS_CONFIGURE) && (
           <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
             <div>

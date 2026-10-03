@@ -1,10 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { BookOpen, Clock, Users, Star, Play, Hourglass, Loader2 } from 'lucide-react'
+import { BookOpen, Clock, Play, Hourglass, Loader2, Eye } from 'lucide-react'
 import { VideoPreviewModal } from '@/components/courses/video-preview-modal'
 import { resolveMediaUrl } from '@/lib/media'
 import type { Database, Json } from '@/types/database.types'
@@ -20,10 +18,22 @@ function previewUrlFromCourse(course: Course): string {
   return fromMeta || String((course as { preview_video_url?: string | null }).preview_video_url || '').trim()
 }
 
-function studentCount(course: Course & { students_count?: number }) {
-  if (typeof course.students_count === 'number') return course.students_count
-  if (typeof course.enrollment_count === 'number') return course.enrollment_count
-  return 0
+export function coursePriceLabel(course: { enrollment_mode?: string | null; price?: number | null }) {
+  if (course.enrollment_mode !== 'paid') return 'Free'
+  const price = Number(course.price)
+  if (Number.isFinite(price) && price > 0) {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(price)
+  }
+  return 'Paid'
+}
+
+function formatCourseMinutes(minutes: number | null | undefined) {
+  if (!minutes || minutes <= 0) return null
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  if (hours && rest) return `${hours}h ${rest}m`
+  if (hours) return `${hours}h`
+  return `${rest}m`
 }
 
 interface CourseActionDeckProps {
@@ -37,7 +47,9 @@ interface CourseActionDeckProps {
   inviteCode?: string
   onInviteCodeChange?: (value: string) => void
   enrolling?: boolean
-  variant?: 'sidebar' | 'mobile' | 'both'
+  variant?: 'sidebar' | 'mobile' | 'media' | 'offer' | 'purchase' | 'both'
+  lessonCount?: number
+  previewCount?: number
 }
 
 export function CourseActionDeck({
@@ -46,26 +58,29 @@ export function CourseActionDeck({
   enrollmentPending = false,
   onEnroll,
   onLearn,
-  sticky = true,
   inviteMode = false,
   inviteCode = '',
   onInviteCodeChange,
   enrolling = false,
   variant = 'both',
+  lessonCount = 0,
+  previewCount = 0,
 }: CourseActionDeckProps) {
   const [showVideoPreview, setShowVideoPreview] = useState(false)
   const [imageError, setImageError] = useState(false)
+  const offerRef = useRef<HTMLDivElement>(null)
+  const [offerVisible, setOfferVisible] = useState(true)
 
-  const requiresApproval = (course as any).enrollment_mode !== 'auto' &&
-    (course as any).enrollment_mode !== 'invite_code' &&
-    (course as any).enrollment_mode !== 'paid'
-  const duration = course.duration_minutes
-    ? `${Math.floor(course.duration_minutes / 60)}h ${course.duration_minutes % 60}m`
-    : 'Self-paced'
-
+  const requiresApproval =
+    course.enrollment_mode !== 'auto' &&
+    course.enrollment_mode !== 'invite_code' &&
+    course.enrollment_mode !== 'paid'
+  const duration = formatCourseMinutes(course.duration_minutes)
   const previewVideoUrl = previewUrlFromCourse(course)
   const hasPreview = Boolean(previewVideoUrl)
   const thumbSrc = resolveMediaUrl(course.thumbnail_url)
+  const priceLabel = coursePriceLabel(course)
+  const showMedia = Boolean(hasPreview || (thumbSrc && !imageError) || course.thumbnail_url)
 
   const cta = enrolling ? (
     <>
@@ -99,156 +114,180 @@ export function CourseActionDeck({
     </>
   )
 
-  const body = (
-    <Card className="overflow-hidden border-border/60 shadow-lg">
-      <CardContent className="p-0">
-        {(hasPreview || thumbSrc) && (
-          <button
-            type="button"
-            onClick={() => hasPreview && setShowVideoPreview(true)}
-            disabled={!hasPreview}
-            className="group relative block w-full overflow-hidden bg-muted text-left disabled:cursor-default"
-            aria-label={hasPreview ? `Preview ${course.title}` : course.title}
-          >
-            <div className="relative aspect-video w-full">
-              {thumbSrc && !imageError ? (
-                <img
-                  src={thumbSrc}
-                  alt=""
-                  className="absolute inset-0 h-full w-full object-cover"
-                  onError={() => setImageError(true)}
-                />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20">
-                  <BookOpen className="h-10 w-10 text-bhutan-yellow" />
-                </div>
-              )}
+  const shortCta = enrolling
+    ? 'Sending…'
+    : isEnrolled
+      ? 'Continue'
+      : enrollmentPending
+        ? 'Pending'
+        : requiresApproval
+          ? 'Request'
+          : 'Enroll'
 
-              {hasPreview && (
-                <>
-                  <div className="absolute inset-0 bg-black/25 transition-colors group-hover:bg-black/35" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-black shadow-lg transition-transform group-hover:scale-105">
-                      <Play className="ml-0.5 h-7 w-7 fill-current" />
-                    </span>
-                  </div>
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 pb-3 pt-10">
-                    <p className="text-center text-sm font-semibold text-white">
-                      Preview this course
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-          </button>
+  const buttonClass = `min-h-12 w-full text-base font-bold text-black ${
+    isEnrolled
+      ? 'bg-green-600 hover:bg-green-700'
+      : enrollmentPending
+        ? 'bg-amber-500 hover:bg-amber-600'
+        : 'bg-bhutan-yellow hover:bg-bhutan-orange'
+  }`
+
+  const inviteField =
+    inviteMode && !isEnrolled && !enrollmentPending ? (
+      <input
+        value={inviteCode}
+        onChange={(e) => onInviteCodeChange?.(e.target.value.toUpperCase())}
+        placeholder="Enter your enrollment code"
+        className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground"
+        aria-label="Enrollment code"
+      />
+    ) : null
+
+  const includes = [
+    duration ? { icon: Clock, label: `${duration} of content` } : null,
+    lessonCount > 0
+      ? { icon: BookOpen, label: `${lessonCount} ${lessonCount === 1 ? 'lesson' : 'lessons'}` }
+      : null,
+    previewCount > 0
+      ? {
+          icon: Eye,
+          label: `${previewCount} free ${previewCount === 1 ? 'preview' : 'previews'}`,
+        }
+      : null,
+  ].filter(Boolean) as { icon: typeof Clock; label: string }[]
+
+  const media = showMedia ? (
+    <button
+      type="button"
+      onClick={() => hasPreview && setShowVideoPreview(true)}
+      disabled={!hasPreview}
+      className="group relative block w-full overflow-hidden bg-black text-left disabled:cursor-default"
+      aria-label={hasPreview ? `Preview ${course.title}` : course.title}
+    >
+      <div className="relative aspect-video w-full">
+        {thumbSrc && !imageError ? (
+          <img
+            src={thumbSrc}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-bhutan-yellow/30 to-bhutan-orange/30">
+            <BookOpen className="h-10 w-10 text-white" />
+          </div>
         )}
+        {hasPreview && (
+          <>
+            <div className="absolute inset-0 bg-black/25 transition-colors group-hover:bg-black/35" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-black shadow-lg">
+                <Play className="ml-0.5 h-7 w-7 fill-current" />
+              </span>
+            </div>
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 pb-3 pt-10">
+              <p className="text-center text-sm font-semibold text-white">Preview this course</p>
+            </div>
+          </>
+        )}
+      </div>
+    </button>
+  ) : null
 
-        <div className="border-b border-border/50 p-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Course preview
-          </p>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="text-xs">
-              {course.category}
-            </Badge>
-            <Badge className="text-xs capitalize">{course.level}</Badge>
-          </div>
-          <h3 className="line-clamp-3 text-base font-semibold leading-snug">{course.title}</h3>
-        </div>
-
-        <div className="space-y-2 border-b border-border/50 p-4 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-2 text-muted-foreground">
-              <Clock className="h-4 w-4" /> Duration
-            </span>
-            <span className="font-medium">{duration}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-2 text-muted-foreground">
-              <Users className="h-4 w-4" /> Students
-            </span>
-            <span className="font-medium">{studentCount(course).toLocaleString()}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-2 text-muted-foreground">
-              <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" /> Rating
-            </span>
-            <span className="font-medium">
-              {(course as any).average_rating
-                ? Number((course as any).average_rating).toFixed(1)
-                : 'New'}
-            </span>
-          </div>
-        </div>
-
-        <div className="space-y-3 p-4">
-          {inviteMode && !isEnrolled && !enrollmentPending && (
-            <input
-              value={inviteCode}
-              onChange={(e) => onInviteCodeChange?.(e.target.value.toUpperCase())}
-              placeholder="Enter your enrollment code"
-              className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
-              aria-label="Enrollment code"
-            />
-          )}
-          <p className="text-sm text-muted-foreground">
-            {isEnrolled
-              ? 'Pick up where you left off'
-              : enrollmentPending
-                ? 'Request sent. Waiting for the course creator or a course admin to approve.'
-                : enrolling
-                  ? 'Sending your enrollment request…'
-                : inviteMode
-                  ? 'Your teacher sends a unique code by email or SMS'
-                  : requiresApproval
-                    ? 'Free course — the creator reviews enrollment requests'
+  const offer = (
+    <div className="space-y-3">
+      <p className={`font-bold tracking-tight ${variant === 'sidebar' ? 'text-3xl' : 'text-2xl'}`}>{priceLabel}</p>
+      {inviteField}
+      <p className="text-sm text-muted-foreground">
+        {isEnrolled
+          ? 'Pick up where you left off'
+          : enrollmentPending
+            ? 'Request sent. Waiting for the course creator or a course admin to approve.'
+            : enrolling
+              ? 'Sending your enrollment request…'
+              : inviteMode
+                ? 'Your teacher sends a unique code by email or SMS'
+                : requiresApproval
+                  ? 'Free course — the creator reviews enrollment requests'
+                  : course.enrollment_mode === 'paid'
+                    ? 'Pay to enroll and start learning'
                     : 'Join instantly and start learning'}
-          </p>
-          <Button
-            className={`min-h-11 w-full text-black ${
-              isEnrolled
-                ? 'bg-green-600 hover:bg-green-700'
-                : enrollmentPending
-                  ? 'bg-amber-500 hover:bg-amber-600'
-                  : 'bg-bhutan-yellow hover:bg-bhutan-orange'
-            }`}
-            size="lg"
-            disabled={enrollmentPending || enrolling}
-            onClick={isEnrolled ? onLearn : onEnroll}
-          >
-            {cta}
-          </Button>
+      </p>
+      <Button
+        className={buttonClass}
+        size="lg"
+        disabled={enrollmentPending || enrolling}
+        onClick={isEnrolled ? onLearn : onEnroll}
+      >
+        {cta}
+      </Button>
+      {includes.length > 0 && (
+        <div className="space-y-2 pt-1">
+          <p className="text-sm font-bold">This course includes</p>
+          <ul className="space-y-1.5 text-sm text-muted-foreground">
+            {includes.map((item) => (
+              <li key={item.label} className="flex items-center gap-2">
+                <item.icon className="h-4 w-4 shrink-0" />
+                <span>{item.label}</span>
+              </li>
+            ))}
+          </ul>
         </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   )
+
+  const showOffer = variant === 'offer' || variant === 'purchase' || variant === 'sidebar' || variant === 'both'
+  const showBar = variant === 'mobile' || variant === 'purchase' || variant === 'both'
+
+  useEffect(() => {
+    if (!showBar || !showOffer) return
+    const node = offerRef.current
+    if (!node) return
+    const observer = new IntersectionObserver(
+      ([entry]) => setOfferVisible(entry.isIntersecting),
+      { threshold: 0.35 }
+    )
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [showBar, showOffer])
+
+  const showModal = variant === 'media' || variant === 'sidebar' || variant === 'both'
+
+  if (variant === 'sidebar') {
+    return (
+      <>
+        <div className="overflow-hidden rounded-lg border border-border/70 bg-background shadow-xl">
+          {media}
+          <div className="p-4">{offer}</div>
+        </div>
+        {hasPreview && (
+          <VideoPreviewModal
+            courseId={course.id}
+            courseTitle={course.title}
+            previewVideoUrl={previewVideoUrl}
+            isOpen={showVideoPreview}
+            onOpenChange={setShowVideoPreview}
+            onEnroll={onEnroll}
+          />
+        )}
+      </>
+    )
+  }
 
   return (
     <>
-      {variant !== 'mobile' && (
-        <div className={sticky ? 'lg:sticky lg:top-24' : ''}>{body}</div>
-      )}
-      {variant !== 'sidebar' && (
-        <div className="fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-40 px-3 md:bottom-3 lg:hidden">
-        <div className="mx-auto max-w-lg rounded-xl border border-border/60 bg-background/95 p-3 shadow-lg backdrop-blur">
+      {(variant === 'media' || variant === 'both') && media}
+      {showOffer && <div ref={offerRef}>{offer}</div>}
+      {showBar && (!showOffer || !offerVisible) && (
+        <div className="fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-40 border-t border-border/70 bg-background/95 px-3 py-2.5 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur md:hidden">
+          <div className="mx-auto max-w-lg space-y-2">
+            {inviteField}
           <div className="flex items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold">{course.title}</p>
-              <p className="text-xs text-muted-foreground">
-                {isEnrolled
-                  ? 'Resume from last lesson'
-                  : enrollmentPending
-                    ? 'Request sent — awaiting approval'
-                    : enrolling
-                      ? 'Sending request…'
-                    : requiresApproval
-                      ? 'Request to enroll'
-                      : 'Start learning'}
-              </p>
-            </div>
+            <p className="min-w-0 flex-1 truncate text-lg font-bold">{priceLabel}</p>
             <Button
               size="lg"
-              className={`min-h-11 shrink-0 text-black ${
+              className={`min-h-11 shrink-0 px-5 text-black ${
                 isEnrolled
                   ? 'bg-green-600 hover:bg-green-700'
                   : enrollmentPending
@@ -258,22 +297,14 @@ export function CourseActionDeck({
               disabled={enrollmentPending || enrolling}
               onClick={isEnrolled ? onLearn : onEnroll}
             >
-              {enrolling
-                ? 'Sending…'
-                : isEnrolled
-                  ? 'Resume'
-                  : enrollmentPending
-                    ? 'Pending'
-                    : requiresApproval
-                      ? 'Request'
-                      : 'Enroll'}
+              {shortCta}
             </Button>
           </div>
+          </div>
         </div>
-      </div>
       )}
 
-      {hasPreview && variant !== 'mobile' && (
+      {hasPreview && showModal && (
         <VideoPreviewModal
           courseId={course.id}
           courseTitle={course.title}

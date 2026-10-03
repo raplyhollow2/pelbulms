@@ -9,6 +9,20 @@ export type LandingFeature = {
   title: string
   description: string
   icon: string
+  cta_label?: string
+}
+
+export type LandingCampusCard = {
+  image_url: string
+  title: string
+  description: string
+}
+
+export type LandingQuote = {
+  quote: string
+  name: string
+  role: string
+  stars: number
 }
 
 export type LandingStep = {
@@ -34,6 +48,8 @@ export type LandingSectionTitles = {
   cta_title?: string
   cta_subtitle?: string
   stats_eyebrow?: string
+  campus_title?: string
+  quotes_title?: string
 }
 
 export const DEFAULT_HERO_VIDEO_URL = 'https://www.youtube.com/watch?v=xpCj64W2Yxs'
@@ -184,6 +200,8 @@ export const DEFAULT_LANDING_SECTION_TITLES: LandingSectionTitles = {
   cta_subtitle:
     'Join a verified community of learners and educators. Get approved, then start your first course today.',
   stats_eyebrow: 'Across Bhutan',
+  campus_title: 'Campus and learning spaces',
+  quotes_title: 'Hear from the community',
 }
 
 /** Lucide icon keys allowed in admin feature/step editors. */
@@ -213,7 +231,8 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 }
 
 export function parseLandingStats(raw: unknown): LandingStat[] {
-  if (!Array.isArray(raw) || raw.length === 0) return [...DEFAULT_LANDING_STATS]
+  if (raw == null) return [...DEFAULT_LANDING_STATS]
+  if (!Array.isArray(raw) || raw.length === 0) return []
   const parsed = raw
     .map((item) => {
       if (!isRecord(item)) return null
@@ -227,22 +246,28 @@ export function parseLandingStats(raw: unknown): LandingStat[] {
 }
 
 export function parseLandingFeatures(raw: unknown): LandingFeature[] | null {
-  if (!Array.isArray(raw) || raw.length === 0) return null
+  if (raw == null) return null
+  if (!Array.isArray(raw)) return null
+  if (raw.length === 0) return []
   const parsed = raw
     .map((item) => {
       if (!isRecord(item)) return null
       const title = typeof item.title === 'string' ? item.title.trim() : ''
       const description = typeof item.description === 'string' ? item.description.trim() : ''
       const icon = typeof item.icon === 'string' ? item.icon.trim() : 'Sparkles'
+      const cta =
+        typeof item.cta_label === 'string' && item.cta_label.trim() ? item.cta_label.trim() : undefined
       if (!title || !description) return null
-      return { title, description, icon }
+      return { title, description, icon, ...(cta ? { cta_label: cta } : {}) }
     })
     .filter((x): x is LandingFeature => !!x)
-  return parsed.length ? parsed : null
+  return parsed
 }
 
 export function parseLandingSteps(raw: unknown): LandingStep[] | null {
-  if (!Array.isArray(raw) || raw.length === 0) return null
+  if (raw == null) return null
+  if (!Array.isArray(raw)) return null
+  if (raw.length === 0) return []
   const parsed = raw
     .map((item) => {
       if (!isRecord(item)) return null
@@ -253,7 +278,7 @@ export function parseLandingSteps(raw: unknown): LandingStep[] | null {
       return { title, description, icon }
     })
     .filter((x): x is LandingStep => !!x)
-  return parsed.length ? parsed : null
+  return parsed
 }
 
 export function parseLandingFaq(raw: unknown): LandingFaqItem[] | null {
@@ -295,6 +320,8 @@ export function parseLandingSectionTitles(raw: unknown): LandingSectionTitles {
     'cta_title',
     'cta_subtitle',
     'stats_eyebrow',
+    'campus_title',
+    'quotes_title',
   ]
   for (const key of keys) {
     const v = raw[key]
@@ -344,10 +371,68 @@ export function normalizeLandingFeaturesInput(raw: unknown): LandingFeature[] | 
       const title = typeof item.title === 'string' ? item.title.trim() : ''
       const description = typeof item.description === 'string' ? item.description.trim() : ''
       const icon = typeof item.icon === 'string' && item.icon.trim() ? item.icon.trim() : 'Sparkles'
+      const cta =
+        typeof item.cta_label === 'string' && item.cta_label.trim() ? item.cta_label.trim() : undefined
       if (!title || !description) return null
-      return { title, description, icon }
+      return { title, description, icon, ...(cta ? { cta_label: cta } : {}) }
     })
     .filter((x): x is LandingFeature => !!x)
+}
+
+function cleanUrl(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+export function parseLandingCampus(raw: unknown): LandingCampusCard[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((item) => {
+      if (!isRecord(item)) return null
+      const title = typeof item.title === 'string' ? item.title.trim() : ''
+      const description = typeof item.description === 'string' ? item.description.trim() : ''
+      const image_url = cleanUrl(item.image_url)
+      if (!title) return null
+      return { image_url, title, description }
+    })
+    .filter((x): x is LandingCampusCard => !!x)
+}
+
+export function parseLandingQuotes(raw: unknown): LandingQuote[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((item) => {
+      if (!isRecord(item)) return null
+      const quote = typeof item.quote === 'string' ? item.quote.trim() : ''
+      const name = typeof item.name === 'string' ? item.name.trim() : ''
+      const role = typeof item.role === 'string' ? item.role.trim() : ''
+      const starsRaw = Number(item.stars)
+      const stars = Number.isFinite(starsRaw) ? Math.min(5, Math.max(1, Math.round(starsRaw))) : 5
+      if (!quote || !name) return null
+      return { quote, name, role, stars }
+    })
+    .filter((x): x is LandingQuote => !!x)
+}
+
+export function parseLandingGallery(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((item) => (typeof item === 'string' ? item.trim() : isRecord(item) ? cleanUrl(item.image_url) : ''))
+    .filter(Boolean)
+}
+
+export function normalizeLandingCampusInput(raw: unknown): LandingCampusCard[] | null {
+  if (!Array.isArray(raw)) return null
+  return parseLandingCampus(raw)
+}
+
+export function normalizeLandingQuotesInput(raw: unknown): LandingQuote[] | null {
+  if (!Array.isArray(raw)) return null
+  return parseLandingQuotes(raw)
+}
+
+export function normalizeLandingGalleryInput(raw: unknown): string[] | null {
+  if (!Array.isArray(raw)) return null
+  return parseLandingGallery(raw)
 }
 
 export function normalizeLandingStepsInput(raw: unknown): LandingStep[] | null {

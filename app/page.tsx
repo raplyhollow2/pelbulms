@@ -3,10 +3,18 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
-import { ArrowRight, BookOpen } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { ArrowRight } from 'lucide-react'
 import { SignedInPublicGuard } from '@/components/auth/signed-in-public-guard'
-import { LandingHero, LandingStatsStrip } from '@/components/landing/landing-hero'
+import { LandingHero } from '@/components/landing/landing-hero'
+import { LandingCatalog, type LandingCourse } from '@/components/landing/landing-catalog'
+import {
+  LandingCampus,
+  LandingJoin,
+  LandingJourney,
+  LandingPrograms,
+  LandingQuotes,
+  LandingStats,
+} from '@/components/landing/landing-sections'
 import { publicHomeRedirectForSession } from '@/lib/auth-destination'
 import { getPlatformSettings } from '@/lib/platform-settings'
 import { cookies } from 'next/headers'
@@ -21,22 +29,12 @@ import {
   type LandingFeature,
   type LandingStep,
 } from '@/lib/landing-content'
-import { resolveLandingIcon } from '@/lib/landing-icons'
 import { resolveMediaUrl } from '@/lib/media'
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pelbu.bt'
 const FALLBACK_NAME = 'Pelbu LMS'
 const FALLBACK_DESCRIPTION =
   'Pelbu LMS is Bhutan’s private, identity-verified learning platform. Students and teachers get world-class courses, progress tracking, private video lessons and recognised certificates — access granted only after Bhutan KYC approval.'
-
-const FEATURE_TINTS = [
-  'text-bhutan-orange bg-bhutan-orange/10',
-  'text-bhutan-yellow bg-bhutan-yellow/15',
-  'text-green-600 bg-green-600/10',
-  'text-bhutan-red bg-bhutan-red/10',
-  'text-blue-600 bg-blue-600/10',
-  'text-purple-600 bg-purple-600/10',
-]
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getPlatformSettings()
@@ -130,27 +128,47 @@ function jsonLd(siteName: string, description: string, faq: LandingFaqItem[]) {
   }
 }
 
-async function loadFeaturedCourses(ids: string[]) {
-  if (!ids.length) {
-    return [] as {
-      id: string
-      title: string
-      description: string | null
-      thumbnail_url: string | null
-    }[]
+function instructorName(profiles: { full_name?: string | null } | { full_name?: string | null }[] | null) {
+  const profile = Array.isArray(profiles) ? profiles[0] : profiles
+  return profile?.full_name?.trim() || null
+}
+
+function toLandingCourse(row: {
+  id: string
+  title: string
+  category?: string | null
+  thumbnail_url?: string | null
+  average_rating?: number | null
+  rating_count?: number | null
+  profiles?: { full_name?: string | null } | { full_name?: string | null }[] | null
+}): LandingCourse {
+  return {
+    id: row.id,
+    title: row.title,
+    category: String(row.category || '').trim(),
+    thumbnail_url: row.thumbnail_url || null,
+    average_rating: Number(row.average_rating) || 0,
+    rating_count: Number(row.rating_count) || 0,
+    instructor_name: instructorName(row.profiles || null),
   }
+}
+
+async function loadPublishedCourses() {
   try {
     const service = await tryCreateServiceClient()
     const client = service || (await createSupabaseServerClient())
     const { data } = await client
       .from('courses')
-      .select('id, title, description, thumbnail_url')
-      .in('id', ids)
+      .select(
+        'id, title, category, thumbnail_url, average_rating, rating_count, profiles:instructor_id ( full_name )'
+      )
       .eq('is_published', true)
-    const byId = new Map((data || []).map((c: any) => [c.id, c]))
-    return ids.map((id) => byId.get(id)).filter(Boolean)
+      .order('updated_at', { ascending: false })
+    return ((data || []) as unknown as Parameters<typeof toLandingCourse>[0][]).map((row) =>
+      toLandingCourse(row)
+    )
   } catch {
-    return []
+    return [] as LandingCourse[]
   }
 }
 
@@ -158,7 +176,7 @@ function resolveFeatures(
   custom: LandingFeature[] | null,
   requireIdentity: boolean
 ): LandingFeature[] {
-  if (custom?.length) return custom
+  if (custom !== null) return custom
   return DEFAULT_LANDING_FEATURES.map((f) =>
     f.title === 'Bhutan KYC access' && !requireIdentity
       ? {
@@ -172,7 +190,7 @@ function resolveFeatures(
 }
 
 function resolveSteps(custom: LandingStep[] | null, requireIdentity: boolean): LandingStep[] {
-  if (custom?.length) return custom
+  if (custom !== null) return custom
   return requireIdentity ? DEFAULT_LANDING_STEPS : DEFAULT_LANDING_STEPS_NO_KYC
 }
 
@@ -267,9 +285,21 @@ export default async function Home({
     (requireIdentity
       ? FALLBACK_DESCRIPTION
       : `${siteName} is Bhutan’s learning platform for students, teachers and institutions.`)
-  const featured = settings.public_catalog
-    ? await loadFeaturedCourses(settings.featured_course_ids)
-    : []
+  const published = settings.public_catalog ? await loadPublishedCourses() : []
+  const publishedById = new Map(published.map((course) => [course.id, course]))
+  const featured = settings.featured_course_ids
+    .map((id) => publishedById.get(id))
+    .filter((course): course is LandingCourse => Boolean(course))
+  const heroFallbackImage =
+    resolveMediaUrl(settings.hero_image_url) ||
+    (featured[0] ? resolveMediaUrl(featured[0].thumbnail_url) : null)
+  const footerCategories = published.reduce<string[]>((names, course) => {
+    const name = course.category.trim()
+    if (name && !names.some((existing) => existing.toLowerCase() === name.toLowerCase())) {
+      names.push(name)
+    }
+    return names
+  }, [])
 
   const titles = {
     ...DEFAULT_LANDING_SECTION_TITLES,
@@ -280,14 +310,6 @@ export default async function Home({
   const steps = resolveSteps(settings.landing_steps, requireIdentity)
   const faq = resolveFaq(settings.landing_faq, siteName, requireIdentity)
 
-  const stepsTitle =
-    titles.steps_title ||
-    (requireIdentity ? 'Four steps to join Pelbu' : 'How to join')
-  const stepsSubtitle =
-    titles.steps_subtitle ||
-    (requireIdentity
-      ? 'Pelbu is a verified, closed network. Here’s exactly how access works.'
-      : 'Create an account, pick your institution, then start requesting courses.')
   const ctaSubtitle =
     titles.cta_subtitle ||
     (requireIdentity
@@ -314,141 +336,44 @@ export default async function Home({
           videoQuality={settings.video_quality}
           rotatingWords={settings.hero_rotating_words}
           ctaLabel={settings.hero_cta_primary_label}
+          secondaryCtaLabel={settings.hero_cta_secondary_label}
+          showCatalog={settings.public_catalog && published.length > 0}
+          glassOpacity={settings.hero_glass_opacity}
           requireIdentity={requireIdentity}
+          fallbackImage={heroFallbackImage}
+          courses={published}
         />
 
-        <LandingStatsStrip stats={settings.landing_stats} eyebrow={titles.stats_eyebrow} />
+        <LandingStats eyebrow={titles.stats_eyebrow} stats={settings.landing_stats} />
 
-        {featured.length > 0 && (
-          <section className="mx-auto max-w-6xl px-5 py-12">
-            <div className="mb-6">
-              <p className="text-sm font-semibold uppercase tracking-widest text-bhutan-orange">
-                Featured
-              </p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight">Courses to start with</h2>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {featured.map((c: any) => {
-                const thumb = resolveMediaUrl(c.thumbnail_url)
-                return (
-                  <Link
-                    key={c.id}
-                    href="/auth/login"
-                    className="hover-lift group overflow-hidden rounded-2xl border border-border/60 bg-card/70"
-                  >
-                    <div className="relative aspect-video w-full overflow-hidden bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20">
-                      {thumb ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={thumb}
-                          alt=""
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center">
-                          <BookOpen className="h-10 w-10 text-bhutan-orange/60" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-5">
-                      <h3 className="line-clamp-2 text-base font-semibold tracking-tight">
-                        {c.title}
-                      </h3>
-                      {c.description && (
-                        <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
-                          {c.description}
-                        </p>
-                      )}
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
-          </section>
-        )}
+        <div id="courses">
+          <LandingCatalog courses={published} featured={featured} />
+        </div>
 
-        <section id="features" className="mx-auto max-w-6xl px-5 py-20 md:py-28">
-          <div className="mx-auto max-w-2xl text-center">
-            <p className="text-sm font-semibold uppercase tracking-widest text-bhutan-orange">
-              {titles.features_eyebrow}
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-              {titles.features_title}
-            </h2>
-            <p className="mt-4 text-muted-foreground">{titles.features_subtitle}</p>
-          </div>
+        <LandingPrograms
+          eyebrow={titles.features_eyebrow}
+          title={titles.features_title || 'Programs'}
+          subtitle={titles.features_subtitle}
+          features={features}
+        />
 
-          <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map((f, i) => {
-              const Icon = resolveLandingIcon(f.icon)
-              const tint = FEATURE_TINTS[i % FEATURE_TINTS.length]
-              return (
-                <article
-                  key={`${f.title}-${i}`}
-                  className="hover-lift group rounded-2xl border border-border/60 bg-card/60 p-6 backdrop-blur"
-                >
-                  <span
-                    className={`inline-flex h-11 w-11 items-center justify-center rounded-xl ${tint}`}
-                  >
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <h3 className="mt-4 text-lg font-semibold tracking-tight">{f.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.description}</p>
-                </article>
-              )
-            })}
-          </div>
-        </section>
+        <LandingCampus title={titles.campus_title || 'Campus and learning spaces'} cards={settings.landing_campus} />
 
-        <section id="how-it-works" className="border-y border-border/50 bg-muted/30">
-          <div className="mx-auto max-w-6xl px-5 py-20 md:py-28">
-            <div className="mx-auto max-w-2xl text-center">
-              <p className="text-sm font-semibold uppercase tracking-widest text-bhutan-orange">
-                {titles.steps_eyebrow}
-              </p>
-              <h2 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-                {stepsTitle}
-              </h2>
-              <p className="mt-4 text-muted-foreground">{stepsSubtitle}</p>
-            </div>
+        <LandingJourney
+          eyebrow={titles.steps_eyebrow}
+          title={titles.steps_title || 'How to join'}
+          subtitle={titles.steps_subtitle}
+          steps={steps}
+        />
 
-            <ol
-              className={`mt-14 grid gap-6 sm:grid-cols-2 ${
-                steps.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'
-              }`}
-            >
-              {steps.map((s, i) => {
-                const Icon = resolveLandingIcon(s.icon)
-                return (
-                  <li
-                    key={`${s.title}-${i}`}
-                    className="relative rounded-2xl border border-border/60 bg-card/70 p-6 backdrop-blur"
-                  >
-                    <span className="absolute right-5 top-5 text-4xl font-bold text-foreground/5">
-                      {i + 1}
-                    </span>
-                    <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/10 text-bhutan-orange">
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <h3 className="mt-4 text-base font-semibold tracking-tight">{s.title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.description}</p>
-                  </li>
-                )
-              })}
-            </ol>
+        <LandingQuotes title={titles.quotes_title || 'Hear from the community'} quotes={settings.landing_quotes} />
 
-            <div className="mt-12 flex justify-center">
-              <Button
-                size="lg"
-                className="h-12 gap-2 rounded-full bg-gradient-to-r from-bhutan-yellow to-bhutan-orange px-7 text-sm font-semibold text-black shadow-brand hover:opacity-95"
-                render={<Link href="/auth/login" />}
-              >
-                Begin registration
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </section>
+        <LandingJoin
+          images={settings.landing_gallery}
+          title={titles.cta_title || 'Ready to learn?'}
+          subtitle={ctaSubtitle}
+          buttonLabel={settings.hero_cta_primary_label || 'Create your account'}
+        />
 
         <section id="faq" className="mx-auto max-w-3xl px-5 py-20 md:py-28">
           <div className="text-center">
@@ -474,29 +399,6 @@ export default async function Home({
             ))}
           </div>
         </section>
-
-        <section className="mx-auto max-w-6xl px-5 pb-24">
-          <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-bhutan-yellow/15 via-bhutan-orange/10 to-transparent px-6 py-14 text-center md:py-20">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(40rem_20rem_at_50%_-20%,rgba(255,107,53,0.15),transparent_60%)]"
-            />
-            <h2 className="mx-auto max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
-              {titles.cta_title}
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-muted-foreground">{ctaSubtitle}</p>
-            <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Button
-                size="lg"
-                className="h-12 gap-2 rounded-full bg-foreground px-7 text-sm font-semibold text-background hover:bg-foreground/90"
-                render={<Link href="/auth/login" />}
-              >
-                {settings.hero_cta_primary_label || 'Create your account'}
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </section>
       </main>
 
       <footer className="border-t border-border/50">
@@ -504,7 +406,7 @@ export default async function Home({
           <p>
             © {new Date().getFullYear()} {siteName} · Empowering education in Bhutan.
           </p>
-          <nav className="flex items-center gap-5">
+          <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
             <Link href="/auth/login" className="transition-colors hover:text-foreground">
               Sign in
             </Link>
@@ -514,6 +416,15 @@ export default async function Home({
             <Link href="#faq" className="transition-colors hover:text-foreground">
               FAQ
             </Link>
+            {footerCategories.map((category) => (
+              <Link
+                key={category}
+                href={`/courses?category=${encodeURIComponent(category)}`}
+                className="transition-colors hover:text-foreground"
+              >
+                {category}
+              </Link>
+            ))}
           </nav>
         </div>
       </footer>
