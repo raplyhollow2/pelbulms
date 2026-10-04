@@ -179,7 +179,6 @@ export function LessonBlocks({
             onTakeQuiz={onTakeQuiz}
             editable={editable}
             onOpenLessonOptions={onOpenLessonOptions}
-            courseId={courseId}
             onBlockChange={(next) => {
               update((current) =>
                 current.map((item) => (item.id === next.id ? mergeLessonBlock(item, next) : item))
