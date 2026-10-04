@@ -1668,9 +1668,7 @@ export default function LessonViewPage() {
                 onSubmitActivityResponse={(id, response) =>
                   void submitActivityResponse(id, response)
                 }
-                defaultTab={
-                  parseLessonBlocks(lesson.content).length > 0 ? 'resources' : 'overview'
-                }
+                defaultTab="resources"
                 activitiesExtra={activitiesExtra}
                 onLessonClick={(clickedLessonId) => tryOpenLesson(clickedLessonId)}
                 onLessonComplete={(targetLessonId, completed) => {
