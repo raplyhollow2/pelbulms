@@ -10,6 +10,7 @@ import type { Database } from '@/types/database.types'
 import { resolveMediaUrl } from '@/lib/media'
 import { courseDescriptionPlain } from '@/lib/course-description'
 import { cn } from '@/lib/utils'
+import { CourseShareButton } from '@/components/courses/course-share-dialog'
 import {
   audienceBadgeForCourse,
   type InstitutionSummary,
@@ -157,6 +158,13 @@ export function CourseCard({
             Featured
           </span>
         )}
+        <CourseShareButton
+          courseId={course.id}
+          title={course.title}
+          description={course.description}
+          published
+          className="absolute right-2.5 top-2.5 z-30"
+        />
       </div>
 
       <Link href={`/courses/${course.id}`} className="block flex-1 cursor-pointer">

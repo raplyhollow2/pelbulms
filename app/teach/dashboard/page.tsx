@@ -23,7 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Plus, BookOpen, Users, Loader2, Award, HardDrive, Check, X, ClipboardCheck, Trash2, MoreVertical, ListFilter } from 'lucide-react'
+import { Plus, BookOpen, Users, Loader2, Award, HardDrive, Check, X, ClipboardCheck, Trash2, MoreVertical, ListFilter, Share2 } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,6 +41,7 @@ import { canAccessAdmin, canAccessTeaching } from '@/lib/roles'
 import { useCapabilities } from '@/components/auth/capabilities-provider'
 import { CAP } from '@/lib/capability-keys'
 import { GradingAlertBanner } from '@/components/teach/grading-alert-banner'
+import { CourseShareDialog } from '@/components/courses/course-share-dialog'
 
 type Course = Database['public']['Tables']['courses']['Row'] & {
   instructor_name?: string
@@ -79,6 +80,7 @@ export default function TeacherDashboard() {
   const [decidingId, setDecidingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [deleteTargets, setDeleteTargets] = useState<Course[]>([])
+  const [shareCourse, setShareCourse] = useState<Course | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -1053,6 +1055,10 @@ export default function TeacherDashboard() {
                           <Award />
                           Certificate
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setShareCourse(course)}>
+                          <Share2 />
+                          Share
+                        </DropdownMenuItem>
                         {canDeleteCourse(course) && (
                           <>
                             <DropdownMenuSeparator />
@@ -1071,6 +1077,19 @@ export default function TeacherDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {shareCourse ? (
+        <CourseShareDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setShareCourse(null)
+          }}
+          courseId={shareCourse.id}
+          title={shareCourse.title}
+          description={shareCourse.description}
+          published={Boolean(shareCourse.is_published)}
+        />
+      ) : null}
 
       <AlertDialog open={unpublishOpen} onOpenChange={setUnpublishOpen}>
         <AlertDialogContent>

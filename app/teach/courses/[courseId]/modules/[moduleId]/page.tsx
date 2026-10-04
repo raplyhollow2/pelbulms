@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import { DescriptionEditor } from '@/components/course/description-editor'
 import { Switch } from '@/components/ui/switch'
 import {
   ArrowLeft, Loader2, Save, BookOpen,
@@ -568,17 +568,19 @@ export default function ModuleLessonsPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="module-description" className="text-sm">Module Description</Label>
-                  <Textarea
+                  <Label htmlFor="module-description" className="text-sm">Module learning objectives</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Shown on every lesson in this section, on the Resources tab.
+                  </p>
+                  <DescriptionEditor
                     id="module-description"
                     value={module.description || ''}
-                    onChange={(e) => {
-                      setModule({ ...module, description: e.target.value })
+                    placeholder="What students should learn across this module"
+                    ariaLabel="Module learning objectives"
+                    onChange={(description) => {
+                      setModule({ ...module, description })
                       setHasChanges(true)
                     }}
-                    placeholder="Module description..."
-                    rows={3}
-                    className="resize-none"
                   />
                 </div>
 
