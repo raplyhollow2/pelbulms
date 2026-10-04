@@ -164,14 +164,17 @@ export function LessonOptionsFields({
             </div>
             <div>
               <Label htmlFor={`lesson-description-${lesson.id}`} className="text-sm">
-                Description
+                Lesson learning outcome
               </Label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Shown under the module learning objectives on the lesson Resources tab.
+              </p>
               <div className="mt-1">
                 <DescriptionEditor
                   id={`lesson-description-${lesson.id}`}
                   value={lesson.description || ''}
-                  placeholder="What students should know about this lesson"
-                  ariaLabel="Lesson description"
+                  placeholder="What students should be able to do after this lesson"
+                  ariaLabel="Lesson learning outcome"
                   onChange={(description) => onChange({ description })}
                   onCommit={(description) => void onCommit({ description })}
                 />

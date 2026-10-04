@@ -62,6 +62,8 @@ import {
 } from '@/lib/course-institution-access'
 import { type CourseTheme, type CourseTutorSettings } from '@/lib/lesson-blocks'
 import { DescriptionEditor } from '@/components/course/description-editor'
+import { CourseSharePanel, courseShareUrl } from '@/components/courses/course-share-dialog'
+import { toast } from 'sonner'
 
 type EnrollmentMode = 'auto' | 'approval' | 'invite_code' | 'paid'
 
@@ -119,11 +121,6 @@ function SettingsPanel({
   )
 }
 
-function courseShareUrl(courseId: string) {
-  if (typeof window === 'undefined') return `/courses/${courseId}`
-  return `${window.location.origin}/courses/${courseId}`
-}
-
 export function CourseSettingsForm({
   courseId,
   onUpdated,
@@ -157,7 +154,6 @@ export function CourseSettingsForm({
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [canDeleteCourse, setCanDeleteCourse] = useState(false)
-  const [linkCopied, setLinkCopied] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
   const [uploadingVideo, setUploadingVideo] = useState(false)
   const [videoUploadProgress, setVideoUploadProgress] = useState(0)
@@ -568,10 +564,7 @@ export function CourseSettingsForm({
 
   const copyShareLink = () => {
     void navigator.clipboard.writeText(courseShareUrl(courseId)).then(
-      () => {
-        setLinkCopied(true)
-        window.setTimeout(() => setLinkCopied(false), 2000)
-      },
+      () => toast.success('Course link copied'),
       () => setError('Could not copy the course link'),
     )
   }
@@ -610,7 +603,7 @@ export function CourseSettingsForm({
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">{courseData.is_published ? 'Published' : 'Draft'}</Badge>
             <Button type="button" variant="outline" className="min-h-11" onClick={copyShareLink}>
-              {linkCopied ? 'Copied' : 'Copy link'}
+              Copy link
             </Button>
           </div>
         </div>
@@ -1089,7 +1082,12 @@ export function CourseSettingsForm({
 
         <TabsContent value="share">
           <SettingsPanel title="Share" description="Send learners a link to this course.">
-            <ShareCourse courseId={courseId} paid={courseData.enrollment_mode === 'paid'} />
+            <CourseSharePanel
+              courseId={courseId}
+              title={courseData.title}
+              description={courseData.description}
+              published={courseData.is_published}
+            />
           </SettingsPanel>
         </TabsContent>
 
@@ -1233,50 +1231,6 @@ function TutorForm({
       >
         Save tutor
       </Button>
-    </div>
-  )
-}
-
-function ShareCourse({ courseId, paid }: { courseId: string; paid: boolean }) {
-  const shareUrl =
-    typeof window !== 'undefined' ? `${window.location.origin}/courses/${courseId}` : `/courses/${courseId}`
-  return (
-    <div className="space-y-3 text-sm">
-      <p className="break-all rounded-md border p-2">{shareUrl}</p>
-      <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" className="min-h-11" onClick={() => void navigator.clipboard.writeText(shareUrl)}>
-          Copy link
-        </Button>
-        <a
-          className="inline-flex min-h-11 items-center rounded-md border px-3"
-          href={`https://wa.me/?text=${encodeURIComponent(shareUrl)}`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          WhatsApp
-        </a>
-        <a
-          className="inline-flex min-h-11 items-center rounded-md border px-3"
-          href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Facebook
-        </a>
-        <a
-          className="inline-flex min-h-11 items-center rounded-md border px-3"
-          href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`}
-          target="_blank"
-          rel="noreferrer"
-        >
-          LinkedIn
-        </a>
-      </div>
-      {paid && (
-        <a className="inline-flex min-h-11 items-center rounded-md border px-3" href={`/courses/${courseId}`}>
-          Sell (Stripe checkout)
-        </a>
-      )}
     </div>
   )
 }

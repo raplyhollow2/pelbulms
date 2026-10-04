@@ -120,6 +120,19 @@ export async function middleware(req: NextRequest) {
     const authPaths = ['/auth/login']
     const isAuthPath = authPaths.some((path) => pathname.startsWith(path))
 
+    // Link-preview crawlers cannot sign in. Let them read a published course
+    // page so WhatsApp, Facebook, and LinkedIn can show the course card.
+    // Search crawlers stay on the login redirect.
+    const isCourseDetail = /^\/courses\/[^/]+$/.test(pathname)
+    const previewBot =
+      isCourseDetail &&
+      /facebookexternalhit|Facebot|Twitterbot|LinkedInBot|WhatsApp|Slackbot|TelegramBot|Discordbot/i.test(
+        req.headers.get('user-agent') || ''
+      )
+    if (previewBot) {
+      return forward()
+    }
+
     // No verified user means no protected page. A timeout or a stale cookie
     // must not admit a rejected or suspended account.
     if (isProtectedPath && !user) {

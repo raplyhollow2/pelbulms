@@ -3,10 +3,14 @@
 import { ArrowLeft, CheckCircle, Loader2, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { NotificationBell } from '@/components/layout/notification-bell'
+import { CourseShareButton } from '@/components/courses/course-share-dialog'
 import { cn } from '@/lib/utils'
 
 type Props = {
+  courseId?: string | null
   courseTitle?: string | null
+  courseDescription?: string | null
+  published?: boolean
   completedCount: number
   totalLessons: number
   progressPercent: number
@@ -57,7 +61,10 @@ function ProgressRing({ percent }: { percent: number }) {
  * Udemy-style player chrome: course title, circular progress, complete.
  */
 export function LessonPlayerHeader({
+  courseId,
   courseTitle,
+  courseDescription,
+  published = true,
   completedCount,
   totalLessons,
   progressPercent,
@@ -99,6 +106,14 @@ export function LessonPlayerHeader({
             </span>
           </div>
           <Trophy className="h-4 w-4 text-bhutan-yellow sm:hidden" aria-hidden />
+          {courseId ? (
+            <CourseShareButton
+              courseId={courseId}
+              title={courseTitle || 'Course'}
+              description={courseDescription}
+              published={published}
+            />
+          ) : null}
           <Button
             size="sm"
             onClick={onToggleComplete}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -14,12 +14,14 @@ import {
   uploadVideoDirectToCloudinary,
 } from '@/lib/cloudinary-direct-upload'
 import {
+  mergeLessonBlock,
   newBlockId,
   parseLessonBlocks,
   sanitizeHtml,
   youtubeEmbedId,
   type LessonBlock,
 } from '@/lib/lesson-blocks'
+import { stepSelectionFontSize } from '@/lib/editor-font-size'
 import { ScenarioPlayer } from '@/components/learning/scenario-player'
 import { YoutubeFrame } from '@/components/course/youtube-frame'
 import { resolveMediaUrl } from '@/lib/media'
@@ -45,6 +47,7 @@ type StarterType = 'text' | 'image' | 'youtube' | 'quiz'
 export function LessonBlocks({
   content,
   lessonId,
+  courseId,
   onTakeQuiz,
   editable,
   onChange,
@@ -56,9 +59,10 @@ export function LessonBlocks({
 }: {
   content: unknown
   lessonId?: string
+  courseId?: string
   onTakeQuiz?: (quizId: string) => void
   editable?: boolean
-  onChange?: (blocks: LessonBlock[]) => void
+  onChange?: (blocks: LessonBlock[] | ((current: LessonBlock[]) => LessonBlock[])) => void
   onInsert?: (type: StarterType) => void
   onAddBlock?: (block: LessonBlock) => void
   onAskPelbu?: () => void
@@ -83,23 +87,28 @@ export function LessonBlocks({
     )
   }
 
-  const update = (next: LessonBlock[]) => onChange?.(next)
+  const update = (updater: (current: LessonBlock[]) => LessonBlock[]) => onChange?.(updater)
 
   const move = (index: number, direction: -1 | 1) => {
-    const target = index + direction
-    if (target < 0 || target >= blocks.length) return
-    const next = [...blocks]
-    const [moved] = next.splice(index, 1)
-    next.splice(target, 0, moved)
-    update(next)
+    update((current) => {
+      const target = index + direction
+      if (target < 0 || target >= current.length) return current
+      const next = [...current]
+      const [moved] = next.splice(index, 1)
+      next.splice(target, 0, moved)
+      return next
+    })
   }
 
   const duplicate = (index: number) => {
-    const source = blocks[index]
-    const copy = { ...structuredClone(source), id: newBlockId() }
-    const next = [...blocks]
-    next.splice(index + 1, 0, copy)
-    update(next)
+    update((current) => {
+      const source = current[index]
+      if (!source) return current
+      const copy = { ...structuredClone(source), id: newBlockId() }
+      const next = [...current]
+      next.splice(index + 1, 0, copy)
+      return next
+    })
   }
 
   return (
@@ -156,7 +165,7 @@ export function LessonBlocks({
                   size="icon-sm"
                   aria-label="Remove"
                   className="text-destructive"
-                  onClick={() => update(blocks.filter((_, i) => i !== index))}
+                  onClick={() => update((current) => current.filter((_, i) => i !== index))}
                 >
                   <Trash2 />
                 </Button>
@@ -166,13 +175,15 @@ export function LessonBlocks({
           <BlockView
             block={block}
             lessonId={lessonId}
+            courseId={courseId}
             onTakeQuiz={onTakeQuiz}
             editable={editable}
             onOpenLessonOptions={onOpenLessonOptions}
+            courseId={courseId}
             onBlockChange={(next) => {
-              const copy = [...blocks]
-              copy[index] = next
-              update(copy)
+              update((current) =>
+                current.map((item) => (item.id === next.id ? mergeLessonBlock(item, next) : item))
+              )
             }}
           />
         </div>
@@ -238,6 +249,7 @@ function EmptyLesson({
 function BlockView({
   block,
   lessonId,
+  courseId,
   onTakeQuiz,
   editable,
   onOpenLessonOptions,
@@ -245,6 +257,7 @@ function BlockView({
 }: {
   block: LessonBlock
   lessonId?: string
+  courseId?: string
   onTakeQuiz?: (quizId: string) => void
   editable?: boolean
   onOpenLessonOptions?: () => void
@@ -255,6 +268,7 @@ function BlockView({
       <EditableBlock
         block={block}
         lessonId={lessonId}
+        courseId={courseId}
         onTakeQuiz={onTakeQuiz}
         onOpenLessonOptions={onOpenLessonOptions}
         onBlockChange={onBlockChange}
@@ -325,7 +339,14 @@ function BlockView({
   }
 
   if (block.type === 'flashcards') {
-    return <FlipDeck cards={block.cards || []} />
+    return (
+      <LessonFlashcardDeck
+        courseId={courseId}
+        lessonId={lessonId}
+        deckId={block.deckId}
+        cards={block.cards || []}
+      />
+    )
   }
 
   return null
@@ -334,10 +355,12 @@ function BlockView({
 function EditableBlock({
   block,
   lessonId,
+  courseId,
   onBlockChange,
 }: {
   block: LessonBlock
   lessonId?: string
+  courseId?: string
   onTakeQuiz?: (quizId: string) => void
   onOpenLessonOptions?: () => void
   onBlockChange: (block: LessonBlock) => void
@@ -426,10 +449,19 @@ function EditableBlock({
     const cards = block.cards || []
     const setCards = (next: { front: string; back: string }[]) => {
       if (block.type === 'flipcards') onBlockChange({ ...block, cards: next })
-      else onBlockChange({ ...block, cards: next })
+      else onBlockChange({ ...block, cards: next, deckId: block.deckId })
     }
     return (
       <div className="space-y-3">
+        {block.type === 'flashcards' ? (
+          <FlashcardDeckSync
+            courseId={courseId}
+            lessonId={lessonId}
+            cards={cards}
+            deckId={block.deckId}
+            onDeckId={(deckId) => onBlockChange({ id: block.id, type: 'flashcards', deckId })}
+          />
+        ) : null}
         {cards.map((card, index) => (
           <div key={index} className="space-y-2 rounded-lg border p-3">
             <Input
@@ -476,8 +508,10 @@ function EditableBlock({
       <div className="space-y-3">
         {block.slides.map((slide, index) => (
           <div key={index} className="space-y-2 rounded-lg border p-3">
+            <p className="text-sm font-medium">Slide {index + 1}</p>
             <RichTextEditor
               html={slide.html}
+              ariaLabel={`Slide ${index + 1}`}
               onChange={(html) => {
                 const slides = block.slides.map((row, i) => (i === index ? { ...row, html } : row))
                 onBlockChange({ ...block, slides })
@@ -514,7 +548,12 @@ function EditableBlock({
           <Plus className="mr-2 h-4 w-4" />
           Add slide
         </Button>
-        {block.slides.length > 0 && <Carousel slides={block.slides} />}
+        {block.slides.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">What learners see</p>
+            <Carousel slides={block.slides} />
+          </div>
+        )}
       </div>
     )
   }
@@ -1005,22 +1044,52 @@ function UnlinkedAssessment({
   )
 }
 
-function RichTextEditor({ html, onChange }: { html: string; onChange: (html: string) => void }) {
+function RichTextEditor({
+  html,
+  onChange,
+  ariaLabel = 'Lesson text',
+}: {
+  html: string
+  onChange: (html: string) => void
+  ariaLabel?: string
+}) {
   const ref = useRef<HTMLDivElement>(null)
   const focused = useRef(false)
-  const [source, setSource] = useState(html)
-  const [prevHtml, setPrevHtml] = useState(html)
+  const lastPublished = useRef<string | null>(null)
 
-  if (html !== prevHtml) {
-    setPrevHtml(html)
-    if (!focused.current) setSource(html)
+  // Uncontrolled on purpose. React 19 assigns innerHTML again whenever
+  // dangerouslySetInnerHTML is a new object, which wiped each keystroke.
+  useLayoutEffect(() => {
+    const node = ref.current
+    if (!node) return
+    if (lastPublished.current === html) return
+    if (focused.current) return
+    node.innerHTML = sanitizeHtml(html || '<p></p>')
+    lastPublished.current = html
+  }, [html])
+
+  const publish = () => {
+    const next = sanitizeHtml(ref.current?.innerHTML || '')
+    lastPublished.current = next
+    onChange(next)
+    return next
   }
 
   const apply = (command: string) => {
-    ref.current?.focus()
+    const node = ref.current
+    if (!node) return
+    node.focus()
     focused.current = true
     document.execCommand(command)
-    onChange(sanitizeHtml(ref.current?.innerHTML || ''))
+    publish()
+  }
+
+  const changeFontSize = (direction: 1 | -1) => {
+    const node = ref.current
+    if (!node) return
+    focused.current = true
+    if (!stepSelectionFontSize(node, direction)) return
+    publish()
   }
 
   return (
@@ -1031,6 +1100,12 @@ function RichTextEditor({ html, onChange }: { html: string; onChange: (html: str
         </Button>
         <Button type="button" variant="outline" size="icon-sm" aria-label="Italic" onMouseDown={(e) => e.preventDefault()} onClick={() => apply('italic')}>
           <Italic />
+        </Button>
+        <Button type="button" variant="outline" size="icon-sm" aria-label="Decrease font size" title="Decrease font size" onMouseDown={(e) => e.preventDefault()} onClick={() => changeFontSize(-1)}>
+          <span className="text-[11px] font-semibold leading-none">A−</span>
+        </Button>
+        <Button type="button" variant="outline" size="icon-sm" aria-label="Increase font size" title="Increase font size" onMouseDown={(e) => e.preventDefault()} onClick={() => changeFontSize(1)}>
+          <span className="text-sm font-semibold leading-none">A+</span>
         </Button>
         <Button
           type="button"
@@ -1049,20 +1124,15 @@ function RichTextEditor({ html, onChange }: { html: string; onChange: (html: str
         suppressContentEditableWarning
         role="textbox"
         aria-multiline="true"
-        aria-label="Lesson text"
+        aria-label={ariaLabel}
         className="prose prose-sm dark:prose-invert min-h-32 w-full max-w-none rounded-md border bg-background p-3 text-sm focus:outline-none"
-        dangerouslySetInnerHTML={{ __html: sanitizeHtml(source || '<p></p>') }}
         onFocus={() => {
           focused.current = true
         }}
-        onInput={() => {
-          onChange(sanitizeHtml(ref.current?.innerHTML || ''))
-        }}
+        onInput={publish}
         onBlur={() => {
           focused.current = false
-          const next = sanitizeHtml(ref.current?.innerHTML || '')
-          setSource(next)
-          onChange(next)
+          publish()
         }}
       />
     </div>
@@ -1163,6 +1233,96 @@ function HotspotImage({
   )
 }
 
+function FlashcardDeckSync({
+  courseId,
+  lessonId,
+  cards,
+  deckId,
+  onDeckId,
+}: {
+  courseId?: string
+  lessonId?: string
+  cards: { front: string; back: string }[]
+  deckId?: string
+  onDeckId: (deckId: string) => void
+}) {
+  const signature = JSON.stringify(
+    cards
+      .map((card) => ({ front: card.front.trim(), back: card.back.trim() }))
+      .filter((card) => card.front && card.back)
+  )
+  const onDeckIdRef = useRef(onDeckId)
+  const deckIdRef = useRef(deckId)
+  onDeckIdRef.current = onDeckId
+  deckIdRef.current = deckId
+
+  useEffect(() => {
+    if (!courseId || !lessonId) return
+    const valid = JSON.parse(signature) as { front: string; back: string }[]
+    if (!valid.length) return
+    const handle = window.setTimeout(() => {
+      void (async () => {
+        const res = await fetch('/api/flashcards', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            courseId,
+            lessonId,
+            title: 'Lesson flashcards',
+            cards: valid,
+          }),
+        })
+        const data = await res.json().catch(() => ({}))
+        const id = data?.deck?.id as string | undefined
+        if (res.ok && id && id !== deckIdRef.current) onDeckIdRef.current(id)
+      })()
+    }, 700)
+    return () => window.clearTimeout(handle)
+  }, [signature, courseId, lessonId])
+
+  return null
+}
+
+function LessonFlashcardDeck({
+  courseId,
+  lessonId,
+  deckId,
+  cards,
+}: {
+  courseId?: string
+  lessonId?: string
+  deckId?: string
+  cards: { front: string; back: string }[]
+}) {
+  const [remote, setRemote] = useState<{ front: string; back: string }[] | null>(null)
+
+  useEffect(() => {
+    if (cards.length || !courseId || !lessonId) return
+    let cancelled = false
+    void (async () => {
+      const res = await fetch(
+        `/api/flashcards?courseId=${encodeURIComponent(courseId)}&lessonId=${encodeURIComponent(lessonId)}`
+      )
+      const data = await res.json().catch(() => ({}))
+      if (cancelled || !res.ok) return
+      const rows = Array.isArray(data.cards) ? data.cards : []
+      setRemote(rows.map((card: { front?: string; back?: string }) => ({
+        front: String(card.front || ''),
+        back: String(card.back || ''),
+      })))
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [cards.length, courseId, lessonId, deckId])
+
+  const shown = cards.length ? cards : remote || []
+  if (!shown.length) {
+    return <p className="text-sm text-muted-foreground">No flashcards yet.</p>
+  }
+  return <FlipDeck cards={shown} />
+}
+
 function FlipDeck({ cards }: { cards: { front: string; back: string }[] }) {
   const [i, setI] = useState(0)
   const [flipped, setFlipped] = useState(false)
@@ -1203,32 +1363,78 @@ function FlipDeck({ cards }: { cards: { front: string; back: string }[] }) {
 }
 
 function Carousel({ slides }: { slides: { html: string; imageUrl?: string }[] }) {
-  const [i, setI] = useState(0)
+  const [index, setIndex] = useState(0)
+  const [direction, setDirection] = useState<1 | -1>(1)
   if (!slides.length) return null
-  const slide = slides[Math.min(i, slides.length - 1)]
+  const safe = Math.min(index, slides.length - 1)
+  const slide = slides[safe]
+
+  const go = (next: number) => {
+    const clamped = Math.max(0, Math.min(slides.length - 1, next))
+    if (clamped === safe) return
+    setDirection(clamped > safe ? 1 : -1)
+    setIndex(clamped)
+  }
+
   return (
-    <div className="space-y-3">
-      <div className="overflow-hidden rounded-xl border">
-        {slide.imageUrl && (
+    <div className="lesson-carousel overflow-hidden rounded-xl border bg-card">
+      <div key={`${safe}-${direction}`} className={direction > 0 ? 'lesson-carousel-next' : 'lesson-carousel-prev'}>
+        {slide.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={resolveMediaUrl(slide.imageUrl) || slide.imageUrl} alt="" className="h-40 w-full object-cover" />
-        )}
-        <div className="p-4 text-sm" dangerouslySetInnerHTML={{ __html: sanitizeHtml(slide.html) }} />
+          <img
+            src={resolveMediaUrl(slide.imageUrl) || slide.imageUrl}
+            alt=""
+            className="aspect-video w-full object-cover"
+          />
+        ) : null}
+        {slide.html?.replace(/<[^>]+>/g, '').trim() ? (
+          <div
+            className="px-4 py-3 text-sm leading-relaxed [&_p]:m-0"
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(slide.html) }}
+          />
+        ) : null}
       </div>
-      <div className="flex justify-between">
-        <Button type="button" variant="outline" className="min-h-11" disabled={i === 0} onClick={() => setI(i - 1)}>
-          Previous
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-11"
-          disabled={i >= slides.length - 1}
-          onClick={() => setI(i + 1)}
-        >
-          Next
-        </Button>
-      </div>
+      {slides.length > 1 ? (
+        <div className="flex items-center justify-center gap-2 border-t px-3 py-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="size-9"
+            aria-label="Previous slide"
+            disabled={safe === 0}
+            onClick={() => go(safe - 1)}
+          >
+            <ChevronLeft />
+          </Button>
+          <div className="flex items-center gap-1.5 px-1">
+            {slides.map((_, n) => (
+              <button
+                key={n}
+                type="button"
+                aria-label={`Slide ${n + 1}`}
+                aria-current={n === safe ? 'true' : undefined}
+                className={cn(
+                  'size-2 rounded-full transition-colors',
+                  n === safe ? 'bg-foreground' : 'bg-foreground/25 hover:bg-foreground/45'
+                )}
+                onClick={() => go(n)}
+              />
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="size-9"
+            aria-label="Next slide"
+            disabled={safe >= slides.length - 1}
+            onClick={() => go(safe + 1)}
+          >
+            <ChevronRight />
+          </Button>
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -667,12 +667,14 @@ export function QuizPlayer({
 
 function MultipleChoiceQuestion({ question, value, onChange }: any) {
   let options = parseOptions(question.options)
-  options = options.map((opt: any) => {
-    if (typeof opt === 'string') {
-      return { text: opt, is_correct: opt === question.correct_answer }
-    }
-    return opt
-  })
+  options = options
+    .map((opt: any) => {
+      if (typeof opt === 'string') {
+        return { text: opt, is_correct: opt === question.correct_answer }
+      }
+      return { ...opt, text: typeof opt?.text === 'string' ? opt.text : '' }
+    })
+    .filter((opt: { text?: string }) => opt.text?.trim())
   const isMultiple = options.filter((opt: any) => opt.is_correct).length > 1
 
   if (isMultiple) {

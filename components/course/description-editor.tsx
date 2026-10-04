@@ -15,6 +15,7 @@ import {
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { courseDescriptionEditorHtml, courseDescriptionRichClass } from '@/lib/course-description'
+import { stepSelectionFontSize } from '@/lib/editor-font-size'
 import { sanitizeHtml } from '@/lib/lesson-blocks'
 
 function FormatButton({
@@ -145,6 +146,13 @@ export function DescriptionEditor({
     publish()
   }
 
+  const changeFontSize = (direction: 1 | -1) => {
+    const node = ref.current
+    if (!node) return
+    focused.current = true
+    if (stepSelectionFontSize(node, direction)) publish()
+  }
+
   const openLink = () => {
     const node = ref.current
     if (!node) return
@@ -200,6 +208,12 @@ export function DescriptionEditor({
         </FormatButton>
         <FormatButton label="Italic" onApply={() => apply('italic')}>
           <Italic />
+        </FormatButton>
+        <FormatButton label="Decrease font size" onApply={() => changeFontSize(-1)}>
+          <span className="text-[11px] font-semibold leading-none">A−</span>
+        </FormatButton>
+        <FormatButton label="Increase font size" onApply={() => changeFontSize(1)}>
+          <span className="text-sm font-semibold leading-none">A+</span>
         </FormatButton>
         <FormatButton label="Link" onApply={openLink}>
           <Link2 />

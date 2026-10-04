@@ -10,6 +10,7 @@ import { resolveMediaUrl } from '@/lib/media'
 import { courseDescriptionPlain } from '@/lib/course-description'
 import { resumeLearnPath } from '@/lib/resume-path'
 import { cn } from '@/lib/utils'
+import { CourseShareButton } from '@/components/courses/course-share-dialog'
 
 export interface DashboardCourseCardProps {
   id: string
@@ -102,6 +103,13 @@ export function DashboardCourseCard({
             Completed
           </span>
         ) : null}
+        <CourseShareButton
+          courseId={id}
+          title={title}
+          description={description}
+          published
+          className="absolute right-2.5 top-2.5 z-30"
+        />
       </div>
 
       <Link href={href} className="block min-w-0 flex-1 cursor-pointer">

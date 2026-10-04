@@ -1572,7 +1572,10 @@ export default function LessonViewPage() {
         </div>
       ) : null}
       <LessonPlayerHeader
+        courseId={courseId}
         courseTitle={course?.title}
+        courseDescription={course?.description}
+        published={course ? Boolean(course.is_published) : true}
         completedCount={completedCount}
         totalLessons={allLessons.length}
         progressPercent={progressPercent}
@@ -1665,9 +1668,7 @@ export default function LessonViewPage() {
                 onSubmitActivityResponse={(id, response) =>
                   void submitActivityResponse(id, response)
                 }
-                defaultTab={
-                  parseLessonBlocks(lesson.content).length > 0 ? 'resources' : 'overview'
-                }
+                defaultTab="resources"
                 activitiesExtra={activitiesExtra}
                 onLessonClick={(clickedLessonId) => tryOpenLesson(clickedLessonId)}
                 onLessonComplete={(targetLessonId, completed) => {

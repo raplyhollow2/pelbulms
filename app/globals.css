@@ -618,7 +618,59 @@ html.video-landscape-lock [data-landscape-fallback] {
   overflow: hidden !important;
 }
 
-/* Respect reduced motion everywhere */
+/* Pasted lesson text brings document margins (often 12–24pt). Keep that spacing tight. */
+.lesson-copy :is(h1, h2, h3, h4, p, ul, ol) {
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.375rem !important;
+  line-height: 1.4 !important;
+}
+
+.lesson-copy h1:first-child,
+.lesson-copy :is(span, div) > h1:first-child,
+.lesson-copy > :first-child {
+  margin-top: 0 !important;
+}
+
+.lesson-copy li,
+.lesson-copy li p {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.lesson-copy li + li {
+  margin-top: 0.375rem !important;
+}
+
+@keyframes lesson-carousel-next {
+  from {
+    opacity: 0;
+    transform: translateX(1.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes lesson-carousel-prev {
+  from {
+    opacity: 0;
+    transform: translateX(-1.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lesson-carousel-next {
+  animation: lesson-carousel-next 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.lesson-carousel-prev {
+  animation: lesson-carousel-prev 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

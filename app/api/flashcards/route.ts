@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { getDbClient } from '@/lib/db'
 import { enforceCapability, CAP } from '@/lib/rbac'
 
 export async function GET(request: NextRequest) {
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const service = await createServiceClient()
+    const service = await getDbClient()
 
     // Upsert: one deck per lesson (or one course-wide deck when lessonId is null)
     let deckQuery = (service as any)

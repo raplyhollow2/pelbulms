@@ -59,7 +59,7 @@ function parseOptions(raw: unknown): Array<{ text: string; is_correct: boolean }
     return raw.map((o: any) =>
       typeof o === 'string'
         ? { text: o, is_correct: false }
-        : { text: o?.text || String(o || ''), is_correct: Boolean(o?.is_correct) }
+        : { text: typeof o?.text === 'string' ? o.text : '', is_correct: Boolean(o?.is_correct) }
     )
   }
   if (typeof raw === 'string') {
@@ -226,7 +226,10 @@ export function QuizCreator({ lessonId, quizId, compact, onSave, onCancel }: Qui
       const body = {
         questionText: q.question_text,
         questionType: q.question_type,
-        options: q.question_type === 'multiple_choice' ? q.options : undefined,
+        options:
+          q.question_type === 'multiple_choice'
+            ? q.options.filter((option) => option.text.trim())
+            : undefined,
         correctAnswer: correct,
         explanation: q.explanation,
         incorrectExplanation: q.incorrect_explanation,

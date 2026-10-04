@@ -263,17 +263,30 @@ export function CourseStudio({ courseId }: { courseId: string }) {
     })
   }
 
-  const saveBlocks = async (next: LessonBlock[]) => {
-    const id = lessonId
+  const blocksRef = useRef<LessonBlock[]>([])
+  const lessonIdRef = useRef(lessonId)
+  const saveQueue = useRef(Promise.resolve())
+  blocksRef.current = blocks
+  lessonIdRef.current = lessonId
+
+  const saveBlocks = (nextOrUpdater: LessonBlock[] | ((current: LessonBlock[]) => LessonBlock[])) => {
+    const id = lessonIdRef.current
     if (!id) return
+    const next = typeof nextOrUpdater === 'function' ? nextOrUpdater(blocksRef.current) : nextOrUpdater
+    blocksRef.current = next
     setBlocks(next)
     setLessons((rows) => rows.map((row) => (row.id === id ? { ...row, content: next } : row)))
-    setSaveState('saving')
-    await (supabase as any)
-      .from('lessons')
-      .update({ content: next, updated_at: new Date().toISOString() })
-      .eq('id', id)
-    setSaveState('saved')
+    const snapshot = next
+    saveQueue.current = saveQueue.current
+      .catch(() => undefined)
+      .then(async () => {
+        setSaveState('saving')
+        await (supabase as any)
+          .from('lessons')
+          .update({ content: snapshot, updated_at: new Date().toISOString() })
+          .eq('id', id)
+        setSaveState('saved')
+      })
   }
 
   const saveResources = async (next: unknown) => {
@@ -766,16 +779,16 @@ export function CourseStudio({ courseId }: { courseId: string }) {
       ) : current ? (
         <div className="space-y-8">
           <div>
-            <Label htmlFor={`studio-lesson-description-${current.id}`}>Description</Label>
+            <Label htmlFor={`studio-lesson-description-${current.id}`}>Lesson learning outcome</Label>
             <p className="mb-2 text-sm text-muted-foreground">
-              Students read this on the lesson Resources tab, under the lesson blocks.
+              Students read this as the lesson learning outcome on the Resources tab, under the module learning objectives.
             </p>
             <DescriptionEditor
               key={current.id}
               id={`studio-lesson-description-${current.id}`}
               value={current.description || ''}
-              placeholder="What students should know about this lesson"
-              ariaLabel="Lesson description"
+              placeholder="What students should be able to do after this lesson"
+              ariaLabel="Lesson learning outcome"
               onChange={(description) =>
                 setLessons((rows) =>
                   rows.map((row) => (row.id === current.id ? { ...row, description } : row))
@@ -787,8 +800,9 @@ export function CourseStudio({ courseId }: { courseId: string }) {
           <LessonBlocks
             content={blocks}
             lessonId={lessonId || undefined}
+            courseId={courseId}
             editable
-            onChange={(next) => void saveBlocks(next)}
+            onChange={(next) => saveBlocks(next)}
             onAskPelbu={openAskPelbu}
             onOpenLessonOptions={() =>
               document.getElementById('lesson-activities')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -803,7 +817,17 @@ export function CourseStudio({ courseId }: { courseId: string }) {
                 <div className="space-y-6 rounded-lg border p-4">
                   <BlockCatalog
                     onPick={(block) => {
-                      void saveBlocks([...blocks, block])
+                      const scroller = document.getElementById('studio-canvas')
+                      const top = scroller?.scrollTop ?? 0
+                      saveBlocks((current) => [...current, block])
+                      const pin = () => {
+                        if (scroller) scroller.scrollTop = top
+                      }
+                      queueMicrotask(pin)
+                      requestAnimationFrame(() => {
+                        pin()
+                        requestAnimationFrame(pin)
+                      })
                     }}
                   />
                   <div className="border-t pt-4">
@@ -953,7 +977,10 @@ export function CourseStudio({ courseId }: { courseId: string }) {
             {outline}
           </div>
         </aside>
-        <main className={`min-h-0 min-w-0 flex-1 overflow-y-auto p-4 ${mobileTab === 'page' ? 'block' : 'hidden'} lg:block`}>{canvas}</main>
+        <main
+          id="studio-canvas"
+          className={`min-h-0 min-w-0 flex-1 overflow-y-auto p-4 [overflow-anchor:none] ${mobileTab === 'page' ? 'block' : 'hidden'} lg:block`}
+        >{canvas}</main>
         {mobileTab === 'ai' ? (
           <aside className="w-full overflow-y-auto border-l-2 border-foreground/25 p-3 lg:hidden">{renderRail()}</aside>
         ) : null}

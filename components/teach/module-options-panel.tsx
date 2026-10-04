@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
+import { DescriptionEditor } from '@/components/course/description-editor'
 import { createClient } from '@/lib/supabase/client'
 import { ModuleResourcesTab } from '@/components/teach/module-resources-tab'
 import { readGateSettings, withGateSettings } from '@/lib/progression-gates'
@@ -102,17 +102,24 @@ export function ModuleOptionsPanel({
       {error && <p className="text-sm text-destructive">{error}</p>}
       <div>
         <Label htmlFor={`module-desc-${moduleId}`} className="text-sm">
-          Description
+          Module learning objectives
         </Label>
-        <Textarea
-          id={`module-desc-${moduleId}`}
-          value={moduleRow.description || ''}
-          onChange={(e) => setModuleRow({ ...moduleRow, description: e.target.value })}
-          onBlur={() => void save({ description: moduleRow.description })}
-          rows={3}
-          className="mt-1 resize-none"
-          placeholder="Module description..."
-        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Shown on every lesson in this section, on the Resources tab.
+        </p>
+        <div className="mt-2">
+          <DescriptionEditor
+            key={moduleId}
+            id={`module-desc-${moduleId}`}
+            value={moduleRow.description || ''}
+            placeholder="What students should learn across this module"
+            ariaLabel="Module learning objectives"
+            onChange={(description) =>
+              setModuleRow((row) => (row ? { ...row, description } : row))
+            }
+            onCommit={(description) => void save({ description })}
+          />
+        </div>
       </div>
       <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
         <Label htmlFor={`module-published-${moduleId}`} className="text-sm">

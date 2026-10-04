@@ -171,6 +171,26 @@ function normalizeBlock(item: any): LessonBlock | null {
   }
 }
 
+/** Keep ids written by a slower save when a second block update lands first. */
+export function mergeLessonBlock(current: LessonBlock, next: LessonBlock): LessonBlock {
+  if (current.type !== next.type || current.id !== next.id) return next
+  if (current.type === 'quiz' && next.type === 'quiz') {
+    return { ...current, ...next, quizId: next.quizId || current.quizId }
+  }
+  if (current.type === 'assignment' && next.type === 'assignment') {
+    return { ...current, ...next, assignmentId: next.assignmentId || current.assignmentId }
+  }
+  if (current.type === 'flashcards' && next.type === 'flashcards') {
+    return {
+      ...current,
+      ...next,
+      deckId: next.deckId || current.deckId,
+      cards: next.cards ?? current.cards,
+    }
+  }
+  return next
+}
+
 export function youtubeEmbedId(url: string): string | null {
   return getYoutubeId(url)
 }

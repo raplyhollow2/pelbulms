@@ -27,7 +27,6 @@ interface CourseOverviewProps {
   course: Course
   instructor?: InstructorInfo | null
   instructors?: InstructorInfo[]
-  moduleDescription?: string | null
 }
 
 function staffRoleLabel(role?: string) {
@@ -52,7 +51,6 @@ export function CourseOverview({
   course,
   instructor,
   instructors,
-  moduleDescription,
 }: CourseOverviewProps) {
   const [expanded, setExpanded] = useState(false)
 
@@ -136,12 +134,6 @@ export function CourseOverview({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {moduleDescription && (
-              <div className="mb-4 rounded-lg border bg-muted/30 p-3">
-                <p className="text-xs font-medium text-muted-foreground mb-1">Module overview</p>
-                <p className="text-sm">{moduleDescription}</p>
-              </div>
-            )}
             <div
               className={`text-sm text-muted-foreground transition-all duration-300 ${
                 expanded ? 'max-h-full' : 'max-h-32 overflow-hidden'

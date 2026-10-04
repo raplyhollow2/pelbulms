@@ -11,6 +11,7 @@ import { CourseActionDeck } from '@/components/courses/course-action-deck'
 import { CurriculumTimeline } from '@/components/courses/curriculum-timeline'
 import { CourseDetailSkeleton } from '@/components/courses/course-detail-skeleton'
 import { CourseCard } from '@/components/courses/course-card'
+import { CourseShareButton } from '@/components/courses/course-share-dialog'
 import { CourseDescription } from '@/components/course/course-description'
 import { ReviewsDashboard } from '@/components/course/reviews-dashboard'
 import { courseDescriptionPlain } from '@/lib/course-description'
@@ -522,7 +523,17 @@ export default function CourseDetailPage() {
               </>
             )}
           </nav>
-          <h1 className="text-2xl font-bold leading-tight">{course.title}</h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-2xl font-bold leading-tight">{course.title}</h1>
+            <CourseShareButton
+              courseId={course.id}
+              title={course.title}
+              description={course.description}
+              published={Boolean(course.is_published)}
+              appearance="button"
+              className="shrink-0 border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+            />
+          </div>
           {lead && <p className="mt-2 line-clamp-4 text-sm leading-relaxed text-white/85">{lead}</p>}
           <div className="mt-3 space-y-1.5 text-xs text-white/80">
             {hasRating && (
@@ -597,7 +608,17 @@ export default function CourseDetailPage() {
               </>
             )}
           </nav>
-          <h1 className="text-3xl font-bold leading-tight">{course.title}</h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="text-3xl font-bold leading-tight">{course.title}</h1>
+            <CourseShareButton
+              courseId={course.id}
+              title={course.title}
+              description={course.description}
+              published={Boolean(course.is_published)}
+              appearance="button"
+              className="shrink-0 border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+            />
+          </div>
           {lead && <p className="mt-3 max-w-3xl text-base leading-relaxed text-white/85">{lead}</p>}
           <div className="mt-4 space-y-1.5 text-sm text-white/80">
             {hasRating && (

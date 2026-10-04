@@ -93,7 +93,7 @@ export function CourseLearningTabs({
   moduleResources,
   onTakeQuiz,
   activitiesExtra,
-  defaultTab = 'overview',
+  defaultTab = 'resources',
   focusTab = null,
   highlightActivityId = null,
 }: CourseLearningTabsProps) {
@@ -109,13 +109,13 @@ export function CourseLearningTabs({
   }, [focusTab])
 
   const tabs = [
+    { id: 'resources', label: 'Resources', icon: Paperclip },
     { id: 'overview', label: 'Overview', icon: BookOpen },
     { id: 'discussion', label: 'Forum', icon: MessagesSquare },
     { id: 'notes', label: 'Notes', icon: StickyNote },
     { id: 'announcements', label: 'Announcements', icon: Bell },
     { id: 'reviews', label: 'Reviews', icon: Star },
     { id: 'tools', label: 'Learning tools', icon: Clock },
-    { id: 'resources', label: 'Resources', icon: Paperclip },
   ]
 
   const LockedPanel = ({ title }: { title: string }) => (
@@ -165,25 +165,34 @@ export function CourseLearningTabs({
           course={course}
           instructor={instructor}
           instructors={instructors}
-          moduleDescription={currentModule?.description}
         />
       </TabsContent>
 
-      <TabsContent value="resources" className="mt-6 space-y-3">
+      <TabsContent value="resources" className="mt-3 space-y-3">
         {hasLessonContent ? (
           <LessonBlocks
             content={lessonContent}
             lessonId={currentLessonId}
+            courseId={course.id}
             onTakeQuiz={onTakeQuiz}
             highlightItemKey={highlightActivityId}
           />
         ) : null}
+        {currentModule?.description?.trim() ? (
+          <div className="rounded-xl border bg-card px-3 py-3 sm:px-4 sm:py-4">
+            <h2 className="mb-2 text-lg font-bold leading-snug sm:text-xl">Module learning objectives</h2>
+            <CourseDescription
+              text={currentModule.description}
+              className="lesson-copy text-sm leading-relaxed"
+            />
+          </div>
+        ) : null}
         {currentLesson?.description?.trim() ? (
-          <div className="rounded-xl border bg-card px-4 py-4">
-            <p className="mb-2 text-sm font-medium">Lesson description</p>
+          <div className="rounded-xl border bg-card px-3 py-3 sm:px-4 sm:py-4">
+            <h2 className="mb-2 text-lg font-bold leading-snug sm:text-xl">Lesson learning outcome</h2>
             <CourseDescription
               text={currentLesson.description}
-              className="text-sm leading-relaxed"
+              className="lesson-copy text-sm leading-relaxed"
             />
           </div>
         ) : null}
