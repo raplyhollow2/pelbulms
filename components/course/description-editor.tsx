@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { courseDescriptionEditorHtml, courseDescriptionRichClass } from '@/lib/course-description'
+import { courseDescriptionEditorHtml, courseDescriptionHtml, courseDescriptionRichClass } from '@/lib/course-description'
 import { stepSelectionFontSize } from '@/lib/editor-font-size'
 import { sanitizeHtml } from '@/lib/lesson-blocks'
 
@@ -281,6 +281,17 @@ export function DescriptionEditor({
         className={`min-h-28 w-full cursor-text rounded-md border-2 border-foreground/30 bg-background p-3 text-sm leading-relaxed focus:outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)] ${courseDescriptionRichClass}`}
         onFocus={() => {
           focused.current = true
+        }}
+        onPaste={(event) => {
+          const html = event.clipboardData.getData('text/html')
+          const text = event.clipboardData.getData('text/plain')
+          const source = html.trim() || text
+          if (!html.trim() && !/<\/?[a-z][^>]*>/i.test(text)) return
+          event.preventDefault()
+          const clean = courseDescriptionHtml(source)
+          if (!clean) return
+          document.execCommand('insertHTML', false, clean)
+          publish()
         }}
         onInput={publish}
         onBlur={() => {

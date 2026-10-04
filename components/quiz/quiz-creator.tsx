@@ -219,17 +219,24 @@ export function QuizCreator({ lessonId, quizId, compact, onSave, onCancel }: Qui
     }
 
     for (const [i, q] of questions.entries()) {
+      const options =
+        q.question_type === 'multiple_choice'
+          ? q.options.flatMap((option) => {
+              const text = option.text.trim()
+              return text ? [{ ...option, text }] : []
+            })
+          : undefined
+      const markedCorrect = options?.find((option) => option.is_correct)?.text
       const correct =
         q.question_type === 'true_false'
           ? q.correct_answer
-          : q.options.find((o) => o.is_correct)?.text || q.correct_answer
+          : q.question_type === 'multiple_choice'
+            ? markedCorrect || q.correct_answer.trim()
+            : q.options.find((o) => o.is_correct)?.text || q.correct_answer
       const body = {
         questionText: q.question_text,
         questionType: q.question_type,
-        options:
-          q.question_type === 'multiple_choice'
-            ? q.options.filter((option) => option.text.trim())
-            : undefined,
+        options,
         correctAnswer: correct,
         explanation: q.explanation,
         incorrectExplanation: q.incorrect_explanation,
