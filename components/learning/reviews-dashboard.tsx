@@ -1,8 +1,8 @@
-import { Input } from '@/components/ui/input'
 // @ts-nocheck — existing Supabase and UI type drift; remove when database types are regenerated.
 'use client'
 
 import { useState, useMemo } from 'react'
+import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'

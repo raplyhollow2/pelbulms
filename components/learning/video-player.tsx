@@ -1,8 +1,8 @@
-import { NativeSelect } from '@/components/ui/native-select'
 // @ts-nocheck - Supabase type inference issues documented in TYPESCRIPT_ISSUES.md
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { NativeSelect } from '@/components/ui/native-select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'

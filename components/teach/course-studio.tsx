@@ -1,4 +1,3 @@
-import { Textarea } from '@/components/ui/textarea'
 // @ts-nocheck — existing Supabase and UI type drift; remove when database types are regenerated.
 'use client'
 
@@ -6,6 +5,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { DescriptionEditor } from '@/components/course/description-editor'
