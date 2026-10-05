@@ -284,7 +284,7 @@ export function LearningDashboard() {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
-            <div className="w-16 h-16 border-4 border-bhutan-yellow border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
             <p className="text-muted-foreground">Loading your learning dashboard...</p>
           </div>
         </div>
@@ -298,9 +298,9 @@ export function LearningDashboard() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Avatar className="w-16 h-16 border-2 border-bhutan-yellow">
+            <Avatar className="w-16 h-16 border-2 border-primary">
               <AvatarImage src={user?.avatar_url} />
-              <AvatarFallback className="bg-bhutan-yellow text-black font-bold">
+              <AvatarFallback className="bg-primary text-primary-foreground font-bold">
                 {getInitials(user?.full_name || 'User')}
               </AvatarFallback>
             </Avatar>
@@ -310,7 +310,7 @@ export function LearningDashboard() {
             </div>
           </div>
           <Button
-            className="bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+            className="bg-primary hover:bg-primary text-primary-foreground"
             onClick={() => router.push('/courses')}
           >
             <BookOpen className="w-4 h-4 mr-2" />
@@ -320,11 +320,11 @@ export function LearningDashboard() {
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="glass">
+          <Card className="bg-card/80 border border-border">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-lg bg-bhutan-yellow/20 flex items-center justify-center">
-                  <BookOpen className="w-6 h-6 text-bhutan-yellow" />
+                <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center">
+                  <BookOpen className="w-6 h-6 text-primary" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{stats.totalCourses}</p>
@@ -334,7 +334,7 @@ export function LearningDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="glass">
+          <Card className="bg-card/80 border border-border">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-lg bg-green-600/20 flex items-center justify-center">
@@ -348,7 +348,7 @@ export function LearningDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="glass">
+          <Card className="bg-card/80 border border-border">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-lg bg-orange-600/20 flex items-center justify-center">
@@ -362,7 +362,7 @@ export function LearningDashboard() {
             </CardContent>
           </Card>
 
-          <Card className="glass">
+          <Card className="bg-card/80 border border-border">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-lg bg-purple-600/20 flex items-center justify-center">
@@ -378,7 +378,7 @@ export function LearningDashboard() {
         </div>
 
         {/* Weekly Goal Progress */}
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -387,7 +387,7 @@ export function LearningDashboard() {
                   {stats.weeklyProgress} of {stats.weeklyGoal} hours this week
                 </p>
               </div>
-              <Badge className="bg-bhutan-yellow text-black">
+              <Badge className="bg-primary text-primary-foreground">
                 {Math.round((stats.weeklyProgress / stats.weeklyGoal) * 100)}%
               </Badge>
             </div>
@@ -410,7 +410,7 @@ export function LearningDashboard() {
           {/* Continue Learning Tab */}
           <TabsContent value="continue" className="space-y-4">
             {enrolledCourses.length === 0 ? (
-              <Card className="glass">
+              <Card className="bg-card/80 border border-border">
                 <CardContent className="p-12 text-center">
                   <BookOpen className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
                   <h3 className="text-lg font-semibold mb-2">No courses yet</h3>
@@ -418,7 +418,7 @@ export function LearningDashboard() {
                     Start your learning journey by enrolling in your first course
                   </p>
                   <Button
-                    className="bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+                    className="bg-primary hover:bg-primary text-primary-foreground"
                     onClick={() => router.push('/courses')}
                   >
                     Browse Courses
@@ -430,7 +430,7 @@ export function LearningDashboard() {
                 {enrolledCourses.map((course) => (
                   <Card
                     key={course.id}
-                    className="glass hover:shadow-lg transition-all cursor-pointer group"
+                    className="bg-card/80 border border-border hover:shadow-lg transition-all cursor-pointer group"
                     onClick={() => router.push(`/learn/${course.id}`)}
                   >
                     <CardContent className="p-4">
@@ -442,13 +442,13 @@ export function LearningDashboard() {
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
                         ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20 flex items-center justify-center">
-                            <BookOpen className="w-8 h-8 text-bhutan-yellow" />
+                          <div className="w-full h-full bg-gradient-to-br from-primary/20 to-muted/20 flex items-center justify-center">
+                            <BookOpen className="w-8 h-8 text-primary" />
                           </div>
                         )}
                       </div>
 
-                      <h4 className="font-semibold mb-2 line-clamp-2 group-hover:text-bhutan-yellow transition-colors">
+                      <h4 className="font-semibold mb-2 line-clamp-2 group-hover:text-primary transition-colors">
                         {course.title}
                       </h4>
 
@@ -461,7 +461,7 @@ export function LearningDashboard() {
                       </div>
 
                       <Button
-                        className="w-full bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+                        className="w-full bg-primary hover:bg-primary text-primary-foreground"
                         size="sm"
                       >
                         <Play className="w-4 h-4 mr-2" />
@@ -476,7 +476,7 @@ export function LearningDashboard() {
 
           {/* Recent Activity Tab */}
           <TabsContent value="activity" className="space-y-4">
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardHeader>
                 <CardTitle>Recent Activity</CardTitle>
                 <CardDescription>Your latest learning activities</CardDescription>
@@ -486,7 +486,7 @@ export function LearningDashboard() {
                   {recentActivities.map((activity) => (
                     <div
                       key={activity.id}
-                      className="flex items-start gap-4 p-4 rounded-lg border border-border/50 hover:border-bhutan-yellow/30 transition-colors"
+                      className="flex items-start gap-4 p-4 rounded-lg border border-border/50 hover:border-primary/30 transition-colors"
                     >
                       <div className="flex-shrink-0">
                         {getActivityIcon(activity.type)}
@@ -502,7 +502,7 @@ export function LearningDashboard() {
                         {activity.course_title && (
                           <Button
                             variant="link"
-                            className="p-0 h-auto text-bhutan-yellow"
+                            className="p-0 h-auto text-primary"
                             onClick={() => activity.course_id && router.push(`/learn/${activity.course_id}`)}
                           >
                             View Course
@@ -523,9 +523,9 @@ export function LearningDashboard() {
               {achievements.map((achievement) => (
                 <Card
                   key={achievement.id}
-                  className={`glass ${
+                  className={`bg-card/80 border border-border ${
                     achievement.unlocked
-                      ? 'border-bhutan-yellow/30'
+                      ? 'border-primary/30'
                       : 'opacity-60'
                   }`}
                 >
@@ -574,7 +574,7 @@ export function LearningDashboard() {
           {/* Analytics Tab */}
           <TabsContent value="analytics" className="space-y-4">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Card className="glass">
+              <Card className="bg-card/80 border border-border">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TrendingUp className="w-5 h-5" />
@@ -594,7 +594,7 @@ export function LearningDashboard() {
                     <div className="pt-4 border-t border-border/50">
                       <div className="grid grid-cols-3 gap-4 text-center">
                         <div>
-                          <p className="text-2xl font-bold text-bhutan-yellow">
+                          <p className="text-2xl font-bold text-primary">
                             {stats.inProgressCourses}
                           </p>
                           <p className="text-xs text-muted-foreground">In Progress</p>
@@ -617,7 +617,7 @@ export function LearningDashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="glass">
+              <Card className="bg-card/80 border border-border">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Target className="w-5 h-5" />
@@ -626,10 +626,10 @@ export function LearningDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="p-4 rounded-lg bg-bhutan-yellow/10 border border-bhutan-yellow/30">
+                    <div className="p-4 rounded-lg bg-primary/10 border border-primary/30">
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-medium">Weekly Goal</span>
-                        <Badge className="bg-bhutan-yellow text-black">
+                        <Badge className="bg-primary text-primary-foreground">
                           {stats.weeklyProgress}/{stats.weeklyGoal}h
                         </Badge>
                       </div>
@@ -669,7 +669,7 @@ export function LearningDashboard() {
               </Card>
             </div>
 
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="w-5 h-5" />
@@ -679,7 +679,7 @@ export function LearningDashboard() {
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center p-4 rounded-lg bg-muted/50">
-                    <p className="text-3xl font-bold text-bhutan-yellow mb-1">
+                    <p className="text-3xl font-bold text-primary mb-1">
                       {stats.totalCourses}
                     </p>
                     <p className="text-sm text-muted-foreground">Courses Enrolled</p>

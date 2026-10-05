@@ -1,4 +1,5 @@
 'use client'
+import { NativeSelect } from '@/components/ui/native-select'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -297,31 +298,31 @@ export function CertificateEditor({
               ['brand', 'Brand'],
             ] as const
           ).map(([id, label]) => (
-            <button
+            <Button
               key={id}
               type="button"
               onClick={() => setAssetTab(id)}
               className={cn(
                 'rounded-md px-1 py-2 transition-colors',
-                assetTab === id ? 'bg-bhutan-yellow text-black' : 'text-white/70 hover:bg-white/10'
+                assetTab === id ? 'bg-primary text-primary-foreground' : 'text-white/70 hover:bg-white/10'
               )}
             >
               {label}
-            </button>
+            </Button>
           ))}
         </div>
 
         <div className="flex-1 space-y-2 overflow-y-auto p-3">
           {assetTab === 'templates' &&
             CERT_TEMPLATES.map((t) => (
-              <button
+              <Button
                 key={t.id}
                 type="button"
                 onClick={() => {
                   onChange(t.apply(layout))
                   setSelected(null)
                 }}
-                className="w-full rounded-lg border border-white/10 bg-[#2e2e2e] p-3 text-left transition hover:border-bhutan-yellow/60"
+                className="w-full rounded-lg border border-white/10 bg-[#2e2e2e] p-3 text-left transition hover:border-primary/60"
               >
                 {t.id === 'ornamental' ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -338,25 +339,25 @@ export function CertificateEditor({
                 )}
                 <div className="text-sm font-medium">{t.label}</div>
                 <div className="text-xs text-white/50">{t.description}</div>
-              </button>
+              </Button>
             ))}
 
           {(assetTab === 'text' || assetTab === 'shapes' || assetTab === 'decor') &&
             insertAssets.map((asset) => (
-              <button
+              <Button
                 key={asset.id}
                 type="button"
                 onClick={() => addLayer(asset.create(layout.accentColor))}
-                className="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-[#2e2e2e] px-3 py-2.5 text-left text-sm transition hover:border-bhutan-yellow/60"
+                className="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-[#2e2e2e] px-3 py-2.5 text-left text-sm transition hover:border-primary/60"
               >
-                <Type className="h-4 w-4 shrink-0 text-bhutan-yellow" />
+                <Type className="h-4 w-4 shrink-0 text-primary" />
                 <span>
                   <span className="block font-medium">{asset.label}</span>
                   {asset.description ? (
                     <span className="block text-xs text-white/45">{asset.description}</span>
                   ) : null}
                 </span>
-              </button>
+              </Button>
             ))}
 
           {assetTab === 'brand' && (
@@ -365,7 +366,7 @@ export function CertificateEditor({
                 <Label className="text-white/70">Background</Label>
                 <div className="mt-2 grid grid-cols-3 gap-2">
                   {CERT_BG_PRESETS.map((bg) => (
-                    <button
+                    <Button
                       key={bg.id}
                       type="button"
                       title={bg.label}
@@ -373,7 +374,7 @@ export function CertificateEditor({
                       className={cn(
                         'h-10 rounded-md border-2',
                         layout.backgroundColor === bg.color
-                          ? 'border-bhutan-yellow'
+                          ? 'border-primary'
                           : 'border-white/20'
                       )}
                       style={{ background: bg.color }}
@@ -391,7 +392,7 @@ export function CertificateEditor({
                 <Label className="text-white/70">Accent / border color</Label>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {CERT_COLOR_SWATCHES.map((c) => (
-                    <button
+                    <Button
                       key={c}
                       type="button"
                       className={cn(
@@ -406,7 +407,7 @@ export function CertificateEditor({
               </div>
               <div>
                 <Label className="text-white/70">Border style</Label>
-                <select
+                <NativeSelect
                   className="mt-1 min-h-11 w-full rounded-md border border-white/15 bg-[#1e1e1e] px-3 text-sm"
                   value={layout.borderStyle}
                   onChange={(e) =>
@@ -420,7 +421,7 @@ export function CertificateEditor({
                   <option value="single">Single</option>
                   <option value="double">Double</option>
                   <option value="ornate">Ornate</option>
-                </select>
+                </NativeSelect>
               </div>
               <div>
                 <Label className="text-white/70">Upload image / logo</Label>
@@ -593,7 +594,7 @@ export function CertificateEditor({
                       draggable={false}
                       className={cn(
                         'h-full w-full cursor-move object-contain',
-                        isSel && 'ring-2 ring-bhutan-yellow'
+                        isSel && 'ring-2 ring-primary'
                       )}
                       onPointerDown={(e) => onPointerDownMove(e, 'logo', logo.id, logo.x, logo.y)}
                     />
@@ -616,7 +617,7 @@ export function CertificateEditor({
                     className={cn(
                       'absolute',
                       layer.locked ? 'cursor-default' : 'cursor-move',
-                      isSel && 'ring-2 ring-bhutan-yellow'
+                      isSel && 'ring-2 ring-primary'
                     )}
                     style={{
                       left: layer.x,
@@ -754,7 +755,7 @@ export function CertificateEditor({
                 </div>
                 <div>
                   <Label className="text-white/70">Font family</Label>
-                  <select
+                  <NativeSelect
                     className="mt-1 min-h-11 w-full rounded-md border border-white/15 bg-[#1e1e1e] px-3 text-sm"
                     value={selectedLayer.fontFamily || 'sans'}
                     onChange={(e) =>
@@ -766,7 +767,7 @@ export function CertificateEditor({
                     <option value="serif">Serif</option>
                     <option value="sans">Sans</option>
                     <option value="script">Script</option>
-                  </select>
+                  </NativeSelect>
                 </div>
                 <div>
                   <Label className="text-white/70">Align</Label>
@@ -785,7 +786,7 @@ export function CertificateEditor({
                         variant="outline"
                         className={cn(
                           'flex-1 border-white/20 bg-transparent text-white hover:bg-white/10',
-                          selectedLayer.align === align && 'border-bhutan-yellow text-bhutan-yellow'
+                          selectedLayer.align === align && 'border-primary text-primary'
                         )}
                         onClick={() => updateLayer(selectedLayer.id, { align })}
                       >
@@ -798,7 +799,7 @@ export function CertificateEditor({
                   <Label className="text-white/70">Text color</Label>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {CERT_COLOR_SWATCHES.map((c) => (
-                      <button
+                      <Button
                         key={c}
                         type="button"
                         className={cn(
@@ -906,7 +907,7 @@ function ResizeHandles({
         <span
           key={h.id}
           className={cn(
-            'absolute z-50 h-3 w-3 rounded-sm border border-black bg-bhutan-yellow',
+            'absolute z-50 h-3 w-3 rounded-sm border border-black bg-primary',
             h.className
           )}
           onPointerDown={(e) => onResize(e, h.id)}

@@ -177,7 +177,7 @@ export function CourseSyllabus({
               key={section.id}
               type="single"
               collapsible
-              className="glass rounded-lg overflow-hidden"
+              className="bg-card/80 border border-border rounded-lg overflow-hidden"
               onValueChange={(value) => {
                 if (value) setActiveSection(section.id)
               }}

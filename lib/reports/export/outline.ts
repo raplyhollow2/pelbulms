@@ -300,7 +300,7 @@ export function buildReportOutline(
 
   return {
     title: snapshot.title,
-    subtitle: `PelbuLMS · ${snapshot.range} · ${new Date(snapshot.generatedAt).toLocaleString()} · ${snapshot.audience}`,
+    subtitle: `RigbuLMS · ${snapshot.range} · ${new Date(snapshot.generatedAt).toLocaleString()} · ${snapshot.audience}`,
     parts,
     appendix: briefAppendix(brief),
   }

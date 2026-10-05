@@ -103,7 +103,7 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
           className="absolute inset-x-0 bottom-0 top-0 bg-background"
         />
         <div className="relative px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 sm:px-4">
-        <div className="pointer-events-auto mx-auto flex w-full max-w-lg items-stretch justify-around gap-0.5 rounded-2xl border border-border/50 bg-background p-1.5 shadow-floating sm:gap-1">
+        <div className="pointer-events-auto mx-auto flex w-full max-w-lg items-stretch justify-around gap-0.5 rounded-2xl border border-border/50 bg-background p-1.5 shadow-md sm:gap-1">
           {mainNavigation.map((item) => {
             const active = isActive(item.href)
             return (
@@ -112,18 +112,18 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
                 href={item.href}
                 onClick={() => haptic()}
                 aria-current={active ? 'page' : undefined}
-                className="press relative flex min-h-11 flex-1 flex-col items-center justify-center gap-1 min-w-0 rounded-xl py-2"
+                className="relative flex min-h-11 flex-1 flex-col items-center justify-center gap-1 min-w-0 rounded-xl py-2"
               >
                 {active && (
                   <span
                     aria-hidden
-                    className="absolute inset-0 rounded-xl bg-bhutan-yellow/15 ring-1 ring-bhutan-yellow/25"
+                    className="absolute inset-0 rounded-xl bg-primary/15 ring-1 ring-primary/25"
                   />
                 )}
                 <item.icon
                   className={cn(
                     'relative h-5 w-5 shrink-0 transition-transform duration-300',
-                    active ? 'scale-110 text-bhutan-orange' : 'text-muted-foreground'
+                    active ? 'scale-110 text-primary' : 'text-muted-foreground'
                   )}
                   style={{ transitionTimingFunction: 'var(--ease-spring)' }}
                 />
@@ -139,25 +139,25 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
             )
           })}
 
-          <button
+          <Button
             type="button"
             onClick={() => {
               haptic()
               setMenuOpen((open) => !open)
             }}
-            className="press relative flex flex-1 flex-col items-center justify-center gap-1 min-w-0 rounded-xl py-2"
+            className="relative flex flex-1 flex-col items-center justify-center gap-1 min-w-0 rounded-xl py-2"
             aria-expanded={menuOpen}
             aria-label="Open menu"
           >
             {menuOpen && (
               <span
                 aria-hidden
-                className="absolute inset-0 rounded-xl bg-bhutan-yellow/15 ring-1 ring-bhutan-yellow/25"
+                className="absolute inset-0 rounded-xl bg-primary/15 ring-1 ring-primary/25"
               />
             )}
             <span className="relative">
               {menuOpen ? (
-                <X className="h-5 w-5 text-bhutan-orange" />
+                <X className="h-5 w-5 text-primary" />
               ) : (
                 <Menu className="h-5 w-5 text-muted-foreground" />
               )}
@@ -170,7 +170,7 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
             >
               Menu
             </span>
-          </button>
+          </Button>
         </div>
         </div>
       </nav>
@@ -181,14 +181,14 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
           onClick={() => setMenuOpen(false)}
         >
           <div
-            className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-3xl border-t border-border/40 bg-background p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-overlay animate-in slide-in-from-bottom-8 duration-300 sm:mx-auto sm:max-w-lg sm:rounded-t-3xl"
+            className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-3xl border-t border-border/40 bg-background p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-md animate-in slide-in-from-bottom-8 duration-300 sm:mx-auto sm:max-w-lg sm:rounded-t-3xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted" />
 
             <div className="mb-4 flex items-center gap-3 rounded-xl bg-muted/60 p-3">
-              <Avatar className="h-11 w-11 shrink-0 bg-bhutan-yellow">
-                <AvatarFallback className="bg-bhutan-yellow font-semibold text-black">
+              <Avatar className="h-11 w-11 shrink-0 bg-primary">
+                <AvatarFallback className="bg-primary font-semibold text-primary-foreground">
                   {user?.email?.[0]?.toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
@@ -203,19 +203,19 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
               </div>
             </div>
 
-            <button
+            <Button
               type="button"
               onClick={() => {
                 haptic()
                 setMenuOpen(false)
-                window.dispatchEvent(new Event('pelbu:open-search'))
+                window.dispatchEvent(new Event('rigbu:open-search'))
               }}
               className="mb-3 flex w-full items-center gap-3 rounded-xl border border-border/60 bg-muted/40 px-4 py-3 text-left text-sm text-muted-foreground transition-colors active:bg-muted"
             >
               <Search className="h-4 w-4" />
               <span>Search courses…</span>
               <span className="ml-auto rounded-md bg-background px-1.5 py-0.5 text-[10px] font-medium">Live</span>
-            </button>
+            </Button>
 
             {ROLE_PANELS.map((panel) => {
               const items = panels[panel.id].filter(

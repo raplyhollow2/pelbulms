@@ -1,4 +1,5 @@
 'use client'
+import { NativeSelect } from '@/components/ui/native-select'
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
@@ -677,7 +678,7 @@ export function CourseSettingsForm({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="space-y-1.5">
             <Label htmlFor="settings-level">Level</Label>
-            <select
+            <NativeSelect
               id="settings-level"
               value={courseData.level}
               onChange={(e) => setCourseData({ ...courseData, level: e.target.value })}
@@ -686,7 +687,7 @@ export function CourseSettingsForm({
               <option value="beginner">Beginner</option>
               <option value="intermediate">Intermediate</option>
               <option value="advanced">Advanced</option>
-            </select>
+            </NativeSelect>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="settings-language">Language</Label>
@@ -972,18 +973,18 @@ export function CourseSettingsForm({
                 ['paid', 'Paid (Stripe)', 'Checkout when Stripe is configured'],
               ] as const
             ).map(([mode, label, hint]) => (
-              <button
+              <Button
                 key={mode}
                 type="button"
                 aria-pressed={courseData.enrollment_mode === mode}
                 className={`rounded-lg border p-3 text-left ${
-                  courseData.enrollment_mode === mode ? 'border-bhutan-yellow bg-bhutan-yellow/10' : ''
+                  courseData.enrollment_mode === mode ? 'border-primary bg-primary/10' : ''
                 }`}
                 onClick={() => setCourseData({ ...courseData, enrollment_mode: mode })}
               >
                 <p className="text-sm font-medium">{label}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -1036,19 +1037,19 @@ export function CourseSettingsForm({
                   ['lesson', 'Per lesson', 'Each lesson has its own posts'],
                 ] as const
               ).map(([scope, label, hint]) => (
-                <button
+                <Button
                   key={scope}
                   type="button"
                   disabled={forumScopeSaving}
                   aria-pressed={forumScope === scope}
                   className={`rounded-lg border p-3 text-left disabled:opacity-60 ${
-                    forumScope === scope ? 'border-bhutan-yellow bg-bhutan-yellow/10' : ''
+                    forumScope === scope ? 'border-primary bg-primary/10' : ''
                   }`}
                   onClick={() => void setForumScopeSetting(scope)}
                 >
                   <p className="text-sm font-medium">{label}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -1141,11 +1142,11 @@ export function CourseSettingsForm({
 
 function ThemeForm({ value, onSave }: { value: CourseTheme; onSave: (theme: CourseTheme) => void }) {
   const [theme, setTheme] = useState({
-    primary: value.primary || '#FFC72C',
+    primary: value.primary || '#8a5a12',
     heading: value.heading || '#111111',
     background: value.background || '#ffffff',
     body: value.body || '#3f3f46',
-    link: value.link || '#c2410c',
+    link: value.link || '#8a5a12',
     logoUrl: value.logoUrl || '',
   })
   return (
@@ -1167,7 +1168,7 @@ function ThemeForm({ value, onSave }: { value: CourseTheme; onSave: (theme: Cour
         value={theme.logoUrl}
         onChange={(e) => setTheme({ ...theme, logoUrl: e.target.value })}
       />
-      <Button type="button" className="min-h-11 w-full bg-bhutan-yellow text-black" onClick={() => onSave(theme)}>
+      <Button type="button" className="min-h-11 w-full bg-primary text-primary-foreground" onClick={() => onSave(theme)}>
         Save theme
       </Button>
     </div>
@@ -1214,7 +1215,7 @@ function TutorForm({
       </div>
       <Button
         type="button"
-        className="min-h-11 w-full bg-bhutan-yellow text-black"
+        className="min-h-11 w-full bg-primary text-primary-foreground"
         onClick={() =>
           onSave({
             name: tutor.name,

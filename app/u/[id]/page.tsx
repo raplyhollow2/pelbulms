@@ -55,7 +55,7 @@ export default function PublicStudentProfilePage() {
   if (loading) {
     return (
       <div className="flex justify-center py-16">
-        <Loader2 className="h-8 w-8 animate-spin text-bhutan-yellow" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
@@ -77,7 +77,7 @@ export default function PublicStudentProfilePage() {
       </Button>
       <Card>
         <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-start">
-          <Avatar className="h-24 w-24 border-4 border-bhutan-yellow">
+          <Avatar className="h-24 w-24 border-4 border-primary">
             <AvatarImage src={resolveMediaUrl(profile.avatar_url) || undefined} />
             <AvatarFallback className="text-2xl">
               {(profile.full_name || 'S').slice(0, 2).toUpperCase()}
@@ -100,7 +100,7 @@ export default function PublicStudentProfilePage() {
             <Card className="h-full transition-shadow hover:shadow-md">
               <CardContent className="p-4">
                 <p className="flex items-center gap-2 font-medium">
-                  <BookOpen className="h-4 w-4 text-bhutan-yellow" />
+                  <BookOpen className="h-4 w-4 text-primary" />
                   {c.title}
                 </p>
                 <Badge variant="secondary" className="mt-2">

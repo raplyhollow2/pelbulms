@@ -134,7 +134,7 @@ export function TimestampNotes({ lessonId, courseId, videoRef, userId }: Timesta
   }
 
   return (
-    <Card className="glass">
+    <Card className="bg-card/80 border border-border">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <StickyNote className="w-5 h-5" />
@@ -147,14 +147,14 @@ export function TimestampNotes({ lessonId, courseId, videoRef, userId }: Timesta
           {!isRecording ? (
             <Button
               onClick={startRecordingNote}
-              className="w-full bg-bhutan-yellow hover:bg-bhutan-orange"
+              className="w-full bg-primary hover:bg-primary"
               size="lg"
             >
               <StickyNote className="w-4 h-4 mr-2" />
               Take Note at Current Time
             </Button>
           ) : (
-            <div className="space-y-3 p-4 bg-secondary/30 rounded-lg border-2 border-bhutan-yellow">
+            <div className="space-y-3 p-4 bg-secondary/30 rounded-lg border-2 border-primary">
               <div className="flex items-center justify-between">
                 <Badge variant="secondary" className="text-xs">
                   <Clock className="w-3 h-3 mr-1" />
@@ -218,7 +218,7 @@ export function TimestampNotes({ lessonId, courseId, videoRef, userId }: Timesta
                 {notes.map((note) => (
                   <div
                     key={note.id}
-                    className="p-3 bg-secondary/20 rounded-lg border border-border/40 hover:border-bhutan-yellow/50 transition-colors"
+                    className="p-3 bg-secondary/20 rounded-lg border border-border/40 hover:border-primary/50 transition-colors"
                   >
                     {editingNote === note.id ? (
                       <div className="space-y-2">

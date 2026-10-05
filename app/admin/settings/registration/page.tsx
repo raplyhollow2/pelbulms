@@ -207,7 +207,7 @@ export default function AdminRegistrationSettingsPage() {
                   className={cn(
                     'flex h-7 w-7 items-center justify-center rounded-full border text-xs',
                     i === 0
-                      ? 'border-transparent bg-gradient-to-br from-bhutan-yellow to-bhutan-orange text-black'
+                      ? 'border-transparent bg-primary text-primary-foreground'
                       : 'border-border bg-background text-muted-foreground'
                   )}
                 >

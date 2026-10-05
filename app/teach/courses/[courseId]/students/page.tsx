@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { ArrowLeft, Users, Search, TrendingUp, Clock, Loader2, Award, Check, X } from 'lucide-react'
@@ -169,7 +170,7 @@ export default function CourseStudentsPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-bhutan-yellow" />
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
           <span className="ml-3 text-muted-foreground">Loading students...</span>
         </div>
       </div>
@@ -208,17 +209,17 @@ export default function CourseStudentsPage() {
 
         {/* Stats Overview */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
-          <Card className="glass hover:shadow-xl transition-all duration-300">
+          <Card className="bg-card/80 border border-border hover:shadow-xl transition-all duration-300">
             <CardHeader>
               <CardTitle className="text-sm font-medium">Total Students</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-bhutan-yellow">{activeStudents.length}</div>
+              <div className="text-3xl font-bold text-primary">{activeStudents.length}</div>
               <p className="text-xs text-muted-foreground mt-1">Active enrollments</p>
             </CardContent>
           </Card>
 
-          <Card className="glass hover:shadow-xl transition-all duration-300">
+          <Card className="bg-card/80 border border-border hover:shadow-xl transition-all duration-300">
             <CardHeader>
               <CardTitle className="text-sm font-medium">Pending</CardTitle>
             </CardHeader>
@@ -228,7 +229,7 @@ export default function CourseStudentsPage() {
             </CardContent>
           </Card>
 
-          <Card className="glass hover:shadow-xl transition-all duration-300">
+          <Card className="bg-card/80 border border-border hover:shadow-xl transition-all duration-300">
             <CardHeader>
               <CardTitle className="text-sm font-medium">Completed</CardTitle>
             </CardHeader>
@@ -238,12 +239,12 @@ export default function CourseStudentsPage() {
             </CardContent>
           </Card>
 
-          <Card className="glass hover:shadow-xl transition-all duration-300">
+          <Card className="bg-card/80 border border-border hover:shadow-xl transition-all duration-300">
             <CardHeader>
               <CardTitle className="text-sm font-medium">Average Progress</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-bhutan-orange">{getAverageProgress()}%</div>
+              <div className="text-3xl font-bold text-primary">{getAverageProgress()}%</div>
               <p className="text-xs text-muted-foreground mt-1">Among active students</p>
             </CardContent>
           </Card>
@@ -253,7 +254,7 @@ export default function CourseStudentsPage() {
         <CourseStaffPanel courseId={courseId} />
         <StudentInterventionPanel courseId={courseId} students={students} />
         {pendingStudents.length > 0 && (
-          <Card className="glass-strong border-amber-500/30">
+          <Card className="bg-card border border-border shadow-sm border-amber-500/30">
             <CardHeader>
               <CardTitle>Enrollment requests</CardTitle>
               <CardDescription>
@@ -322,7 +323,7 @@ export default function CourseStudentsPage() {
         )}
 
         {/* Students List */}
-        <Card className="glass-strong">
+        <Card className="bg-card border border-border shadow-sm">
           <CardHeader className="px-4 sm:px-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -354,11 +355,11 @@ export default function CourseStudentsPage() {
                   return (
                     <div
                       key={student.id}
-                      className="p-4 border rounded-lg hover:border-bhutan-yellow/50 transition-colors"
+                      className="p-4 border rounded-lg hover:border-primary/50 transition-colors"
                     >
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-3">
                         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20 flex items-center justify-center shrink-0">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-muted/20 flex items-center justify-center shrink-0">
                             {student.avatar_url ? (
                               <img
                                 src={student.avatar_url}
@@ -366,7 +367,7 @@ export default function CourseStudentsPage() {
                                 className="w-full h-full object-cover rounded-full"
                               />
                             ) : (
-                              <Users className="w-6 h-6 text-bhutan-yellow" />
+                              <Users className="w-6 h-6 text-primary" />
                             )}
                           </div>
                           <div className="min-w-0">
@@ -433,7 +434,7 @@ export default function CourseStudentsPage() {
                           </div>
                         ) : (
                         <div className="text-left sm:text-right shrink-0">
-                          <div className="text-2xl font-bold text-bhutan-yellow">
+                          <div className="text-2xl font-bold text-primary">
                             {progressPercentage}%
                           </div>
                           <p className="text-xs text-muted-foreground">
@@ -446,12 +447,7 @@ export default function CourseStudentsPage() {
                       {/* Progress Bar */}
                       {(student.enrollment as any).status !== 'pending' && (
                       <div className="space-y-2">
-                        <div className="w-full bg-secondary rounded-full h-2">
-                          <div
-                            className="bg-gradient-to-r from-bhutan-yellow to-bhutan-orange h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${progressPercentage}%` }}
-                          />
-                        </div>
+                        <Progress value={progressPercentage} />
 
                         {/* Additional Stats */}
                         <div className="flex items-center justify-between text-xs text-muted-foreground">

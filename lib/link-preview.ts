@@ -133,7 +133,7 @@ export async function fetchLinkPreview(rawUrl: string): Promise<LinkPreview | nu
         redirect: 'manual',
         headers: {
         'User-Agent':
-          'Mozilla/5.0 (compatible; PelbuLMS/1.0; +https://pelbu.bt) AppleWebKit/537.36',
+          'Mozilla/5.0 (compatible; RigbuLMS/1.0; +https://rigbu.bt) AppleWebKit/537.36',
         Accept: 'text/html,application/xhtml+xml',
       },
       })

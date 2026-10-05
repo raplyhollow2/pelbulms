@@ -110,16 +110,16 @@ export async function POST(request: NextRequest) {
     if (format === 'xlsx') {
       buffer = await buildExcelPack(snapshot, brief)
       contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      filename = `pelbu-${slug}-${range}-${stamp}.xlsx`
+      filename = `rigbu-${slug}-${range}-${stamp}.xlsx`
     } else if (format === 'docx') {
       buffer = await buildDocxPack(snapshot, brief)
       contentType =
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      filename = `pelbu-${slug}-${range}-${stamp}.docx`
+      filename = `rigbu-${slug}-${range}-${stamp}.docx`
     } else {
       buffer = await buildPdfPack(snapshot, brief)
       contentType = 'application/pdf'
-      filename = `pelbu-${slug}-${range}-${stamp}.pdf`
+      filename = `rigbu-${slug}-${range}-${stamp}.pdf`
     }
 
     return new NextResponse(new Uint8Array(buffer), {

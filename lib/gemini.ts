@@ -76,7 +76,7 @@ async function generateWithFallback(
   const msg = errorText(lastError)
   if (isBusy(lastError)) {
     throw new Error(
-      'Gemini is busy right now (high demand). Wait a few seconds and try again — Pelbu already retried other Flash models.'
+      'Gemini is busy right now (high demand). Wait a few seconds and try again — Rigbu already retried other Flash models.'
     )
   }
   throw lastError instanceof Error ? lastError : new Error(msg || 'Gemini request failed')

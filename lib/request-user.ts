@@ -2,11 +2,11 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { USER_ROLES, type UserRole } from '@/lib/roles'
 
 /** Internal headers. Middleware deletes any client-sent values before setting these. */
-export const REQUEST_USER_ID = 'x-pelbu-user-id'
-export const REQUEST_USER_ROLE = 'x-pelbu-user-role'
-export const REQUEST_USER_EMAIL = 'x-pelbu-user-email'
-export const REQUEST_USER_STATUS = 'x-pelbu-user-status'
-export const REQUEST_USER_SIG = 'x-pelbu-user-sig'
+export const REQUEST_USER_ID = 'x-rigbu-user-id'
+export const REQUEST_USER_ROLE = 'x-rigbu-user-role'
+export const REQUEST_USER_EMAIL = 'x-rigbu-user-email'
+export const REQUEST_USER_STATUS = 'x-rigbu-user-status'
+export const REQUEST_USER_SIG = 'x-rigbu-user-sig'
 
 const HEADER_NAMES = [
   REQUEST_USER_ID,

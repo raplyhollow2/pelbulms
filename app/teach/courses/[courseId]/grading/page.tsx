@@ -264,7 +264,7 @@ export default function CourseGradingPage() {
   if (loading) {
     return (
       <div className="container mx-auto flex items-center justify-center px-4 py-16">
-        <Loader2 className="h-8 w-8 animate-spin text-bhutan-yellow" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <span className="ml-3 text-muted-foreground">Loading grading queue…</span>
       </div>
     )
@@ -284,7 +284,7 @@ export default function CourseGradingPage() {
         </Button>
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold sm:text-3xl">
-            <ClipboardCheck className="h-7 w-7 text-bhutan-yellow" />
+            <ClipboardCheck className="h-7 w-7 text-primary" />
             Grading
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -342,13 +342,13 @@ export default function CourseGradingPage() {
                 const key = `${a.lessonId}:${a.activityId}`
                 const active = key === selectedKey
                 return (
-                  <button
+                  <Button
                     key={key}
                     type="button"
                     onClick={() => setSelectedKey(key)}
                     className={`w-full rounded-lg border p-3 text-left transition-colors ${
                       active
-                        ? 'border-bhutan-orange bg-bhutan-yellow/15'
+                        ? 'border-primary bg-primary/15'
                         : 'hover:bg-muted/50'
                     }`}
                   >
@@ -370,7 +370,7 @@ export default function CourseGradingPage() {
                         </Badge>
                       )}
                     </div>
-                  </button>
+                  </Button>
                 )
               })
             )}
@@ -467,7 +467,7 @@ export default function CourseGradingPage() {
                           href={fileHref}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-sm font-medium text-bhutan-orange hover:underline"
+                          className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
                         >
                           <Download className="h-3.5 w-3.5" />
                           {row.fileName || 'Open file'}
@@ -541,7 +541,7 @@ export default function CourseGradingPage() {
                           <div className="flex items-end">
                             <Button
                               type="button"
-                              className="min-h-11 w-full bg-bhutan-yellow text-black hover:bg-bhutan-orange sm:w-auto"
+                              className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary sm:w-auto"
                               disabled={
                                 savingId === row.progressId || uploadingId === row.progressId
                               }
@@ -611,7 +611,7 @@ export default function CourseGradingPage() {
                                       }
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="inline-flex min-w-0 items-center gap-1 truncate font-medium text-bhutan-orange hover:underline"
+                                      className="inline-flex min-w-0 items-center gap-1 truncate font-medium text-primary hover:underline"
                                     >
                                       <Download className="h-3 w-3 shrink-0" />
                                       <span className="truncate">
@@ -621,7 +621,7 @@ export default function CourseGradingPage() {
                                   ) : (
                                     <span className="truncate">{draft.returnFileName}</span>
                                   )}
-                                  <button
+                                  <Button
                                     type="button"
                                     className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                                     aria-label="Remove return file"
@@ -637,7 +637,7 @@ export default function CourseGradingPage() {
                                     }
                                   >
                                     <X className="h-3.5 w-3.5" />
-                                  </button>
+                                  </Button>
                                 </span>
                               ) : null}
                             </div>

@@ -56,6 +56,19 @@ export type LandingSectionTitles = {
 
 export const DEFAULT_HERO_VIDEO_URL = 'https://www.youtube.com/watch?v=xpCj64W2Yxs'
 
+/** Built-in 10s HD hero film. Plays unless marketing settings set a different video. */
+export const BRANDED_HERO_FILM = {
+  desktop: '/hero/rigbu-hero-desktop.mp4',
+  mobile: '/hero/rigbu-hero-mobile.mp4',
+  desktopPoster: '/hero/rigbu-hero-desktop.jpg',
+  mobilePoster: '/hero/rigbu-hero-mobile.jpg',
+} as const
+
+export function usesBrandedHeroFilm(url?: string | null) {
+  const value = url?.trim() || ''
+  return !value || value === DEFAULT_HERO_VIDEO_URL
+}
+
 export const DEFAULT_HERO_ROTATING_WORDS = [
   'Modern Bhutan',
   'Every Learner',
@@ -65,6 +78,49 @@ export const DEFAULT_HERO_ROTATING_WORDS = [
 ]
 
 export const DEFAULT_HERO_CTA_PRIMARY = 'Create your account'
+
+/** Shared 3D Rigbu used in the public menu and the hero. */
+export const DEFAULT_MASCOT_IMAGE_URL = '/brand/rigbu-3d.png'
+
+export type HeroSlideLayout = 'courses' | 'list' | 'steps' | 'card'
+
+export type HeroSlide = {
+  kicker: string
+  title: string
+  accent: string
+  body: string
+  layout: HeroSlideLayout
+  items: string[]
+}
+
+export function defaultHeroSlides(): HeroSlide[] {
+  return [
+    {
+      kicker: 'Learn',
+      title: 'Advanced learning',
+      accent: 'for Modern Bhutan',
+      body: 'Courses, lessons, and progress in one private place.',
+      layout: 'courses',
+      items: [],
+    },
+    {
+      kicker: 'Guide',
+      title: 'Guide every learner',
+      accent: 'across the kingdom',
+      body: 'Teachers watch progress and step in when someone stalls.',
+      layout: 'steps',
+      items: ['Join', 'Learn', 'Practice', 'Certificate'],
+    },
+    {
+      kicker: 'Earn',
+      title: 'Leave with proof',
+      accent: 'a recognised certificate',
+      body: 'Finish the course and take the certificate with you.',
+      layout: 'card',
+      items: ['RIGBU LMS', 'Certificate of completion'],
+    },
+  ]
+}
 
 export const DEFAULT_LANDING_STATS: LandingStat[] = [
   { value: '500+', label: 'Learners' },
@@ -77,7 +133,7 @@ export const DEFAULT_LANDING_FEATURES: LandingFeature[] = [
     icon: 'Lock',
     title: 'Private video lessons',
     description:
-      'Lessons play through Pelbu’s servers. The file address stays on the server, and each viewing link expires.',
+      'Lessons play through Rigbu’s servers. The file address stays on the server, and each viewing link expires.',
   },
   {
     icon: 'BarChart3',
@@ -119,7 +175,7 @@ export const DEFAULT_LANDING_FEATURES: LandingFeature[] = [
     icon: 'Smartphone',
     title: 'Made for your phone',
     description:
-      'Install Pelbu from the browser. Fullscreen video turns landscape on a phone and returns to portrait when you leave it.',
+      'Install Rigbu from the browser. Fullscreen video turns landscape on a phone and returns to portrait when you leave it.',
   },
 ]
 
@@ -170,44 +226,44 @@ export const DEFAULT_LANDING_STEPS_NO_KYC: LandingStep[] = [
 
 export const DEFAULT_LANDING_FAQ: LandingFaqItem[] = [
   {
-    question: 'What is Pelbu LMS?',
+    question: 'What is Rigbu LMS?',
     answer:
-      'Pelbu LMS is Bhutan’s private learning management platform. It offers identity-verified access, private video courses, progress tracking and recognised certificates for students, teachers and institutions.',
+      'Rigbu LMS is Bhutan’s private learning management platform. It offers identity-verified access, private video courses, progress tracking and recognised certificates for students, teachers and institutions.',
   },
   {
-    question: 'How do I get access to Pelbu?',
+    question: 'How do I get access to Rigbu?',
     answer:
       'Sign in with Google, complete the Bhutan KYC registration form (CID number, CID photo, passport photo and your institution), then wait for approval. Students are approved by a resource person or administrator; instructors and resource persons need Superadmin approval. After that, request a course — the course creator still verifies each enrollment.',
   },
   {
-    question: 'Why does Pelbu require KYC verification?',
+    question: 'Why does Rigbu require KYC verification?',
     answer:
-      'Pelbu is a closed system for verified learners in Bhutan. KYC verification with CID and passport photo ensures certificates are trustworthy and the network stays free of anonymous or fake accounts.',
+      'Rigbu is a closed system for verified learners in Bhutan. KYC verification with CID and passport photo ensures certificates are trustworthy and the network stays free of anonymous or fake accounts.',
   },
   {
     question: 'Are the course videos private?',
     answer:
-      'Yes. Videos are stored privately and streamed through Pelbu’s own servers using signed, expiring links. They cannot be downloaded or discovered through the browser’s inspector.',
+      'Yes. Videos are stored privately and streamed through Rigbu’s own servers using signed, expiring links. They cannot be downloaded or discovered through the browser’s inspector.',
   },
   {
     question: 'Do I get a certificate?',
     answer:
-      'Yes. When you complete a course, Pelbu automatically issues a PDF certificate with a unique code and a public verification page that anyone can use to confirm its authenticity.',
+      'Yes. When you complete a course, Rigbu automatically issues a PDF certificate with a unique code and a public verification page that anyone can use to confirm its authenticity.',
   },
   {
     question: 'Is there an Android app?',
     answer:
-      'Install Pelbu from your browser. In Chrome or Edge, use the install prompt, or open the browser menu and choose Install app. On other mobile browsers, use Add to Home Screen.',
+      'Install Rigbu from your browser. In Chrome or Edge, use the install prompt, or open the browser menu and choose Install app. On other mobile browsers, use Add to Home Screen.',
   },
 ]
 
 export const DEFAULT_LANDING_SECTION_TITLES: LandingSectionTitles = {
-  features_eyebrow: 'Why Pelbu',
+  features_eyebrow: 'Why Rigbu',
   features_title: 'A learning platform unlike any other',
   features_subtitle: 'Every detail engineered for trust, focus and results — not clutter.',
   steps_eyebrow: 'Getting started',
-  steps_title: 'Four steps to join Pelbu',
-  steps_subtitle: 'Pelbu is a verified, closed network. Here’s exactly how access works.',
+  steps_title: 'Four steps to join Rigbu',
+  steps_subtitle: 'Rigbu is a verified, closed network. Here’s exactly how access works.',
   faq_eyebrow: 'Answers',
   faq_title: 'Frequently asked questions',
   cta_title: 'Ready to learn with the best in Bhutan?',
@@ -342,6 +398,50 @@ export function parseLandingSectionTitles(raw: unknown): LandingSectionTitles {
     if (typeof v === 'string' && v.trim()) out[key] = v.trim()
   }
   return out
+}
+
+const HERO_LAYOUTS = new Set<HeroSlideLayout>(['courses', 'list', 'steps', 'card'])
+
+function cleanSlideText(value: unknown, max: number): string {
+  if (typeof value !== 'string') return ''
+  return value.trim().slice(0, max)
+}
+
+export function parseHeroSlides(raw: unknown): HeroSlide[] {
+  if (!Array.isArray(raw)) return defaultHeroSlides()
+  const slides = raw
+    .slice(0, 8)
+    .map((item) => {
+      if (!isRecord(item)) return null
+      const title = cleanSlideText(item.title, 80)
+      if (!title) return null
+      const layout = HERO_LAYOUTS.has(item.layout as HeroSlideLayout)
+        ? (item.layout as HeroSlideLayout)
+        : 'list'
+      const items = Array.isArray(item.items)
+        ? item.items
+            .filter((entry): entry is string => typeof entry === 'string')
+            .map((entry) => entry.trim())
+            .filter(Boolean)
+            .slice(0, 8)
+            .map((entry) => entry.slice(0, 80))
+        : []
+      return {
+        kicker: cleanSlideText(item.kicker, 32),
+        title,
+        accent: cleanSlideText(item.accent, 80),
+        body: cleanSlideText(item.body, 180),
+        layout,
+        items,
+      }
+    })
+    .filter((slide): slide is HeroSlide => !!slide)
+  return slides.length ? slides : defaultHeroSlides()
+}
+
+export function normalizeHeroSlidesInput(raw: unknown): HeroSlide[] | null {
+  if (!Array.isArray(raw)) return null
+  return parseHeroSlides(raw.length ? raw : null)
 }
 
 export function parseHeroRotatingWords(raw: unknown): string[] {

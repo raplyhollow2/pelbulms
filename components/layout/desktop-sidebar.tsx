@@ -1,25 +1,29 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
-import {
-  BookOpen,
-  ChevronLeft, ChevronRight, LogOut, Search,
-  type LucideIcon,
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { LogOut, Search, type LucideIcon } from 'lucide-react'
+import { Rigbu } from '@/components/brand/rigbu'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Kbd } from '@/components/ui/kbd'
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarRail,
+} from '@/components/ui/sidebar'
 import { createClient } from '@/lib/supabase/client'
 import { leavePresenceAndSignOut } from '@/components/presence/presence-tracker'
 import { resolveMediaUrl } from '@/lib/media'
-import { cn, haptic, warning as hapticWarning, tap as hapticTap } from '@/lib/utils'
+import { cn, haptic, warning as hapticWarning } from '@/lib/utils'
 import { useCapabilities } from '@/components/auth/capabilities-provider'
 import { defaultKeysForRole, hasCap } from '@/lib/capability-catalog'
 import { buildAccessNav, ROLE_PANELS } from '@/lib/nav-access'
@@ -41,12 +45,9 @@ interface NavItem {
   icon: LucideIcon
 }
 
-const STORAGE_KEY = 'pelbu:sidebar-collapsed'
-
-export function DesktopSidebar({ user, siteName = 'Pelbu LMS', profile: profileHint = null }: DesktopSidebarProps) {
+export function DesktopSidebar({ user, siteName = 'Rigbu LMS', profile: profileHint = null }: DesktopSidebarProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [collapsed, setCollapsed] = useState(false)
   const { loaded: capsLoaded, has: hasCapKey, role: capRole } = useCapabilities()
   const [userRole, setUserRole] = useState<
     'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
@@ -58,54 +59,6 @@ export function DesktopSidebar({ user, siteName = 'Pelbu LMS', profile: profileH
     capsLoaded ? hasCapKey(key) : hasCap(defaultKeysForRole(roleForNav), key)
   const panels = buildAccessNav(has)
   const accountLabel = ROLE_LABELS[roleForNav]
-
-  // Sync collapse with layout events (e.g. tablet auto-rail).
-  useEffect(() => {
-    const onToggle = (event: Event) => {
-      const custom = event as CustomEvent<{ collapsed: boolean }>
-      if (typeof custom.detail?.collapsed === 'boolean') {
-        setCollapsed(custom.detail.collapsed)
-      }
-    }
-    window.addEventListener('pelbu:sidebar-collapse', onToggle as EventListener)
-    return () => {
-      window.removeEventListener('pelbu:sidebar-collapse', onToggle as EventListener)
-    }
-  }, [])
-
-  // Restore preference on mount; default to icon rail on tablet widths.
-  useEffect(() => {
-    const width = window.innerWidth
-    const isTablet = width >= 768 && width < 1024
-    const stored = localStorage.getItem(STORAGE_KEY) === 'true'
-    const next = isTablet ? true : stored
-    setCollapsed(next)
-    window.dispatchEvent(
-      new CustomEvent('pelbu:sidebar-collapse', { detail: { collapsed: next } })
-    )
-
-    const tabletMq = window.matchMedia('(min-width: 768px) and (max-width: 1023px)')
-    const onBreakpoint = () => {
-      if (tabletMq.matches) {
-        setCollapsed(true)
-        window.dispatchEvent(
-          new CustomEvent('pelbu:sidebar-collapse', { detail: { collapsed: true } })
-        )
-        return
-      }
-      if (window.innerWidth >= 1024) {
-        const preferCollapsed = localStorage.getItem(STORAGE_KEY) === 'true'
-        setCollapsed(preferCollapsed)
-        window.dispatchEvent(
-          new CustomEvent('pelbu:sidebar-collapse', {
-            detail: { collapsed: preferCollapsed },
-          })
-        )
-      }
-    }
-    tabletMq.addEventListener('change', onBreakpoint)
-    return () => tabletMq.removeEventListener('change', onBreakpoint)
-  }, [])
 
   useEffect(() => {
     if (user) fetchProfile()
@@ -138,7 +91,7 @@ export function DesktopSidebar({ user, siteName = 'Pelbu LMS', profile: profileH
   }
 
   const openCommandPalette = () => {
-    window.dispatchEvent(new Event('pelbu:open-search'))
+    window.dispatchEvent(new Event('rigbu:open-search'))
   }
 
   const handleLogout = async () => {
@@ -151,230 +104,113 @@ export function DesktopSidebar({ user, siteName = 'Pelbu LMS', profile: profileH
     }
   }
 
-  const toggleCollapse = () => {
-    hapticTap()
-    const next = !collapsed
-    setCollapsed(next)
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, String(next))
-    }
-    window.dispatchEvent(
-      new CustomEvent('pelbu:sidebar-collapse', { detail: { collapsed: next } })
-    )
-  }
-
   const displayName = profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'
   const initials = displayName.charAt(0).toUpperCase()
 
-  const renderNav = (items: NavItem[]) =>
-    items.map((item) => {
-      const itemPath = item.href.split('?')[0]
-      const wantsApprovals = item.href.includes('tab=approvals')
-      const onUsers = pathname === '/admin/users' || pathname.startsWith('/admin/users/')
-      const isActive = wantsApprovals
-        ? onUsers && searchParams.get('tab') === 'approvals'
-        : itemPath === '/admin/users'
-          ? onUsers && searchParams.get('tab') !== 'approvals'
-          : itemPath === '/admin'
-            ? pathname === '/admin'
-            : pathname === itemPath || pathname.startsWith(`${itemPath}/`)
-      const link = (
-        <Link
-          key={item.href}
-          href={item.href}
-          onClick={() => haptic()}
-          aria-current={isActive ? 'page' : undefined}
-          className={cn(
-            'group press relative flex items-center rounded-xl text-sm font-medium transition-all duration-300',
-            collapsed ? 'h-11 w-11 justify-center' : 'gap-3 px-3 py-2.5',
-            isActive
-              ? 'bg-gradient-to-r from-bhutan-yellow/20 to-bhutan-orange/10 text-foreground shadow-soft'
-              : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
-          )}
-        >
-          {isActive && (
-            <span
-              className={cn(
-                'absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-bhutan-yellow',
-                collapsed && 'left-0'
-              )}
-            />
-          )}
-          <item.icon
-            className={cn('h-5 w-5 shrink-0', isActive && 'text-bhutan-orange')}
-          />
-          {!collapsed && <span className="truncate">{item.name}</span>}
-        </Link>
-      )
-
-      if (collapsed) {
-        return (
-          <Tooltip key={item.href}>
-            <TooltipTrigger render={link} />
-            <TooltipContent side="right">{item.name}</TooltipContent>
-          </Tooltip>
-        )
-      }
-      return link
-    })
-
-  const sectionLabel = (label: string, short: string) => (
-    <p
-      className={cn(
-        'px-3 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70',
-        collapsed && 'text-center px-0'
-      )}
-    >
-      {collapsed ? short : label}
-    </p>
-  )
+  const isItemActive = (item: NavItem) => {
+    const itemPath = item.href.split('?')[0]
+    const wantsApprovals = item.href.includes('tab=approvals')
+    const onUsers = pathname === '/admin/users' || pathname.startsWith('/admin/users/')
+    if (wantsApprovals) return onUsers && searchParams.get('tab') === 'approvals'
+    if (itemPath === '/admin/users') return onUsers && searchParams.get('tab') !== 'approvals'
+    if (itemPath === '/admin') return pathname === '/admin'
+    return pathname === itemPath || pathname.startsWith(`${itemPath}/`)
+  }
 
   return (
-    <TooltipProvider delay={200}>
-      <aside
-        className={cn(
-          'fixed left-0 top-0 z-50 flex h-full flex-col border-r border-border/40 bg-background/80 shadow-[6px_0_24px_rgba(17,24,39,0.03)] backdrop-blur-xl transition-[width] duration-300 dark:shadow-[6px_0_24px_rgba(0,0,0,0.35)]',
-          collapsed ? 'w-20' : 'w-64'
-        )}
-      >
-        {/* Logo & Collapse Button */}
-        <div className="flex h-16 shrink-0 items-center gap-3 border-b border-border/40 px-4">
-          {!collapsed ? (
-            <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-bhutan-yellow/15">
-                <BookOpen className="h-5 w-5 text-bhutan-orange" />
-              </div>
-              <span className="truncate bg-gradient-to-r from-bhutan-yellow to-bhutan-orange bg-clip-text text-base font-bold text-transparent">
-                {siteName}
-              </span>
-            </Link>
-          ) : (
-            <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg bg-bhutan-yellow/15">
-              <BookOpen className="h-5 w-5 text-bhutan-orange" />
-            </div>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleCollapse}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className={cn('h-8 w-8 shrink-0', collapsed && 'absolute -right-3 top-5 h-6 w-6 rounded-full border border-border/60 bg-background shadow-sm')}
-          >
-            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-          </Button>
-        </div>
-
-        {/* Profile */}
-        <div className="shrink-0 border-b border-border/40 p-3">
-          <div
-            className={cn(
-              'flex items-center gap-2',
-              collapsed && 'flex-col'
-            )}
-          >
-            <Link
-              href="/profile"
-              className={cn(
-                'flex min-w-0 flex-1 items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted',
-                collapsed && 'justify-center'
-              )}
+    <Sidebar collapsible="icon">
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              size="lg"
+              tooltip={siteName}
+              className="[&_svg]:size-8! group-data-[collapsible=icon]:[&_svg]:size-7!"
+              render={<Link href="/dashboard" />}
             >
-              <Avatar className="h-9 w-9 shrink-0">
+              <Rigbu />
+              <span className="truncate text-base font-semibold">{siteName}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" tooltip={displayName} render={<Link href="/profile" />}>
+              <Avatar className="size-8">
                 <AvatarImage src={resolveMediaUrl(profile?.avatar_url) || undefined} alt={displayName} />
-                <AvatarFallback className="bg-bhutan-yellow font-semibold text-black">
-                  {initials}
-                </AvatarFallback>
+                <AvatarFallback className="bg-primary text-primary-foreground">{initials}</AvatarFallback>
               </Avatar>
-              {!collapsed && (
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{displayName}</p>
-                  <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {accountLabel}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
-                </div>
-              )}
-            </Link>
-          </div>
-        </div>
+              <span className="grid min-w-0 flex-1 text-left leading-tight">
+                <span className="truncate text-sm font-medium">{displayName}</span>
+                <span className="truncate text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {accountLabel}
+                </span>
+              </span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
 
-        {/* Navigation */}
-        <nav className="scroll-premium flex-1 space-y-1 overflow-y-auto p-3">
-          {/* Search */}
-          {collapsed ? (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={openCommandPalette}
-                    className="mx-auto mb-2 h-11 w-11"
-                    aria-label="Search"
-                  >
-                    <Search className="h-5 w-5" />
-                  </Button>
-                }
-              />
-              <TooltipContent side="right">
-                Search <kbd className="ml-1 rounded bg-background/20 px-1 text-[10px]">⌘K</kbd>
-              </TooltipContent>
-            </Tooltip>
-          ) : (
-            <Button
-              variant="outline"
-              className="mb-2 w-full justify-start gap-3 text-muted-foreground"
-              onClick={openCommandPalette}
-            >
-              <Search className="h-5 w-5" />
-              <span>Search</span>
-              <kbd className="ml-auto rounded bg-muted px-1.5 py-0.5 text-xs">⌘K</kbd>
-            </Button>
-          )}
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton tooltip="Search" onClick={openCommandPalette}>
+                  <Search />
+                  <span>Search</span>
+                  <Kbd className="ml-auto group-data-[collapsible=icon]:hidden">⌘K</Kbd>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-          {ROLE_PANELS.map((panel) => {
-            const items = panels[panel.id]
-            if (items.length === 0) return null
-            return (
-              <div key={panel.id}>
-                {sectionLabel(panel.label, panel.short)}
-                {renderNav(items)}
-              </div>
-            )
-          })}
-        </nav>
+        {ROLE_PANELS.map((panel) => {
+          const items = panels[panel.id]
+          if (items.length === 0) return null
+          return (
+            <SidebarGroup key={panel.id}>
+              <SidebarGroupLabel>{panel.label}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {items.map((item) => {
+                    const active = isItemActive(item)
+                    return (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                          isActive={active}
+                          tooltip={item.name}
+                          render={
+                            <Link
+                              href={item.href}
+                              onClick={() => haptic()}
+                              aria-current={active ? 'page' : undefined}
+                            />
+                          }
+                        >
+                          <item.icon className={cn(active && 'text-primary')} />
+                          <span>{item.name}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )
+        })}
+      </SidebarContent>
 
-        {/* Logout */}
-        <div className="shrink-0 border-t border-border/40 p-3">
-          {collapsed ? (
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleLogout}
-                    aria-label="Logout"
-                    className="mx-auto h-11 w-11 text-muted-foreground hover:text-destructive"
-                  >
-                    <LogOut className="h-5 w-5" />
-                  </Button>
-                }
-              />
-              <TooltipContent side="right">Logout</TooltipContent>
-            </Tooltip>
-          ) : (
-            <Button
-              variant="ghost"
-              onClick={handleLogout}
-              className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive"
-            >
-              <LogOut className="h-5 w-5" />
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton tooltip="Logout" onClick={handleLogout}>
+              <LogOut />
               <span>Logout</span>
-            </Button>
-          )}
-        </div>
-      </aside>
-    </TooltipProvider>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+      <SidebarRail />
+    </Sidebar>
   )
 }

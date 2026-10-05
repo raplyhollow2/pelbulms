@@ -754,7 +754,7 @@ export default function AdminUsersPage() {
               <ClipboardCheck className="h-3.5 w-3.5 shrink-0" />
               Approvals
               {pendingCount > 0 && (
-                <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-bhutan-orange px-1 text-[10px] font-semibold text-white">
+                <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-white">
                   {pendingCount > 99 ? '99+' : pendingCount}
                 </span>
               )}

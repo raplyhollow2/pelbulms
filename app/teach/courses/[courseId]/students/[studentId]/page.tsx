@@ -281,7 +281,7 @@ export default function StudentDetailPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-bhutan-yellow" />
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
           <span className="ml-3 text-muted-foreground">Loading student...</span>
         </div>
       </div>
@@ -304,11 +304,11 @@ export default function StudentDetailPage() {
           </Button>
 
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20 flex items-center justify-center shrink-0 overflow-hidden">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary/20 to-muted/20 flex items-center justify-center shrink-0 overflow-hidden">
               {student?.avatar_url ? (
                 <img src={student.avatar_url} alt={student?.full_name || 'Student'} className="w-full h-full object-cover" />
               ) : (
-                <span className="text-lg font-bold text-bhutan-yellow">
+                <span className="text-lg font-bold text-primary">
                   {(student?.full_name || 'S').slice(0, 1).toUpperCase()}
                 </span>
               )}
@@ -332,7 +332,7 @@ export default function StudentDetailPage() {
               <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
                 <TrendingUp className="w-3.5 h-3.5" /> Progress
               </div>
-              <p className="text-2xl font-bold text-bhutan-yellow">{progressPct}%</p>
+              <p className="text-2xl font-bold text-primary">{progressPct}%</p>
             </CardContent>
           </Card>
           <Card>
@@ -442,7 +442,7 @@ export default function StudentDetailPage() {
                         href={s.fileUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="font-medium text-bhutan-orange hover:underline"
+                        className="font-medium text-primary hover:underline"
                       >
                         {s.fileName || 'Open file'}
                       </a>
@@ -458,7 +458,7 @@ export default function StudentDetailPage() {
                           href={s.returnFileUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-medium text-bhutan-orange hover:underline"
+                          className="font-medium text-primary hover:underline"
                         >
                           {s.returnFileName || 'Returned file'}
                         </a>
@@ -468,7 +468,7 @@ export default function StudentDetailPage() {
                           href={s.returnUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-medium text-bhutan-orange hover:underline"
+                          className="font-medium text-primary hover:underline"
                         >
                           Return link
                         </a>

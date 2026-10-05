@@ -476,7 +476,7 @@ export default function CoursesPage() {
                 setSearchTerm(e.target.value)
                 writeCatalogQuery({ q: e.target.value })
               }}
-              className="h-9 pl-9 glass-strong"
+              className="h-9 pl-9 bg-card border border-border shadow-sm"
               aria-label="Search courses"
             />
           </div>
@@ -485,7 +485,7 @@ export default function CoursesPage() {
             variant="outline"
             size="sm"
             className="h-9 shrink-0 gap-1.5 rounded-full px-2.5 sm:px-3"
-            onClick={() => window.dispatchEvent(new Event('pelbu:open-search'))}
+            onClick={() => window.dispatchEvent(new Event('rigbu:open-search'))}
             aria-label="Quick search"
           >
             <Command className="h-3.5 w-3.5" />

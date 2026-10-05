@@ -84,7 +84,7 @@ export function wordBriefTitle(audience: SnapshotAudience): string {
     case 'resource_person':
       return 'Approvals and activation brief'
     default:
-      return 'Pelbu report'
+      return 'Rigbu report'
   }
 }
 
@@ -203,7 +203,7 @@ export async function buildDocxPack(
     }
     children.push(
       para(
-        `Figures are from PelbuLMS. Interpretation was drafted by ${brief?.model || 'the selected model'} on ${new Date(brief?.generatedAt || snapshot.generatedAt).toLocaleString()} and should be checked against the tables.`
+        `Figures are from RigbuLMS. Interpretation was drafted by ${brief?.model || 'the selected model'} on ${new Date(brief?.generatedAt || snapshot.generatedAt).toLocaleString()} and should be checked against the tables.`
       )
     )
   } else {

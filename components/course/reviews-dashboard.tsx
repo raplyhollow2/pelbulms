@@ -198,7 +198,7 @@ export function ReviewsDashboard({ courseId, userId }: ReviewsDashboardProps) {
 
   if (loading) {
     return (
-      <Card className="glass">
+      <Card className="bg-card/80 border border-border">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Star className="w-5 h-5" />
@@ -215,7 +215,7 @@ export function ReviewsDashboard({ courseId, userId }: ReviewsDashboardProps) {
   }
 
   return (
-    <Card className="glass">
+    <Card className="bg-card/80 border border-border">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Star className="w-5 h-5" />
@@ -292,7 +292,7 @@ export function ReviewsDashboard({ courseId, userId }: ReviewsDashboardProps) {
                 <h3 className="font-semibold text-sm">Rate this course</h3>
                 <div className="flex gap-1">
                   {[1, 2, 3, 4, 5].map((star) => (
-                    <button
+                    <Button
                       key={star}
                       type="button"
                       onClick={() => setMyRating(star)}
@@ -306,7 +306,7 @@ export function ReviewsDashboard({ courseId, userId }: ReviewsDashboardProps) {
                             : 'text-gray-300'
                         }`}
                       />
-                    </button>
+                    </Button>
                   ))}
                 </div>
                 <Input
@@ -318,7 +318,7 @@ export function ReviewsDashboard({ courseId, userId }: ReviewsDashboardProps) {
                   size="sm"
                   onClick={handleSubmitReview}
                   disabled={submitting}
-                  className="bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+                  className="bg-primary text-primary-foreground hover:bg-primary"
                 >
                   {submitting ? 'Saving…' : 'Submit review'}
                 </Button>
@@ -370,8 +370,8 @@ export function ReviewsDashboard({ courseId, userId }: ReviewsDashboardProps) {
                       {/* User Info and Rating */}
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3">
-                          <Avatar className="w-10 h-10 bg-bhutan-yellow">
-                            <AvatarFallback className="bg-bhutan-yellow text-black font-semibold">
+                          <Avatar className="w-10 h-10 bg-primary">
+                            <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
                               {review.user_name?.split(' ').map(n => n[0]).join('') || 'U'}
                             </AvatarFallback>
                           </Avatar>

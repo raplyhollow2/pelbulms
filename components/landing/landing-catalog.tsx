@@ -1,10 +1,14 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+
 import Link from 'next/link'
-import { ArrowRight, BookOpen, ChevronLeft, ChevronRight, Star } from 'lucide-react'
+import { ArrowRight, BookOpen, Star } from 'lucide-react'
 import { resolveMediaUrl } from '@/lib/media'
 import { LandingSection } from '@/components/landing/landing-section'
+import { cn } from '@/lib/utils'
 
 export type LandingCourse = {
   id: string
@@ -20,72 +24,141 @@ function categoryHref(category: string) {
   return `/courses?category=${encodeURIComponent(category)}`
 }
 
-const pairCardClass =
-  'w-[calc((100%-1rem)/2)] shrink-0 snap-start rounded-xl bg-background p-2 shadow-md md:w-64'
-const rowClass = 'mt-4 flex w-full min-w-0 snap-x snap-mandatory gap-4 overflow-x-auto px-0.5 py-2'
+const tile =
+  'group gap-0 overflow-hidden border-0 p-0 py-0 shadow-sm ring-1 ring-foreground/10 [--card-spacing:0] transition-all duration-300 hover:-translate-y-1 hover:shadow-lg'
 
-function CardThumbnail({ url }: { url: string | null }) {
-  const thumb = resolveMediaUrl(url)
+function enter(delay: number) {
+  return {
+    className: 'animate-in fade-in slide-in-from-bottom-4 duration-700',
+    style: { animationDelay: `${delay}ms`, animationFillMode: 'both' as const },
+  }
+}
+
+function Cover({ url, className }: { url: string | null; className?: string }) {
+  const [failed, setFailed] = useState(false)
+  const thumb = failed ? '/covers/business-models.jpg' : resolveMediaUrl(url)
+  if (!thumb) {
+    return (
+      <div className={cn('flex items-center justify-center bg-muted', className)}>
+        <BookOpen className="h-8 w-8 text-primary" />
+      </div>
+    )
+  }
   return (
-    <div className="relative aspect-video overflow-hidden rounded-lg bg-neutral-200">
-      {thumb ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={thumb} alt="" className="h-full w-full object-cover" />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-bhutan-yellow/30 to-bhutan-orange/20">
-          <BookOpen className="h-8 w-8 text-bhutan-orange/70" />
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={thumb}
+      alt=""
+      onError={() => setFailed(true)}
+      className={cn('object-cover transition-transform duration-700 ease-out group-hover:scale-105', className)}
+    />
+  )
+}
+
+function Rating({ course, light = false }: { course: LandingCourse; light?: boolean }) {
+  if (course.rating_count <= 0 || course.average_rating <= 0) return null
+  return (
+    <p className={cn('mt-2 flex items-center gap-1 text-xs font-semibold', light ? 'text-white/90' : 'text-foreground')}>
+      <Star className={cn('h-3.5 w-3.5', light ? 'fill-white text-white' : 'fill-primary text-primary')} />
+      {course.average_rating.toFixed(1)}
+      <span className={light ? 'font-normal text-white/70' : 'font-normal text-muted-foreground'}>
+        ({course.rating_count.toLocaleString()})
+      </span>
+    </p>
+  )
+}
+
+function LeadCourse({ course, delay }: { course: LandingCourse; delay: number }) {
+  const motion = enter(delay)
+  return (
+    <Card className={cn(tile, 'relative min-h-80 md:col-span-7 md:row-span-2 md:min-h-[28rem]', motion.className)} style={motion.style}>
+      <Link href={`/courses/${course.id}`} className="relative flex h-full min-h-80 flex-col justify-end md:min-h-[28rem]">
+        <Cover url={course.thumbnail_url} className="absolute inset-0 h-full w-full" />
+        <div className="relative bg-gradient-to-t from-black/80 via-black/45 to-transparent p-5 text-white sm:p-6">
+          {course.category ? (
+            <p className="text-xs font-semibold uppercase tracking-widest text-white/75">{course.category}</p>
+          ) : null}
+          <h3 className="mt-2 max-w-xl text-2xl font-bold tracking-tight sm:text-3xl">{course.title}</h3>
+          {course.instructor_name ? (
+            <p className="mt-1 text-sm text-white/80">{course.instructor_name}</p>
+          ) : null}
+          <Rating course={course} light />
+          <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold">
+            Open course
+            <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
+          </span>
         </div>
-      )}
-    </div>
+      </Link>
+    </Card>
   )
 }
 
-function FeaturedCourseCard({ course }: { course: LandingCourse }) {
-  const showRating = course.rating_count > 0 && course.average_rating > 0
+function SideCourse({ course, delay }: { course: LandingCourse; delay: number }) {
+  const motion = enter(delay)
   return (
-    <Link
-      href={`/courses/${course.id}`}
-      className="block rounded-xl border border-border bg-background p-3 shadow-sm"
-    >
-      <CardThumbnail url={course.thumbnail_url} />
-      <h3 className="mt-3 line-clamp-2 text-base font-bold leading-snug tracking-tight">{course.title}</h3>
-      {course.instructor_name ? (
-        <p className="mt-1 truncate text-sm text-muted-foreground">{course.instructor_name}</p>
-      ) : null}
-      {showRating ? (
-        <p className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-          <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 font-semibold">
-            <Star className="h-3.5 w-3.5 fill-bhutan-yellow text-bhutan-yellow" />
-            {course.average_rating.toFixed(1)}
-          </span>
-          <span className="rounded-md bg-muted px-2 py-1 text-muted-foreground">
-            {course.rating_count.toLocaleString()} {course.rating_count === 1 ? 'rating' : 'ratings'}
-          </span>
-        </p>
-      ) : null}
-    </Link>
+    <Card className={cn(tile, 'md:col-span-5', motion.className)} style={motion.style}>
+      <Link href={`/courses/${course.id}`} className="flex h-full flex-col">
+        <Cover url={course.thumbnail_url} className="aspect-[16/8] w-full" />
+        <div className="flex flex-1 flex-col p-4">
+          {course.category ? (
+            <p className="text-xs font-semibold uppercase tracking-widest text-primary">{course.category}</p>
+          ) : null}
+          <h3 className="mt-1 line-clamp-2 text-base font-bold tracking-tight transition-colors group-hover:text-primary">
+            {course.title}
+          </h3>
+          {course.instructor_name ? (
+            <p className="mt-1 truncate text-sm text-muted-foreground">{course.instructor_name}</p>
+          ) : null}
+          <Rating course={course} />
+        </div>
+      </Link>
+    </Card>
   )
 }
 
-function CourseCard({ course }: { course: LandingCourse }) {
-  const showRating = course.rating_count > 0 && course.average_rating > 0
+function Topics({
+  categories,
+  delay,
+  tall,
+}: {
+  categories: { name: string; count: number }[]
+  delay: number
+  tall: boolean
+}) {
+  const motion = enter(delay)
+  const shown = categories.slice(0, 6)
   return (
-    <Link href={`/courses/${course.id}`} className={pairCardClass}>
-      <CardThumbnail url={course.thumbnail_url} />
-      <h3 className="mt-2 line-clamp-2 text-sm font-bold tracking-tight">{course.title}</h3>
-      {course.instructor_name ? (
-        <p className="mt-1 truncate text-xs text-muted-foreground">{course.instructor_name}</p>
-      ) : null}
-      {showRating ? (
-        <p className="mt-1 flex items-center gap-1 text-xs font-semibold">
-          <span>{course.average_rating.toFixed(1)}</span>
-          <Star className="h-3.5 w-3.5 fill-bhutan-yellow text-bhutan-yellow" />
-          <span className="font-normal text-muted-foreground">
-            ({course.rating_count.toLocaleString()})
-          </span>
-        </p>
-      ) : null}
-    </Link>
+    <Card className={cn(tile, 'md:col-span-5', tall && 'md:row-span-2', motion.className)} style={motion.style}>
+      <div className="flex h-full flex-col p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-base font-bold tracking-tight">Topics</h3>
+          <Button variant="link" className="h-auto px-0" render={<Link href="/courses" />}>
+            All courses
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+        <ul className="mt-3 grid gap-1">
+          {shown.map((category, index) => (
+            <li
+              key={category.name}
+              className="animate-in fade-in slide-in-from-left-2 duration-500"
+              style={{ animationDelay: `${delay + 120 + index * 50}ms`, animationFillMode: 'both' }}
+            >
+              <Link
+                href={categoryHref(category.name)}
+                className="group/topic flex items-center justify-between gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted"
+              >
+                <span className="truncate font-medium transition-colors group-hover/topic:text-primary">{category.name}</span>
+                <span className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+                  {category.count}
+                  <ArrowRight className="h-3.5 w-3.5 transition-transform duration-200 group-hover/topic:translate-x-0.5" />
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </Card>
   )
 }
 
@@ -96,143 +169,54 @@ export function LandingCatalog({
   courses: LandingCourse[]
   featured: LandingCourse[]
 }) {
-  const categories = useMemo(() => {
-    const grouped = new Map<string, LandingCourse[]>()
+  const categories = (() => {
+    const grouped = new Map<string, number>()
+    const names = new Map<string, string>()
     for (const course of courses) {
       const name = course.category.trim()
       if (!name) continue
       const key = name.toLowerCase()
-      const existing = grouped.get(key)
-      if (existing) existing.push(course)
-      else grouped.set(key, [course])
+      names.set(key, name)
+      grouped.set(key, (grouped.get(key) || 0) + 1)
     }
-    return [...grouped.entries()].map(([, items]) => ({
-      name: items[0].category.trim(),
-      thumbnail_url: items.find((item) => item.thumbnail_url)?.thumbnail_url || null,
-      courses: items,
+    return [...grouped.entries()].map(([key, count]) => ({
+      name: names.get(key) || key,
+      count,
     }))
-  }, [courses])
-  const [tab, setTab] = useState(categories[0]?.name || '')
-  const active = categories.find((category) => category.name === tab) || categories[0]
-  const categoryRow = useRef<HTMLDivElement>(null)
-  const [categoryScroll, setCategoryScroll] = useState({ left: false, right: false })
+  })()
 
-  useEffect(() => {
-    const row = categoryRow.current
-    if (!row) return
-    const update = () => {
-      const max = row.scrollWidth - row.clientWidth
-      setCategoryScroll({
-        left: row.scrollLeft > 4,
-        right: max > 4 && row.scrollLeft < max - 4,
-      })
-    }
-    update()
-    row.addEventListener('scroll', update, { passive: true })
-    const observer = new ResizeObserver(update)
-    observer.observe(row)
-    return () => {
-      row.removeEventListener('scroll', update)
-      observer.disconnect()
-    }
-  }, [categories.length])
-
-  function scrollRow(row: HTMLDivElement | null, direction: number) {
-    if (!row) return
-    const card = row.firstElementChild as HTMLElement | null
-    const styles = getComputedStyle(row)
-    const gap = Number.parseFloat(styles.columnGap || styles.gap) || 0
-    const distance = card ? card.offsetWidth + gap : row.clientWidth
-    row.scrollBy({ left: direction * distance, behavior: 'smooth' })
+  const spotlight: LandingCourse[] = []
+  const seen = new Set<string>()
+  for (const course of [...featured, ...courses]) {
+    if (seen.has(course.id)) continue
+    seen.add(course.id)
+    spotlight.push(course)
+    if (spotlight.length === 2) break
   }
 
-  if (!categories.length && !featured.length) return null
+  const [lead, side] = spotlight
+  if (!lead && categories.length === 0) return null
 
   return (
-    <div className="min-w-0">
-      {categories.length > 0 && (
-        <LandingSection>
-          <h2 className="text-2xl font-bold tracking-tight">Learn by category</h2>
-          <div className="relative">
-          <div ref={categoryRow} className={rowClass}>
-            {categories.map((category) => (
-              <Link key={category.name} href={categoryHref(category.name)} className={pairCardClass}>
-                <CardThumbnail url={category.thumbnail_url} />
-                <span className="mt-2 flex items-center justify-between gap-2 text-sm font-bold tracking-tight">
-                  <span className="truncate">{category.name}</span>
-                  <ArrowRight className="h-4 w-4 shrink-0" />
-                </span>
-              </Link>
-            ))}
-          </div>
-          {categoryScroll.left ? (
-            <button
-              type="button"
-              aria-label="Previous categories"
-              className="absolute left-0 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background shadow-sm"
-              onClick={() => scrollRow(categoryRow.current, -1)}
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-          ) : null}
-          {categoryScroll.right ? (
-            <button
-              type="button"
-              aria-label="Next categories"
-              className="absolute right-0 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background shadow-sm"
-              onClick={() => scrollRow(categoryRow.current, 1)}
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          ) : null}
-          </div>
-        </LandingSection>
-      )}
+    <LandingSection>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Courses</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Open a class, or browse by topic.</p>
+        </div>
+        <Button variant="outline" render={<Link href="/courses" />}>
+          Browse all courses
+          <ArrowRight className="h-4 w-4" />
+        </Button>
+      </div>
 
-      {active && (
-        <LandingSection>
-          <h2 className="text-2xl font-bold tracking-tight">Skills to start with</h2>
-          <div className="mt-4 flex gap-4 overflow-x-auto border-b border-border">
-            {categories.map((category) => (
-              <button
-                key={category.name}
-                type="button"
-                className={`shrink-0 border-b-2 pb-2 text-sm font-semibold ${
-                  category.name === active.name
-                    ? 'border-foreground'
-                    : 'border-transparent text-muted-foreground'
-                }`}
-                onClick={() => setTab(category.name)}
-              >
-                {category.name}
-              </button>
-            ))}
-          </div>
-          <div className={rowClass}>
-            {active.courses.map((course) => (
-              <CourseCard key={course.id} course={course} />
-            ))}
-          </div>
-          <Link
-            href={categoryHref(active.name)}
-            className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-bhutan-orange"
-          >
-            Show all {active.name} courses
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-        </LandingSection>
-      )}
-
-      {featured.length > 0 && (
-        <LandingSection>
-          <h2 className="text-2xl font-bold tracking-tight">Courses to start with</h2>
-          <div className="mt-4 grid min-w-0 gap-4 md:grid-cols-2">
-            {featured.map((course) => (
-              <FeaturedCourseCard key={course.id} course={course} />
-            ))}
-          </div>
-        </LandingSection>
-      )}
-    </div>
+      <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-12">
+        {lead ? <LeadCourse course={lead} delay={0} /> : null}
+        {side ? <SideCourse course={side} delay={90} /> : null}
+        {categories.length > 0 ? (
+          <Topics categories={categories} delay={side ? 160 : 90} tall={!side && Boolean(lead)} />
+        ) : null}
+      </div>
+    </LandingSection>
   )
 }

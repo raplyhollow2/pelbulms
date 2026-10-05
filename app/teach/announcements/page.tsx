@@ -184,7 +184,7 @@ export default function TeacherAnnouncementsPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-bhutan-yellow" />
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
           <span className="ml-3 text-muted-foreground">Loading announcements...</span>
         </div>
       </div>
@@ -208,7 +208,7 @@ export default function TeacherAnnouncementsPage() {
           </div>
           <Button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="bg-bhutan-yellow hover:bg-bhutan-orange"
+            className="bg-primary hover:bg-primary"
           >
             <Plus className="w-4 h-4 mr-2" />
             New Announcement
@@ -217,7 +217,7 @@ export default function TeacherAnnouncementsPage() {
 
         {/* Create Form */}
         {showCreateForm && (
-          <Card className="glass-strong">
+          <Card className="bg-card border border-border shadow-sm">
             <CardHeader>
               <CardTitle>Create Announcement</CardTitle>
               <CardDescription>Send an announcement to your students</CardDescription>
@@ -310,7 +310,7 @@ export default function TeacherAnnouncementsPage() {
                 <Button
                   onClick={handleCreateAnnouncement}
                   disabled={saving}
-                  className="bg-bhutan-yellow hover:bg-bhutan-orange"
+                  className="bg-primary hover:bg-primary"
                 >
                   {saving ? (
                     <>
@@ -337,7 +337,7 @@ export default function TeacherAnnouncementsPage() {
         )}
 
         {/* Existing Announcements */}
-        <Card className="glass-strong">
+        <Card className="bg-card border border-border shadow-sm">
           <CardHeader>
             <CardTitle>Your Announcements</CardTitle>
             <CardDescription>Manage your course announcements</CardDescription>
@@ -353,7 +353,7 @@ export default function TeacherAnnouncementsPage() {
                 {announcements.map((announcement) => (
                   <div
                     key={announcement.id}
-                    className="p-4 border rounded-lg hover:border-bhutan-yellow/50 transition-colors"
+                    className="p-4 border rounded-lg hover:border-primary/50 transition-colors"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">

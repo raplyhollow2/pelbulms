@@ -149,11 +149,11 @@ export function AiBriefingPanel({
     (brief?.family && PROVIDER_LABELS[brief.family as LlmProvider]) || providerLabel || brief?.model || 'School AI'
 
   return (
-    <Card id="report-interpreter" className="glass-strong scroll-mt-24 border-bhutan-orange/30">
+    <Card id="report-interpreter" className="bg-card border border-border shadow-sm scroll-mt-24 border-primary/30">
       <CardHeader className="flex flex-col gap-3 space-y-0 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Sparkles className="h-5 w-5 text-bhutan-orange" />
+            <Sparkles className="h-5 w-5 text-primary" />
             Report reading
           </CardTitle>
           <CardDescription>
@@ -204,7 +204,7 @@ export function AiBriefingPanel({
                   <div key={index} className="rounded-lg border border-border/50 bg-muted/30 p-3">
                     <p className="text-sm font-medium">
                       {section.figure}
-                      <span className="ml-2 tabular-nums text-bhutan-orange">{section.value}</span>
+                      <span className="ml-2 tabular-nums text-primary">{section.value}</span>
                     </p>
                     <p className="mt-1 text-sm text-muted-foreground">{section.reading}</p>
                   </div>

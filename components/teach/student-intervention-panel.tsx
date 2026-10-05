@@ -1,4 +1,5 @@
 'use client'
+import { NativeSelect } from '@/components/ui/native-select'
 
 import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -99,19 +100,19 @@ export function StudentInterventionPanel({
             <p className="text-sm text-muted-foreground">No at-risk students right now.</p>
           ) : (
             atRisk.map((s) => (
-              <button
+              <Button
                 key={s.id}
                 type="button"
                 onClick={() => setSelectedId(s.id)}
                 className={`rounded-full border px-3 py-1.5 text-xs ${
                   selectedId === s.id
-                    ? 'border-transparent bg-bhutan-yellow text-black'
+                    ? 'border-transparent bg-primary text-primary-foreground'
                     : 'border-border'
                 }`}
               >
                 {s.full_name || s.email}
                 <span className="ml-1 opacity-70">{Math.round(s.enrollment?.progress_percentage || 0)}%</span>
-              </button>
+              </Button>
             ))
           )}
         </div>
@@ -123,13 +124,13 @@ export function StudentInterventionPanel({
                 <ul className="space-y-1 text-sm">
                   {quizFails.slice(0, 6).map((row, i) => (
                     <li key={`${row.studentId}-${i}`}>
-                      <button
+                      <Button
                         type="button"
                         className="text-left hover:underline"
                         onClick={() => setSelectedId(row.studentId)}
                       >
                         {row.quizTitle} · {row.score}%
-                      </button>
+                      </Button>
                     </li>
                   ))}
                 </ul>
@@ -141,13 +142,13 @@ export function StudentInterventionPanel({
                 <ul className="space-y-1 text-sm">
                   {openQuestions.slice(0, 6).map((row) => (
                     <li key={row.id}>
-                      <button
+                      <Button
                         type="button"
                         className="text-left hover:underline"
                         onClick={() => setSelectedId(row.studentId)}
                       >
                         {row.title}
-                      </button>
+                      </Button>
                     </li>
                   ))}
                 </ul>
@@ -155,7 +156,7 @@ export function StudentInterventionPanel({
             )}
           </div>
         )}
-        <select
+        <NativeSelect
           value={selectedId}
           onChange={(e) => setSelectedId(e.target.value)}
           className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -166,7 +167,7 @@ export function StudentInterventionPanel({
               {s.full_name || s.email}
             </option>
           ))}
-        </select>
+        </NativeSelect>
         <div className="flex gap-2">
           {(['nudge', 'note', 'question'] as const).map((k) => (
             <Button
@@ -189,7 +190,7 @@ export function StudentInterventionPanel({
         />
         <Button
           type="button"
-          className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+          className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
           disabled={saving || !selectedId || !message.trim()}
           onClick={() => void send()}
         >

@@ -221,7 +221,7 @@ export function PermissionsMatrix() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Save failed')
       await load()
-      window.dispatchEvent(new Event('pelbu:capabilities-changed'))
+      window.dispatchEvent(new Event('rigbu:capabilities-changed'))
     } catch (e: any) {
       setError(e?.message || 'Save failed')
     } finally {
@@ -303,7 +303,7 @@ export function PermissionsMatrix() {
           <ul className="max-h-[70vh] overflow-y-auto p-1">
             {orderedRoles.map((role) => (
               <li key={role.id}>
-                <button
+                <Button
                   type="button"
                   onClick={() => setSelectedRoleId(role.id)}
                   className={cn(
@@ -324,7 +324,7 @@ export function PermissionsMatrix() {
                       custom · {role.base_archetype}
                     </span>
                   )}
-                </button>
+                </Button>
               </li>
             ))}
           </ul>

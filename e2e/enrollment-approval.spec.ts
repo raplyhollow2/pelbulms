@@ -144,7 +144,7 @@ test('owner teacher sees all 5 pending students and can approve or reject', asyn
   await expect(pendingStat).toHaveText('0', { timeout: 20_000 })
 
   // Active enrollments should be 3
-  const activeStat = page.locator('div.text-3xl.text-bhutan-yellow')
+  const activeStat = page.locator('div').filter({ hasText: 'Active enrollments' }).locator('.text-3xl')
   await expect(activeStat).toHaveText('3')
 
   for (const email of emailsToApprove) {

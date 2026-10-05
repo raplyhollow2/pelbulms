@@ -436,7 +436,7 @@ export async function answerCourseTutor(
     const result = await runText({
       feature: 'tutor',
       userId: opts.userId,
-      system: `You are ${name}, the AI tutor for this Pelbu LMS course.
+      system: `You are ${name}, the AI tutor for this Rigbu LMS course.
 ${instructions}
 Use the course materials, the student's notes, and their worksheet answers. Never invent notes or worksheet answers. If a field or note is missing, say so.`,
       prompt: sections.join('\n\n'),

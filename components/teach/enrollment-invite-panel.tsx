@@ -98,7 +98,7 @@ export function EnrollmentInvitePanel({ courseId }: { courseId: string }) {
         </div>
         <Button
           type="button"
-          className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+          className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
           disabled={saving}
           onClick={() => void create()}
         >

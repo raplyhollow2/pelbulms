@@ -1,4 +1,5 @@
 'use client'
+import { Button } from '@/components/ui/button'
 
 import { useRef, useState } from 'react'
 import Link from 'next/link'
@@ -22,7 +23,7 @@ function QuoteCard({ quote }: { quote: LandingQuote }) {
       <figcaption className="mt-6 flex items-center gap-3">
         <Avatar className="size-10">
           {quote.avatar_url ? <AvatarImage src={quote.avatar_url} alt="" /> : null}
-          <AvatarFallback className="bg-bhutan-yellow text-xs font-semibold text-black">
+          <AvatarFallback className="bg-primary text-xs font-semibold text-black">
             {reviewerInitials(quote.name) || 'U'}
           </AvatarFallback>
         </Avatar>
@@ -34,7 +35,7 @@ function QuoteCard({ quote }: { quote: LandingQuote }) {
       {quote.course_id ? (
         <Link
           href={`/courses/${quote.course_id}`}
-          className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-bhutan-orange"
+          className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary"
         >
           View this course
           <ArrowRight className="h-4 w-4" />
@@ -88,7 +89,7 @@ export function LandingQuotes({
               className="w-full shrink-0 snap-center px-8"
             >
               <div className="rounded-2xl border border-border/70 bg-card px-5 py-6 shadow-sm">
-                <div className="flex gap-0.5 text-bhutan-yellow" aria-label={`${quote.stars} out of 5 stars`}>
+                <div className="flex gap-0.5 text-primary" aria-label={`${quote.stars} out of 5 stars`}>
                   {Array.from({ length: 5 }).map((_, star) => (
                     <Star
                       key={star}
@@ -98,9 +99,9 @@ export function LandingQuotes({
                 </div>
                 <blockquote className="mt-4 text-base leading-relaxed text-foreground">“{quote.quote}”</blockquote>
                 <figcaption className="mt-5 flex items-center gap-3 border-t border-border/60 pt-4">
-                  <Avatar className="size-10 bg-bhutan-yellow">
+                  <Avatar className="size-10 bg-primary">
                     {quote.avatar_url ? <AvatarImage src={quote.avatar_url} alt="" /> : null}
-                    <AvatarFallback className="bg-bhutan-yellow text-xs font-semibold text-black">
+                    <AvatarFallback className="bg-primary text-xs font-semibold text-black">
                       {reviewerInitials(quote.name) || 'U'}
                     </AvatarFallback>
                   </Avatar>
@@ -115,29 +116,29 @@ export function LandingQuotes({
         </div>
         {quotes.length > 1 ? (
           <>
-            <button
+            <Button
               type="button"
               aria-label="Previous review"
               className="absolute left-0 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background shadow-sm"
               onClick={() => go(index - 1)}
             >
               <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               aria-label="Next review"
               className="absolute right-0 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background shadow-sm"
               onClick={() => go(index + 1)}
             >
               <ChevronRight className="h-4 w-4" />
-            </button>
+            </Button>
             <div className="mt-4 flex justify-center gap-1.5">
               {quotes.map((quote, dot) => (
-                <button
+                <Button
                   key={`${quote.name}-${dot}`}
                   type="button"
                   aria-label={`Show review ${dot + 1}`}
-                  className={`h-1.5 rounded-full ${dot === index ? 'w-5 bg-bhutan-orange' : 'w-1.5 bg-border'}`}
+                  className={`h-1.5 rounded-full ${dot === index ? 'w-5 bg-primary' : 'w-1.5 bg-border'}`}
                   onClick={() => go(dot)}
                 />
               ))}

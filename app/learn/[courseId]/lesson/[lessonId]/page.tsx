@@ -1258,7 +1258,7 @@ export default function LessonViewPage() {
 
   const celebrateCourseCompletion = (opts?: { force?: boolean }) => {
     if (typeof window !== 'undefined') {
-      const key = `pelbu-cert-congrats-${courseId}`
+      const key = `rigbu-cert-congrats-${courseId}`
       if (!opts?.force && sessionStorage.getItem(key) === '1') return
     }
     if (congratsShownRef.current && !opts?.force) return
@@ -1287,7 +1287,7 @@ export default function LessonViewPage() {
           return
         }
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem(`pelbu-cert-congrats-${courseId}`, '1')
+          sessionStorage.setItem(`rigbu-cert-congrats-${courseId}`, '1')
         }
         congratsShownRef.current = true
         clearAutoAdvance()
@@ -1445,7 +1445,7 @@ export default function LessonViewPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-bhutan-yellow" />
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
           <span className="ml-3 text-muted-foreground">Loading lesson...</span>
         </div>
       </div>
@@ -1495,7 +1495,7 @@ export default function LessonViewPage() {
   const activitiesExtra = (
     <>
       {!showQuiz && quiz && quizQuestions.length > 0 && (
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardHeader>
             <CardTitle className="text-lg">{(quiz as any).title || 'Lesson quiz'}</CardTitle>
             <CardDescription>
@@ -1504,7 +1504,7 @@ export default function LessonViewPage() {
           </CardHeader>
           <CardContent>
             <Button
-              className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+              className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
               onClick={() => setShowQuiz(true)}
             >
               Start quiz
@@ -1521,7 +1521,7 @@ export default function LessonViewPage() {
   const certificateSection =
     progressPercent >= 100 ? (
       <div className="px-4 py-3">
-        <Card className="glass border-green-600/30">
+        <Card className="bg-card/80 border border-border border-green-600/30">
           <CardContent className="space-y-3 py-6 text-center">
             <CheckCircle className="mx-auto h-8 w-8 text-green-600" />
             <p className="text-sm font-semibold">Course complete!</p>
@@ -1529,7 +1529,7 @@ export default function LessonViewPage() {
               You have earned your certificate of completion.
             </p>
             <Button
-              className="w-full bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+              className="w-full bg-primary text-primary-foreground hover:bg-primary"
               onClick={() => router.push(`/certificates/${courseId}`)}
             >
               <Award className="mr-2 h-4 w-4" />
@@ -1567,7 +1567,7 @@ export default function LessonViewPage() {
           Preview. This is the learner lesson, including unpublished pages. Nothing you do here is saved.
         </div>
       ) : freePreview ? (
-        <div className="shrink-0 border-b border-bhutan-yellow/50 bg-bhutan-yellow/15 px-4 py-2 text-sm">
+        <div className="shrink-0 border-b border-primary/50 bg-primary/15 px-4 py-2 text-sm">
           Free preview. Enroll to open the rest of this course. Nothing you do here is saved.
         </div>
       ) : null}
@@ -1622,7 +1622,7 @@ export default function LessonViewPage() {
             </div>
           ) : null}
           {autoAdvanceNotice ? (
-            <div className="border-b border-bhutan-yellow/40 bg-bhutan-yellow/15 px-4 py-2 text-center text-sm font-medium">
+            <div className="border-b border-primary/40 bg-primary/15 px-4 py-2 text-center text-sm font-medium">
               {autoAdvanceNotice}
             </div>
           ) : null}

@@ -249,8 +249,8 @@ export default function TeachMediaLibraryPage() {
   }
 
   const kindIcon = (kind: string) => {
-    if (kind === 'video') return <Film className="w-4 h-4 text-bhutan-yellow" />
-    if (kind === 'image') return <ImageIcon className="w-4 h-4 text-bhutan-orange" />
+    if (kind === 'video') return <Film className="w-4 h-4 text-primary" />
+    if (kind === 'image') return <ImageIcon className="w-4 h-4 text-primary" />
     return <FileText className="w-4 h-4 text-muted-foreground" />
   }
 
@@ -262,7 +262,7 @@ export default function TeachMediaLibraryPage() {
             <ArrowLeft className="w-4 h-4 mr-2" /> Dashboard
           </Button>
           <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-            <HardDrive className="w-7 h-7 text-bhutan-yellow" />
+            <HardDrive className="w-7 h-7 text-primary" />
             Media library
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -327,7 +327,7 @@ export default function TeachMediaLibraryPage() {
           <Button
             type="button"
             disabled={uploading}
-            className="bg-bhutan-yellow text-black hover:bg-bhutan-orange gap-1.5"
+            className="bg-primary text-primary-foreground hover:bg-primary gap-1.5"
             onClick={() => videoInputRef.current?.click()}
           >
             <UploadCloud className="w-4 h-4" />
@@ -412,7 +412,7 @@ export default function TeachMediaLibraryPage() {
         <CardContent>
           {loading ? (
             <div className="flex justify-center py-12">
-              <Loader2 className="w-8 h-8 animate-spin text-bhutan-yellow" />
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
           ) : filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-10">

@@ -302,7 +302,7 @@ export function RealtimeHub() {
     <div className="space-y-6">
       {/* Connection Status */}
       <Card className={cn(
-        "glass border-2",
+        "bg-card/80 border border-border border-2",
         isConnected ? "border-green-600/30" : "border-red-600/30"
       )}>
         <CardContent className="p-4">
@@ -341,7 +341,7 @@ export function RealtimeHub() {
         <TabsContent value="channels" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Channel List */}
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Radio className="w-5 h-5" />
@@ -356,7 +356,7 @@ export function RealtimeHub() {
                     className={cn(
                       "p-4 rounded-lg border transition-all cursor-pointer hover:shadow-md",
                       currentChannel?.id === channel.id
-                        ? "border-bhutan-yellow/50 bg-bhutan-yellow/10"
+                        ? "border-primary/50 bg-primary/10"
                         : "border-border/50"
                     )}
                     onClick={() => setCurrentChannel(channel)}
@@ -364,16 +364,16 @@ export function RealtimeHub() {
                     <div className="flex items-start gap-3">
                       <div className="flex-shrink-0">
                         {channel.type === 'announcements' ? (
-                          <Megaphone className="w-5 h-5 text-bhutan-yellow" />
+                          <Megaphone className="w-5 h-5 text-primary" />
                         ) : (
-                          <Hash className="w-5 h-5 text-bhutan-yellow" />
+                          <Hash className="w-5 h-5 text-primary" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <h4 className="font-semibold">{channel.name}</h4>
                           {channel.is_pinned && (
-                            <Pin className="w-4 h-4 text-bhutan-yellow" />
+                            <Pin className="w-4 h-4 text-primary" />
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground line-clamp-1">
@@ -385,7 +385,7 @@ export function RealtimeHub() {
                             <span>{channel.members_count}</span>
                           </div>
                           {channel.unread_count > 0 && (
-                            <Badge className="bg-bhutan-yellow text-black">
+                            <Badge className="bg-primary text-primary-foreground">
                               {channel.unread_count} new
                             </Badge>
                           )}
@@ -405,7 +405,7 @@ export function RealtimeHub() {
 
             {/* Channel Info */}
             {currentChannel && (
-              <Card className="glass">
+              <Card className="bg-card/80 border border-border">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Hash className="w-5 h-5" />
@@ -418,7 +418,7 @@ export function RealtimeHub() {
                   </p>
 
                   {currentChannel.type === 'course' && (
-                    <div className="p-3 rounded-lg bg-bhutan-yellow/10 border border-bhutan-yellow/30">
+                    <div className="p-3 rounded-lg bg-primary/10 border border-primary/30">
                       <div className="flex items-center gap-2 text-sm">
                         <BookOpen className="w-4 h-4" />
                         <span className="font-medium">Course Channel</span>
@@ -441,7 +441,7 @@ export function RealtimeHub() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button className="flex-1 bg-bhutan-yellow hover:bg-bhutan-orange text-black">
+                    <Button className="flex-1 bg-primary hover:bg-primary text-primary-foreground">
                       <Users className="w-4 h-4 mr-2" />
                       Invite Members
                     </Button>
@@ -459,7 +459,7 @@ export function RealtimeHub() {
         {/* Messages Tab */}
         <TabsContent value="messages" className="space-y-4">
           {currentChannel ? (
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -474,9 +474,9 @@ export function RealtimeHub() {
               <CardContent>
                 {/* Typing Indicators */}
                 {typingUsers.length > 0 && (
-                  <div className="mb-4 p-2 rounded-lg bg-bhutan-yellow/10 border border-bhutan-yellow/30">
+                  <div className="mb-4 p-2 rounded-lg bg-primary/10 border border-primary/30">
                     <div className="flex items-center gap-2 text-sm">
-                      <Activity className="w-4 h-4 text-bhutan-yellow" />
+                      <Activity className="w-4 h-4 text-primary" />
                       <span>{typingUsers[0].user_name} is typing...</span>
                     </div>
                   </div>
@@ -489,7 +489,7 @@ export function RealtimeHub() {
                       key={message.id}
                       className={cn(
                         "flex items-start gap-3",
-                        message.type === 'announcement' && "bg-bhutan-yellow/10 p-3 rounded-lg -mx-3 px-3"
+                        message.type === 'announcement' && "bg-primary/10 p-3 rounded-lg -mx-3 px-3"
                       )}
                     >
                       <Avatar className="w-8 h-8 flex-shrink-0">
@@ -506,7 +506,7 @@ export function RealtimeHub() {
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-semibold text-sm">{message.user.full_name}</span>
                           {message.is_pinned && (
-                            <Pin className="w-3 h-3 text-bhutan-yellow" />
+                            <Pin className="w-3 h-3 text-primary" />
                           )}
                           <RoleBadge role={message.user.role} size="sm" />
                           <span className="text-xs text-muted-foreground">
@@ -545,7 +545,7 @@ export function RealtimeHub() {
                     className="flex-1"
                   />
                   <Button
-                    className="bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+                    className="bg-primary hover:bg-primary text-primary-foreground"
                     onClick={handleSendMessage}
                     disabled={!newMessage.trim()}
                   >
@@ -555,7 +555,7 @@ export function RealtimeHub() {
               </CardContent>
             </Card>
           ) : (
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardContent className="p-12 text-center">
                 <Hash className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
                 <h3 className="text-lg font-semibold mb-2">Select a Channel</h3>
@@ -569,7 +569,7 @@ export function RealtimeHub() {
 
         {/* Online Users Tab */}
         <TabsContent value="presence" className="space-y-4">
-          <Card className="glass">
+          <Card className="bg-card/80 border border-border">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
@@ -589,7 +589,7 @@ export function RealtimeHub() {
                     <div className="relative">
                       <Avatar className="w-12 h-12">
                         <AvatarImage src={user.avatar_url} />
-                        <AvatarFallback className="bg-bhutan-yellow/20 text-black font-bold">
+                        <AvatarFallback className="bg-primary/20 text-black font-bold">
                           {getInitials(user.full_name)}
                         </AvatarFallback>
                       </Avatar>
@@ -624,7 +624,7 @@ export function RealtimeHub() {
 
         {/* Notifications Tab */}
         <TabsContent value="notifications" className="space-y-4">
-          <Card className="glass">
+          <Card className="bg-card/80 border border-border">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Bell className="w-5 h-5" />
@@ -636,9 +636,9 @@ export function RealtimeHub() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <div className="p-3 rounded-lg bg-bhutan-yellow/10 border border-bhutan-yellow/30">
+                <div className="p-3 rounded-lg bg-primary/10 border border-primary/30">
                   <div className="flex items-start gap-3">
-                    <Zap className="w-5 h-5 text-bhutan-yellow flex-shrink-0 mt-0.5" />
+                    <Zap className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <h4 className="font-semibold mb-1">New Achievement Unlocked!</h4>
                       <p className="text-sm text-muted-foreground">

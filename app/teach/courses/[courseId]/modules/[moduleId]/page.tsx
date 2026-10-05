@@ -405,7 +405,7 @@ export default function ModuleLessonsPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-bhutan-yellow" />
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
           <p className="text-muted-foreground">Loading lessons...</p>
         </div>
       </div>
@@ -436,12 +436,12 @@ export default function ModuleLessonsPage() {
         {/* Sticky header with always-visible Save */}
         <div className="sticky top-0 z-30 -mx-4 border-b border-border/40 bg-background/85 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6">
           <div className="mb-1 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-            <button
+            <Button
               onClick={() => router.push(`/teach/courses/${courseId}/edit`)}
               className="min-w-0 truncate hover:text-foreground"
             >
               {course.title}
-            </button>
+            </Button>
             <span className="shrink-0">/</span>
             <span className="min-w-0 truncate font-medium text-foreground">
               {module.title || 'Untitled Module'}
@@ -469,7 +469,7 @@ export default function ModuleLessonsPage() {
             <Button
               onClick={saveAllChanges}
               disabled={saving || !hasChanges}
-              className="shrink-0 bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+              className="shrink-0 bg-primary hover:bg-primary text-primary-foreground"
             >
               {saving ? (
                 <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />

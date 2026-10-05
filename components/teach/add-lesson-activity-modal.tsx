@@ -243,7 +243,7 @@ export function AddLessonActivityModal({
           ? 'Limited'
           : 'Coming soon'
     return (
-      <button
+      <Button
         type="button"
         onClick={() => {
           setSelected(item.type)
@@ -254,12 +254,12 @@ export function AddLessonActivityModal({
           setError('')
         }}
         className={cn(
-          'flex min-w-0 flex-col items-start gap-2 rounded-lg border p-3 text-left transition-colors hover:border-bhutan-yellow/60 hover:bg-bhutan-yellow/5',
-          selected === item.type && 'border-bhutan-yellow bg-bhutan-yellow/10'
+          'flex min-w-0 flex-col items-start gap-2 rounded-lg border p-3 text-left transition-colors hover:border-primary/60 hover:bg-primary/5',
+          selected === item.type && 'border-primary bg-primary/10'
         )}
       >
         <div className="flex w-full min-w-0 items-start gap-2">
-          <Icon className="mt-0.5 h-5 w-5 shrink-0 text-bhutan-orange" />
+          <Icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
           <div className="min-w-0 flex-1">
             <p className="break-words text-sm font-medium leading-snug">{item.label}</p>
             <Badge
@@ -276,7 +276,7 @@ export function AddLessonActivityModal({
             <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
           </div>
         </div>
-      </button>
+      </Button>
     )
   }
 
@@ -313,19 +313,19 @@ export function AddLessonActivityModal({
                 aria-label="Activity categories"
               >
                 {ACTIVITY_CATEGORY_FILTERS.map((f) => (
-                  <button
+                  <Button
                     key={f.id}
                     type="button"
                     onClick={() => setCategory(f.id)}
                     className={cn(
                       'min-h-11 whitespace-nowrap rounded-md px-3 py-2 text-left text-sm transition-colors',
                       category === f.id
-                        ? 'bg-bhutan-yellow/20 font-medium text-foreground'
+                        ? 'bg-primary/20 font-medium text-foreground'
                         : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
                     )}
                   >
                     {f.label}
-                  </button>
+                  </Button>
                 ))}
               </nav>
 
@@ -704,7 +704,7 @@ export function AddLessonActivityModal({
           {selected && selected !== 'quiz' && (
             <Button
               type="button"
-              className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+              className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
               disabled={saving || uploading}
               onClick={() => void handleSave()}
             >

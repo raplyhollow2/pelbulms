@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       const outline = await runJsonText<CourseOutline>({
         feature: 'course-generate',
         userId,
-        prompt: `You are a senior instructional designer for Pelbu LMS (Bhutan).
+        prompt: `You are a senior instructional designer for Rigbu LMS (Bhutan).
 Language for ALL titles and descriptions: ${language}.
 ${sizeInstructions(size)}
 Topic / brief: ${prompt || 'From the attached source'}

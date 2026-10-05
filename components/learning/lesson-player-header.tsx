@@ -51,7 +51,7 @@ function ProgressRing({ percent }: { percent: number }) {
         strokeLinecap="round"
         strokeDasharray={c}
         strokeDashoffset={offset}
-        className="text-bhutan-yellow"
+        className="text-primary"
       />
     </svg>
   )
@@ -105,7 +105,7 @@ export function LessonPlayerHeader({
               </span>
             </span>
           </div>
-          <Trophy className="h-4 w-4 text-bhutan-yellow sm:hidden" aria-hidden />
+          <Trophy className="h-4 w-4 text-primary sm:hidden" aria-hidden />
           {courseId ? (
             <CourseShareButton
               courseId={courseId}
@@ -122,7 +122,7 @@ export function LessonPlayerHeader({
               'min-h-11',
               isCompleted
                 ? 'bg-green-600 text-white hover:bg-green-700'
-                : 'bg-bhutan-yellow text-black hover:bg-bhutan-orange'
+                : 'bg-primary text-primary-foreground hover:bg-primary'
             )}
           >
             {savingProgress ? (

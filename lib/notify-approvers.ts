@@ -145,7 +145,7 @@ export async function notifyApproversOfRegistration(
         await sendEmail({
           to: email,
           subject: title,
-          text: `${message}\n\nReview it in Pelbu LMS: ${link}`,
+          text: `${message}\n\nReview it in Rigbu LMS: ${link}`,
         })
       }
     }
@@ -174,7 +174,7 @@ export async function notifyApproversOfRegistration(
     await sendEmail({
       to: input.applicantEmail,
       subject: applicantTitle,
-      text: `${applicantMessage}\n\nYou can check the status in Pelbu LMS: ${publicAppUrl()}/auth/register`,
+      text: `${applicantMessage}\n\nYou can check the status in Rigbu LMS: ${publicAppUrl()}/auth/register`,
     })
   }
 

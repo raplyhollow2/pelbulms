@@ -1,4 +1,5 @@
 'use client'
+import { Button } from '@/components/ui/button'
 
 import { useState } from 'react'
 import Link from 'next/link'
@@ -44,7 +45,7 @@ export function FrictionMapPanel({
   const top3 = frictionMap.hotspots.slice(0, 3)
 
   return (
-    <Card className="glass border-bhutan-orange/20">
+    <Card className="bg-card/80 border border-border border-primary/20">
       <CardHeader className="space-y-3">
         <div>
           <CardTitle className="text-base">Lesson friction map</CardTitle>
@@ -66,24 +67,24 @@ export function FrictionMapPanel({
           <p className="text-sm text-muted-foreground">No friction hotspots detected.</p>
         )}
 
-        <button
+        <Button
           type="button"
           onClick={() => setGuideOpen((o) => !o)}
           className="flex w-full items-center gap-2 rounded-lg border border-border/50 px-3 py-2 text-left text-sm hover:bg-muted/40"
         >
           {guideOpen ? (
-            <ChevronDown className="h-4 w-4 shrink-0 text-bhutan-orange" />
+            <ChevronDown className="h-4 w-4 shrink-0 text-primary" />
           ) : (
-            <ChevronRight className="h-4 w-4 shrink-0 text-bhutan-orange" />
+            <ChevronRight className="h-4 w-4 shrink-0 text-primary" />
           )}
           <span className="font-medium">How to read this friction map</span>
-        </button>
+        </Button>
 
         {guideOpen ? (
           <div className="space-y-3 rounded-lg border border-border/40 bg-muted/20 p-4 text-sm text-muted-foreground">
             <p>
               <span className="font-medium text-foreground">Map type:</span> This is a{' '}
-              <em>behavioral friction matrix</em> (effort vs completion). Pelbu does not yet
+              <em>behavioral friction matrix</em> (effort vs completion). Rigbu does not yet
               capture UX heatmaps (rage clicks / dead clicks).
             </p>
             <div className="overflow-x-auto">
@@ -150,7 +151,7 @@ function HotspotRow({ hotspot: h, rank }: { hotspot: FrictionHotspot; rank: numb
     <div className="flex items-start justify-between gap-3 rounded-lg border border-border/50 p-3">
       <div className="min-w-0">
         <p className="font-medium">
-          <span className="mr-2 text-bhutan-orange">{rank}.</span>
+          <span className="mr-2 text-primary">{rank}.</span>
           {h.lessonTitle}
         </p>
         <p className="text-xs text-muted-foreground">{h.courseTitle}</p>
@@ -165,13 +166,13 @@ function HotspotRow({ hotspot: h, rank }: { hotspot: FrictionHotspot; rank: numb
       <div className="flex shrink-0 flex-col items-end gap-1">
         <Link
           href={lessonHref(h.courseId, h.lessonId)}
-          className="inline-flex items-center text-xs text-bhutan-orange hover:underline"
+          className="inline-flex items-center text-xs text-primary hover:underline"
         >
           Edit lesson <ExternalLink className="ml-1 h-3 w-3" />
         </Link>
         <Link
           href={courseRosterHref(h.courseId)}
-          className="inline-flex items-center text-xs text-bhutan-orange hover:underline"
+          className="inline-flex items-center text-xs text-primary hover:underline"
         >
           Students <ExternalLink className="ml-1 h-3 w-3" />
         </Link>

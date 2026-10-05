@@ -24,7 +24,7 @@ const STRUCTURE_CHIPS = [
   'Balance practice across modules',
 ]
 
-export function AskPelbuRail({
+export function AskRigbuRail({
   courseId,
   lessonId,
   onApplied,
@@ -59,7 +59,7 @@ export function AskPelbuRail({
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Image failed')
-        setLog((prev) => [...prev, `You: ${text}`, 'Pelbu: Added an image to this page.'])
+        setLog((prev) => [...prev, `You: ${text}`, 'Rigbu: Added an image to this page.'])
         setInstruction('')
         onApplied?.(data.blocks)
         return
@@ -71,7 +71,7 @@ export function AskPelbuRail({
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Edit failed')
-      setLog((prev) => [...prev, `You: ${text}`, `Pelbu: ${data.reply || 'Updated.'}`])
+      setLog((prev) => [...prev, `You: ${text}`, `Rigbu: ${data.reply || 'Updated.'}`])
       setInstruction('')
       onApplied?.(data.blocks)
     } catch (e: any) {
@@ -124,7 +124,7 @@ export function AskPelbuRail({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Could not apply the structure')
       setProposal(null)
-      setLog((prev) => [...prev, 'Pelbu: Structure applied. Existing page content was left in place.'])
+      setLog((prev) => [...prev, 'Rigbu: Structure applied. Existing page content was left in place.'])
       onStructureApplied?.()
     } catch (e: any) {
       setLog((prev) => [...prev, `Error: ${e?.message || 'Failed'}`])
@@ -137,22 +137,22 @@ export function AskPelbuRail({
     <div className="flex h-full flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-semibold">
-          <Sparkles className="h-4 w-4 text-bhutan-orange" />
-          Ask Pelbu
+          <Sparkles className="h-4 w-4 text-primary" />
+          Ask Rigbu
         </div>
         <div className="flex rounded-full border border-border/70 p-0.5 text-xs">
           {(['page', 'structure'] as const).map((item) => (
-            <button
+            <Button
               key={item}
               type="button"
               className={cn(
                 'rounded-full px-2 py-1 capitalize',
-                mode === item ? 'bg-bhutan-yellow/30' : 'text-muted-foreground'
+                mode === item ? 'bg-primary/30' : 'text-muted-foreground'
               )}
               onClick={() => setMode(item)}
             >
               {item}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -196,12 +196,12 @@ export function AskPelbuRail({
       <Textarea
         value={instruction}
         onChange={(e) => setInstruction(e.target.value)}
-        placeholder={mode === 'structure' ? 'Describe the learners and the structure you want…' : 'Tell Pelbu what to change…'}
+        placeholder={mode === 'structure' ? 'Describe the learners and the structure you want…' : 'Tell Rigbu what to change…'}
         rows={3}
       />
       <Button
         type="button"
-        className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+        className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
         disabled={loading}
         onClick={() => void (mode === 'structure' ? propose() : send())}
       >

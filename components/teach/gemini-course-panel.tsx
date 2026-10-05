@@ -13,14 +13,14 @@ export function GeminiCoursePanel({ courseId }: { courseId: string }) {
           <Sparkles className="h-5 w-5" /> Course studio
         </CardTitle>
         <CardDescription>
-          Edit pages as learners see them, ask Pelbu to rewrite, and generate images or quizzes.
+          Edit pages as learners see them, ask Rigbu to rewrite, and generate images or quizzes.
           New courses start from Teach → Create.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">
         <Button
           type="button"
-          className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+          className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
           render={<Link href={`/teach/courses/${courseId}/studio`} />}
         >
           <Sparkles className="mr-2 h-4 w-4" />

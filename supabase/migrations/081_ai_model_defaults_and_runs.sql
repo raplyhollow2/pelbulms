@@ -1,4 +1,4 @@
--- Platform defaults for which model family handles each Pelbu AI task,
+-- Platform defaults for which model family handles each Rigbu AI task,
 -- and a usage log that records the model without storing prompt text.
 
 ALTER TABLE public.platform_settings

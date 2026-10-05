@@ -133,7 +133,7 @@ export function NotificationBell({
         {unreadCount > 0 && (
           <span
             className={cn(
-              'absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-bhutan-orange px-1 text-[10px] font-bold text-white',
+              'absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-white',
               gradingUnread > 0 && 'animate-pulse'
             )}
           >
@@ -147,14 +147,14 @@ export function NotificationBell({
           <div className="flex items-center justify-between border-b px-3 py-2.5">
             <p className="text-sm font-semibold">Notifications</p>
             {unreadCount > 0 && (
-              <button
+              <Button
                 type="button"
                 onClick={markAll}
-                className="inline-flex items-center gap-1 text-xs font-medium text-bhutan-orange hover:underline"
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
               >
                 <CheckCheck className="h-3.5 w-3.5" />
                 Mark all read
-              </button>
+              </Button>
             )}
           </div>
 
@@ -176,14 +176,14 @@ export function NotificationBell({
                       onClick={() => markOne(n)}
                       className={cn(
                         'flex gap-3 px-3 py-3 transition-colors hover:bg-muted/50',
-                        !n.is_read && 'bg-bhutan-yellow/5'
+                        !n.is_read && 'bg-primary/5'
                       )}
                     >
                       <span
                         className={cn(
                           'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
                           n.type === 'registration_pending'
-                            ? 'bg-bhutan-orange/15 text-bhutan-orange'
+                            ? 'bg-primary/15 text-primary'
                             : n.type === 'enrollment_request'
                               ? 'bg-amber-500/15 text-amber-700'
                               : n.type === 'submission_pending'
@@ -218,7 +218,7 @@ export function NotificationBell({
                             {n.title}
                           </p>
                           {!n.is_read && (
-                            <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-bhutan-orange" />
+                            <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />
                           )}
                         </div>
                         <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">

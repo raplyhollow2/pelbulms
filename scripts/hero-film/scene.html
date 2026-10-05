@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Rigbu hero film</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    html, body { margin: 0; overflow: hidden; background: #120e0b; }
+    #stage { position: relative; overflow: hidden; color: #fff9ec; font-family: Inter, "Segoe UI", sans-serif; }
+    body.desktop #stage { width: 1920px; height: 1080px; }
+    body.mobile #stage { width: 1080px; height: 1920px; }
+
+    .sky, .scrim, .mountains { position: absolute; inset: 0; }
+    .sky {
+      background:
+        radial-gradient(900px 620px at 78% 42%, rgba(232, 180, 35, 0.22), transparent 70%),
+        radial-gradient(700px 520px at 18% 80%, rgba(30, 122, 76, 0.45), transparent 72%),
+        radial-gradient(640px 480px at 88% 88%, rgba(226, 92, 20, 0.28), transparent 70%),
+        linear-gradient(160deg, #1c140f 0%, #163526 46%, #120e0b 100%);
+    }
+    .orb { position: absolute; border-radius: 999px; filter: blur(8px); }
+    .orb.gold { width: 280px; height: 280px; background: rgba(232, 180, 35, 0.28); }
+    .orb.green { width: 360px; height: 360px; background: rgba(30, 122, 76, 0.32); }
+    .orb.orange { width: 220px; height: 220px; background: rgba(226, 92, 20, 0.26); }
+    body.desktop .orb.gold { left: 980px; top: 80px; }
+    body.desktop .orb.green { left: 80px; top: 620px; }
+    body.desktop .orb.orange { left: 1500px; top: 640px; }
+    body.mobile .orb.gold { left: 620px; top: 80px; width: 340px; height: 340px; }
+    body.mobile .orb.green { left: -80px; top: 1280px; }
+    body.mobile .orb.orange { left: 700px; top: 980px; }
+
+    .mountains { width: 100%; height: 100%; }
+    .scrim { pointer-events: none; }
+    body.desktop .scrim {
+      background: linear-gradient(90deg, rgba(10, 8, 6, 0.62) 0%, rgba(10, 8, 6, 0.28) 34%, rgba(10, 8, 6, 0.05) 58%, rgba(10, 8, 6, 0) 100%);
+    }
+    body.mobile .scrim {
+      background: linear-gradient(180deg, rgba(10, 8, 6, 0.25) 0%, rgba(10, 8, 6, 0) 28%, rgba(10, 8, 6, 0) 62%, rgba(10, 8, 6, 0.78) 100%);
+    }
+
+    .avatar { position: absolute; z-index: 3; }
+    body.desktop .avatar { left: 820px; top: 300px; width: 400px; height: 400px; }
+    body.mobile .avatar { left: 310px; top: 200px; width: 460px; height: 460px; }
+    .ring {
+      position: absolute;
+      inset: -14px;
+      border-radius: 999px;
+      border: 3px solid transparent;
+      border-top-color: #e8b423;
+      border-right-color: rgba(226, 92, 20, 0.9);
+      border-bottom-color: rgba(30, 122, 76, 0.7);
+    }
+    .avatar svg { width: 100%; height: 100%; overflow: visible; display: block; }
+    #bob, #book, #blink, #wave, #spark { transform-box: fill-box; }
+    #bob { transform-origin: center bottom; }
+    #book { transform-origin: 12% 88%; }
+    #blink { transform-origin: center; }
+    #wave { transform-origin: 78% 78%; }
+    #spark { transform-origin: center; }
+
+    .slider { position: absolute; z-index: 4; }
+    body.desktop .slider { left: 1260px; top: 300px; width: 560px; height: 520px; }
+    body.mobile .slider { left: 64px; top: 700px; width: 952px; height: 500px; }
+    body.desktop .path,
+    body.mobile .path { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    body.desktop .step + .step,
+    body.mobile .step + .step { margin-top: 0; }
+    .slide { position: absolute; inset: 0; }
+    .eyebrow {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #e8b423;
+    }
+    body.mobile .eyebrow { font-size: 26px; }
+    h2 {
+      margin: 10px 0 0;
+      font-size: 52px;
+      line-height: 1;
+      font-weight: 800;
+      letter-spacing: -0.035em;
+    }
+    body.mobile h2 { font-size: 58px; margin-top: 8px; }
+    h2 em { font-style: normal; color: #e8b423; display: block; margin-top: 4px; }
+    .rule { height: 3px; width: 88px; margin-top: 12px; border-radius: 99px; background: #e8b423; transform-origin: left center; }
+    .sub { margin: 10px 0 0; max-width: 34rem; font-size: 20px; line-height: 1.3; font-weight: 500; color: rgba(255, 249, 236, 0.82); }
+    body.mobile .sub { font-size: 26px; max-width: none; }
+
+    .art { margin-top: 14px; }
+    .cards { display: flex; flex-direction: column; gap: 8px; }
+    .course, .step, .cert {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid rgba(255, 249, 236, 0.16);
+      background: rgba(255, 249, 236, 0.08);
+      border-radius: 14px;
+      padding: 10px 12px;
+    }
+    .course strong, .step strong, .cert strong { display: block; font-size: 22px; }
+    .course span, .step span, .cert span { display: block; margin-top: 2px; font-size: 16px; color: rgba(255, 249, 236, 0.7); }
+    body.mobile .course strong, body.mobile .step strong { font-size: 28px; }
+    body.mobile .course span, body.mobile .step span { font-size: 20px; }
+    .swatch { width: 46px; height: 46px; border-radius: 14px; flex: none; }
+    .swatch.g { background: #1e7a4c; }
+    .swatch.y { background: #e8b423; }
+    .swatch.o { background: #e25c14; }
+    .path { display: flex; flex-direction: column; gap: 0; margin: 0; padding: 0; list-style: none; }
+    .step { position: relative; }
+    .step + .step { margin-top: 10px; }
+    .tick {
+      width: 36px; height: 36px; border-radius: 999px; flex: none;
+      display: grid; place-items: center;
+      background: #1e7a4c; color: #fff9ec; font-weight: 800;
+    }
+    .tick.wait { background: transparent; border: 2px solid rgba(255, 249, 236, 0.45); }
+    .cert {
+      background: #fff9ec;
+      color: #2c221c;
+      padding: 22px 22px 18px;
+      border: none;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+      align-items: stretch;
+      justify-content: space-between;
+    }
+    .cert .kicker { font-size: 14px; letter-spacing: 0.18em; font-weight: 700; color: #1e7a4c; }
+    .cert h3 { margin: 8px 0 0; font-size: 28px; line-height: 1.05; letter-spacing: -0.03em; }
+    .cert p { margin: 8px 0 0; font-size: 16px; color: #6d5c50; }
+    body.mobile .cert h3 { font-size: 36px; }
+    .seal {
+      width: 84px; height: 84px; border-radius: 999px; flex: none; align-self: center;
+      display: grid; place-items: center;
+      background: radial-gradient(circle at 40% 35%, #ffe58a, #e8b423 55%, #c48912);
+      color: #2c221c; font-weight: 800; font-size: 28px;
+      box-shadow: inset 0 0 0 4px rgba(44, 34, 28, 0.18);
+    }
+
+    .dots { position: absolute; z-index: 5; display: flex; gap: 10px; align-items: center; }
+    body.desktop .dots { left: 1260px; top: 820px; }
+    body.mobile .dots { left: 64px; top: 1220px; }
+    .dots i { display: block; height: 10px; width: 10px; border-radius: 99px; background: rgba(255, 249, 236, 0.35); }
+    body.mobile .dots i { height: 14px; }
+  </style>
+</head>
+<body>
+  <div id="stage">
+    <div class="sky"></div>
+    <div class="orb gold" id="orb-gold"></div>
+    <div class="orb green" id="orb-green"></div>
+    <div class="orb orange" id="orb-orange"></div>
+    <svg class="mountains" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <path d="M0 820 L180 690 L320 760 L470 560 L640 730 L820 500 L980 690 L1160 580 L1340 760 L1560 640 L1740 780 L1920 680 L1920 1080 L0 1080 Z" fill="#1e7a4c" opacity="0.28"/>
+      <path d="M0 900 L220 800 L420 880 L640 720 L860 860 L1100 740 L1320 900 L1560 790 L1920 900 L1920 1080 L0 1080 Z" fill="#e8b423" opacity="0.16"/>
+    </svg>
+    <div class="scrim"></div>
+
+    <div class="avatar" id="avatar">
+      <div class="ring" id="ring"></div>
+      <svg viewBox="0 0 80 80" role="img" aria-label="Rigbu">
+        <defs>
+          <radialGradient id="disc" cx="36%" cy="30%" r="72%">
+            <stop offset="0%" stop-color="#fffdf8" />
+            <stop offset="68%" stop-color="#fff3e0" />
+            <stop offset="100%" stop-color="#e4ccaa" />
+          </radialGradient>
+          <radialGradient id="skin" cx="32%" cy="28%" r="78%">
+            <stop offset="0%" stop-color="#ffe7d0" />
+            <stop offset="52%" stop-color="#f6c7a2" />
+            <stop offset="100%" stop-color="#d3926c" />
+          </radialGradient>
+          <linearGradient id="hair" x1="0" y1="0" x2="0.2" y2="1">
+            <stop offset="0%" stop-color="#6a5144" />
+            <stop offset="42%" stop-color="#3a2a22" />
+            <stop offset="100%" stop-color="#1c120e" />
+          </linearGradient>
+          <linearGradient id="jacket" x1="0.1" y1="0" x2="0.9" y2="1">
+            <stop offset="0%" stop-color="#f08a45" />
+            <stop offset="46%" stop-color="#c45a12" />
+            <stop offset="100%" stop-color="#8a340c" />
+          </linearGradient>
+          <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#fff1b8" />
+            <stop offset="45%" stop-color="#e8b423" />
+            <stop offset="100%" stop-color="#b67910" />
+          </linearGradient>
+          <linearGradient id="cover" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#ff8a3d" />
+            <stop offset="100%" stop-color="#c2410c" />
+          </linearGradient>
+          <linearGradient id="page" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#fffdf6" />
+            <stop offset="100%" stop-color="#f3e2bc" />
+          </linearGradient>
+          <clipPath id="discClip"><circle cx="40" cy="40" r="38" /></clipPath>
+          <clipPath id="headClip"><circle cx="40" cy="36" r="16.6" /></clipPath>
+        </defs>
+        <circle cx="40" cy="40" r="38" fill="url(#disc)" />
+        <g clip-path="url(#discClip)">
+          <ellipse cx="27" cy="22" rx="18" ry="11" fill="#fff" opacity="0.42" />
+        </g>
+        <circle cx="40" cy="40" r="37.2" fill="none" stroke="#fff" stroke-width="1.1" opacity="0.72" />
+        <circle cx="40" cy="40" r="38" fill="none" stroke="#b8895c" stroke-width="0.8" opacity="0.45" />
+        <g id="bob">
+          <ellipse cx="40" cy="67.2" rx="15" ry="2.6" fill="#a57858" opacity="0.28" />
+          <path d="M26 58c-7-1-12-8-10-15 2 5 7 9 13 10" fill="url(#jacket)" />
+          <path d="M22 57c1-8 8-13 18-13s17 5 18 13v11c0 5-5 8-10 8H32c-5 0-10-3-10-8V57z" fill="url(#jacket)" />
+          <path d="M30 48c6-4 14-4 20 0" fill="none" stroke="#ffd7b0" stroke-width="1.6" stroke-linecap="round" opacity="0.55" />
+          <path d="M34 48.5 40 58l6-9.5" fill="none" stroke="url(#gold)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+          <g id="book">
+            <path d="M48.4 67.4h16.4l1.5 1.7H49.7z" fill="#8a320e" />
+            <rect x="47" y="53" width="20" height="15" rx="2.2" fill="url(#cover)" />
+            <rect x="48.3" y="54.4" width="8.2" height="12.2" rx="1" fill="url(#page)" />
+            <rect x="57.3" y="54.4" width="8.4" height="12.2" rx="1" fill="#fff6d8" />
+            <path d="M56.6 54.4v12.2" stroke="#c2410c" stroke-width="1.1" />
+            <path d="M48.8 55.2h7.2" stroke="#fff" stroke-width="0.7" stroke-linecap="round" opacity="0.8" />
+            <path d="M50.2 58h4.4M59.2 58h4.4M50.2 61h4.4M59.2 61h3.6" stroke="#e0b56a" stroke-width="0.7" stroke-linecap="round" />
+          </g>
+          <circle cx="23.2" cy="38" r="4.1" fill="url(#skin)" />
+          <circle cx="56.8" cy="38" r="4.1" fill="url(#skin)" />
+          <circle cx="22.2" cy="36.8" r="1.3" fill="#fff" opacity="0.45" />
+          <circle cx="55.8" cy="36.8" r="1.3" fill="#fff" opacity="0.45" />
+          <g clip-path="url(#headClip)">
+            <circle cx="40" cy="36" r="16.6" fill="url(#skin)" />
+            <ellipse cx="32" cy="30" rx="7" ry="5" fill="#fff" opacity="0.28" />
+            <ellipse cx="40" cy="24" rx="17" ry="10" fill="url(#hair)" />
+            <path d="M30 20.5c4-2 10-2 16 1" fill="none" stroke="#8a6b58" stroke-width="1.1" stroke-linecap="round" opacity="0.7" />
+          </g>
+          <path d="M37.5 18.5c1.2-6.5 8.5-6 8 0-2.6-2.2-5.6-2.2-8 0z" fill="url(#hair)" />
+          <path d="M40.2 14.8c1.4 1.6 2.6 1.8 3.6.6" fill="none" stroke="#7a5c4c" stroke-width="0.7" stroke-linecap="round" opacity="0.8" />
+          <circle cx="28.2" cy="42.2" r="2.5" fill="#f09a88" opacity="0.72" />
+          <circle cx="51.8" cy="42.2" r="2.5" fill="#f09a88" opacity="0.72" />
+          <g id="blink">
+            <ellipse cx="33" cy="36.5" rx="3.05" ry="3.35" fill="#fff" />
+            <ellipse cx="47" cy="36.5" rx="3.05" ry="3.35" fill="#fff" />
+            <ellipse cx="33.25" cy="36.8" rx="1.8" ry="2.05" fill="#2c221c" />
+            <ellipse cx="47.25" cy="36.8" rx="1.8" ry="2.05" fill="#2c221c" />
+            <circle cx="32.6" cy="35.9" r="0.72" fill="#fff" />
+            <circle cx="46.6" cy="35.9" r="0.72" fill="#fff" />
+            <circle cx="33.7" cy="37.3" r="0.28" fill="#fff" opacity="0.85" />
+            <circle cx="47.7" cy="37.3" r="0.28" fill="#fff" opacity="0.85" />
+          </g>
+          <path d="M33.2 43.4c1.8 3.4 11.8 3.4 13.6 0" fill="none" stroke="#c45c4c" stroke-width="1.7" stroke-linecap="round" />
+          <g id="wave">
+            <circle cx="17.5" cy="46" r="5.3" fill="url(#skin)" />
+            <circle cx="16.1" cy="44.2" r="1.7" fill="#fff" opacity="0.4" />
+            <circle cx="14.4" cy="42.2" r="1.7" fill="url(#skin)" />
+            <circle cx="13.9" cy="41.6" r="0.5" fill="#c98462" />
+          </g>
+          <path id="spark" d="M64 48.5 65.1 51.4 68 52.5 65.1 53.6 64 56.5 62.9 53.6 60 52.5 62.9 51.4Z" fill="url(#gold)" />
+        </g>
+      </svg>
+    </div>
+
+    <div class="slider" id="slider">
+      <section class="slide" data-i="0">
+        <p class="eyebrow">Rigbu · Learn</p>
+        <h2>Advanced learning<em>for Modern Bhutan</em></h2>
+        <div class="rule"></div>
+        <p class="sub">Courses, lessons, and progress in one private place.</p>
+        <div class="art cards">
+          <div class="course"><i class="swatch g"></i><div><strong>Dzongkha</strong><span>12 lessons</span></div></div>
+          <div class="course"><i class="swatch y"></i><div><strong>Digital skills</strong><span>8 lessons</span></div></div>
+          <div class="course"><i class="swatch o"></i><div><strong>Leadership</strong><span>6 lessons</span></div></div>
+        </div>
+      </section>
+      <section class="slide" data-i="1">
+        <p class="eyebrow">Rigbu · Guide</p>
+        <h2>Guide every learner<em>across the kingdom</em></h2>
+        <div class="rule"></div>
+        <p class="sub">Teachers watch progress and step in when someone stalls.</p>
+        <div class="art">
+          <ol class="path">
+            <li class="step"><i class="tick">1</i><div><strong>Join</strong><span>Create your account</span></div></li>
+            <li class="step"><i class="tick">2</i><div><strong>Learn</strong><span>Finish each lesson</span></div></li>
+            <li class="step"><i class="tick">3</i><div><strong>Practice</strong><span>Keep the streak</span></div></li>
+            <li class="step"><i class="tick wait">4</i><div><strong>Certificate</strong><span>Almost there</span></div></li>
+          </ol>
+        </div>
+      </section>
+      <section class="slide" data-i="2">
+        <p class="eyebrow">Rigbu · Earn</p>
+        <h2>Leave with proof<em>a recognised certificate</em></h2>
+        <div class="rule"></div>
+        <p class="sub">Finish the course and take the certificate with you.</p>
+        <div class="art">
+          <div class="cert">
+            <div>
+              <div class="kicker">RIGBU LMS</div>
+              <h3>Certificate of completion</h3>
+              <p>Awarded for a finished course</p>
+            </div>
+            <div class="seal" id="seal">★</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="dots" id="dots"><i></i><i></i><i></i></div>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search)
+    document.body.classList.add(params.get('variant') === 'mobile' ? 'mobile' : 'desktop')
+
+    const DUR = 10
+    const SLOT = DUR / 3
+    const slides = Array.from(document.querySelectorAll('.slide'))
+    const dots = Array.from(document.querySelectorAll('.dots i'))
+    const travel = 28
+
+    const orbGold = document.getElementById('orb-gold')
+    const orbGreen = document.getElementById('orb-green')
+    const orbOrange = document.getElementById('orb-orange')
+    const bob = document.getElementById('bob')
+    const book = document.getElementById('book')
+    const blink = document.getElementById('blink')
+    const wave = document.getElementById('wave')
+    const spark = document.getElementById('spark')
+    const ring = document.getElementById('ring')
+    const seal = document.getElementById('seal')
+
+    function smooth(a, b, x) {
+      const t = Math.min(1, Math.max(0, (x - a) / (b - a)))
+      return t * t * (3 - 2 * t)
+    }
+
+    function rel(t, i) {
+      let d = t - i * SLOT
+      d = ((d % DUR) + DUR) % DUR
+      if (d > DUR / 2) d -= DUR
+      return d
+    }
+
+    function blinkScale(t) {
+      let scale = 1
+      for (const hit of [1.15, 4.55, 7.9]) {
+        const dt = Math.abs(t - hit)
+        if (dt < 0.1) scale = Math.min(scale, 0.1 + (dt / 0.1) * 0.9)
+      }
+      return scale
+    }
+
+    window.renderAt = function renderAt(t) {
+      const cycle = ((t % DUR) + DUR) % DUR
+      const turn = (cycle / DUR) * Math.PI * 2
+
+      orbGold.style.transform = `translate(${Math.sin(turn) * 36}px, ${Math.cos(turn) * 22}px)`
+      orbGreen.style.transform = `translate(${Math.cos(turn) * 28}px, ${Math.sin(turn * 2) * 18}px)`
+      orbOrange.style.transform = `translate(${Math.sin(turn * 2) * -24}px, ${Math.cos(turn) * 20}px)`
+      ring.style.transform = `rotate(${(cycle / DUR) * 360}deg)`
+
+      const bobY = Math.sin(turn * 6) * 8
+      bob.style.transform = `translateY(${bobY}px)`
+      const waveDeg = -6 + (Math.sin(turn * 8) * 0.5 + 0.5) * 22
+      wave.style.transform = `rotate(${waveDeg}deg)`
+      const bookDeg = -7 + (Math.sin(turn * 4) * 0.5 + 0.5) * 12
+      book.style.transform = `rotate(${bookDeg}deg)`
+      blink.style.transform = `scaleY(${blinkScale(cycle)})`
+      const sp = Math.sin(turn * 6) * 0.5 + 0.5
+      spark.style.opacity = String(0.25 + sp * 0.75)
+      spark.style.transform = `scale(${0.65 + sp * 0.35})`
+      seal.style.transform = `scale(${0.92 + (Math.sin(turn * 4) * 0.5 + 0.5) * 0.1})`
+
+      slides.forEach((slide) => {
+        const i = Number(slide.dataset.i)
+        const d = rel(cycle, i)
+        const edge = SLOT / 2
+        const fade = 0.42
+        let opacity = 0
+        let x = 0
+        if (d >= 0) {
+          const p = smooth(edge - fade, edge - 0.05, d)
+          opacity = 1 - p
+          x = -p * travel
+        } else {
+          const p = smooth(-(edge - 0.05), -(edge - fade), d)
+          opacity = p
+          x = (1 - p) * travel
+        }
+        slide.style.opacity = String(opacity)
+        slide.style.visibility = opacity < 0.02 ? 'hidden' : 'visible'
+        slide.style.transform = `translate3d(${x}px, 0, 0)`
+        const rule = slide.querySelector('.rule')
+        const focus = opacity
+        if (rule) rule.style.transform = `scaleX(${0.35 + focus * 0.65})`
+        const dot = dots[i]
+        if (dot) {
+          const w = document.body.classList.contains('mobile') ? 14 : 10
+          dot.style.width = `${w + focus * 28}px`
+          dot.style.background = focus > 0.45 ? '#e8b423' : 'rgba(255,249,236,0.35)'
+        }
+      })
+    }
+
+    window.renderAt(0)
+  </script>
+</body>
+</html>

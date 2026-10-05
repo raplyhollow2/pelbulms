@@ -71,7 +71,7 @@ export function CourseSyllabus({
   const formatDuration = (storedSeconds: number) => formatLectureDuration(storedSeconds) || '0min'
 
   return (
-    <Card className="glass">
+    <Card className="bg-card/80 border border-border">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileText className="w-5 h-5" />

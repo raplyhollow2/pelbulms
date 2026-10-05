@@ -99,7 +99,7 @@ export function AnnouncementsList({ courseId, userId }: AnnouncementsListProps) 
 
   if (loading) {
     return (
-      <Card className="glass">
+      <Card className="bg-card/80 border border-border">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bell className="w-5 h-5" />
@@ -116,7 +116,7 @@ export function AnnouncementsList({ courseId, userId }: AnnouncementsListProps) 
   }
 
   return (
-    <Card className="glass">
+    <Card className="bg-card/80 border border-border">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Bell className="w-5 h-5" />
@@ -138,15 +138,15 @@ export function AnnouncementsList({ courseId, userId }: AnnouncementsListProps) 
                   <div
                     className={`p-4 rounded-lg border transition-colors ${
                       announcement.is_pinned
-                        ? 'bg-bhutan-yellow/10 border-bhutan-yellow/30'
+                        ? 'bg-primary/10 border-primary/30'
                         : 'bg-secondary/20 border-border/40'
                     }`}
                   >
                     {/* Header */}
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <Avatar className="w-10 h-10 bg-bhutan-yellow">
-                          <AvatarFallback className="bg-bhutan-yellow text-black font-semibold">
+                        <Avatar className="w-10 h-10 bg-primary">
+                          <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
                             {announcement.instructor_name?.split(' ').map(n => n[0]).join('') || 'I'}
                           </AvatarFallback>
                         </Avatar>
@@ -156,7 +156,7 @@ export function AnnouncementsList({ courseId, userId }: AnnouncementsListProps) 
                               {announcement.instructor_name || 'Instructor'}
                             </h4>
                             {announcement.is_pinned && (
-                              <Pin className="w-3 h-3 text-bhutan-yellow" />
+                              <Pin className="w-3 h-3 text-primary" />
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground">
@@ -188,7 +188,7 @@ export function AnnouncementsList({ courseId, userId }: AnnouncementsListProps) 
                         size="sm"
                         onClick={() => handleLike(announcement.id)}
                         className={`flex items-center gap-2 ${
-                          announcement.user_liked ? 'text-bhutan-yellow' : 'text-muted-foreground'
+                          announcement.user_liked ? 'text-primary' : 'text-muted-foreground'
                         }`}
                       >
                         <ThumbsUp className={`w-4 h-4 ${announcement.user_liked ? 'fill-current' : ''}`} />

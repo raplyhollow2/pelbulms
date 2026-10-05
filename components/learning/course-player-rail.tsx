@@ -1,4 +1,5 @@
 'use client'
+import { Button } from '@/components/ui/button'
 
 import { useState } from 'react'
 import { Sparkles } from 'lucide-react'
@@ -49,7 +50,7 @@ export function CoursePlayerRail({
       )}
     >
       <div className="flex border-b" role="tablist" aria-label="Lesson sidebar">
-        <button
+        <Button
           type="button"
           role="tab"
           aria-selected={tab === 'content'}
@@ -62,8 +63,8 @@ export function CoursePlayerRail({
           )}
         >
           Course content
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           role="tab"
           aria-selected={tab === 'assistant'}
@@ -77,7 +78,7 @@ export function CoursePlayerRail({
         >
           <Sparkles className="h-3.5 w-3.5" />
           AI Assistant
-        </button>
+        </Button>
       </div>
       {tab === 'content' ? (
         <CurriculumRail

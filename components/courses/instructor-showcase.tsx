@@ -103,14 +103,14 @@ export function InstructorShowcase({
       <div className="space-y-8">
         {/* Featured Instructor */}
         {featuredInstructor && (
-          <Card className="glass-strong border-2 border-bhutan-yellow/30 overflow-hidden">
+          <Card className="bg-card border border-border shadow-sm border-2 border-primary/30 overflow-hidden">
             <CardContent className="p-0">
               <div className="grid md:grid-cols-2 gap-0">
                 {/* Image & Basic Info */}
-                <div className="bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20 p-8 flex flex-col items-center justify-center text-center">
-                  <Avatar className="w-32 h-32 mb-4 border-4 border-bhutan-yellow">
+                <div className="bg-gradient-to-br from-primary/20 to-muted/20 p-8 flex flex-col items-center justify-center text-center">
+                  <Avatar className="w-32 h-32 mb-4 border-4 border-primary">
                     <AvatarImage src={resolveMediaUrl(featuredInstructor.avatar_url) || undefined} />
-                    <AvatarFallback className="bg-bhutan-yellow text-black text-2xl font-bold">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
                       {getInitials(featuredInstructor.full_name)}
                     </AvatarFallback>
                   </Avatar>
@@ -130,7 +130,7 @@ export function InstructorShowcase({
                   </div>
 
                   <Button
-                    className="bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+                    className="bg-primary hover:bg-primary text-primary-foreground"
                     onClick={() => window.location.href = `/instructors/${featuredInstructor.id}`}
                   >
                     View Profile
@@ -143,7 +143,7 @@ export function InstructorShowcase({
                   {/* Quick Stats */}
                   <div className="grid grid-cols-3 gap-4">
                     <div className="text-center">
-                      <div className="flex items-center justify-center gap-1 text-bhutan-yellow mb-1">
+                      <div className="flex items-center justify-center gap-1 text-primary mb-1">
                         <Star className="w-5 h-5 fill-current" />
                         <span className="text-2xl font-bold">
                           {featuredInstructor.rating != null ? featuredInstructor.rating : 'N/A'}
@@ -152,7 +152,7 @@ export function InstructorShowcase({
                       <p className="text-xs text-muted-foreground">Rating</p>
                     </div>
                     <div className="text-center">
-                      <div className="flex items-center justify-center gap-1 text-bhutan-yellow mb-1">
+                      <div className="flex items-center justify-center gap-1 text-primary mb-1">
                         <Users className="w-5 h-5" />
                         <span className="text-2xl font-bold">
                           {featuredInstructor.students_count?.toLocaleString() || '0'}
@@ -161,7 +161,7 @@ export function InstructorShowcase({
                       <p className="text-xs text-muted-foreground">Students</p>
                     </div>
                     <div className="text-center">
-                      <div className="flex items-center justify-center gap-1 text-bhutan-yellow mb-1">
+                      <div className="flex items-center justify-center gap-1 text-primary mb-1">
                         <BookOpen className="w-5 h-5" />
                         <span className="text-2xl font-bold">
                           {featuredInstructor.courses_count || '0'}
@@ -175,7 +175,7 @@ export function InstructorShowcase({
                   {featuredInstructor.expertise && featuredInstructor.expertise.length > 0 && (
                     <div>
                       <h4 className="font-semibold mb-3 flex items-center gap-2">
-                        <Award className="w-4 h-4 text-bhutan-yellow" />
+                        <Award className="w-4 h-4 text-primary" />
                         Expertise
                       </h4>
                       <div className="flex flex-wrap gap-2">
@@ -192,13 +192,13 @@ export function InstructorShowcase({
                   {featuredInstructor.achievements && featuredInstructor.achievements.length > 0 && (
                     <div>
                       <h4 className="font-semibold mb-3 flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-bhutan-yellow" />
+                        <TrendingUp className="w-4 h-4 text-primary" />
                         Achievements
                       </h4>
                       <ul className="space-y-2">
                         {featuredInstructor.achievements.map((achievement, idx) => (
                           <li key={idx} className="flex items-start gap-2 text-sm">
-                            <div className="w-1.5 h-1.5 rounded-full bg-bhutan-yellow mt-1.5 flex-shrink-0" />
+                            <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
                             <span className="text-muted-foreground">{achievement}</span>
                           </li>
                         ))}
@@ -234,14 +234,14 @@ export function InstructorShowcase({
             {displayedInstructors.slice(1).map((instructor) => (
               <Card
                 key={instructor.id}
-                className="glass hover:shadow-lg transition-all cursor-pointer group"
+                className="bg-card/80 border border-border hover:shadow-lg transition-all cursor-pointer group"
                 onClick={() => setFeaturedInstructor(instructor)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3 mb-3">
-                    <Avatar className="w-12 h-12 border-2 border-bhutan-yellow/30">
+                    <Avatar className="w-12 h-12 border-2 border-primary/30">
                       <AvatarImage src={instructor.avatar_url} />
-                      <AvatarFallback className="bg-bhutan-yellow/20 text-black font-bold">
+                      <AvatarFallback className="bg-primary/20 text-black font-bold">
                         {getInitials(instructor.full_name)}
                       </AvatarFallback>
                     </Avatar>
@@ -253,7 +253,7 @@ export function InstructorShowcase({
                         </p>
                       )}
                     </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-bhutan-yellow transition-colors" />
+                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                   </div>
 
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -292,9 +292,9 @@ export function InstructorShowcase({
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         {displayedInstructors.map((instructor) => (
           <Link key={instructor.id} href={`/instructors/${instructor.id}`} className="block">
-            <Card className="glass hover-lift overflow-hidden p-0 h-full">
+            <Card className="bg-card/80 border border-border  overflow-hidden p-0 h-full">
               <CardContent className="flex h-full flex-col p-0">
-                <div className="relative aspect-[2/3] w-full overflow-hidden bg-gradient-to-br from-bhutan-yellow/25 to-bhutan-orange/20">
+                <div className="relative aspect-[2/3] w-full overflow-hidden bg-gradient-to-br from-primary/25 to-muted/20">
                   {instructor.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -304,8 +304,8 @@ export function InstructorShowcase({
                     />
                   ) : (
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <Avatar className="h-20 w-20 border-2 border-bhutan-yellow/40 sm:h-24 sm:w-24">
-                        <AvatarFallback className="bg-bhutan-yellow/30 text-lg font-semibold text-bhutan-orange sm:text-xl">
+                      <Avatar className="h-20 w-20 border-2 border-primary/40 sm:h-24 sm:w-24">
+                        <AvatarFallback className="bg-primary/30 text-lg font-semibold text-primary sm:text-xl">
                           {getInitials(instructor.full_name)}
                         </AvatarFallback>
                       </Avatar>

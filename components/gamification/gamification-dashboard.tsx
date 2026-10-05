@@ -283,7 +283,7 @@ export function GamificationDashboard() {
   return (
     <div className="space-y-6">
       {/* Level & XP Overview */}
-      <Card className="glass-strong border-bhutan-yellow/30">
+      <Card className="bg-card border border-border shadow-sm border-primary/30">
         <CardContent className="p-6">
           <div className="flex items-center gap-6">
             {/* Level Badge */}
@@ -298,7 +298,7 @@ export function GamificationDashboard() {
                 </div>
               </div>
               <div className="absolute -bottom-2 left-1/2 -translate-x-1/2">
-                <Badge className="bg-bhutan-yellow text-black font-bold">
+                <Badge className="bg-primary text-primary-foreground font-bold">
                   XP
                 </Badge>
               </div>
@@ -313,7 +313,7 @@ export function GamificationDashboard() {
                     {stats.total_xp} total XP • {stats.xp_to_next_level} XP to next level
                   </p>
                 </div>
-                <Badge className="bg-bhutan-yellow text-black">
+                <Badge className="bg-primary text-primary-foreground">
                   {stats.total_achievements} Achievements
                 </Badge>
               </div>
@@ -353,7 +353,7 @@ export function GamificationDashboard() {
               <Card
                 key={achievement.id}
                 className={cn(
-                  'glass transition-all hover:shadow-lg',
+                  'bg-card/80 border border-border transition-all hover:shadow-lg',
                   achievement.unlocked ? 'border-green-600/30' : 'opacity-70',
                   getRarityBorder(achievement.rarity)
                 )}
@@ -378,7 +378,7 @@ export function GamificationDashboard() {
                             <CheckCircle className="w-3 h-3 mr-1" />
                             Unlocked
                           </Badge>
-                          <Badge className="bg-bhutan-yellow text-black">
+                          <Badge className="bg-primary text-primary-foreground">
                             +{achievement.xp_reward} XP
                           </Badge>
                         </div>
@@ -414,7 +414,7 @@ export function GamificationDashboard() {
 
         {/* Leaderboard Tab */}
         <TabsContent value="leaderboard" className="space-y-4">
-          <Card className="glass">
+          <Card className="bg-card/80 border border-border">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Trophy className="w-5 h-5 text-yellow-500" />
@@ -434,7 +434,7 @@ export function GamificationDashboard() {
                       index === 0 && "bg-yellow-500/10 border border-yellow-500/30",
                       index === 1 && "bg-gray-400/10 border border-gray-400/30",
                       index === 2 && "bg-orange-600/10 border border-orange-600/30",
-                      entry.rank === stats.leaderboard_rank && "bg-bhutan-yellow/10 border border-bhutan-yellow/30"
+                      entry.rank === stats.leaderboard_rank && "bg-primary/10 border border-primary/30"
                     )}
                   >
                     {/* Rank Badge */}
@@ -459,9 +459,9 @@ export function GamificationDashboard() {
                     </div>
 
                     {/* User Info */}
-                    <Avatar className="w-12 h-12 border-2 border-bhutan-yellow/30">
+                    <Avatar className="w-12 h-12 border-2 border-primary/30">
                       <AvatarImage src={entry.avatar_url} />
-                      <AvatarFallback className="bg-bhutan-yellow/20 text-black font-bold">
+                      <AvatarFallback className="bg-primary/20 text-black font-bold">
                         {getInitials(entry.full_name)}
                       </AvatarFallback>
                     </Avatar>
@@ -482,8 +482,8 @@ export function GamificationDashboard() {
 
                     {/* XP */}
                     <div className="text-right">
-                      <div className="font-bold text-bhutan-yellow">{entry.total_xp} XP</div>
-                      <Badge className="bg-bhutan-yellow text-black" variant="outline">
+                      <div className="font-bold text-primary">{entry.total_xp} XP</div>
+                      <Badge className="bg-primary text-primary-foreground" variant="outline">
                         Rank #{entry.rank}
                       </Badge>
                     </div>
@@ -493,9 +493,9 @@ export function GamificationDashboard() {
                 {/* Your Position */}
                 {stats.leaderboard_rank > 5 && (
                   <div className="border-t border-border/50 pt-3">
-                    <div className="p-3 rounded-lg bg-bhutan-yellow/10 border border-bhutan-yellow/30">
+                    <div className="p-3 rounded-lg bg-primary/10 border border-primary/30">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-bhutan-yellow flex items-center justify-center font-bold text-black">
+                        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-bold text-black">
                           {stats.leaderboard_rank}
                         </div>
                         <div className="flex-1">
@@ -504,7 +504,7 @@ export function GamificationDashboard() {
                             {stats.total_xp} XP • Level {stats.current_level}
                           </div>
                         </div>
-                        <Badge className="bg-bhutan-yellow text-black">
+                        <Badge className="bg-primary text-primary-foreground">
                           Rank #{stats.leaderboard_rank} of {stats.total_users}
                         </Badge>
                       </div>
@@ -520,19 +520,19 @@ export function GamificationDashboard() {
         <TabsContent value="challenges" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {dailyChallenges.map((challenge) => (
-              <Card key={challenge.id} className="glass">
+              <Card key={challenge.id} className="bg-card/80 border border-border">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-lg bg-bhutan-yellow/20 flex items-center justify-center">
-                        <Target className="w-6 h-6 text-bhutan-yellow" />
+                      <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center">
+                        <Target className="w-6 h-6 text-primary" />
                       </div>
                       <div>
                         <h4 className="font-semibold">{challenge.title}</h4>
                         <p className="text-sm text-muted-foreground">{challenge.description}</p>
                       </div>
                     </div>
-                    <Badge className={challenge.completed ? "bg-green-600" : "bg-bhutan-yellow text-black"}>
+                    <Badge className={challenge.completed ? "bg-green-600" : "bg-primary text-primary-foreground"}>
                       +{challenge.xp_reward} XP
                     </Badge>
                   </div>
@@ -561,7 +561,7 @@ export function GamificationDashboard() {
             ))}
           </div>
 
-          <Card className="glass-strong border-bhutan-yellow/30">
+          <Card className="bg-card border border-border shadow-sm border-primary/30">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -571,7 +571,7 @@ export function GamificationDashboard() {
                   </p>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-bhutan-yellow">+75 XP</div>
+                  <div className="text-2xl font-bold text-primary">+75 XP</div>
                   <div className="text-xs text-muted-foreground">Daily Bonus</div>
                 </div>
               </div>
@@ -583,7 +583,7 @@ export function GamificationDashboard() {
         <TabsContent value="rewards" className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* XP Rewards */}
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardContent className="p-6">
                 <div className="text-center space-y-3">
                   <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-yellow-500 to-orange-500 flex items-center justify-center">
@@ -603,7 +603,7 @@ export function GamificationDashboard() {
             </Card>
 
             {/* Profile Customization */}
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardContent className="p-6">
                 <div className="text-center space-y-3">
                   <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
@@ -623,7 +623,7 @@ export function GamificationDashboard() {
             </Card>
 
             {/* Course Discounts */}
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardContent className="p-6">
                 <div className="text-center space-y-3">
                   <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
@@ -643,7 +643,7 @@ export function GamificationDashboard() {
             </Card>
 
             {/* Mentor Access */}
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardContent className="p-6">
                 <div className="text-center space-y-3">
                   <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
@@ -663,7 +663,7 @@ export function GamificationDashboard() {
             </Card>
 
             {/* Certificate */}
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardContent className="p-6">
                 <div className="text-center space-y-3">
                   <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center">
@@ -683,7 +683,7 @@ export function GamificationDashboard() {
             </Card>
 
             {/* VIP Features */}
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardContent className="p-6">
                 <div className="text-center space-y-3">
                   <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center">

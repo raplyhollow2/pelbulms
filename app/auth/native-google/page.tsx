@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Loader2 } from 'lucide-react'
 import { completeGoogleIdToken } from '@/lib/oauth'
+import { RigbuLoader } from '@/components/brand/rigbu'
 
 export default function NativeGooglePage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const token = window.PelbuNativeAuth?.pendingGoogleIdToken?.() || ''
+    const token = window.RigbuNativeAuth?.pendingGoogleIdToken?.() || ''
     if (!token) {
       setError('Google sign-in did not return an account. Go back and try again.')
       return
@@ -24,8 +24,7 @@ export default function NativeGooglePage() {
         <p className="max-w-sm text-center text-sm text-destructive">{error}</p>
       ) : (
         <>
-          <Loader2 className="h-8 w-8 animate-spin text-bhutan-yellow" />
-          <p className="text-sm text-muted-foreground">Signing you in with Google…</p>
+          <RigbuLoader label="Signing you in with Google…" />
         </>
       )}
     </div>

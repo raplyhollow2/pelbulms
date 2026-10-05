@@ -29,7 +29,7 @@ import {
   Search,
 } from 'lucide-react'
 
-const LAST_USED_KEY = 'pelbu:block-picker-last'
+const LAST_USED_KEY = 'rigbu:block-picker-last'
 
 type CatalogItem = {
   type: LessonBlock['type'] | 'ai-image'

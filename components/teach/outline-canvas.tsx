@@ -82,7 +82,7 @@ export function OutlineCanvas({
           </Button>
           <Button
             type="button"
-            className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
             disabled={loading}
             onClick={onGenerate}
           >
@@ -103,7 +103,7 @@ export function OutlineCanvas({
 
       {onRefine && (
         <div className="rounded-xl border border-border bg-card p-3">
-          <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Ask Pelbu</p>
+          <p className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Ask Rigbu</p>
           <Textarea
             value={refine}
             onChange={(e) => setRefine(e.target.value)}
@@ -166,13 +166,13 @@ export function OutlineCanvas({
                 Remove
               </Button>
             </div>
-            <button
+            <Button
               type="button"
               className="mt-2 text-xs text-foreground underline-offset-2 hover:underline"
               onClick={() => setOpen(open === i ? null : i)}
             >
               {open === i ? 'Hide pages' : 'Show pages'}
-            </button>
+            </Button>
             {open === i && (
               <div className="mt-3 space-y-2">
                 {mod.lessons.map((les, j) => (

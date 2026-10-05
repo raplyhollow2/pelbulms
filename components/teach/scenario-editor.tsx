@@ -59,7 +59,7 @@ export function ScenarioEditor({ lessonId }: { lessonId: string }) {
         <Input className="min-h-11" value={choiceB} onChange={(e) => setChoiceB(e.target.value)} placeholder="Choice B" />
         <Button
           type="button"
-          className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+          className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
           disabled={saving}
           onClick={() => void save()}
         >

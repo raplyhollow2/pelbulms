@@ -1,4 +1,5 @@
 'use client'
+import { Button } from '@/components/ui/button'
 
 import { useEffect, useMemo, useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
@@ -193,7 +194,7 @@ export function CurriculumRail({
 
           return (
             <div key={section.id} className="border-b last:border-b-0">
-              <button
+              <Button
                 type="button"
                 onClick={() =>
                   setCollapsed((prev) => {
@@ -219,7 +220,7 @@ export function CurriculumRail({
                 ) : (
                   <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                 )}
-              </button>
+              </Button>
 
               {open ? (
                 <ul>
@@ -239,10 +240,10 @@ export function CurriculumRail({
                           className={cn(
                             'flex items-start',
                             locked && 'opacity-55',
-                            current ? 'bg-bhutan-yellow/15' : !locked && 'hover:bg-muted/60'
+                            current ? 'bg-primary/15' : !locked && 'hover:bg-muted/60'
                           )}
                         >
-                          <button
+                          <Button
                             type="button"
                             disabled={locked}
                             onClick={() => {
@@ -298,9 +299,9 @@ export function CurriculumRail({
                                 ) : null}
                               </span>
                             </span>
-                          </button>
+                          </Button>
                           {activities.length > 0 ? (
-                            <button
+                            <Button
                               type="button"
                               aria-expanded={activitiesOpen}
                               aria-label={
@@ -323,7 +324,7 @@ export function CurriculumRail({
                               ) : (
                                 <ChevronDown className="h-4 w-4" />
                               )}
-                            </button>
+                            </Button>
                           ) : null}
                         </div>
                         {activitiesOpen ? (
@@ -438,14 +439,14 @@ function LessonActivityMenu({
         const done = Boolean(activityId && completedActivityIds?.has(activityId))
         return (
           <li key={activity.key}>
-            <button
+            <Button
               type="button"
               disabled={locked}
               onClick={() => onSelect(activity.key)}
               className={cn(
                 'flex w-full items-start gap-2 py-1.5 pr-3 pl-9 text-left',
                 locked && 'cursor-not-allowed opacity-55',
-                active ? 'bg-bhutan-yellow/25' : !locked && 'hover:bg-muted/70'
+                active ? 'bg-primary/25' : !locked && 'hover:bg-muted/70'
               )}
             >
               <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -454,7 +455,7 @@ function LessonActivityMenu({
                 <span className="text-[10px] text-muted-foreground">{activity.label}</span>
               </span>
               {done ? <Check className="mt-0.5 h-3 w-3 shrink-0 text-primary" /> : null}
-            </button>
+            </Button>
           </li>
         )
       })}

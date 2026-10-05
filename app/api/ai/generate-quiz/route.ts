@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     const generated = await runJsonText<GeneratedQuiz>({
       feature: 'quiz',
       userId: rbac.userId,
-      prompt: `Write a short multiple-choice knowledge check for Pelbu LMS (Bhutan).
+      prompt: `Write a short multiple-choice knowledge check for Rigbu LMS (Bhutan).
 Lesson title: ${(lesson as any)?.title || ''}
 Lesson notes: ${String((lesson as any)?.description || (lesson as any)?.content || '').slice(0, 4000)}
 Extra topic: ${topic || 'the lesson content'}

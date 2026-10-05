@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
   html += '</body></html>'
 
   const manifest = `<?xml version="1.0" encoding="UTF-8"?>
-<manifest identifier="pelbu-${courseId}" version="1.2"
+<manifest identifier="rigbu-${courseId}" version="1.2"
   xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2">
   <organizations default="ORG1"><organization identifier="ORG1"><title>${escapeXml((course as any)?.title || 'Course')}</title>
   ${items.join('\n')}
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
   return new NextResponse(Buffer.from(zip), {
     headers: {
       'Content-Type': 'application/zip',
-      'Content-Disposition': `attachment; filename="pelbu-scorm-${courseId}.zip"`,
+      'Content-Disposition': `attachment; filename="rigbu-scorm-${courseId}.zip"`,
     },
   })
 }

@@ -1,3 +1,4 @@
+import { Input } from '@/components/ui/input'
 // @ts-nocheck — existing Supabase and UI type drift; remove when database types are regenerated.
 'use client'
 
@@ -161,7 +162,7 @@ export function ReviewsDashboard({
               star <= rating && getStarColor(true),
               star > rating && getStarColor(false)
             )}
-            fill={star <= rating}
+            fill={star <= rating ? "currentColor" : "none"}
           />
         ))}
       </div>
@@ -171,7 +172,7 @@ export function ReviewsDashboard({
   if (reviews.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
-        <Card className="glass max-w-md">
+        <Card className="bg-card/80 border border-border max-w-md">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <div className="text-center">
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
@@ -191,10 +192,10 @@ export function ReviewsDashboard({
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-full">
       {/* Rating Analytics - Left Column */}
-      <Card className="glass-strong lg:w-1/3">
+      <Card className="bg-card border border-border shadow-sm lg:w-1/3">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Star className="w-5 h-5 text-bhutan-yellow" />
+            <Star className="w-5 h-5 text-primary" />
             Rating Analytics
           </CardTitle>
         </CardHeader>
@@ -241,17 +242,17 @@ export function ReviewsDashboard({
 
           {/* Quick Stats */}
           <div className="grid grid-cols-2 gap-3 pt-4 border-t">
-            <Card className="glass p-3">
+            <Card className="bg-card/80 border border-border p-3">
               <div className="text-center">
-                <p className="text-2xl font-bold text-bhutan-yellow">
+                <p className="text-2xl font-bold text-primary">
                   {ratingStats.ratingDistribution[0].percentage.toFixed(0)}%
                 </p>
                 <p className="text-xs text-muted-foreground">5-Star</p>
               </div>
             </Card>
-            <Card className="glass p-3">
+            <Card className="bg-card/80 border border-border p-3">
               <div className="text-center">
-                <p className="text-2xl font-bold text-bhutan-orange">
+                <p className="text-2xl font-bold text-primary">
                   {ratingStats.totalReviews}
                 </p>
                 <p className="text-xs text-muted-foreground">Total</p>
@@ -264,13 +265,13 @@ export function ReviewsDashboard({
       {/* Reviews List - Right Column */}
       <div className="flex-1 flex flex-col space-y-4">
         {/* Search and Filters */}
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row gap-3">
               {/* Search */}
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
+                <Input
                   type="text"
                   placeholder="Search reviews..."
                   value={searchQuery}
@@ -317,7 +318,7 @@ export function ReviewsDashboard({
               const hasVotedNotHelpful = helpfulVotes.has(`${review.id}-false`)
 
               return (
-                <Card key={review.id} className="glass hover:shadow-lg transition-shadow">
+                <Card key={review.id} className="bg-card/80 border border-border hover:shadow-lg transition-shadow">
                   <CardContent className="p-4">
                     <div className="space-y-3">
                       {/* Header */}
@@ -331,7 +332,7 @@ export function ReviewsDashboard({
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <AvatarFallback className="bg-bhutan-yellow text-bhutan-yellow-foreground">
+                              <AvatarFallback className="bg-primary text-primary-foreground">
                                 {review.userName.charAt(0).toUpperCase()}
                               </AvatarFallback>
                             )}
@@ -374,7 +375,7 @@ export function ReviewsDashboard({
                             size="sm"
                             className={cn(
                               "flex items-center gap-1",
-                              hasVotedHelpful && "text-bhutan-yellow"
+                              hasVotedHelpful && "text-primary"
                             )}
                             onClick={() => handleHelpfulClick(review.id, true)}
                           >

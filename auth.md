@@ -1,8 +1,8 @@
-# Pelbu LMS Auth & Enrollment Model
+# Rigbu LMS Auth & Enrollment Model
 
 ## Product model
 
-Pelbu uses **two independent gates**, the same split used by Moodle (account confirmation + teacher enrolment) and Open edX photo ID verification:
+Rigbu uses **two independent gates**, the same split used by Moodle (account confirmation + teacher enrolment) and Open edX photo ID verification:
 
 ```
 OAuth / passkey signup

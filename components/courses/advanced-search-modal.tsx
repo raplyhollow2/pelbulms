@@ -136,24 +136,25 @@ export function AdvancedSearchModal({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       {trigger ? (
-        <DialogTrigger asChild>
-          {trigger}
-        </DialogTrigger>
+        <DialogTrigger render={trigger as React.ReactElement} />
       ) : (
-        <DialogTrigger>
-          <button
+        <DialogTrigger
+          render={
+          <Button
             type="button"
-            className="group inline-flex items-center justify-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-11 px-8 rounded-md glass"
+            variant="outline"
+            className="h-11"
           >
             <SlidersHorizontal className="w-5 h-5 mr-2" />
             Advanced Search
             {activeFilterCount > 0 && (
-              <Badge className="ml-2 bg-bhutan-yellow text-black">
+              <Badge className="ml-2 bg-primary text-primary-foreground">
                 {activeFilterCount}
               </Badge>
             )}
-          </button>
-        </DialogTrigger>
+          </Button>
+          }
+        />
       )}
 
       <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-3xl">
@@ -207,8 +208,8 @@ export function AdvancedSearchModal({
                     className={cn(
                       'cursor-pointer transition-colors',
                       filters.categories.includes(category)
-                        ? 'bg-bhutan-yellow text-black hover:bg-bhutan-orange'
-                        : 'hover:bg-bhutan-yellow/20'
+                        ? 'bg-primary text-primary-foreground hover:bg-primary'
+                        : 'hover:bg-primary/20'
                     )}
                     onClick={() => toggleCategory(category)}
                   >
@@ -233,8 +234,8 @@ export function AdvancedSearchModal({
                   className={cn(
                     'cursor-pointer transition-colors',
                     filters.levels.includes(level)
-                      ? 'bg-bhutan-yellow text-black hover:bg-bhutan-orange'
-                      : 'hover:bg-bhutan-yellow/20'
+                      ? 'bg-primary text-primary-foreground hover:bg-primary'
+                      : 'hover:bg-primary/20'
                   )}
                   onClick={() => toggleLevel(level)}
                 >
@@ -312,7 +313,7 @@ export function AdvancedSearchModal({
           <div className="space-y-3">
             <label className="text-sm font-medium">Additional Filters</label>
             <div className="space-y-2">
-              <div className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-bhutan-yellow/30 transition-colors">
+              <div className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-primary/30 transition-colors">
                 <Checkbox
                   id="subtitle"
                   checked={filters.hasSubtitle}
@@ -329,7 +330,7 @@ export function AdvancedSearchModal({
                 </label>
               </div>
 
-              <div className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-bhutan-yellow/30 transition-colors">
+              <div className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-primary/30 transition-colors">
                 <Checkbox
                   id="certificate"
                   checked={filters.hasCertificate}
@@ -381,7 +382,7 @@ export function AdvancedSearchModal({
               Cancel
             </Button>
             <Button
-              className="flex-1 bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+              className="flex-1 bg-primary hover:bg-primary text-primary-foreground"
               onClick={handleSearch}
             >
               <Search className="w-4 h-4 mr-2" />

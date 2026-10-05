@@ -18,8 +18,11 @@ import {
   normalizeLandingQuotesInput,
   normalizeLandingSectionTitlesInput,
   normalizeLandingStatsInput,
+  normalizeHeroSlidesInput,
   normalizeLandingStepsInput,
   parseHeroRotatingWords,
+  parseLandingSectionTitles,
+  type HeroSlide,
 } from '@/lib/landing-content'
 
 function denied(rbac: { error?: string }) {
@@ -71,6 +74,8 @@ const MARKETING_FIELDS = [
   'landing_quotes',
   'landing_gallery',
   'landing_section_titles',
+  'mascot_image_url',
+  'hero_slides',
 ] as const
 
 function bodyTouches(body: Record<string, unknown>, fields: readonly string[]) {
@@ -355,6 +360,29 @@ export async function PATCH(request: NextRequest) {
         : null
   }
 
+  let mascotUpdate: string | null | undefined
+  if (body.mascot_image_url !== undefined) {
+    if (body.mascot_image_url !== null && typeof body.mascot_image_url !== 'string') {
+      return NextResponse.json({ error: 'mascot_image_url must be a string' }, { status: 400 })
+    }
+    mascotUpdate =
+      typeof body.mascot_image_url === 'string' && body.mascot_image_url.trim()
+        ? body.mascot_image_url.trim().slice(0, 2000)
+        : null
+  }
+
+  let heroSlidesUpdate: HeroSlide[] | undefined
+  if (body.hero_slides !== undefined) {
+    const slides = normalizeHeroSlidesInput(body.hero_slides)
+    if (slides === null) {
+      return NextResponse.json(
+        { error: 'hero_slides must be an array of {title, kicker, accent, body, layout, items}' },
+        { status: 400 }
+      )
+    }
+    heroSlidesUpdate = slides
+  }
+
   if (body.hero_glass_opacity !== undefined) {
     const n = typeof body.hero_glass_opacity === 'number' ? body.hero_glass_opacity : Number(body.hero_glass_opacity)
     if (!Number.isFinite(n)) {
@@ -364,6 +392,40 @@ export async function PATCH(request: NextRequest) {
   }
 
   const service = await getAdminDb()
+
+  if (
+    mascotUpdate !== undefined ||
+    heroSlidesUpdate !== undefined ||
+    updates.landing_section_titles !== undefined
+  ) {
+    const { data: currentSections } = await service
+      .from('platform_settings')
+      .select('landing_section_titles')
+      .eq('id', 'default')
+      .maybeSingle()
+    const current =
+      currentSections?.landing_section_titles &&
+      typeof currentSections.landing_section_titles === 'object' &&
+      !Array.isArray(currentSections.landing_section_titles)
+        ? (currentSections.landing_section_titles as Record<string, unknown>)
+        : {}
+    const titles =
+      updates.landing_section_titles !== undefined
+        ? (updates.landing_section_titles as Record<string, unknown>)
+        : parseLandingSectionTitles(current)
+    const next: Record<string, unknown> = { ...titles }
+    if (mascotUpdate !== undefined) {
+      if (mascotUpdate) next.mascot_image_url = mascotUpdate
+    } else if (typeof current.mascot_image_url === 'string' && current.mascot_image_url.trim()) {
+      next.mascot_image_url = current.mascot_image_url.trim()
+    }
+    if (heroSlidesUpdate !== undefined) {
+      next.hero_slides = heroSlidesUpdate
+    } else if (Array.isArray(current.hero_slides)) {
+      next.hero_slides = current.hero_slides
+    }
+    updates.landing_section_titles = next
+  }
 
   if (
     typeof updates.require_cid === 'boolean' ||

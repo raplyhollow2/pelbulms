@@ -1,7 +1,7 @@
-// Service Worker for Pelbu LMS PWA
+// Service Worker for Rigbu LMS PWA
 // Bump this version whenever the SW logic changes so clients pick up the update
 // and old caches are purged.
-const CACHE_NAME = 'pelbu-lms-v2'
+const CACHE_NAME = 'rigbu-lms-v2'
 const PRECACHE_URLS = ['/', '/offline.html', '/manifest.json', '/icon.svg']
 
 // Install - precache core assets (best-effort so a single 404 can't break install)

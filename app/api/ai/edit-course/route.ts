@@ -93,7 +93,7 @@ JSON: { "title": string, "questions": [{ "question": string, "options": [string,
       const updated = await runJsonText<{ blocks?: LessonBlock[]; html?: string; reply: string }>({
         feature: 'course-edit',
         userId: rbac.userId,
-        prompt: `You edit an online lesson in Pelbu LMS.
+        prompt: `You edit an online lesson in Rigbu LMS.
 Course: ${(course as any)?.title}
 Lesson: ${(lesson as any)?.title}
 Current blocks JSON: ${JSON.stringify(blocks).slice(0, 12000)}

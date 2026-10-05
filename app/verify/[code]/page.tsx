@@ -46,16 +46,16 @@ export default function VerifyCertificatePage() {
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4 py-12">
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-bhutan-yellow/20">
-            <Award className="h-6 w-6 text-bhutan-yellow" />
+          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
+            <Award className="h-6 w-6 text-primary" />
           </div>
           <CardTitle>Certificate Verification</CardTitle>
-          <p className="text-sm text-muted-foreground">Pelbu LMS</p>
+          <p className="text-sm text-muted-foreground">Rigbu LMS</p>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="flex flex-col items-center py-10">
-              <Loader2 className="h-8 w-8 animate-spin text-bhutan-yellow" />
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <p className="mt-3 text-sm text-muted-foreground">Verifying...</p>
             </div>
           ) : result?.valid ? (
@@ -107,7 +107,7 @@ export default function VerifyCertificatePage() {
 
               {result.certificateUrl && (
                 <Button
-                  className="w-full bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+                  className="w-full bg-primary hover:bg-primary text-primary-foreground"
                   onClick={() => window.open(result.certificateUrl!, '_blank')}
                 >
                   <Download className="mr-2 h-4 w-4" />

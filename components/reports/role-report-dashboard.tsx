@@ -1,4 +1,5 @@
 'use client'
+import { Button } from '@/components/ui/button'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -99,19 +100,19 @@ export function RoleReportDashboard({
         <div className="flex flex-col items-stretch gap-3 sm:items-end">
           <div className="flex gap-1 rounded-full border border-border/60 p-1">
             {ranges.map((r) => (
-              <button
+              <Button
                 key={r}
                 type="button"
                 onClick={() => onRangeChange(r)}
                 className={cn(
                   'rounded-full px-3 py-1 text-sm transition-colors',
                   range === r
-                    ? 'bg-bhutan-yellow/25 text-foreground'
+                    ? 'bg-primary/25 text-foreground'
                     : 'text-muted-foreground hover:bg-muted/60'
                 )}
               >
                 {r}
-              </button>
+              </Button>
             ))}
           </div>
           <ExportPackBar
@@ -214,7 +215,7 @@ export function RoleReportDashboard({
           />
         ) : null}
 
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardHeader>
             <CardTitle className="text-base">Action queue</CardTitle>
             <CardDescription>Priorities from live thresholds</CardDescription>
@@ -227,14 +228,14 @@ export function RoleReportDashboard({
               >
                 <div className="min-w-0">
                   <p className="font-medium">
-                    <span className="mr-2 text-bhutan-orange">{a.priority}.</span>
+                    <span className="mr-2 text-primary">{a.priority}.</span>
                     {a.title}
                   </p>
                   <p className="text-sm text-muted-foreground">{a.reason}</p>
                 </div>
                 <Link
                   href={a.href}
-                  className="inline-flex shrink-0 items-center text-sm text-bhutan-orange hover:underline"
+                  className="inline-flex shrink-0 items-center text-sm text-primary hover:underline"
                 >
                   Open <ArrowRight className="ml-1 h-3.5 w-3.5" />
                 </Link>
@@ -244,7 +245,7 @@ export function RoleReportDashboard({
         </Card>
       </div>
 
-      <Card className="glass">
+      <Card className="bg-card/80 border border-border">
         <CardHeader>
           <CardTitle className="text-base">Alerts</CardTitle>
         </CardHeader>
@@ -279,7 +280,7 @@ export function RoleReportDashboard({
                   {a.href ? (
                     <Link
                       href={a.href}
-                      className="mt-1 inline-block text-xs text-bhutan-orange hover:underline"
+                      className="mt-1 inline-block text-xs text-primary hover:underline"
                     >
                       Open →
                     </Link>

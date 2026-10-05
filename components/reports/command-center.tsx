@@ -1,4 +1,5 @@
 'use client'
+import { Button } from '@/components/ui/button'
 
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
@@ -48,19 +49,19 @@ export function CommandCenter({
         <div className="flex flex-col items-stretch gap-3 sm:items-end">
           <div className="flex gap-1 rounded-full border border-border/60 p-1">
             {ranges.map((r) => (
-              <button
+              <Button
                 key={r}
                 type="button"
                 onClick={() => onRangeChange(r)}
                 className={cn(
                   'rounded-full px-3 py-1 text-sm transition-colors',
                   range === r
-                    ? 'bg-bhutan-yellow/25 text-foreground'
+                    ? 'bg-primary/25 text-foreground'
                     : 'text-muted-foreground hover:bg-muted/60'
                 )}
               >
                 {r}
-              </button>
+              </Button>
             ))}
           </div>
           <ExportPackBar range={range} includeAiBrief />
@@ -77,7 +78,7 @@ export function CommandCenter({
       <div className="grid gap-4 lg:grid-cols-2">
         <InstitutionScoreChart rows={snapshot.institutionScores} />
 
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardHeader>
             <CardTitle className="text-base">Action queue</CardTitle>
             <CardDescription>Deterministic priorities from live thresholds</CardDescription>
@@ -90,14 +91,14 @@ export function CommandCenter({
               >
                 <div className="min-w-0">
                   <p className="font-medium">
-                    <span className="mr-2 text-bhutan-orange">{a.priority}.</span>
+                    <span className="mr-2 text-primary">{a.priority}.</span>
                     {a.title}
                   </p>
                   <p className="text-sm text-muted-foreground">{a.reason}</p>
                 </div>
                 <Link
                   href={a.href}
-                  className="inline-flex shrink-0 items-center text-sm text-bhutan-orange hover:underline"
+                  className="inline-flex shrink-0 items-center text-sm text-primary hover:underline"
                 >
                   Open <ArrowRight className="ml-1 h-3.5 w-3.5" />
                 </Link>
@@ -108,7 +109,7 @@ export function CommandCenter({
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardHeader>
             <CardTitle className="text-base">Alerts</CardTitle>
           </CardHeader>
@@ -141,7 +142,7 @@ export function CommandCenter({
                     </div>
                     <p className="text-sm text-muted-foreground">{a.detail}</p>
                     {a.href ? (
-                      <Link href={a.href} className="mt-1 inline-block text-xs text-bhutan-orange">
+                      <Link href={a.href} className="mt-1 inline-block text-xs text-primary">
                         View →
                       </Link>
                     ) : null}
@@ -152,7 +153,7 @@ export function CommandCenter({
           </CardContent>
         </Card>
 
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardHeader>
             <CardTitle className="text-base">Catalog & audience risk</CardTitle>
           </CardHeader>
@@ -172,7 +173,7 @@ export function CommandCenter({
                       {t.rows.slice(0, 5).map((r) => (
                         <li key={r.id} className="truncate">
                           {r.href ? (
-                            <Link href={r.href} className="text-bhutan-orange hover:underline">
+                            <Link href={r.href} className="text-primary hover:underline">
                               {String(r.cells.course || r.cells.name || r.id)}
                             </Link>
                           ) : (

@@ -119,7 +119,7 @@ export default function CourseFlashcardsPage() {
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-12 flex justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-bhutan-yellow" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )
   }
@@ -191,7 +191,7 @@ export default function CourseFlashcardsPage() {
             <Button
               onClick={save}
               disabled={saving}
-              className="bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+              className="bg-primary text-primary-foreground hover:bg-primary"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
               Save deck

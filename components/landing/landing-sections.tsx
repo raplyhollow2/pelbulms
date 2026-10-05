@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { resolveLandingIcon } from '@/lib/landing-icons'
 import { resolveMediaUrl } from '@/lib/media'
 import type {
@@ -15,24 +16,24 @@ import { LandingSection } from '@/components/landing/landing-section'
 
 const TILES = [
   {
-    surface: 'bg-bhutan-yellow text-bhutan-black',
-    copy: 'text-bhutan-black/80',
-    button: 'bg-bhutan-black text-white hover:bg-bhutan-black/90',
+    surface: 'bg-primary text-primary-foreground',
+    copy: 'text-primary-foreground/80',
+    button: 'bg-primary-foreground text-primary hover:bg-primary-foreground/90',
   },
   {
-    surface: 'bg-bhutan-orange text-white',
-    copy: 'text-white/90',
-    button: 'bg-bhutan-yellow text-black hover:bg-bhutan-yellow/90',
+    surface: 'bg-secondary text-secondary-foreground',
+    copy: 'text-muted-foreground',
+    button: 'bg-primary text-primary-foreground hover:bg-primary/90',
   },
   {
-    surface: 'bg-bhutan-red text-white',
-    copy: 'text-white/90',
-    button: 'bg-bhutan-yellow text-black hover:bg-bhutan-yellow/90',
+    surface: 'bg-muted text-foreground',
+    copy: 'text-muted-foreground',
+    button: 'bg-primary text-primary-foreground hover:bg-primary/90',
   },
   {
-    surface: 'bg-bhutan-black text-white',
-    copy: 'text-white/90',
-    button: 'bg-bhutan-yellow text-black hover:bg-bhutan-yellow/90',
+    surface: 'bg-foreground text-background',
+    copy: 'text-background/80',
+    button: 'bg-background text-foreground hover:bg-background/90',
   },
 ]
 
@@ -47,14 +48,14 @@ export function LandingStats({
   return (
     <LandingSection>
       {eyebrow ? (
-        <p className="mb-4 text-center text-xs font-semibold uppercase tracking-widest text-bhutan-orange">
+        <p className="mb-4 text-center text-xs font-semibold uppercase tracking-widest text-primary">
           {eyebrow}
         </p>
       ) : null}
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {stats.map((stat) => (
           <div key={`${stat.value}-${stat.label}`} className="rounded-2xl border border-border/60 bg-card px-3 py-4 text-center shadow-sm">
-            <dt className="text-2xl font-bold tracking-tight text-bhutan-orange">{stat.value}</dt>
+            <dt className="text-2xl font-bold tracking-tight text-primary">{stat.value}</dt>
             <dd className="mt-1 text-xs text-muted-foreground">{stat.label}</dd>
           </div>
         ))}
@@ -79,7 +80,7 @@ export function LandingPrograms({
     <LandingSection id="features">
       <div className="mx-auto max-w-2xl text-center">
         {eyebrow ? (
-          <p className="text-xs font-semibold uppercase tracking-widest text-bhutan-orange">{eyebrow}</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-primary">{eyebrow}</p>
         ) : null}
         <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">{title}</h2>
         {subtitle ? <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p> : null}
@@ -89,9 +90,9 @@ export function LandingPrograms({
           const Icon = resolveLandingIcon(feature.icon)
           const tile = TILES[index % TILES.length]
           return (
-            <article
+            <Card
               key={`${feature.title}-${index}`}
-              className={`flex min-w-0 flex-col rounded-2xl p-5 ${tile.surface}`}
+              className={`flex min-w-0 flex-col gap-0 rounded-2xl border-0 p-5 shadow-sm ring-0 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${tile.surface}`}
             >
               <Icon className="h-8 w-8" />
               <h3 className="mt-4 text-lg font-bold">{feature.title}</h3>
@@ -105,7 +106,7 @@ export function LandingPrograms({
                   {feature.cta_label}
                 </Button>
               ) : null}
-            </article>
+            </Card>
           )
         })}
       </div>
@@ -165,7 +166,7 @@ export function LandingJourney({
     <LandingSection>
       <div className="mx-auto max-w-2xl text-center">
         {eyebrow ? (
-          <p className="text-xs font-semibold uppercase tracking-widest text-bhutan-orange">{eyebrow}</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-primary">{eyebrow}</p>
         ) : null}
         <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">{title}</h2>
         {subtitle ? <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p> : null}
@@ -173,7 +174,7 @@ export function LandingJourney({
       <ol className="mt-8 grid min-w-0 grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {steps.map((step, index) => (
           <li key={`${step.title}-${index}`} className="text-center">
-            <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-bhutan-yellow text-sm font-bold text-black">
+            <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-primary text-sm font-bold text-black">
               {index + 1}
             </span>
             <h3 className="mt-3 font-bold">{step.title}</h3>
@@ -210,12 +211,12 @@ export function LandingJoin({
           ))}
         </div>
       ) : null}
-      <div className="flex flex-col justify-center rounded-3xl bg-[#12324d] px-6 py-10 text-white">
+      <div className="flex flex-col justify-center rounded-3xl bg-foreground px-6 py-10 text-background">
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h2>
-        {subtitle ? <p className="mt-3 text-sm leading-relaxed text-white/80">{subtitle}</p> : null}
+        {subtitle ? <p className="mt-3 text-sm leading-relaxed text-background/80">{subtitle}</p> : null}
         <Button
           size="lg"
-          className="mt-6 h-11 w-fit gap-2 rounded-full bg-bhutan-yellow px-5 font-bold text-black hover:bg-bhutan-orange"
+          className="mt-6 h-11 w-fit gap-2 rounded-full bg-primary px-5 font-bold text-primary-foreground hover:bg-primary/90"
           render={<Link href="/auth/login" />}
         >
           {buttonLabel}

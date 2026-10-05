@@ -176,7 +176,7 @@ export function CurriculumSequenceEditor({
         <DropdownMenu>
           <DropdownMenuTrigger
             disabled={Boolean(adding)}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-bhutan-yellow px-2.5 text-sm font-medium text-black hover:bg-bhutan-orange disabled:opacity-50"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             Add lecture
@@ -233,7 +233,7 @@ export function CurriculumSequenceEditor({
                     {index + 1}.
                   </span>
                   <KindIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <button
+                  <Button
                     type="button"
                     className="min-w-0 flex-1 text-left"
                     onClick={() => setExpandedId(expanded ? null : lesson.id)}
@@ -251,7 +251,7 @@ export function CurriculumSequenceEditor({
                         </Badge>
                       ) : null}
                     </span>
-                  </button>
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -313,7 +313,7 @@ export function CurriculumSequenceEditor({
                     {kind !== 'article' && (
                       <div className="space-y-2 rounded-md border bg-background p-3">
                         <Label className="text-xs">Video</Label>
-                        <input
+                        <Input
                           ref={(el) => {
                             videoInputByLesson.current[lesson.id] = el
                           }}

@@ -13,7 +13,7 @@ export async function buildExcelPack(
 ): Promise<Buffer> {
   const outline = buildReportOutline(snapshot, brief)
   const wb = new ExcelJS.Workbook()
-  wb.creator = 'PelbuLMS'
+  wb.creator = 'RigbuLMS'
   wb.created = new Date()
 
   const summary = wb.addWorksheet('Summary')

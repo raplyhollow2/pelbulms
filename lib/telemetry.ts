@@ -18,7 +18,7 @@ export function reportServerError(error: unknown, context?: ErrorContext) {
   const stack = error instanceof Error ? error.stack : undefined
   console.error(
     JSON.stringify({
-      source: 'pelbu',
+      source: 'rigbu',
       message,
       stack,
       ...context,
@@ -36,7 +36,7 @@ export function reportServerError(error: unknown, context?: ErrorContext) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'X-Sentry-Auth': `Sentry sentry_version=7, sentry_key=${parts.key}, sentry_client=pelbu/1.0`,
+      'X-Sentry-Auth': `Sentry sentry_version=7, sentry_key=${parts.key}, sentry_client=rigbu/1.0`,
     },
     body: JSON.stringify({
       event_id: eventId,

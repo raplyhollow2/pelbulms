@@ -56,7 +56,7 @@ type Draft = {
 const EMPTY_DRAFT: Draft = {
   name: '',
   provider: 'resend',
-  fromName: 'Pelbu LMS',
+  fromName: 'Rigbu LMS',
   fromEmail: '',
   smtpHost: '',
   smtpPort: '587',
@@ -244,7 +244,7 @@ function EmailsSettingsPage() {
         <p className="text-sm">
           {status.envFallback.configured ? (
             <>
-              If no host is saved, Pelbu falls back to the Resend environment variable
+              If no host is saved, Rigbu falls back to the Resend environment variable
               {status.envFallback.from ? ` (${status.envFallback.from})` : ''}.
             </>
           ) : (
@@ -436,7 +436,7 @@ function EmailsSettingsPage() {
                 value={draft.fromName}
                 autoComplete="off"
                 onChange={(e) => setDraft({ ...draft, fromName: e.target.value })}
-                placeholder="Pelbu LMS"
+                placeholder="Rigbu LMS"
               />
             </div>
             <div className="min-w-0 space-y-1.5">
@@ -447,7 +447,7 @@ function EmailsSettingsPage() {
                 value={draft.fromEmail}
                 autoComplete="off"
                 onChange={(e) => setDraft({ ...draft, fromEmail: e.target.value })}
-                placeholder={draft.provider === 'resend' ? 'noreply@pelbu.bt' : 'school@gmail.com'}
+                placeholder={draft.provider === 'resend' ? 'noreply@rigbu.bt' : 'school@gmail.com'}
               />
             </div>
           </div>

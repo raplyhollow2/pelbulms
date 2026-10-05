@@ -89,10 +89,10 @@ export function VideoPreviewModal({
         <div className="relative">
           <div className="group relative aspect-video w-full overflow-hidden bg-black">
             {!hasVideo ? (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20">
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-muted/20">
                 <div className="text-center px-6">
-                  <Play className="w-16 h-16 text-bhutan-yellow mx-auto mb-4 opacity-50" />
-                  <p className="text-bhutan-yellow/80 font-medium">No preview video yet</p>
+                  <Play className="w-16 h-16 text-primary mx-auto mb-4 opacity-50" />
+                  <p className="text-primary/80 font-medium">No preview video yet</p>
                   <p className="text-sm text-muted-foreground mt-1">
                     The instructor has not uploaded a course preview.
                   </p>
@@ -151,7 +151,7 @@ export function VideoPreviewModal({
               </div>
             )}
 
-            <Badge className="absolute top-4 left-4 bg-bhutan-yellow text-black z-10">
+            <Badge className="absolute top-4 left-4 bg-primary text-primary-foreground z-10">
               Preview
             </Badge>
 
@@ -178,7 +178,7 @@ export function VideoPreviewModal({
 
           <div className="flex items-center gap-3 mt-4">
             <Button
-              className="flex-1 bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+              className="flex-1 bg-primary hover:bg-primary text-primary-foreground"
               onClick={() => {
                 handleOpenChange(false)
                 onEnroll?.()

@@ -162,7 +162,7 @@ export function LessonFlashcardsEditor({
         <Button
           type="button"
           size="sm"
-          className="bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+          className="bg-primary hover:bg-primary text-primary-foreground"
           disabled={saving}
           onClick={() => void save()}
         >

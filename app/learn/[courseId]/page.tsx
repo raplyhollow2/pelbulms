@@ -40,7 +40,7 @@ export default async function LearnCourseEntryPage({
       </p>
       <Link
         href="/dashboard"
-        className="mt-6 inline-flex min-h-11 items-center rounded-md bg-bhutan-yellow px-4 text-sm font-medium text-black hover:bg-bhutan-orange"
+        className="mt-6 inline-flex min-h-11 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
       >
         Back to dashboard
       </Link>

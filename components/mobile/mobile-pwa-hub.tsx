@@ -267,7 +267,7 @@ export function MobilePWAHub() {
     if ('Notification' in window) {
       const permission = await Notification.requestPermission()
       if (permission === 'granted') {
-        new Notification('Pelbu LMS', {
+        new Notification('Rigbu LMS', {
           body: 'Notifications enabled! You\'ll receive updates for courses, assignments, and more.',
           icon: '/icon-192.png'
         })
@@ -523,14 +523,14 @@ export function MobilePWAHub() {
           <Card>
             <CardHeader>
               <CardTitle>Install App</CardTitle>
-              <CardDescription>Install Pelbu LMS on your device for offline access</CardDescription>
+              <CardDescription>Install Rigbu LMS on your device for offline access</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {!capabilities?.isInstalled ? (
                 <div className="text-center space-y-4">
                   <Smartphone className="w-16 h-16 mx-auto text-gray-400" />
                   <div>
-                    <h3 className="text-lg font-semibold">Install Pelbu LMS</h3>
+                    <h3 className="text-lg font-semibold">Install Rigbu LMS</h3>
                     <p className="text-sm text-gray-600 mt-2">
                       Install the app on your device for the best experience
                     </p>
@@ -555,7 +555,7 @@ export function MobilePWAHub() {
                   <div>
                     <h3 className="text-lg font-semibold">App Installed!</h3>
                     <p className="text-sm text-gray-600 mt-2">
-                      Pelbu LMS is installed on your device
+                      Rigbu LMS is installed on your device
                     </p>
                   </div>
                   <Badge variant="secondary" className="mx-auto">

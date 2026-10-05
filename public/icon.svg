@@ -1,19 +1,89 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Pelbu LMS">
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Rigbu">
   <defs>
-    <linearGradient id="pelbuGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#FFC72C"/>
-      <stop offset="0.55" stop-color="#FF8A2B"/>
-      <stop offset="1" stop-color="#FF6B35"/>
+    <linearGradient id="rigbuTile" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#F0C14B"/>
+      <stop offset="0.48" stop-color="#E8B423"/>
+      <stop offset="1" stop-color="#E25C14"/>
     </linearGradient>
-    <radialGradient id="pelbuHighlight" cx="0.3" cy="0.24" r="0.95">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
-      <stop offset="0.55" stop-color="#ffffff" stop-opacity="0"/>
+    <radialGradient id="rigbuDisc" cx="36%" cy="30%" r="72%">
+      <stop offset="0%" stop-color="#fffdf8"/>
+      <stop offset="68%" stop-color="#fff3e0"/>
+      <stop offset="100%" stop-color="#e4ccaa"/>
     </radialGradient>
+    <radialGradient id="rigbuSkin" cx="32%" cy="28%" r="78%">
+      <stop offset="0%" stop-color="#ffe7d0"/>
+      <stop offset="52%" stop-color="#f6c7a2"/>
+      <stop offset="100%" stop-color="#d3926c"/>
+    </radialGradient>
+    <linearGradient id="rigbuHair" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0%" stop-color="#6a5144"/>
+      <stop offset="42%" stop-color="#3a2a22"/>
+      <stop offset="100%" stop-color="#1c120e"/>
+    </linearGradient>
+    <linearGradient id="rigbuJacket" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0%" stop-color="#f08a45"/>
+      <stop offset="46%" stop-color="#c45a12"/>
+      <stop offset="100%" stop-color="#8a340c"/>
+    </linearGradient>
+    <linearGradient id="rigbuGold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff1b8"/>
+      <stop offset="45%" stop-color="#e8b423"/>
+      <stop offset="100%" stop-color="#b67910"/>
+    </linearGradient>
+    <linearGradient id="rigbuCover" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ff8a3d"/>
+      <stop offset="100%" stop-color="#c2410c"/>
+    </linearGradient>
+    <linearGradient id="rigbuPage" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fffdf6"/>
+      <stop offset="100%" stop-color="#f3e2bc"/>
+    </linearGradient>
+    <clipPath id="rigbuDiscClip"><circle cx="40" cy="40" r="38"/></clipPath>
+    <clipPath id="rigbuHead"><circle cx="40" cy="36" r="16.6"/></clipPath>
   </defs>
-  <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#pelbuGrad)"/>
-  <rect x="0" y="0" width="512" height="512" rx="112" fill="url(#pelbuHighlight)"/>
-  <g transform="translate(148 150) scale(9)" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M12 7v14"/>
-    <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>
+  <rect width="512" height="512" rx="112" fill="url(#rigbuTile)"/>
+  <g transform="translate(56 56) scale(5)">
+    <circle cx="40" cy="40" r="38" fill="url(#rigbuDisc)"/>
+    <g clip-path="url(#rigbuDiscClip)"><ellipse cx="27" cy="22" rx="18" ry="11" fill="#fff" opacity="0.42"/></g>
+    <circle cx="40" cy="40" r="37.2" fill="none" stroke="#fff" stroke-width="1.1" opacity="0.72"/>
+    <ellipse cx="40" cy="67.2" rx="15" ry="2.6" fill="#a57858" opacity="0.28"/>
+    <path d="M20 58.5 16.5 70.5h47L60 58.5H20z" fill="url(#rigbuJacket)"/>
+    <path d="M28 59.2 26.6 69.6M40 58.8v11.2M52 59.2 53.4 69.6" fill="none" stroke="#f0c14b" stroke-width="1.15"/>
+    <path d="M28 47c-5 1-8 4.2-6 8.2h36c2-4-1-7.2-6-8.2-6 3.2-18 3.2-24 0z" fill="url(#rigbuJacket)"/>
+    <path d="M35.4 46.2 40 51.4l4.6-5.2" fill="#fff6e8"/>
+    <ellipse cx="40" cy="54.2" rx="17" ry="3.1" fill="#e8783a"/>
+    <path d="M23.5 55.2h33v3.1H23.5z" fill="url(#rigbuGold)"/>
+    <path d="M30 48c-8 .6-13 3.2-14.2 7.2 2.4 1 5 .2 6.6-1.6 1.4-2.2 3.6-4 7.6-5.6z" fill="url(#rigbuJacket)"/>
+    <rect x="14.4" y="52.4" width="8.4" height="3.8" rx="1.2" fill="#fff9ec" transform="rotate(-18 18.6 54.3)"/>
+    <path d="M50.2 62.2h11.6l1.1 1.3h-12z" fill="#8a320e"/>
+    <rect x="49" y="51.5" width="14" height="11" rx="1.6" fill="url(#rigbuCover)"/>
+    <rect x="49.9" y="52.5" width="5.6" height="9" rx="0.8" fill="url(#rigbuPage)"/>
+    <rect x="56.2" y="52.5" width="5.8" height="9" rx="0.8" fill="#fff6d8"/>
+    <path d="M55.6 52.5v9" stroke="#c2410c" stroke-width="0.9"/>
+    <circle cx="23.2" cy="38" r="4.1" fill="url(#rigbuSkin)"/>
+    <circle cx="56.8" cy="38" r="4.1" fill="url(#rigbuSkin)"/>
+    <g clip-path="url(#rigbuHead)">
+      <circle cx="40" cy="36" r="16.6" fill="url(#rigbuSkin)"/>
+      <ellipse cx="32" cy="30" rx="7" ry="5" fill="#fff" opacity="0.28"/>
+      <ellipse cx="40" cy="24" rx="17" ry="10" fill="url(#rigbuHair)"/>
+    </g>
+    <path d="M37.5 18.5c1.2-6.5 8.5-6 8 0-2.6-2.2-5.6-2.2-8 0z" fill="url(#rigbuHair)"/>
+    <circle cx="28.2" cy="42.2" r="2.5" fill="#f09a88" opacity="0.72"/>
+    <circle cx="51.8" cy="42.2" r="2.5" fill="#f09a88" opacity="0.72"/>
+    <ellipse cx="33" cy="36.5" rx="3.05" ry="3.35" fill="#fff"/>
+    <ellipse cx="47" cy="36.5" rx="3.05" ry="3.35" fill="#fff"/>
+    <ellipse cx="33.25" cy="36.8" rx="1.8" ry="2.05" fill="#2c221c"/>
+    <ellipse cx="47.25" cy="36.8" rx="1.8" ry="2.05" fill="#2c221c"/>
+    <circle cx="32.6" cy="35.9" r="0.72" fill="#fff"/>
+    <circle cx="46.6" cy="35.9" r="0.72" fill="#fff"/>
+    <path d="M33.2 43.4c1.8 3.4 11.8 3.4 13.6 0" fill="none" stroke="#c45c4c" stroke-width="1.7" stroke-linecap="round"/>
+    <g transform="translate(16.6 50.8) rotate(-24)">
+      <rect x="-5.1" y="-12.4" width="2.2" height="6.6" rx="1.1" fill="url(#rigbuSkin)"/>
+      <rect x="-2.55" y="-13.8" width="2.3" height="7.8" rx="1.15" fill="url(#rigbuSkin)"/>
+      <rect x="0.05" y="-13.1" width="2.2" height="7.1" rx="1.1" fill="url(#rigbuSkin)"/>
+      <rect x="2.5" y="-11.2" width="1.95" height="5.5" rx="0.95" fill="url(#rigbuSkin)"/>
+      <ellipse cx="-0.15" cy="-4.6" rx="4.85" ry="3.55" fill="url(#rigbuSkin)"/>
+      <ellipse cx="-4.15" cy="-3.15" rx="1.7" ry="2.55" fill="url(#rigbuSkin)" transform="rotate(-38 -4.15 -3.15)"/>
+    </g>
   </g>
 </svg>

@@ -226,7 +226,7 @@ export default function ProgressPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-bhutan-yellow" />
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
           <span className="ml-3 text-muted-foreground">Loading progress...</span>
         </div>
       </div>
@@ -247,19 +247,19 @@ export default function ProgressPage() {
 
         {/* Overall Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-          <Card className="glass hover:shadow-xl transition-all duration-300">
+          <Card className="bg-card/80 border border-border hover:shadow-xl transition-all duration-300">
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-medium">In Progress</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="text-2xl md:text-3xl font-bold text-bhutan-yellow">
+              <div className="text-2xl md:text-3xl font-bold text-primary">
                 {overallStats.inProgressCourses}
               </div>
               <p className="text-xs text-muted-foreground mt-1">Active courses</p>
             </CardContent>
           </Card>
 
-          <Card className="glass hover:shadow-xl transition-all duration-300">
+          <Card className="bg-card/80 border border-border hover:shadow-xl transition-all duration-300">
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-medium">Completed</CardTitle>
             </CardHeader>
@@ -271,19 +271,19 @@ export default function ProgressPage() {
             </CardContent>
           </Card>
 
-          <Card className="glass hover:shadow-xl transition-all duration-300">
+          <Card className="bg-card/80 border border-border hover:shadow-xl transition-all duration-300">
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-medium">Total Time</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <div className="text-2xl md:text-3xl font-bold text-bhutan-orange">
+              <div className="text-2xl md:text-3xl font-bold text-primary">
                 {formatTime(overallStats.totalTimeSpent)}
               </div>
               <p className="text-xs text-muted-foreground mt-1">Learning time</p>
             </CardContent>
           </Card>
 
-          <Card className="glass hover:shadow-xl transition-all duration-300">
+          <Card className="bg-card/80 border border-border hover:shadow-xl transition-all duration-300">
             <CardHeader className="pb-2">
               <CardTitle className="text-xs font-medium">Learning Streak</CardTitle>
             </CardHeader>
@@ -300,7 +300,7 @@ export default function ProgressPage() {
         </div>
 
         {/* Course Progress */}
-        <Card className="glass-strong">
+        <Card className="bg-card border border-border shadow-sm">
           <CardHeader>
             <CardTitle>Course Progress</CardTitle>
             <CardDescription>Your progress across all enrolled courses</CardDescription>
@@ -319,7 +319,7 @@ export default function ProgressPage() {
                 return (
                   <div
                     key={enrollment.id}
-                    className="p-4 border rounded-lg hover:border-bhutan-yellow/50 transition-colors cursor-pointer"
+                    className="p-4 border rounded-lg hover:border-primary/50 transition-colors cursor-pointer"
                     onClick={() => router.push(`/learn/${enrollment.course_id}`)}
                   >
                     <div className="flex items-start justify-between mb-3">
@@ -361,7 +361,7 @@ export default function ProgressPage() {
         </Card>
 
         {/* Recent Activity */}
-        <Card className="glass-strong">
+        <Card className="bg-card border border-border shadow-sm">
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
             <CardDescription>Your latest learning activity</CardDescription>
@@ -375,11 +375,11 @@ export default function ProgressPage() {
               <div className="space-y-3">
                 {recentActivity.map((activity, index) => (
                   <div key={index} className="flex items-center gap-3 p-3 bg-background/50 rounded-lg">
-                    <div className="w-10 h-10 rounded-full bg-bhutan-yellow/20 flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
                       {activity.type === 'lesson' ? (
-                        <BookOpen className="w-5 h-5 text-bhutan-yellow" />
+                        <BookOpen className="w-5 h-5 text-primary" />
                       ) : (
-                        <Trophy className="w-5 h-5 text-bhutan-orange" />
+                        <Trophy className="w-5 h-5 text-primary" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -399,7 +399,7 @@ export default function ProgressPage() {
         </Card>
 
         {/* Learning Insights */}
-        <Card className="glass-strong">
+        <Card className="bg-card border border-border shadow-sm">
           <CardHeader>
             <CardTitle>Learning Insights</CardTitle>
             <CardDescription>Statistics about your learning journey</CardDescription>
@@ -408,7 +408,7 @@ export default function ProgressPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-4 bg-background/50 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
-                  <BookOpen className="w-5 h-5 text-bhutan-yellow" />
+                  <BookOpen className="w-5 h-5 text-primary" />
                   <h3 className="font-semibold">Total Lessons</h3>
                 </div>
                 <p className="text-2xl font-bold">
@@ -428,7 +428,7 @@ export default function ProgressPage() {
 
               <div className="p-4 bg-background/50 rounded-lg">
                 <div className="flex items-center gap-2 mb-2">
-                  <Clock className="w-5 h-5 text-bhutan-orange" />
+                  <Clock className="w-5 h-5 text-primary" />
                   <h3 className="font-semibold">Total Study Time</h3>
                 </div>
                 <p className="text-2xl font-bold">{formatTime(overallStats.totalTimeSpent)}</p>

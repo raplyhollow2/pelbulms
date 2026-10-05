@@ -1,4 +1,5 @@
 'use client'
+import { Button } from '@/components/ui/button'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Activity, Loader2, Users } from 'lucide-react'
@@ -82,7 +83,7 @@ function PersonRow({
       <div className="relative shrink-0">
         <Avatar className="h-8 w-8">
           <AvatarImage src={resolveMediaUrl(person.avatarUrl) || undefined} alt={person.fullName} />
-          <AvatarFallback className="bg-bhutan-yellow/20 text-[11px] font-semibold text-foreground">
+          <AvatarFallback className="bg-primary/20 text-[11px] font-semibold text-foreground">
             {initials(person.fullName)}
           </AvatarFallback>
         </Avatar>
@@ -209,13 +210,13 @@ export function LiveUsersPanel({ className }: { className?: string }) {
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <button
+        <Button
           type="button"
           onClick={() => setTab('now')}
           className={cn(
             'rounded-xl border p-4 text-left transition-colors',
             tab === 'now'
-              ? 'border-bhutan-orange/40 bg-bhutan-yellow/10'
+              ? 'border-primary/40 bg-primary/10'
               : 'border-border/60 hover:bg-muted/40'
           )}
         >
@@ -223,7 +224,7 @@ export function LiveUsersPanel({ className }: { className?: string }) {
             <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
               Active now
             </p>
-            <Activity className="h-3.5 w-3.5 text-bhutan-orange" />
+            <Activity className="h-3.5 w-3.5 text-primary" />
           </div>
           <p className="mt-1.5 text-3xl font-semibold tabular-nums tracking-tight">
             {presence?.counts.now ?? (loading ? '—' : 0)}
@@ -232,15 +233,15 @@ export function LiveUsersPanel({ className }: { className?: string }) {
           <div className="mt-3">
             <RoleChips byRole={presence?.counts.nowByRole || {}} />
           </div>
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
           onClick={() => setTab('today')}
           className={cn(
             'rounded-xl border p-4 text-left transition-colors',
             tab === 'today'
-              ? 'border-bhutan-orange/40 bg-bhutan-yellow/10'
+              ? 'border-primary/40 bg-primary/10'
               : 'border-border/60 hover:bg-muted/40'
           )}
         >
@@ -248,7 +249,7 @@ export function LiveUsersPanel({ className }: { className?: string }) {
             <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
               Active today
             </p>
-            <Users className="h-3.5 w-3.5 text-bhutan-orange" />
+            <Users className="h-3.5 w-3.5 text-primary" />
           </div>
           <p className="mt-1.5 text-3xl font-semibold tabular-nums tracking-tight">
             {presence?.counts.today ?? (loading ? '—' : 0)}
@@ -257,7 +258,7 @@ export function LiveUsersPanel({ className }: { className?: string }) {
           <div className="mt-3">
             <RoleChips byRole={presence?.counts.todayByRole || {}} />
           </div>
-        </button>
+        </Button>
       </div>
 
       <div className="mt-4 border-t border-border/50 pt-3">

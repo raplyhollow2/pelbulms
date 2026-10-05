@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
+import { Rigbu, RigbuLoader } from '@/components/brand/rigbu'
 import { ResponsiveLayout } from '@/components/layout/responsive-layout'
 import { PresenceTracker } from '@/components/presence/presence-tracker'
 import { createClient } from '@/lib/supabase/client'
@@ -27,7 +27,7 @@ export function AuthShell({
     avatar_url?: string | null
   } | null>(null)
   const [loading, setLoading] = useState(true)
-  const [siteName, setSiteName] = useState('Pelbu LMS')
+  const [siteName, setSiteName] = useState('Rigbu LMS')
   const [maintenance, setMaintenance] = useState<{ siteName: string } | null>(null)
 
   useEffect(() => {
@@ -35,8 +35,8 @@ export function AuthShell({
       const name = (event as CustomEvent<{ siteName?: string }>).detail?.siteName
       if (typeof name === 'string' && name.trim()) setSiteName(name.trim())
     }
-    window.addEventListener('pelbu:platform-identity', onIdentity)
-    return () => window.removeEventListener('pelbu:platform-identity', onIdentity)
+    window.addEventListener('rigbu:platform-identity', onIdentity)
+    return () => window.removeEventListener('rigbu:platform-identity', onIdentity)
   }, [])
 
   useEffect(() => {
@@ -70,7 +70,7 @@ export function AuthShell({
         const resolvedName =
           typeof (settings as any)?.site_name === 'string' && (settings as any).site_name.trim()
             ? (settings as any).site_name.trim()
-            : 'Pelbu LMS'
+            : 'Rigbu LMS'
         const role = (profile as { role?: string } | null)?.role
         const staff = role === 'admin' || role === 'superadmin'
         if ((settings as any)?.maintenance_mode && !staff) {
@@ -105,11 +105,8 @@ export function AuthShell({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-white dark:from-gray-900 dark:to-black flex items-center justify-center px-4">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-bhutan-yellow" />
-          <p className="text-sm text-muted-foreground">{loadingLabel}</p>
-        </div>
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <RigbuLoader label={loadingLabel} />
       </div>
     )
   }
@@ -118,7 +115,8 @@ export function AuthShell({
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-6">
         <div className="max-w-md text-center">
-          <p className="text-sm font-semibold uppercase tracking-widest text-bhutan-orange">
+          <Rigbu className="mx-auto h-16 w-16" />
+          <p className="mt-4 text-sm font-semibold uppercase tracking-widest text-primary">
             {maintenance.siteName}
           </p>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight">We’ll be back shortly</h1>

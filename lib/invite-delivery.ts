@@ -40,7 +40,7 @@ export async function deliverInvite(opts: {
       const body = new URLSearchParams({
         To: opts.phone,
         From: process.env.TWILIO_FROM,
-        Body: `Pelbu LMS: your code for ${opts.courseTitle} is ${opts.code}`,
+        Body: `Rigbu LMS: your code for ${opts.courseTitle} is ${opts.code}`,
       })
       const res = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
         method: 'POST',

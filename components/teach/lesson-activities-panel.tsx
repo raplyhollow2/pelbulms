@@ -58,7 +58,7 @@ export function LessonActivitiesPanel({
         <Button
           type="button"
           size="sm"
-          className="min-h-11 gap-1.5 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+          className="min-h-11 gap-1.5 bg-primary text-primary-foreground hover:bg-primary"
           onClick={() => setOpen(true)}
         >
           <Plus className="h-4 w-4" />
@@ -87,7 +87,7 @@ export function LessonActivitiesPanel({
                 <div className="flex min-w-0 items-start gap-3">
                   {Icon ? (
                     <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
-                      <Icon className="h-4 w-4 text-bhutan-yellow" />
+                      <Icon className="h-4 w-4 text-primary" />
                     </span>
                   ) : null}
                   <div className="min-w-0">

@@ -66,7 +66,7 @@ export function GeminiTutor({
       />
       <Button
         type="button"
-        className="min-h-11 w-full bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+        className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary"
         disabled={loading}
         onClick={() => void ask()}
       >
@@ -83,14 +83,14 @@ export function GeminiTutor({
     return (
       <>
         {!open && (
-          <button
+          <Button
             type="button"
             onClick={() => setOpen(true)}
-            className="fixed bottom-24 right-4 z-40 flex min-h-11 items-center gap-2 rounded-full bg-bhutan-yellow px-4 text-sm font-semibold text-black shadow-lg lg:bottom-6"
+            className="fixed bottom-24 right-4 z-40 flex min-h-11 items-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-black shadow-lg lg:bottom-6"
           >
             <Sparkles className="h-4 w-4" />
             {name}
-          </button>
+          </Button>
         )}
         {open && (
           <div className="fixed bottom-24 right-4 z-40 w-[min(100%-2rem,22rem)] rounded-2xl border bg-background p-4 shadow-2xl lg:bottom-6">

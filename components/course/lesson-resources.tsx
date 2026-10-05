@@ -103,7 +103,7 @@ export function LessonResources({
 
   if (items.length === 0) {
     return (
-      <Card className="glass">
+      <Card className="bg-card/80 border border-border">
         <CardHeader>
           <CardTitle className="text-lg">Activities & resources</CardTitle>
         </CardHeader>
@@ -117,7 +117,7 @@ export function LessonResources({
   }
 
   return (
-    <Card className="glass">
+    <Card className="bg-card/80 border border-border">
       <CardHeader className="space-y-1">
         <CardTitle className="text-lg">Activities & resources</CardTitle>
         {mandatoryTotal > 0 && (
@@ -152,13 +152,13 @@ export function LessonResources({
                 'rounded-lg border p-3',
                 item.trackable &&
                   highlightActivityId === `activity:${item.id}` &&
-                  'ring-2 ring-bhutan-yellow'
+                  'ring-2 ring-primary'
               )}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex min-w-0 items-start gap-2">
                   {Icon ? (
-                    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-bhutan-yellow" />
+                    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                   ) : null}
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -217,7 +217,7 @@ export function LessonResources({
                             href={resolveMediaUrl(progress.response.fileUrl) || progress.response.fileUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs font-medium text-bhutan-orange hover:underline"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                           >
                             <Download className="h-3 w-3" />
                             {progress.response.fileName || 'Open submitted file'}
@@ -244,7 +244,7 @@ export function LessonResources({
                             }
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs font-medium text-bhutan-orange hover:underline"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                           >
                             <Download className="h-3 w-3" />
                             {progress.return_file_name || 'Open returned file'}
@@ -256,7 +256,7 @@ export function LessonResources({
                             href={progress.return_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs font-medium text-bhutan-orange hover:underline"
+                            className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                           >
                             <ExternalLink className="h-3 w-3" />
                             Open return link
@@ -272,7 +272,7 @@ export function LessonResources({
                     <Button
                       type="button"
                       size="sm"
-                      className="min-h-11 shrink-0 gap-1 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+                      className="min-h-11 shrink-0 gap-1 bg-primary text-primary-foreground hover:bg-primary"
                       onClick={() => onTakeQuiz?.(item.quizId!)}
                     >
                       <HelpCircle className="h-3.5 w-3.5" />
@@ -462,7 +462,7 @@ function ActivityInputForm({
               className={cn(
                 'flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm',
                 choice === opt
-                  ? 'border-bhutan-orange bg-bhutan-yellow/15'
+                  ? 'border-primary bg-primary/15'
                   : 'border-border/60 hover:bg-muted/40',
                 done && 'pointer-events-none opacity-80'
               )}
@@ -470,7 +470,7 @@ function ActivityInputForm({
               <input
                 type="radio"
                 name={`choice-${item.id}`}
-                className="accent-bhutan-orange"
+                className="accent-primary"
                 checked={choice === opt}
                 disabled={done && Boolean(progress?.response?.choice)}
                 onChange={() => setChoice(opt)}
@@ -490,7 +490,7 @@ function ActivityInputForm({
           <Button
             type="button"
             size="sm"
-            className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
             disabled={marking || !choice}
             onClick={() => void submit({ choice })}
           >
@@ -560,7 +560,7 @@ function ActivityInputForm({
                 }
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 font-medium text-bhutan-orange hover:underline"
+                className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
               >
                 <Download className="h-3 w-3" />
                 {progress.return_file_name || 'Download returned file'}
@@ -572,7 +572,7 @@ function ActivityInputForm({
                 href={progress.return_url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 font-medium text-bhutan-orange hover:underline"
+                className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
               >
                 <ExternalLink className="h-3 w-3" />
                 Open return link
@@ -623,7 +623,7 @@ function ActivityInputForm({
                       }
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex min-w-0 items-center gap-1 truncate font-medium text-bhutan-orange hover:underline"
+                      className="inline-flex min-w-0 items-center gap-1 truncate font-medium text-primary hover:underline"
                     >
                       <Download className="h-3 w-3 shrink-0" />
                       <span className="truncate">{fileName}</span>
@@ -632,14 +632,14 @@ function ActivityInputForm({
                     <span className="truncate">{fileName}</span>
                   )}
                   {!done ? (
-                    <button
+                    <Button
                       type="button"
                       className="shrink-0 rounded p-0.5 hover:bg-muted"
                       aria-label="Remove uploaded file"
                       onClick={clearUploadedFile}
                     >
                       <X className="h-3.5 w-3.5" />
-                    </button>
+                    </Button>
                   ) : null}
                 </span>
               ) : (
@@ -689,7 +689,7 @@ function ActivityInputForm({
           <Button
             type="button"
             size="sm"
-            className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
             disabled={marking || uploading || !canSubmitAssignment}
             onClick={() =>
               void submit({
@@ -736,7 +736,7 @@ function ActivityInputForm({
           <Button
             type="button"
             size="sm"
-            className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
             disabled={marking || !text.trim()}
             onClick={() => void submit({ text })}
           >
@@ -778,7 +778,7 @@ function ActivityInputForm({
           <Button
             type="button"
             size="sm"
-            className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
             disabled={marking || !entryTitle.trim() || !entryBody.trim()}
             onClick={() => void submit({ entryTitle, entryBody })}
           >
@@ -822,7 +822,7 @@ function ActivityInputForm({
           <Button
             type="button"
             size="sm"
-            className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
             disabled={marking || !term.trim() || !definition.trim()}
             onClick={() => void submit({ term, definition })}
           >
@@ -862,7 +862,7 @@ function ActivityInputForm({
             <Button
               type="button"
               size="sm"
-              className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+              className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
               disabled={marking || !message.trim()}
               onClick={() => void submit({ message })}
             >
@@ -910,7 +910,7 @@ function ActivityInputForm({
         <Button
           type="button"
           size="sm"
-          className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+          className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
           disabled={marking || !filled}
           onClick={() => void submit({ fields: fieldValues })}
         >
@@ -932,7 +932,7 @@ function ActivityInputForm({
           <Button
             type="button"
             size="sm"
-            className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
             disabled={marking}
             onClick={() => void submit({ studied: true })}
           >

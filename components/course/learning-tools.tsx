@@ -156,10 +156,10 @@ export function LearningTools({ courseId, lessonId, userId }: LearningToolsProps
       {/* Pomodoro Timer & Study Streak */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Pomodoro Timer */}
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-bhutan-yellow" />
+              <Clock className="w-5 h-5 text-primary" />
               Pomodoro Timer
             </CardTitle>
           </CardHeader>
@@ -187,7 +187,7 @@ export function LearningTools({ courseId, lessonId, userId }: LearningToolsProps
                     fill="none"
                     strokeDasharray={`${2 * Math.PI * 88}`}
                     strokeDashoffset={`${2 * Math.PI * 88 * (1 - getProgressPercentage() / 100)}`}
-                    className="text-bhutan-yellow transition-all duration-1000"
+                    className="text-primary transition-all duration-1000"
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -204,7 +204,7 @@ export function LearningTools({ courseId, lessonId, userId }: LearningToolsProps
               <Button
                 onClick={togglePomodoro}
                 size="lg"
-                className="bg-bhutan-yellow hover:bg-bhutan-orange"
+                className="bg-primary hover:bg-primary"
               >
                 {pomodoroActive ? (
                   <>
@@ -255,7 +255,7 @@ export function LearningTools({ courseId, lessonId, userId }: LearningToolsProps
         </Card>
 
         {/* Study Streak */}
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Flame className="w-5 h-5 text-orange-500" />
@@ -295,10 +295,10 @@ export function LearningTools({ courseId, lessonId, userId }: LearningToolsProps
       </div>
 
       {/* Active Recall Flashcards */}
-      <Card className="glass">
+      <Card className="bg-card/80 border border-border">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <BrainCircuit className="w-5 h-5 text-bhutan-yellow" />
+            <BrainCircuit className="w-5 h-5 text-primary" />
             Active Recall Flashcards
           </CardTitle>
         </CardHeader>
@@ -336,7 +336,7 @@ export function LearningTools({ courseId, lessonId, userId }: LearningToolsProps
             >
               {/* Front */}
               <div className="absolute w-full h-full backface-hidden">
-                <div className="h-full p-6 bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20 rounded-lg border-2 border-bhutan-yellow/30 flex items-center justify-center">
+                <div className="h-full p-6 bg-gradient-to-br from-primary/20 to-muted/20 rounded-lg border-2 border-primary/30 flex items-center justify-center">
                   <p className="text-center text-lg font-medium">
                     {flashcards[currentCardIndex]?.front}
                   </p>

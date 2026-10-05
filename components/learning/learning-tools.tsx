@@ -257,11 +257,11 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
           <TabsContent value="pomodoro" className="h-full">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
               {/* Timer Card */}
-              <Card className="glass-strong flex flex-col">
+              <Card className="bg-card border border-border shadow-sm flex flex-col">
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Target className="w-5 h-5 text-bhutan-yellow" />
+                      <Target className="w-5 h-5 text-primary" />
                       Pomodoro Timer
                     </div>
                     <Badge variant="secondary" className="animate-pulse">
@@ -293,7 +293,7 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
                         strokeDashoffset={2 * Math.PI * 88 * (1 - pomodoroProgress / 100)}
                         className={cn(
                           "transition-all duration-1000",
-                          pomodoroMode === 'focus' && "text-bhutan-yellow",
+                          pomodoroMode === 'focus' && "text-primary",
                           pomodoroMode === 'short-break' && "text-green-600",
                           pomodoroMode === 'long-break' && "text-blue-600"
                         )}
@@ -319,7 +319,7 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
                       onClick={() => handlePomodoroModeChange('focus')}
                       className={cn(
                         "flex-1",
-                        pomodoroMode === 'focus' && "bg-bhutan-yellow hover:bg-bhutan-orange"
+                        pomodoroMode === 'focus' && "bg-primary hover:bg-primary"
                       )}
                     >
                       Focus
@@ -356,7 +356,7 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
                       <Button
                         size="lg"
                         onClick={handlePomodoroStart}
-                        className="bg-bhutan-yellow hover:bg-bhutan-orange"
+                        className="bg-primary hover:bg-primary"
                       >
                         <Play className="w-5 h-5 mr-2" />
                         Start
@@ -365,7 +365,7 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
                       <Button
                         size="lg"
                         onClick={handlePomodoroPause}
-                        className="bg-bhutan-yellow hover:bg-bhutan-orange"
+                        className="bg-primary hover:bg-primary"
                       >
                         <Pause className="w-5 h-5 mr-2" />
                         Pause
@@ -376,10 +376,10 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
               </Card>
 
               {/* Stats Card */}
-              <Card className="glass-strong">
+              <Card className="bg-card border border-border shadow-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Award className="w-5 h-5 text-bhutan-orange" />
+                    <Award className="w-5 h-5 text-primary" />
                     Study Stats
                   </CardTitle>
                 </CardHeader>
@@ -387,11 +387,11 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="text-center p-4 rounded-lg bg-primary/5">
-                        <p className="text-3xl font-bold text-bhutan-yellow">{pomodoroStreak}</p>
+                        <p className="text-3xl font-bold text-primary">{pomodoroStreak}</p>
                         <p className="text-xs text-muted-foreground">Day Streak</p>
                       </div>
                       <div className="text-center p-4 rounded-lg bg-primary/5">
-                        <p className="text-3xl font-bold text-bhutan-orange">
+                        <p className="text-3xl font-bold text-primary">
                           {pomodoroHistory.reduce((acc, session) => acc + Math.floor(session.duration / 60), 0)}
                         </p>
                         <p className="text-xs text-muted-foreground">Total Minutes</p>
@@ -426,11 +426,11 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
 
           {/* Study Scheduler */}
           <TabsContent value="scheduler" className="h-full">
-            <Card className="glass-strong h-full">
+            <Card className="bg-card border border-border shadow-sm h-full">
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CalendarIcon className="w-5 h-5 text-bhutan-red" />
+                    <CalendarIcon className="w-5 h-5 text-destructive" />
                     Study Scheduler
                   </div>
                   <Button variant="outline" size="sm" className>
@@ -466,7 +466,7 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
           <TabsContent value="flashcards" className="h-full">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
               {/* Flashcard Display */}
-              <Card className="glass-strong lg:col-span-2 flex flex-col">
+              <Card className="bg-card border border-border shadow-sm lg:col-span-2 flex flex-col">
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -557,10 +557,10 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
               </Card>
 
               {/* Flashcard List */}
-              <Card className="glass-strong">
+              <Card className="bg-card border border-border shadow-sm">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Target className="w-5 h-5 text-bhutan-orange" />
+                    <Target className="w-5 h-5 text-primary" />
                     Card Stack
                   </CardTitle>
                 </CardHeader>

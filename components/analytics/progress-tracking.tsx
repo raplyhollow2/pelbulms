@@ -239,7 +239,7 @@ export function ProgressTracking() {
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="glass">
+            <Card key={i} className="bg-card/80 border border-border">
               <CardContent className="p-6">
                 <div className="animate-pulse space-y-3">
                   <div className="w-12 h-12 bg-muted rounded-lg" />
@@ -260,11 +260,11 @@ export function ProgressTracking() {
     <div className="space-y-6">
       {/* Performance Overview */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-lg bg-bhutan-yellow/20 flex items-center justify-center">
-                <Target className="w-6 h-6 text-bhutan-yellow" />
+              <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center">
+                <Target className="w-6 h-6 text-primary" />
               </div>
               <div>
                 <p className="text-2xl font-bold">{performanceMetrics.average_completion_rate}%</p>
@@ -274,7 +274,7 @@ export function ProgressTracking() {
           </CardContent>
         </Card>
 
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-lg bg-blue-600/20 flex items-center justify-center">
@@ -288,7 +288,7 @@ export function ProgressTracking() {
           </CardContent>
         </Card>
 
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-lg bg-orange-600/20 flex items-center justify-center">
@@ -302,7 +302,7 @@ export function ProgressTracking() {
           </CardContent>
         </Card>
 
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-lg bg-purple-600/20 flex items-center justify-center">
@@ -329,7 +329,7 @@ export function ProgressTracking() {
         {/* Course Progress Tab */}
         <TabsContent value="courses" className="space-y-4">
           {progressData.map((course) => (
-            <Card key={course.course_id} className="glass">
+            <Card key={course.course_id} className="bg-card/80 border border-border">
               <CardContent className="p-6">
                 <div className="flex items-start gap-6">
                   {/* Course Thumbnail */}
@@ -341,8 +341,8 @@ export function ProgressTracking() {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20 flex items-center justify-center">
-                        <BookOpen className="w-8 h-8 text-bhutan-yellow" />
+                      <div className="w-full h-full bg-gradient-to-br from-primary/20 to-muted/20 flex items-center justify-center">
+                        <BookOpen className="w-8 h-8 text-primary" />
                       </div>
                     )}
                   </div>
@@ -354,7 +354,7 @@ export function ProgressTracking() {
                         <h4 className="font-semibold text-lg">{course.course_title}</h4>
                         <div className="flex items-center gap-2 mt-1">
                           <Badge variant="outline">{course.category}</Badge>
-                          <Badge className="bg-bhutan-yellow text-black">{course.level}</Badge>
+                          <Badge className="bg-primary text-primary-foreground">{course.level}</Badge>
                           {course.completion_date && (
                             <Badge className="bg-green-600">Completed</Badge>
                           )}
@@ -411,14 +411,14 @@ export function ProgressTracking() {
 
                     {/* Next Lesson */}
                     {!course.completion_date && course.next_lesson && (
-                      <div className="mt-3 p-3 rounded-lg bg-bhutan-yellow/10 border border-bhutan-yellow/30">
+                      <div className="mt-3 p-3 rounded-lg bg-primary/10 border border-primary/30">
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="text-sm font-medium">Next Lesson</p>
                             <p className="text-xs text-muted-foreground">{course.next_lesson.title}</p>
                             <p className="text-xs text-muted-foreground">{course.next_lesson.module_title}</p>
                           </div>
-                          <Button size="sm" className="bg-bhutan-yellow hover:bg-bhutan-orange text-black">
+                          <Button size="sm" className="bg-primary hover:bg-primary text-primary-foreground">
                             Continue
                           </Button>
                         </div>
@@ -433,7 +433,7 @@ export function ProgressTracking() {
 
         {/* Weekly Activity Tab */}
         <TabsContent value="activity" className="space-y-4">
-          <Card className="glass">
+          <Card className="bg-card/80 border border-border">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BarChart3 className="w-5 h-5" />
@@ -471,7 +471,7 @@ export function ProgressTracking() {
           </Card>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-2">
                   <Zap className="w-5 h-5 text-yellow-500" />
@@ -485,7 +485,7 @@ export function ProgressTracking() {
               </CardContent>
             </Card>
 
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-2">
                   <Clock className="w-5 h-5 text-blue-500" />
@@ -499,7 +499,7 @@ export function ProgressTracking() {
               </CardContent>
             </Card>
 
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-2">
                   <Trophy className="w-5 h-5 text-purple-500" />
@@ -519,7 +519,7 @@ export function ProgressTracking() {
         <TabsContent value="goals" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Weekly Goals */}
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardHeader>
                 <CardTitle className="text-lg">Weekly Goals</CardTitle>
               </CardHeader>
@@ -546,7 +546,7 @@ export function ProgressTracking() {
                   />
                 </div>
 
-                <div className="p-3 rounded-lg bg-bhutan-yellow/10 border border-bhutan-yellow/30">
+                <div className="p-3 rounded-lg bg-primary/10 border border-primary/30">
                   <div className="flex items-center gap-2 text-sm">
                     <Flame className="w-4 h-4 text-orange-500" />
                     <span className="font-medium">Keep it up! You're on track</span>
@@ -556,7 +556,7 @@ export function ProgressTracking() {
             </Card>
 
             {/* Monthly Goals */}
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardHeader>
                 <CardTitle className="text-lg">Monthly Goals</CardTitle>
               </CardHeader>
@@ -582,7 +582,7 @@ export function ProgressTracking() {
             </Card>
 
             {/* Overall Goals */}
-            <Card className="glass md:col-span-2">
+            <Card className="bg-card/80 border border-border md:col-span-2">
               <CardHeader>
                 <CardTitle className="text-lg">Overall Learning Goals</CardTitle>
               </CardHeader>
@@ -601,7 +601,7 @@ export function ProgressTracking() {
 
                   <div className="grid grid-cols-3 gap-4 mt-4">
                     <div className="text-center p-4 rounded-lg bg-muted/50">
-                      <p className="text-2xl font-bold text-bhutan-yellow">{progressData.length}</p>
+                      <p className="text-2xl font-bold text-primary">{progressData.length}</p>
                       <p className="text-xs text-muted-foreground">Active Courses</p>
                     </div>
                     <div className="text-center p-4 rounded-lg bg-muted/50">
@@ -623,7 +623,7 @@ export function ProgressTracking() {
         <TabsContent value="performance" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Assessment Performance */}
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardHeader>
                 <CardTitle className="text-lg">Assessment Performance</CardTitle>
               </CardHeader>
@@ -658,14 +658,14 @@ export function ProgressTracking() {
             </Card>
 
             {/* Learning Stats */}
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardHeader>
                 <CardTitle className="text-lg">Learning Statistics</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center">
-                    <div className="text-2xl font-bold text-bhutan-yellow">{performanceMetrics.current_level}</div>
+                    <div className="text-2xl font-bold text-primary">{performanceMetrics.current_level}</div>
                     <p className="text-xs text-muted-foreground">Current Level</p>
                   </div>
                   <div className="text-center">
@@ -705,7 +705,7 @@ export function ProgressTracking() {
             </Card>
 
             {/* Progress Timeline */}
-            <Card className="glass md:col-span-2">
+            <Card className="bg-card/80 border border-border md:col-span-2">
               <CardHeader>
                 <CardTitle className="text-lg">Learning Timeline</CardTitle>
               </CardHeader>
@@ -716,7 +716,7 @@ export function ProgressTracking() {
                       <div className="flex flex-col items-center">
                         <div className={cn(
                           "w-4 h-4 rounded-full",
-                          course.progress_percentage === 100 ? "bg-green-600" : "bg-bhutan-yellow"
+                          course.progress_percentage === 100 ? "bg-green-600" : "bg-primary"
                         )} />
                         {index < progressData.length - 1 && (
                           <div className="w-0.5 h-full bg-border" />
@@ -731,7 +731,7 @@ export function ProgressTracking() {
                             </p>
                           </div>
                           <Badge className={cn(
-                            course.progress_percentage === 100 ? "bg-green-600" : "bg-bhutan-yellow text-black"
+                            course.progress_percentage === 100 ? "bg-green-600" : "bg-primary text-primary-foreground"
                           )}>
                             {course.progress_percentage}%
                           </Badge>

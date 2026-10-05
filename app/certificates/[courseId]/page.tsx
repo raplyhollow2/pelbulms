@@ -129,7 +129,7 @@ export default function CertificateClaimPage() {
   if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-bhutan-yellow" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
@@ -147,10 +147,10 @@ export default function CertificateClaimPage() {
         Back to dashboard
       </Button>
 
-      <Card className="glass overflow-hidden">
+      <Card className="bg-card/80 border border-border overflow-hidden">
         <CardHeader className="space-y-3 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-bhutan-yellow/20">
-            <Award className="h-8 w-8 text-bhutan-orange" />
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/20">
+            <Award className="h-8 w-8 text-primary" />
           </div>
           <CardTitle className="text-2xl">Certificate claim</CardTitle>
           <CardDescription className="text-base">
@@ -191,7 +191,7 @@ export default function CertificateClaimPage() {
                 </p>
               ) : null}
               <Button
-                className="min-h-11 w-full bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+                className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary"
                 onClick={download}
               >
                 <Download className="mr-2 h-4 w-4" />
@@ -212,7 +212,7 @@ export default function CertificateClaimPage() {
             </div>
           ) : complete && !issuing ? (
             <Button
-              className="min-h-11 w-full bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+              className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary"
               onClick={() => void load()}
             >
               <Award className="mr-2 h-4 w-4" />

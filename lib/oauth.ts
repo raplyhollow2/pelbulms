@@ -6,18 +6,18 @@ export type SocialProvider = 'google'
 
 declare global {
   interface Window {
-    PelbuNativeAuth?: {
+    RigbuNativeAuth?: {
       openOAuth: (url: string) => void
       signInWithGoogle: () => void
       pendingGoogleIdToken: () => string
     }
-    __pelbuCompleteNativeGoogle?: (idToken: string) => void
+    __rigbuCompleteNativeGoogle?: (idToken: string) => void
   }
 }
 
-export function isPelbuAndroidWebView() {
+export function isRigbuAndroidWebView() {
   if (typeof navigator === 'undefined') return false
-  return /PelbuLMS\//.test(navigator.userAgent) && /Android/i.test(navigator.userAgent)
+  return /RigbuLMS\//.test(navigator.userAgent) && /Android/i.test(navigator.userAgent)
 }
 
 function queryParamsFor(provider: SocialProvider): Record<string, string> | undefined {
@@ -42,14 +42,14 @@ export async function completeGoogleIdToken(idToken: string) {
 export function registerNativeGoogleCompletion(
   onError: (message: string) => void
 ) {
-  window.__pelbuCompleteNativeGoogle = (idToken: string) => {
+  window.__rigbuCompleteNativeGoogle = (idToken: string) => {
     void completeGoogleIdToken(idToken).catch((err) => {
       const message = err instanceof Error ? err.message : 'Google sign-in failed.'
       onError(message)
     })
   }
   return () => {
-    delete window.__pelbuCompleteNativeGoogle
+    delete window.__rigbuCompleteNativeGoogle
   }
 }
 
@@ -60,10 +60,10 @@ export function registerNativeGoogleCompletion(
 export async function startSocialOAuth(provider: SocialProvider) {
   if (
     provider === 'google' &&
-    isPelbuAndroidWebView() &&
-    typeof window.PelbuNativeAuth?.signInWithGoogle === 'function'
+    isRigbuAndroidWebView() &&
+    typeof window.RigbuNativeAuth?.signInWithGoogle === 'function'
   ) {
-    window.PelbuNativeAuth.signInWithGoogle()
+    window.RigbuNativeAuth.signInWithGoogle()
     return
   }
 
@@ -82,8 +82,8 @@ export async function startSocialOAuth(provider: SocialProvider) {
     throw new Error('Could not start sign-in. Please try again.')
   }
 
-  if (isPelbuAndroidWebView() && typeof window.PelbuNativeAuth?.openOAuth === 'function') {
-    window.PelbuNativeAuth.openOAuth(data.url)
+  if (isRigbuAndroidWebView() && typeof window.RigbuNativeAuth?.openOAuth === 'function') {
+    window.RigbuNativeAuth.openOAuth(data.url)
     return
   }
 

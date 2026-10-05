@@ -559,7 +559,7 @@ export default function CourseDetailPage() {
             {leadInstructor?.full_name && (
               <p>
                 Created by{' '}
-                <Link href={`/instructors/${leadInstructor.id}`} className="font-semibold text-bhutan-yellow">
+                <Link href={`/instructors/${leadInstructor.id}`} className="font-semibold text-primary">
                   {leadInstructor.full_name}
                 </Link>
               </p>
@@ -588,7 +588,7 @@ export default function CourseDetailPage() {
       <div className="min-w-0">
         <div className="relative -mx-8 bg-[#1c1d1f] px-8 py-8 text-white before:absolute before:inset-y-0 before:left-full before:w-[calc(22rem+2rem)] before:bg-[#1c1d1f] before:content-['']">
           {course.is_featured && (
-            <p className="mb-3 inline-flex rounded bg-bhutan-yellow px-2 py-0.5 text-xs font-bold text-black">
+            <p className="mb-3 inline-flex rounded bg-primary px-2 py-0.5 text-xs font-bold text-black">
               Featured
             </p>
           )}
@@ -644,7 +644,7 @@ export default function CourseDetailPage() {
             {leadInstructor?.full_name && (
               <p>
                 Created by{' '}
-                <Link href={`/instructors/${leadInstructor.id}`} className="font-semibold text-bhutan-yellow">
+                <Link href={`/instructors/${leadInstructor.id}`} className="font-semibold text-primary">
                   {leadInstructor.full_name}
                 </Link>
               </p>
@@ -735,7 +735,7 @@ function CourseDetailBody({
               <Link
                 key={tag}
                 href={`/courses?q=${encodeURIComponent(tag)}`}
-                className="rounded-full border px-3 py-1.5 text-sm font-medium hover:border-bhutan-orange hover:text-bhutan-orange"
+                className="rounded-full border px-3 py-1.5 text-sm font-medium hover:border-primary hover:text-primary"
               >
                 {tag}
               </Link>
@@ -804,7 +804,7 @@ function CourseDetailBody({
               <div key={person.id} className="flex items-start gap-3">
                 <Link
                   href={`/instructors/${person.id}`}
-                  className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-bhutan-yellow/30"
+                  className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/30"
                 >
                   {person.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -828,7 +828,7 @@ function CourseDetailBody({
                   <div className="flex flex-wrap items-center gap-2">
                     <Link
                       href={`/instructors/${person.id}`}
-                      className="text-base font-semibold text-bhutan-orange underline-offset-2 hover:underline"
+                      className="text-base font-semibold text-primary underline-offset-2 hover:underline"
                     >
                       {person.full_name}
                     </Link>

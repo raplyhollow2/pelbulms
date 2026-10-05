@@ -81,10 +81,10 @@ export function CourseOverview({
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card className="glass lg:col-span-2">
+        <Card className="bg-card/80 border border-border lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-bhutan-yellow" />
+              <BookOpen className="w-5 h-5 text-primary" />
               What You&apos;ll Learn
             </CardTitle>
           </CardHeader>
@@ -106,7 +106,7 @@ export function CourseOverview({
           </CardContent>
         </Card>
 
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardHeader>
             <CardTitle className="text-lg">Requirements</CardTitle>
           </CardHeader>
@@ -115,7 +115,7 @@ export function CourseOverview({
               <ul className="space-y-2">
                 {requirements.map((req, index) => (
                   <li key={index} className="flex items-start gap-2 text-sm">
-                    <span className="text-bhutan-yellow font-bold">•</span>
+                    <span className="text-primary font-bold">•</span>
                     <span>{req}</span>
                   </li>
                 ))}
@@ -126,10 +126,10 @@ export function CourseOverview({
           </CardContent>
         </Card>
 
-        <Card className="glass lg:col-span-2">
+        <Card className="bg-card/80 border border-border lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-bhutan-orange" />
+              <BookOpen className="w-5 h-5 text-primary" />
               Course Description
             </CardTitle>
           </CardHeader>
@@ -149,7 +149,7 @@ export function CourseOverview({
                 variant="ghost"
                 size="sm"
                 onClick={() => setExpanded(!expanded)}
-                className="mt-4 text-bhutan-yellow hover:text-bhutan-orange"
+                className="mt-4 text-primary hover:text-primary"
               >
                 {expanded ? (
                   <>
@@ -167,7 +167,7 @@ export function CourseOverview({
           </CardContent>
         </Card>
 
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardHeader>
             <CardTitle className="text-lg">Course Details</CardTitle>
           </CardHeader>
@@ -223,7 +223,7 @@ export function CourseOverview({
         </Card>
       </div>
 
-      <Card className="glass">
+      <Card className="bg-card/80 border border-border">
         <CardHeader>
           <CardTitle>{people.length > 1 ? 'Instructors' : 'Instructor'}</CardTitle>
         </CardHeader>
@@ -248,7 +248,7 @@ export function CourseOverview({
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-bhutan-yellow text-xl font-bold text-black">
+                      <div className="flex h-full w-full items-center justify-center bg-primary text-xl font-bold text-black">
                         {initialsFor(instructorName) || 'IN'}
                       </div>
                     )}
@@ -261,14 +261,14 @@ export function CourseOverview({
                     className="h-16 w-16 rounded-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-bhutan-yellow text-xl font-bold text-black">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-xl font-bold text-black">
                     {initialsFor(instructorName) || 'IN'}
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     {profileHref ? (
-                      <Link href={profileHref} className="font-semibold text-lg hover:text-bhutan-orange">
+                      <Link href={profileHref} className="font-semibold text-lg hover:text-primary">
                         {instructorName}
                       </Link>
                     ) : (

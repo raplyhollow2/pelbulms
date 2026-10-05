@@ -122,7 +122,7 @@ export function CourseCard({
       ? 'bg-green-600 text-white hover:bg-green-700'
       : enrollmentPending
         ? 'bg-amber-500 text-black hover:bg-amber-600'
-        : 'bg-bhutan-yellow text-black hover:bg-bhutan-orange'
+        : 'bg-primary text-primary-foreground hover:bg-primary'
   )
 
   return (
@@ -141,8 +141,8 @@ export function CourseCard({
               onError={() => setImageError(true)}
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20">
-              <BookOpen className="h-12 w-12 text-bhutan-yellow" />
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/20 to-muted/20">
+              <BookOpen className="h-12 w-12 text-primary" />
             </div>
           )}
           <div className="pointer-events-none absolute inset-0 z-10 flex items-end bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
@@ -153,7 +153,7 @@ export function CourseCard({
         </Link>
 
         {course.is_featured && (
-          <span className="pointer-events-none absolute left-2.5 top-2.5 z-30 inline-flex items-center gap-1 rounded-full bg-bhutan-orange px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm">
+          <span className="pointer-events-none absolute left-2.5 top-2.5 z-30 inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm">
             <Check className="h-3 w-3" strokeWidth={3} />
             Featured
           </span>

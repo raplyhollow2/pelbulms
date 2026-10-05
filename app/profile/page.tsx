@@ -328,7 +328,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-bhutan-yellow" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )
   }
@@ -358,9 +358,9 @@ export default function ProfilePage() {
           <CardContent className="space-y-6">
             {/* Avatar Section */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-              <Avatar className="w-20 h-20 sm:w-24 sm:h-24 bg-bhutan-yellow shrink-0">
+              <Avatar className="w-20 h-20 sm:w-24 sm:h-24 bg-primary shrink-0">
                 <AvatarImage src={resolveMediaUrl(formData.avatar_url) || undefined} alt={formData.full_name} />
-                <AvatarFallback className="bg-bhutan-yellow text-black font-semibold text-2xl">
+                <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-2xl">
                   {formData.full_name ? getInitials(formData.full_name) : 'U'}
                 </AvatarFallback>
               </Avatar>
@@ -712,7 +712,7 @@ export default function ProfilePage() {
               <Button
                 onClick={handleSubmit}
                 disabled={saving || Boolean(linkedinError)}
-                className="bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+                className="bg-primary hover:bg-primary text-primary-foreground"
               >
                 {saving ? (
                   <>
@@ -792,7 +792,7 @@ export default function ProfilePage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-bhutan-yellow" />
+                  <BookOpen className="w-5 h-5 text-primary" />
                   <p className="text-sm text-muted-foreground">Enrolled</p>
                 </div>
                 <p className="text-2xl font-bold">{stats.enrolledCourses}</p>

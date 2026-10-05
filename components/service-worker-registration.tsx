@@ -51,17 +51,17 @@ export function ServiceWorkerRegistration() {
 
   return (
     <div className="fixed bottom-4 right-4 z-50">
-      <div className="bg-bhutan-yellow text-white p-4 rounded-lg shadow-lg max-w-sm">
+      <div className="bg-primary text-white p-4 rounded-lg shadow-lg max-w-sm">
         <div className="flex items-start gap-3">
           <div className="flex-1">
-            <p className="font-semibold mb-1">Install Pelbu LMS</p>
+            <p className="font-semibold mb-1">Install Rigbu LMS</p>
             <p className="text-sm opacity-90 mb-3">
               Install our app for the best experience and offline access
             </p>
             <div className="flex gap-2">
               <button
                 onClick={handleInstallClick}
-                className="bg-white text-bhutan-yellow px-4 py-2 rounded-lg font-semibold hover:bg-opacity-90 transition-colors"
+                className="bg-white text-primary px-4 py-2 rounded-lg font-semibold hover:bg-opacity-90 transition-colors"
               >
                 Install
               </button>

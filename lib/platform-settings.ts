@@ -3,8 +3,10 @@ import {
   DEFAULT_HERO_CTA_PRIMARY,
   DEFAULT_HERO_ROTATING_WORDS,
   DEFAULT_HERO_VIDEO_URL,
+  defaultHeroSlides,
   DEFAULT_LANDING_STATS,
   parseHeroRotatingWords,
+  parseHeroSlides,
   parseLandingCampus,
   parseLandingFaq,
   parseLandingFeatures,
@@ -13,6 +15,7 @@ import {
   parseLandingSectionTitles,
   parseLandingStats,
   parseLandingSteps,
+  type HeroSlide,
   type LandingCampusCard,
   type LandingFaqItem,
   type LandingFeature,
@@ -62,6 +65,10 @@ export type PlatformSettings = {
   hero_cta_primary_label: string | null
   hero_cta_secondary_label: string | null
   hero_image_url: string | null
+  /** 3D mascot shared by the public menu and the hero. Null uses the built-in file. */
+  mascot_image_url: string | null
+  /** Hero text slides. Empty storage falls back to the built-in three. */
+  hero_slides: HeroSlide[]
   /** Frosted hero card white fill, 20–90. */
   hero_glass_opacity: number
   landing_stats: LandingStat[]
@@ -90,7 +97,7 @@ export type RegistrationPolicy = {
 
 export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   id: 'default',
-  site_name: 'Pelbu LMS',
+  site_name: 'Rigbu LMS',
   tagline: "Bhutan's private learning platform",
   support_email: null,
   landing_headline: null,
@@ -114,6 +121,8 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   hero_cta_primary_label: DEFAULT_HERO_CTA_PRIMARY,
   hero_cta_secondary_label: null,
   hero_image_url: null,
+  mascot_image_url: null,
+  hero_slides: defaultHeroSlides(),
   hero_glass_opacity: 70,
   landing_stats: [...DEFAULT_LANDING_STATS],
   landing_features: null,
@@ -127,10 +136,16 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
 }
 
 export function parsePlatformSettings(row: Record<string, unknown> | null | undefined): PlatformSettings {
-  if (!row) return { ...DEFAULT_PLATFORM_SETTINGS, hero_rotating_words: [...DEFAULT_HERO_ROTATING_WORDS], landing_stats: [...DEFAULT_LANDING_STATS] }
+  if (!row) return defaultSettings()
   const featured = row.featured_course_ids
   const rawHero = typeof row.hero_video_url === 'string' ? row.hero_video_url.trim() : ''
   const heroImage = typeof row.hero_image_url === 'string' ? row.hero_image_url.trim() : ''
+  const sectionBag = isPlainRecord(row.landing_section_titles)
+  const mascotColumn = typeof row.mascot_image_url === 'string' ? row.mascot_image_url.trim() : ''
+  const mascotStored = typeof sectionBag?.mascot_image_url === 'string' ? sectionBag.mascot_image_url.trim() : ''
+  const storedSlides = Array.isArray(row.hero_slides)
+    ? row.hero_slides
+    : sectionBag?.hero_slides
   const heroUrl = rawHero || (heroImage ? null : DEFAULT_HERO_VIDEO_URL)
   const cta =
     typeof row.hero_cta_primary_label === 'string' && row.hero_cta_primary_label.trim()
@@ -175,6 +190,8 @@ export function parsePlatformSettings(row: Record<string, unknown> | null | unde
     hero_cta_primary_label: cta,
     hero_cta_secondary_label: secondaryCta,
     hero_image_url: heroImage || null,
+    mascot_image_url: mascotColumn || mascotStored || null,
+    hero_slides: parseHeroSlides(storedSlides),
     hero_glass_opacity: parseGlassOpacity(row.hero_glass_opacity),
     landing_stats: parseLandingStats(row.landing_stats),
     landing_features: parseLandingFeatures(row.landing_features),
@@ -253,6 +270,8 @@ export function toPublicSite(settings: PlatformSettings) {
     hero_cta_primary_label: settings.hero_cta_primary_label,
     hero_cta_secondary_label: settings.hero_cta_secondary_label,
     hero_image_url: settings.hero_image_url,
+    mascot_image_url: settings.mascot_image_url,
+    hero_slides: settings.hero_slides,
     hero_glass_opacity: settings.hero_glass_opacity,
     landing_stats: settings.landing_stats,
     landing_features: settings.landing_features,
@@ -272,10 +291,16 @@ export function invalidatePlatformSettingsCache() {
   settingsCache = null
 }
 
+function isPlainRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  return value as Record<string, unknown>
+}
+
 function defaultSettings(): PlatformSettings {
   return {
     ...DEFAULT_PLATFORM_SETTINGS,
     hero_rotating_words: [...DEFAULT_HERO_ROTATING_WORDS],
+    hero_slides: defaultHeroSlides(),
     landing_stats: [...DEFAULT_LANDING_STATS],
   }
 }

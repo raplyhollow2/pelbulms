@@ -1,10 +1,10 @@
-# Pelbu LMS - Implementation TODO List
+# Rigbu LMS - Implementation TODO List
 
 ## 🎯 Project Status
 **Start Date**: 2025-07-14
 **Timeline**: 12 weeks (Complete Solution)
 **Repository**: https://github.com/raplyhollow2/pelbulms.git
-**Platform**: Pelbu LMS for Pelsung Bhutan
+**Platform**: Rigbu LMS for Pelsung Bhutan
 
 ---
 

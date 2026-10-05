@@ -85,7 +85,7 @@ export function LessonContentStage({
             onEnded={onEnded}
           />
           <div className="pointer-events-none absolute inset-x-0 top-0 aspect-video">
-            <button
+            <Button
               type="button"
               aria-label="Previous lecture"
               disabled={!canGoPrev}
@@ -96,8 +96,8 @@ export function LessonContentStage({
               )}
             >
               <ChevronLeft className="h-6 w-6" />
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               aria-label="Next lecture"
               disabled={!canGoNext}
@@ -108,13 +108,13 @@ export function LessonContentStage({
               )}
             >
               <ChevronRight className="h-6 w-6" />
-            </button>
+            </Button>
           </div>
         </div>
       ) : kind === 'resource' ? (
         <div className="min-h-[240px] bg-muted/40 p-4 sm:p-6">
           <div className="mb-3 flex items-center gap-2 text-sm font-medium">
-            <Paperclip className="h-4 w-4 text-bhutan-yellow" />
+            <Paperclip className="h-4 w-4 text-primary" />
             Lecture resources
           </div>
           <LessonResources
@@ -135,7 +135,7 @@ export function LessonContentStage({
         <div className="space-y-3 bg-muted/30 p-4 sm:p-6">
           {blocks.length === 0 ? (
             <div className="flex items-center gap-2 text-sm font-medium">
-              <FileText className="h-4 w-4 text-bhutan-yellow" />
+              <FileText className="h-4 w-4 text-primary" />
               Article
             </div>
           ) : null}

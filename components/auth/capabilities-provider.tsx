@@ -27,12 +27,22 @@ type CapabilitiesContextValue = {
 
 const CapabilitiesContext = createContext<CapabilitiesContextValue | null>(null)
 
+function hasAuthCookie() {
+  if (typeof document === 'undefined') return false
+  return document.cookie.split(';').some((part) => part.trim().includes('-auth-token'))
+}
+
 export function CapabilitiesProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState(false)
   const [role, setRole] = useState<UserRole>('student')
   const [keys, setKeys] = useState<Set<string>>(new Set())
 
   const refresh = useCallback(async () => {
+    if (!hasAuthCookie()) {
+      setKeys(new Set())
+      setLoaded(true)
+      return
+    }
     try {
       const res = await fetch('/api/admin/capabilities/me')
       if (res.status === 401) {
@@ -64,8 +74,8 @@ export function CapabilitiesProvider({ children }: { children: ReactNode }) {
     const onChange = () => {
       void refresh()
     }
-    window.addEventListener('pelbu:capabilities-changed', onChange)
-    return () => window.removeEventListener('pelbu:capabilities-changed', onChange)
+    window.addEventListener('rigbu:capabilities-changed', onChange)
+    return () => window.removeEventListener('rigbu:capabilities-changed', onChange)
   }, [refresh])
 
   const value = useMemo<CapabilitiesContextValue>(

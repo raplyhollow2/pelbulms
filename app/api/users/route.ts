@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
       normalizedPlace = place
     }
 
-    const tempPassword = password || `Pelbu-${Math.random().toString(36).slice(-10)}!`
+    const tempPassword = password || `Rigbu-${Math.random().toString(36).slice(-10)}!`
     const { data: created, error: createError } =
       await supabase.auth.admin.createUser({
         email,

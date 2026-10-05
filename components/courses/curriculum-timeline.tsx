@@ -1,4 +1,5 @@
 'use client'
+import { Button } from '@/components/ui/button'
 
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
@@ -83,7 +84,7 @@ export function CurriculumTimeline({
         <div className="rounded-lg border p-4">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-medium">Your progress</span>
-            <span className="text-sm font-bold text-bhutan-orange">{overallProgress}%</span>
+            <span className="text-sm font-bold text-primary">{overallProgress}%</span>
           </div>
           <Progress value={overallProgress} className="h-2" />
         </div>
@@ -92,13 +93,13 @@ export function CurriculumTimeline({
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm text-muted-foreground">{summary}</p>
         {modules.length > 0 && (
-          <button
+          <Button
             type="button"
             onClick={toggleAll}
-            className="shrink-0 text-sm font-semibold text-bhutan-orange"
+            className="shrink-0 text-sm font-semibold text-primary"
           >
             {allExpanded ? 'Collapse all' : 'Expand all'}
-          </button>
+          </Button>
         )}
       </div>
 
@@ -110,7 +111,7 @@ export function CurriculumTimeline({
 
           return (
             <div key={module.id} className={moduleIndex > 0 ? 'border-t' : undefined}>
-              <button
+              <Button
                 type="button"
                 className="flex w-full items-start gap-3 bg-muted/70 px-3 py-3 text-left"
                 aria-expanded={isExpanded}
@@ -127,7 +128,7 @@ export function CurriculumTimeline({
                   {lessons.length} {lessons.length === 1 ? 'lecture' : 'lectures'}
                   {duration ? ` • ${duration}` : ''}
                 </span>
-              </button>
+              </Button>
 
               {isExpanded && lessons.length > 0 && (
                 <ul>
@@ -136,11 +137,11 @@ export function CurriculumTimeline({
                     const lessonDuration = formatLectureDuration(lesson.duration_minutes)
                     return (
                       <li key={lesson.id} className="border-t">
-                        <button
+                        <Button
                           type="button"
                           className={cn(
                             'flex w-full items-start gap-3 px-3 py-3 text-left',
-                            isCurrent && 'bg-bhutan-yellow/10'
+                            isCurrent && 'bg-primary/10'
                           )}
                           onClick={() => onLessonClick?.(lesson.id)}
                         >
@@ -162,7 +163,7 @@ export function CurriculumTimeline({
                           {lessonDuration && (
                             <span className="shrink-0 text-xs text-muted-foreground">{lessonDuration}</span>
                           )}
-                        </button>
+                        </Button>
                       </li>
                     )
                   })}

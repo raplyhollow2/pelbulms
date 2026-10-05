@@ -90,7 +90,7 @@ export function ReviewersPanel() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="h-8 w-8 animate-spin text-bhutan-yellow" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
@@ -153,7 +153,7 @@ export function ReviewersPanel() {
           <Button
             disabled={!selectedUser || !selectedInstitution || saving}
             onClick={() => mutate('assign', selectedUser, selectedInstitution)}
-            className="bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+            className="bg-primary text-primary-foreground hover:bg-primary"
           >
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" />

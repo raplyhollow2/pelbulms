@@ -1,4 +1,5 @@
 'use client'
+import { Button } from '@/components/ui/button'
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Maximize, Minimize, Play } from 'lucide-react'
@@ -779,7 +780,7 @@ export function TrackedVideoPlayer({
             />
           )
         ) : null}
-        <button
+        <Button
           type="button"
           aria-label={landscapeFs ? 'Exit full screen' : 'Full screen'}
           aria-pressed={landscapeFs}
@@ -787,7 +788,7 @@ export function TrackedVideoPlayer({
           className={`absolute right-2 top-2 z-40 h-11 w-11 items-center justify-center rounded-full bg-black/70 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${handheld ? 'flex' : 'hidden'}`}
         >
           {landscapeFs ? <Minimize className="h-5 w-5" /> : <Maximize className="h-5 w-5" />}
-        </button>
+        </Button>
       </div>
 
       {/* Watch progress bar (tracking-aware providers only) */}
@@ -799,7 +800,7 @@ export function TrackedVideoPlayer({
           </div>
           <div className="w-full bg-secondary rounded-full h-1.5">
             <div
-              className="bg-bhutan-yellow h-1.5 rounded-full transition-all duration-500"
+              className="bg-primary h-1.5 rounded-full transition-all duration-500"
               style={{ width: `${watchedPercent}%` }}
             />
           </div>

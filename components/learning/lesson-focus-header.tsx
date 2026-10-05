@@ -58,7 +58,7 @@ export function LessonFocusHeader({
           className={`min-h-11 ${
             isCompleted
               ? 'bg-green-600 text-white hover:bg-green-700'
-              : 'bg-bhutan-yellow text-black hover:bg-bhutan-orange'
+              : 'bg-primary text-primary-foreground hover:bg-primary'
           }`}
         >
           {savingProgress ? (
@@ -97,7 +97,7 @@ export function LessonFocusHeader({
           <span className="text-muted-foreground">
             {completedCount} of {safeTotal} lessons complete
           </span>
-          <span className="font-semibold text-bhutan-yellow">{pct}%</span>
+          <span className="font-semibold text-primary">{pct}%</span>
         </div>
         <Progress value={pct} className="h-2" />
       </div>

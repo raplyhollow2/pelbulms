@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Plus, BookOpen, Users, Loader2, Award, HardDrive, Check, X, ClipboardCheck, Trash2, MoreVertical, ListFilter, Share2 } from 'lucide-react'
+import { RigbuLoader } from '@/components/brand/rigbu'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -519,8 +520,7 @@ export default function TeacherDashboard() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-bhutan-yellow" />
-          <span className="ml-3 text-muted-foreground">Loading dashboard...</span>
+          <RigbuLoader label="Loading dashboard..." />
         </div>
       </div>
     )
@@ -552,7 +552,7 @@ export default function TeacherDashboard() {
           {canCreateCourse && (
           <Button
             onClick={() => router.push('/teach/create')}
-            className="flex-1 sm:flex-initial bg-bhutan-yellow hover:bg-bhutan-orange"
+            className="flex-1 sm:flex-initial bg-primary hover:bg-primary"
             size="sm"
           >
             <Plus className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-2" />
@@ -563,25 +563,25 @@ export default function TeacherDashboard() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 lg:gap-6">
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardHeader className="pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
             <CardTitle className="text-xs lg:text-sm font-medium">
               {isAdminView ? 'All Courses' : 'My Courses'}
             </CardTitle>
           </CardHeader>
           <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
-            <div className="text-2xl lg:text-3xl font-bold text-bhutan-yellow">{courses.length}</div>
+            <div className="text-2xl lg:text-3xl font-bold text-primary">{courses.length}</div>
           </CardContent>
         </Card>
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardHeader className="pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
             <CardTitle className="text-xs lg:text-sm font-medium">Total Students</CardTitle>
           </CardHeader>
           <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
-            <div className="text-2xl lg:text-3xl font-bold text-bhutan-orange">{totalEnrollments}</div>
+            <div className="text-2xl lg:text-3xl font-bold text-primary">{totalEnrollments}</div>
           </CardContent>
         </Card>
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardHeader className="pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
             <CardTitle className="text-xs lg:text-sm font-medium">Pending requests</CardTitle>
           </CardHeader>
@@ -595,17 +595,17 @@ export default function TeacherDashboard() {
             <p className="text-xs text-muted-foreground mt-1">Awaiting approval</p>
           </CardContent>
         </Card>
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardHeader className="pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
             <CardTitle className="text-xs lg:text-sm font-medium">Avg Progress</CardTitle>
           </CardHeader>
           <CardContent className="px-3 sm:px-6 pb-3 sm:pb-6">
-            <div className="text-2xl lg:text-3xl font-bold text-bhutan-red">
+            <div className="text-2xl lg:text-3xl font-bold text-destructive">
               {avgProgress === null ? '--' : `${avgProgress}%`}
             </div>
           </CardContent>
         </Card>
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardHeader className="pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
             <CardTitle className="text-xs lg:text-sm font-medium">Active Quizzes</CardTitle>
           </CardHeader>
@@ -620,7 +620,7 @@ export default function TeacherDashboard() {
       <GradingAlertBanner />
 
       {insights && (
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 pb-2">
             <div>
               <CardTitle className="text-base">Course insights</CardTitle>
@@ -650,7 +650,7 @@ export default function TeacherDashboard() {
       )}
 
       {gradeBacklog.length > 0 && (
-        <Card className="glass-strong border-amber-500/30">
+        <Card className="bg-card border border-border shadow-sm border-amber-500/30">
           <CardHeader>
             <CardTitle className="text-xl lg:text-2xl">Needs grading</CardTitle>
             <CardDescription>Courses with submitted work waiting for a grade.</CardDescription>
@@ -681,7 +681,7 @@ export default function TeacherDashboard() {
       )}
 
       {pendingRequests.length > 0 && (
-        <Card className="glass-strong border-amber-500/30">
+        <Card className="bg-card border border-border shadow-sm border-amber-500/30">
           <CardHeader>
             <CardTitle className="text-xl lg:text-2xl">Enrollment requests</CardTitle>
             <CardDescription>
@@ -733,7 +733,7 @@ export default function TeacherDashboard() {
         </Card>
       )}
 
-      <Card className="glass-strong">
+      <Card className="bg-card border border-border shadow-sm">
         <CardHeader className="space-y-3 px-4 sm:px-6">
           <div className="flex items-baseline justify-between gap-3">
             <CardTitle className="text-base sm:text-lg lg:text-xl">
@@ -776,7 +776,7 @@ export default function TeacherDashboard() {
                 type="button"
                 variant="outline"
                 size="sm"
-                className={`h-9 shrink-0 ${filtersOpen || filterChips.length > 0 ? 'border-bhutan-yellow bg-bhutan-yellow/15' : ''}`}
+                className={`h-9 shrink-0 ${filtersOpen || filterChips.length > 0 ? 'border-primary bg-primary/15' : ''}`}
                 aria-expanded={filtersOpen}
                 aria-controls="course-filters"
                 data-testid="course-filter-toggle"
@@ -785,7 +785,7 @@ export default function TeacherDashboard() {
                 <ListFilter className="size-4" />
                 Filter
                 {filterChips.length > 0 ? (
-                  <span className="rounded-full bg-bhutan-yellow px-1.5 text-xs font-semibold text-bhutan-black">
+                  <span className="rounded-full bg-primary px-1.5 text-xs font-semibold text-foreground">
                     {filterChips.length}
                   </span>
                 ) : null}
@@ -872,7 +872,7 @@ export default function TeacherDashboard() {
           {filterChips.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
               {filterChips.map((chip) => (
-                <button
+                <Button
                   key={chip.id}
                   type="button"
                   onClick={chip.clear}
@@ -881,7 +881,7 @@ export default function TeacherDashboard() {
                   {chip.label}
                   <X className="size-3" />
                   <span className="sr-only">Remove {chip.label} filter</span>
-                </button>
+                </Button>
               ))}
               <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={clearFilters}>
                 Clear all
@@ -900,7 +900,7 @@ export default function TeacherDashboard() {
               {canCreateCourse && (
               <Button
                 onClick={() => router.push('/teach/create')}
-                className="bg-bhutan-yellow hover:bg-bhutan-orange"
+                className="bg-primary hover:bg-primary"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Create Course
@@ -1002,7 +1002,7 @@ export default function TeacherDashboard() {
                       aria-label={`Select ${course.title}`}
                       disabled={bulkWorking !== null || deleting}
                     />
-                    <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20">
+                    <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded bg-gradient-to-br from-primary/20 to-muted/20">
                       {course.thumbnail_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -1011,7 +1011,7 @@ export default function TeacherDashboard() {
                           className="h-full w-full object-cover"
                         />
                       ) : (
-                        <BookOpen className="size-5 text-bhutan-yellow" />
+                        <BookOpen className="size-5 text-primary" />
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -1104,7 +1104,7 @@ export default function TeacherDashboard() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={bulkWorking === 'unpublish'}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+              className="bg-primary text-primary-foreground hover:bg-primary"
               disabled={bulkWorking === 'unpublish'}
               onClick={(event) => {
                 event.preventDefault()

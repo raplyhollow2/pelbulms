@@ -7,7 +7,7 @@
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.platform_settings (
   id TEXT PRIMARY KEY DEFAULT 'default' CHECK (id = 'default'),
-  site_name TEXT NOT NULL DEFAULT 'Pelbu LMS',
+  site_name TEXT NOT NULL DEFAULT 'Rigbu LMS',
   tagline TEXT DEFAULT 'Bhutan''s private learning platform',
   support_email TEXT,
   landing_headline TEXT,

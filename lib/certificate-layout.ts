@@ -510,7 +510,7 @@ export function defaultCertificateLayout(
   partial?: Partial<CertificateLayout>
 ): CertificateLayout {
   const accent = partial?.accentColor || '#E9B308'
-  const brand = partial?.brandName || 'PELBU LMS'
+  const brand = partial?.brandName || 'RIGBU LMS'
   const titleLine = partial?.titleLine || 'Certificate of Completion'
   const tagline = partial?.tagline || 'This is proudly presented to'
   const signatureName = partial?.signatureName || ''

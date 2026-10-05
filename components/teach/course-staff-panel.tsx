@@ -1,4 +1,5 @@
 'use client'
+import { NativeSelect } from '@/components/ui/native-select'
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -99,7 +100,7 @@ export function CourseStaffPanel({ courseId }: { courseId: string }) {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="min-w-0 flex-1 space-y-1.5">
             <Label htmlFor="co-teacher-select">Instructors and resource people</Label>
-            <select
+            <NativeSelect
               id="co-teacher-select"
               value={teacherId}
               onChange={(event) => setTeacherId(event.target.value)}
@@ -124,11 +125,11 @@ export function CourseStaffPanel({ courseId }: { courseId: string }) {
                   ))}
                 </optgroup>
               )}
-            </select>
+            </NativeSelect>
           </div>
           <Button
             type="button"
-            className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
             disabled={saving || !teacherId}
             onClick={() => void add()}
           >

@@ -53,7 +53,7 @@ export function LessonBlocks({
   onChange,
   onInsert,
   onAddBlock,
-  onAskPelbu,
+  onAskRigbu,
   onOpenLessonOptions,
   highlightItemKey,
 }: {
@@ -65,17 +65,17 @@ export function LessonBlocks({
   onChange?: (blocks: LessonBlock[] | ((current: LessonBlock[]) => LessonBlock[])) => void
   onInsert?: (type: StarterType) => void
   onAddBlock?: (block: LessonBlock) => void
-  onAskPelbu?: () => void
+  onAskRigbu?: () => void
   onOpenLessonOptions?: () => void
   highlightItemKey?: string | null
 }) {
   const blocks = parseLessonBlocks(content)
   if (blocks.length === 0) {
-    if (editable && (onAddBlock || onInsert || onAskPelbu || onOpenLessonOptions)) {
+    if (editable && (onAddBlock || onInsert || onAskRigbu || onOpenLessonOptions)) {
       return (
         <EmptyLesson
           onInsert={onInsert}
-          onAskPelbu={onAskPelbu}
+          onAskRigbu={onAskRigbu}
           onOpenLessonOptions={onOpenLessonOptions}
         />
       )
@@ -121,7 +121,7 @@ export function LessonBlocks({
             editable && 'rounded-xl border border-border/60 p-3',
             !editable &&
               highlightItemKey === `block:${block.id}` &&
-              'rounded-xl ring-2 ring-bhutan-yellow'
+              'rounded-xl ring-2 ring-primary'
           )}
         >
           {editable && (
@@ -193,11 +193,11 @@ export function LessonBlocks({
 
 function EmptyLesson({
   onInsert,
-  onAskPelbu,
+  onAskRigbu,
   onOpenLessonOptions,
 }: {
   onInsert?: (type: StarterType) => void
-  onAskPelbu?: () => void
+  onAskRigbu?: () => void
   onOpenLessonOptions?: () => void
 }) {
   return (
@@ -234,10 +234,10 @@ function EmptyLesson({
             Activities & resources
           </Button>
         ) : null}
-        {onAskPelbu ? (
-          <Button type="button" variant="ghost" className="min-h-11" onClick={onAskPelbu}>
+        {onAskRigbu ? (
+          <Button type="button" variant="ghost" className="min-h-11" onClick={onAskRigbu}>
             <Sparkles className="mr-2 h-4 w-4" />
-            Ask Pelbu
+            Ask Rigbu
           </Button>
         ) : null}
       </div>
@@ -789,7 +789,7 @@ function HotspotBlockEditor({
               <span
                 key={`${spot.x}-${spot.y}-${index}`}
                 data-hotspot-marker
-                className="absolute flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-bhutan-yellow text-xs font-bold text-black shadow"
+                className="absolute flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-xs font-bold text-black shadow"
                 style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
               >
                 {index + 1}
@@ -1167,7 +1167,7 @@ function QuizCard({ quizId, onTakeQuiz }: { quizId: string; onTakeQuiz?: (quizId
         <p className="text-sm font-medium">Knowledge check</p>
         <Button
           type="button"
-          className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+          className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
           onClick={() => onTakeQuiz?.(quizId)}
         >
           Take quiz
@@ -1207,16 +1207,16 @@ function HotspotImage({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={resolveMediaUrl(imageUrl) || imageUrl} alt="" className="w-full" />
         {spots.map((spot, i) => (
-          <button
+          <Button
             key={i}
             type="button"
             title={spot.label}
-            className="absolute size-7 -translate-x-1/2 -translate-y-1/2 rounded-full bg-bhutan-yellow text-xs font-bold text-black shadow"
+            className="absolute size-7 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary text-xs font-bold text-black shadow"
             style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
             onClick={() => setOpen(i)}
           >
             {i + 1}
-          </button>
+          </Button>
         ))}
       </div>
       {active && (
@@ -1329,14 +1329,14 @@ function FlipDeck({ cards }: { cards: { front: string; back: string }[] }) {
   const card = cards[Math.min(i, cards.length - 1)]
   return (
     <div className="space-y-3">
-      <button
+      <Button
         type="button"
         onClick={() => setFlipped((v) => !v)}
         className="min-h-40 w-full rounded-xl border bg-card p-6 text-left shadow-sm"
       >
         <p className="text-xs uppercase text-muted-foreground">{flipped ? 'Back' : 'Front'}</p>
         <p className="mt-2 text-base font-medium">{flipped ? card.back : card.front}</p>
-      </button>
+      </Button>
       <div className="flex items-center justify-between">
         <Button type="button" variant="outline" className="min-h-11" disabled={i === 0} onClick={() => { setI(i - 1); setFlipped(false) }}>
           <ChevronLeft className="h-4 w-4" />
@@ -1408,7 +1408,7 @@ function Carousel({ slides }: { slides: { html: string; imageUrl?: string }[] })
           </Button>
           <div className="flex items-center gap-1.5 px-1">
             {slides.map((_, n) => (
-              <button
+              <Button
                 key={n}
                 type="button"
                 aria-label={`Slide ${n + 1}`}

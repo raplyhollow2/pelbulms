@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  BookOpen,
   Loader2,
   AlertCircle,
   Upload,
@@ -16,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
+import { Rigbu, RigbuLoader } from '@/components/brand/rigbu'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -115,10 +115,10 @@ function PhotoUpload({
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <button
+      <Button
         type="button"
         onClick={() => inputRef.current?.click()}
-        className="group relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-muted/30 transition-colors hover:border-bhutan-yellow hover:bg-muted/50"
+        className="group relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-muted/30 transition-colors hover:border-primary hover:bg-muted/50"
       >
         {value?.previewUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -126,7 +126,7 @@ function PhotoUpload({
         ) : (
           <div className="flex flex-col items-center gap-2 p-4 text-center text-muted-foreground">
             {uploading ? (
-              <Loader2 className="h-7 w-7 animate-spin text-bhutan-orange" />
+              <Loader2 className="h-7 w-7 animate-spin text-primary" />
             ) : (
               <Upload className="h-7 w-7" />
             )}
@@ -138,7 +138,7 @@ function PhotoUpload({
             <CheckCircle2 className="h-4 w-4" />
           </span>
         )}
-      </button>
+      </Button>
       <input
         ref={inputRef}
         type="file"
@@ -164,7 +164,7 @@ export default function RegisterPage() {
   const [step, setStep] = useState(0)
   const [institutions, setInstitutions] = useState<Institution[]>([])
   const [policy, setPolicy] = useState<RegistrationPolicy>(DEFAULT_POLICY)
-  const [siteName, setSiteName] = useState('Pelbu LMS')
+  const [siteName, setSiteName] = useState('Rigbu LMS')
   const [tosAccepted, setTosAccepted] = useState(false)
 
   const [form, setForm] = useState({
@@ -378,7 +378,7 @@ export default function RegisterPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-bhutan-yellow" />
+        <RigbuLoader label="Opening registration..." />
       </div>
     )
   }
@@ -443,14 +443,12 @@ export default function RegisterPage() {
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-white px-4 py-6 pb-[calc(2rem+env(safe-area-inset-bottom))] dark:from-gray-900 dark:via-gray-900 dark:to-black">
+    <div className="min-h-screen bg-background px-4 py-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
       <div className="mx-auto w-full max-w-lg space-y-5">
         <div className="text-center">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full glass-strong px-5 py-2">
-            <BookOpen className="h-6 w-6 text-bhutan-yellow" />
-            <span className="bg-gradient-to-r from-bhutan-yellow to-bhutan-orange bg-clip-text text-lg font-bold text-transparent">
-              {siteName}
-            </span>
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-card px-5 py-2">
+            <Rigbu className="h-9 w-9" />
+            <span className="text-lg font-bold text-foreground">{siteName}</span>
           </div>
           <h1 className="text-2xl font-bold">
             {policy.require_identity_documents ? 'Verify your identity' : 'Complete your profile'}
@@ -485,7 +483,7 @@ export default function RegisterPage() {
                 <div
                   className={cn(
                     'flex h-9 w-9 items-center justify-center rounded-full border text-xs font-medium transition-colors',
-                    active && 'border-transparent bg-gradient-to-br from-bhutan-yellow to-bhutan-orange text-black',
+                    active && 'border-transparent bg-primary text-primary-foreground',
                     done && 'border-green-600/40 bg-green-600/15 text-green-700',
                     !active && !done && 'border-border bg-muted/40 text-muted-foreground'
                   )}
@@ -787,7 +785,7 @@ export default function RegisterPage() {
               <Button
                 type="button"
                 onClick={goNext}
-                className="h-12 flex-1 gap-1 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+                className="h-12 flex-1 gap-1 bg-primary text-primary-foreground hover:bg-primary"
               >
                 Next <ChevronRight className="h-4 w-4" />
               </Button>
@@ -796,7 +794,7 @@ export default function RegisterPage() {
                 type="button"
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="h-12 flex-1 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+                className="h-12 flex-1 bg-primary text-primary-foreground hover:bg-primary"
               >
                 {submitting ? (
                   <>

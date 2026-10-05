@@ -10,6 +10,12 @@
 
 const CLOUDINARY_PREFIX = 'cloudinary:'
 
+// Remote course covers that are either blocked (403) or too busy to read as a course picture.
+const COVER_OVERRIDES: [string, string][] = [
+  ['Business_Model_Canvas_Certiprof', '/covers/business-models.jpg'],
+  ['mujer-ejecutiva-panel-grafico', '/covers/ai-for-business.jpg'],
+]
+
 export function makeMediaRef(type: 'image' | 'video', publicId: string): string {
   return `${CLOUDINARY_PREFIX}${type}:${publicId}`
 }
@@ -34,6 +40,9 @@ export function parseMediaRef(
  */
 export function resolveMediaUrl(ref?: string | null): string | null {
   if (!ref) return null
+  for (const [needle, local] of COVER_OVERRIDES) {
+    if (ref.includes(needle)) return local
+  }
   const parsed = parseMediaRef(ref)
   if (!parsed) return ref
   return `/api/media/${parsed.publicId}?type=${parsed.type}`

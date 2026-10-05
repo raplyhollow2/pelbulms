@@ -126,12 +126,12 @@ function LazyKycThumb({
   }
 
   return (
-    <button
+    <Button
       ref={ref}
       type="button"
       onClick={() => onOpen(url, label)}
       className={cn(
-        'group relative overflow-hidden rounded-lg border border-border/60 bg-muted/40 text-left outline-none transition-colors hover:border-bhutan-orange/40 focus-visible:ring-2 focus-visible:ring-bhutan-orange/40',
+        'group relative overflow-hidden rounded-lg border border-border/60 bg-muted/40 text-left outline-none transition-colors hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-primary/40',
         className
       )}
       title={`View ${label}`}
@@ -169,7 +169,7 @@ function LazyKycThumb({
         </span>
         <Maximize2 className="h-3 w-3 shrink-0 text-white/80 opacity-0 transition-opacity group-hover:opacity-100" />
       </span>
-    </button>
+    </Button>
   )
 }
 

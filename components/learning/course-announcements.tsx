@@ -135,7 +135,7 @@ export function CourseAnnouncements({
   if (sortedAnnouncements.length === 0) {
     return (
       <div className="flex items-center justify-center h-full">
-        <Card className="glass max-w-md">
+        <Card className="bg-card/80 border border-border max-w-md">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <div className="text-center">
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
@@ -158,7 +158,7 @@ export function CourseAnnouncements({
         {/* Unread count indicator */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Bell className="w-5 h-5 text-bhutan-yellow" />
+            <Bell className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-semibold">Course Announcements</h2>
           </div>
           {readAnnouncements.size < sortedAnnouncements.length && (
@@ -177,7 +177,7 @@ export function CourseAnnouncements({
             <div key={announcement.id}>
               <Card
                 className={cn(
-                  "glass hover:shadow-lg transition-all duration-200 cursor-pointer",
+                  "bg-card/80 border border-border hover:shadow-lg transition-all duration-200 cursor-pointer",
                   !isRead && "border-l-4 border-l-primary bg-primary/5"
                 )}
                 onClick={() => handleAnnouncementClick(announcement.id)}
@@ -194,7 +194,7 @@ export function CourseAnnouncements({
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <AvatarFallback className="bg-bhutan-yellow text-bhutan-yellow-foreground">
+                          <AvatarFallback className="bg-primary text-primary-foreground">
                             {announcement.instructorName.charAt(0).toUpperCase()}
                           </AvatarFallback>
                         )}
@@ -203,7 +203,7 @@ export function CourseAnnouncements({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           {announcement.isPinned && (
-                            <Pin className="w-4 h-4 text-bhutan-yellow" />
+                            <Pin className="w-4 h-4 text-primary" />
                           )}
                           {!isRead && (
                             <Badge variant="default" className="bg-primary animate-pulse">
@@ -266,7 +266,7 @@ export function CourseAnnouncements({
                             // Custom link styling
                             a: ({ node, ...props }) => (
                               <a
-                                className="text-bhutan-yellow hover:text-bhutan-orange underline"
+                                className="text-primary hover:text-primary underline"
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 {...props}
@@ -288,7 +288,7 @@ export function CourseAnnouncements({
                         size="sm"
                         className={cn(
                           "flex items-center gap-2",
-                          isLiked && "text-bhutan-yellow"
+                          isLiked && "text-primary"
                         )}
                         onClick={(e) => {
                           e.stopPropagation()

@@ -82,9 +82,9 @@ export function CourseOverview({ course }: CourseOverviewProps) {
       <div className="p-6 space-y-6">
         {/* Quick Stats Bar */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Card className="glass p-3">
+          <Card className="bg-card/80 border border-border p-3">
             <div className="flex items-center gap-2">
-              <Award className="w-5 h-5 text-bhutan-yellow" />
+              <Award className="w-5 h-5 text-primary" />
               <div>
                 <p className="text-xs text-muted-foreground">Level</p>
                 <Badge className={cn("text-xs mt-1", getLevelColor(course.level))}>
@@ -94,9 +94,9 @@ export function CourseOverview({ course }: CourseOverviewProps) {
             </div>
           </Card>
 
-          <Card className="glass p-3">
+          <Card className="bg-card/80 border border-border p-3">
             <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-bhutan-orange" />
+              <Clock className="w-5 h-5 text-primary" />
               <div>
                 <p className="text-xs text-muted-foreground">Duration</p>
                 <p className="text-sm font-semibold mt-1">{formatDuration(course.duration_minutes || 0)}</p>
@@ -104,9 +104,9 @@ export function CourseOverview({ course }: CourseOverviewProps) {
             </div>
           </Card>
 
-          <Card className="glass p-3">
+          <Card className="bg-card/80 border border-border p-3">
             <div className="flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-bhutan-red" />
+              <Calendar className="w-5 h-5 text-destructive" />
               <div>
                 <p className="text-xs text-muted-foreground">Updated</p>
                 <p className="text-sm font-semibold mt-1">{formatDate(course.last_updated)}</p>
@@ -114,7 +114,7 @@ export function CourseOverview({ course }: CourseOverviewProps) {
             </div>
           </Card>
 
-          <Card className="glass p-3">
+          <Card className="bg-card/80 border border-border p-3">
             <div className="flex items-center gap-2">
               <Globe className="w-5 h-5 text-green-600" />
               <div>
@@ -128,10 +128,10 @@ export function CourseOverview({ course }: CourseOverviewProps) {
         {/* Bento Grid Layout */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* What You'll Learn - Large Card */}
-          <Card className="glass-strong md:col-span-2">
+          <Card className="bg-card border border-border shadow-sm md:col-span-2">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-bhutan-yellow" />
+                <BookOpen className="w-5 h-5 text-primary" />
                 What You'll Learn
               </CardTitle>
             </CardHeader>
@@ -154,10 +154,10 @@ export function CourseOverview({ course }: CourseOverviewProps) {
           </Card>
 
           {/* Requirements & Prerequisites */}
-          <Card className="glass-strong">
+          <Card className="bg-card border border-border shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-bhutan-orange" />
+                <TrendingUp className="w-5 h-5 text-primary" />
                 Requirements
               </CardTitle>
             </CardHeader>
@@ -180,10 +180,10 @@ export function CourseOverview({ course }: CourseOverviewProps) {
         </div>
 
         {/* Course Description with Read More */}
-        <Card className="glass-strong">
+        <Card className="bg-card border border-border shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Star className="w-5 h-5 text-bhutan-red" />
+              <Star className="w-5 h-5 text-destructive" />
               Course Description
             </CardTitle>
           </CardHeader>
@@ -204,7 +204,7 @@ export function CourseOverview({ course }: CourseOverviewProps) {
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowFullDescription(!showFullDescription)}
-                  className="text-bhutan-yellow hover:text-bhutan-orange"
+                  className="text-primary hover:text-primary"
                 >
                   {showFullDescription ? (
                     <>
@@ -223,7 +223,7 @@ export function CourseOverview({ course }: CourseOverviewProps) {
 
         {/* Target Audience */}
         {(course.targetAudience && course.targetAudience.length > 0) && (
-          <Card className="glass-strong">
+          <Card className="bg-card border border-border shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-purple-600" />
@@ -245,7 +245,7 @@ export function CourseOverview({ course }: CourseOverviewProps) {
 
         {/* Instructor Info */}
         {course.instructor && (
-          <Card className="glass-strong">
+          <Card className="bg-card border border-border shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-blue-600" />

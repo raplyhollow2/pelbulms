@@ -130,7 +130,7 @@ export default function InstructorProfilePage() {
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-12 flex justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-bhutan-yellow" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )
   }
@@ -152,12 +152,12 @@ export default function InstructorProfilePage() {
         <ArrowLeft className="w-4 h-4 mr-2" /> Courses
       </Button>
 
-      <Card className="glass-strong">
+      <Card className="bg-card border border-border shadow-sm">
         <CardContent className="p-6 sm:p-8">
           <div className="flex flex-col sm:flex-row gap-6 items-start">
-            <Avatar className="w-24 h-24 border-4 border-bhutan-yellow shrink-0">
+            <Avatar className="w-24 h-24 border-4 border-primary shrink-0">
               <AvatarImage src={resolveMediaUrl(instructor.avatar_url) || undefined} />
-              <AvatarFallback className="bg-bhutan-yellow text-black text-2xl font-bold">
+              <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
                 {initials}
               </AvatarFallback>
             </Avatar>
@@ -187,7 +187,7 @@ export default function InstructorProfilePage() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
                 <div className="rounded-lg border p-3 text-center">
-                  <div className="flex items-center justify-center gap-1 text-bhutan-yellow font-bold text-xl">
+                  <div className="flex items-center justify-center gap-1 text-primary font-bold text-xl">
                     <Star className="w-4 h-4 fill-current" />
                     {instructor.rating ?? '—'}
                   </div>
@@ -195,14 +195,14 @@ export default function InstructorProfilePage() {
                 </div>
                 <div className="rounded-lg border p-3 text-center">
                   <div className="flex items-center justify-center gap-1 font-bold text-xl">
-                    <Users className="w-4 h-4 text-bhutan-orange" />
+                    <Users className="w-4 h-4 text-primary" />
                     {instructor.students_count.toLocaleString()}
                   </div>
                   <p className="text-xs text-muted-foreground">Students</p>
                 </div>
                 <div className="rounded-lg border p-3 text-center">
                   <div className="flex items-center justify-center gap-1 font-bold text-xl">
-                    <BookOpen className="w-4 h-4 text-bhutan-yellow" />
+                    <BookOpen className="w-4 h-4 text-primary" />
                     {instructor.courses_count}
                   </div>
                   <p className="text-xs text-muted-foreground">Courses</p>
@@ -224,7 +224,7 @@ export default function InstructorProfilePage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <Award className="w-5 h-5 text-bhutan-yellow" /> Achievements
+              <Award className="w-5 h-5 text-primary" /> Achievements
             </CardTitle>
             <CardDescription>Based on courses taught and certificates earned</CardDescription>
           </CardHeader>
@@ -232,7 +232,7 @@ export default function InstructorProfilePage() {
             <ul className="space-y-2">
               {instructor.achievements.map((a, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-bhutan-yellow shrink-0" />
+                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
                   <span>{a}</span>
                 </li>
               ))}

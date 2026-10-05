@@ -157,7 +157,7 @@ export function UnifiedLearningInterface({
       label: 'Syllabus',
       icon: BookOpen,
       badge: `${completedLessons}/${totalLessons}`,
-      color: 'text-bhutan-yellow'
+      color: 'text-primary'
     },
     {
       value: 'overview',
@@ -178,7 +178,7 @@ export function UnifiedLearningInterface({
       label: 'Announcements',
       icon: Bell,
       badge: announcements.length > 0 ? announcements.length.toString() : null,
-      color: 'text-bhutan-red'
+      color: 'text-destructive'
     },
     {
       value: 'reviews',
@@ -267,7 +267,7 @@ export function UnifiedLearningInterface({
                 const isActive = activeTab === tab.value
 
                 return (
-                  <button
+                  <Button
                     key={tab.value}
                     onClick={() => handleTabChange(tab.value)}
                     className={cn(
@@ -287,7 +287,7 @@ export function UnifiedLearningInterface({
                         {tab.badge}
                       </Badge>
                     )}
-                  </button>
+                  </Button>
                 )
               })}
             </div>
@@ -368,7 +368,7 @@ export function UnifiedLearningInterface({
       {/* Progress Bar */}
       <div className="h-1 bg-secondary">
         <div
-          className="h-full bg-bhutan-yellow transition-all duration-500"
+          className="h-full bg-primary transition-all duration-500"
           style={{ width: `${progressPercentage}%` }}
         />
       </div>

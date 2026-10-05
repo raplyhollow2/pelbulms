@@ -1,4 +1,4 @@
--- Sample Data for Pelbu LMS Testing
+-- Sample Data for Rigbu LMS Testing
 -- This file contains production-ready sample data for testing the course catalog and enrollment functionality
 
 -- IMPORTANT: First, we need to create sample instructor profiles that reference your actual auth user
@@ -10,8 +10,8 @@ INSERT INTO institutions (id, name, slug, domain, logo_url, description, setting
   '550e8400-e29b-41d4-a716-446655440000',
   'Pelsung Bhutan',
   'pelsung-bhutan',
-  'pelbu.bt',
-  'https://api.dicebear.com/7.x/identicon/svg?seed=Pelbu',
+  'rigbu.bt',
+  'https://api.dicebear.com/7.x/identicon/svg?seed=Rigbu',
   'Leading educational institution in Bhutan providing world-class learning management and digital education solutions.',
   '{"theme": "bhutan", "features": ["lms", "analytics", "certifications"], "max_students": 1000}'::jsonb,
   NOW(),
@@ -41,7 +41,7 @@ BEGIN
     VALUES (
       current_user_id,
       'Dr. Pema Wangchuk',
-      'pema.wangchuk@pelbu.bt',
+      'pema.wangchuk@rigbu.bt',
       'instructor',
       'Ph.D. in Computer Science with 15+ years of teaching experience. Specialized in web development, mobile apps, and AI integration. Passionate about practical, hands-on learning.',
       'https://api.dicebear.com/7.x/avataaars/svg?seed=Pema',

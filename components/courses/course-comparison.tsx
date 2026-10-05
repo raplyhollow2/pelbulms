@@ -357,7 +357,7 @@ export function CourseComparison({
               {comparisonCourses.map((course) => (
                 <TableCell key={course.id} className="text-center py-4">
                   <Button
-                    className="w-full bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+                    className="w-full bg-primary hover:bg-primary text-primary-foreground"
                     size="sm"
                     onClick={() => (window.location.href = `/courses/${course.id}`)}
                   >
@@ -379,13 +379,13 @@ export function CourseComparison({
       ) : (
         <Button
           variant="outline"
-          className="glass"
+          className="bg-card/80 border border-border"
           onClick={() => setIsOpen(true)}
         >
           <GraduationCap className="w-5 h-5 mr-2" />
           Compare Courses
           {selectedCourses.length > 0 && (
-            <Badge className="ml-2 bg-bhutan-yellow text-black">
+            <Badge className="ml-2 bg-primary text-primary-foreground">
               {selectedCourses.length}
             </Badge>
           )}
@@ -433,8 +433,8 @@ export function CourseComparison({
                     className={cnUtils(
                       'p-4 rounded-lg border transition-all cursor-pointer',
                       isSelected
-                        ? 'border-bhutan-yellow bg-bhutan-yellow/10'
-                        : 'border-border/50 hover:border-bhutan-yellow/30',
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border/50 hover:border-primary/30',
                       isDisabled && 'opacity-50 cursor-not-allowed'
                     )}
                     onClick={() => !isDisabled && toggleCourseSelection(course.id)}
@@ -475,14 +475,14 @@ export function CourseComparison({
 
           {/* Best Value Highlight */}
           {comparisonCourses.length >= 2 && (
-            <div className="bg-bhutan-yellow/10 border border-bhutan-yellow/30 rounded-lg p-6">
+            <div className="bg-primary/10 border border-primary/30 rounded-lg p-6">
               <div className="flex items-start gap-3">
-                <TrendingUp className="w-6 h-6 text-bhutan-yellow flex-shrink-0 mt-0.5" />
+                <TrendingUp className="w-6 h-6 text-primary flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <h4 className="font-semibold mb-2 text-base">Recommended course</h4>
                   <p className="text-sm text-muted-foreground">
                     Based on rating and content depth, we recommend{' '}
-                    <span className="font-semibold text-bhutan-yellow">
+                    <span className="font-semibold text-primary">
                       {
                         comparisonCourses.reduce((best, current) => {
                           const currentScore =

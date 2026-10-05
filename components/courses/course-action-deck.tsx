@@ -1,4 +1,5 @@
 'use client'
+import { Input } from '@/components/ui/input'
 
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -129,12 +130,12 @@ export function CourseActionDeck({
       ? 'bg-green-600 hover:bg-green-700'
       : enrollmentPending
         ? 'bg-amber-500 hover:bg-amber-600'
-        : 'bg-bhutan-yellow hover:bg-bhutan-orange'
+        : 'bg-primary hover:bg-primary'
   }`
 
   const inviteField =
     inviteMode && !isEnrolled && !enrollmentPending ? (
-      <input
+      <Input
         value={inviteCode}
         onChange={(e) => onInviteCodeChange?.(e.target.value.toUpperCase())}
         placeholder="Enter your enrollment code"
@@ -157,7 +158,7 @@ export function CourseActionDeck({
   ].filter(Boolean) as { icon: typeof Clock; label: string }[]
 
   const media = showMedia ? (
-    <button
+    <Button
       type="button"
       onClick={() => hasPreview && setShowVideoPreview(true)}
       disabled={!hasPreview}
@@ -173,7 +174,7 @@ export function CourseActionDeck({
             onError={() => setImageError(true)}
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-bhutan-yellow/30 to-bhutan-orange/30">
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/30 to-muted/30">
             <BookOpen className="h-10 w-10 text-white" />
           </div>
         )}
@@ -191,7 +192,7 @@ export function CourseActionDeck({
           </>
         )}
       </div>
-    </button>
+    </Button>
   ) : null
 
   const offer = (
@@ -292,7 +293,7 @@ export function CourseActionDeck({
                   ? 'bg-green-600 hover:bg-green-700'
                   : enrollmentPending
                     ? 'bg-amber-500 hover:bg-amber-600'
-                    : 'bg-bhutan-yellow hover:bg-bhutan-orange'
+                    : 'bg-primary hover:bg-primary'
               }`}
               disabled={enrollmentPending || enrolling}
               onClick={isEnrolled ? onLearn : onEnroll}

@@ -1,3 +1,4 @@
+import { Textarea } from '@/components/ui/textarea'
 // @ts-nocheck — existing Supabase and UI type drift; remove when database types are regenerated.
 'use client'
 
@@ -13,7 +14,7 @@ import { syncCourseDuration } from '@/lib/video-duration'
 import { LessonBlocks } from '@/components/course/lesson-blocks'
 import { BlockCatalog } from '@/components/teach/block-picker'
 import { LessonResourcesEditor } from '@/components/teach/lesson-resources-editor'
-import { AskPelbuRail } from '@/components/ai/ask-pelbu-rail'
+import { AskRigbuRail } from '@/components/ai/ask-rigbu-rail'
 import { parseLessonBlocks, type LessonBlock } from '@/lib/lesson-blocks'
 import {
   Plus,
@@ -56,7 +57,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 
-const OUTLINE_KEY = 'pelbu:studio-outline-open'
+const OUTLINE_KEY = 'rigbu:studio-outline-open'
 const outlineListeners = new Set<() => void>()
 
 function subscribeOutline(onStoreChange: () => void) {
@@ -527,7 +528,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
     titleRef.current?.select()
   }
 
-  const openAskPelbu = () => {
+  const openAskRigbu = () => {
     if (window.matchMedia('(min-width: 1024px)').matches) setAiOpen(true)
     else setMobileTab('ai')
   }
@@ -545,7 +546,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-bhutan-yellow" />
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
       </div>
     )
   }
@@ -616,7 +617,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
               >
                 {sectionOpen ? <ChevronDown /> : <ChevronRight />}
               </Button>
-              <textarea
+              <Textarea
                 value={mod.title}
                 aria-label="Section title"
                 rows={1}
@@ -667,17 +668,17 @@ export function CourseStudio({ courseId }: { courseId: string }) {
                     }}
                     className="flex items-start gap-1"
                   >
-                    <button
+                    <Button
                       type="button"
                       onClick={() => selectLesson(les.id)}
                       className={`flex min-h-11 flex-1 items-start gap-2 rounded-lg px-2 py-2 text-left text-sm ${
-                        les.id === lessonId ? 'bg-bhutan-yellow/20 font-medium' : 'hover:bg-muted'
+                        les.id === lessonId ? 'bg-primary/20 font-medium' : 'hover:bg-muted'
                       }`}
                     >
                       <span
                         aria-hidden
                         className={`mt-1.5 size-2 shrink-0 rounded-full ${
-                          hasContent ? 'bg-bhutan-yellow' : 'border border-muted-foreground/50'
+                          hasContent ? 'bg-primary' : 'border border-muted-foreground/50'
                         }`}
                       />
                       <span className="sr-only">{hasContent ? 'Has content' : 'Empty'}</span>
@@ -690,7 +691,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
                           <span className="ml-1 text-xs font-normal text-muted-foreground">Preview</span>
                         ) : null}
                       </span>
-                    </button>
+                    </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md hover:bg-muted">
                         <MoreHorizontal className="h-4 w-4" />
@@ -774,7 +775,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
       </div>
       {current && current.content === undefined ? (
         <div className="flex min-h-40 items-center justify-center">
-          <Loader2 className="h-5 w-5 animate-spin text-bhutan-yellow" />
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
         </div>
       ) : current ? (
         <div className="space-y-8">
@@ -803,7 +804,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
             courseId={courseId}
             editable
             onChange={(next) => saveBlocks(next)}
-            onAskPelbu={openAskPelbu}
+            onAskRigbu={openAskRigbu}
             onOpenLessonOptions={() =>
               document.getElementById('lesson-activities')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
             }
@@ -859,7 +860,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   )
 
   const renderRail = () => (
-    <AskPelbuRail
+    <AskRigbuRail
       courseId={courseId}
       lessonId={lessonId || undefined}
       onApplied={(next) => {
@@ -898,7 +899,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
             <p className="truncate text-sm font-semibold">{course?.title}</p>
             <Badge
               variant="outline"
-              className={course?.is_published ? 'border-bhutan-yellow bg-bhutan-yellow/20' : undefined}
+              className={course?.is_published ? 'border-primary bg-primary/20' : undefined}
             >
               {course?.is_published ? 'Published' : 'Draft'}
             </Badge>
@@ -917,8 +918,8 @@ export function CourseStudio({ courseId }: { courseId: string }) {
           variant="outline"
           size="icon"
           className="min-h-11 min-w-11"
-          aria-label="Ask Pelbu"
-          onClick={openAskPelbu}
+          aria-label="Ask Rigbu"
+          onClick={openAskRigbu}
         >
           <Sparkles className="h-4 w-4" />
         </Button>
@@ -938,7 +939,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
         </Button>
         <Button
           type="button"
-          className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+          className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
           disabled={publishing}
           onClick={() => void togglePublish()}
         >
@@ -1009,7 +1010,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
       <Sheet open={aiOpen} onOpenChange={setAiOpen}>
         <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-md">
           <SheetHeader>
-            <SheetTitle>Ask Pelbu</SheetTitle>
+            <SheetTitle>Ask Rigbu</SheetTitle>
             <SheetDescription>Rewrite this lesson or adjust the course structure.</SheetDescription>
           </SheetHeader>
           <div className="px-4 pb-6">{aiOpen ? renderRail() : null}</div>
@@ -1027,7 +1028,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+              className="bg-primary text-primary-foreground hover:bg-primary"
               onClick={(event) => {
                 event.preventDefault()
                 void commitPublish(false)
@@ -1050,7 +1051,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+              className="bg-primary text-primary-foreground hover:bg-primary"
               onClick={(event) => {
                 event.preventDefault()
                 void commitPublish(true)

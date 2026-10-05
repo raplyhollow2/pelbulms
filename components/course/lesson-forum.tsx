@@ -186,7 +186,7 @@ function PersonAvatar({
   return (
     <Avatar size={size} className="bg-muted">
       {src ? <AvatarImage src={src} alt={name || 'User'} /> : null}
-      <AvatarFallback className="bg-bhutan-yellow/20 text-xs font-semibold text-foreground">
+      <AvatarFallback className="bg-primary/20 text-xs font-semibold text-foreground">
         {initials(name)}
       </AvatarFallback>
     </Avatar>
@@ -209,7 +209,7 @@ function ToolbarIcon({
   active?: boolean
 }) {
   return (
-    <button
+    <Button
       type="button"
       title={label}
       aria-label={label}
@@ -222,7 +222,7 @@ function ToolbarIcon({
       )}
     >
       {children}
-    </button>
+    </Button>
   )
 }
 
@@ -697,7 +697,7 @@ export function LessonForum({ courseId, lessonId, userId }: LessonForumProps) {
       </p>
 
       <div className="rounded-xl border bg-card p-3 shadow-sm sm:p-4">
-        <button
+        <Button
           type="button"
           disabled={!userId}
           onClick={() => setComposerOpen(true)}
@@ -707,9 +707,9 @@ export function LessonForum({ courseId, lessonId, userId }: LessonForumProps) {
           <div className="min-h-11 flex-1 rounded-full bg-muted/70 px-4 py-3 text-sm text-muted-foreground transition-colors hover:bg-muted">
             {userId ? `What's on your mind, ${firstName}?` : 'Sign in to post…'}
           </div>
-        </button>
+        </Button>
         <div className="mt-3 grid grid-cols-3 gap-1 border-t pt-2">
-          <button
+          <Button
             type="button"
             disabled={!userId}
             onClick={() => {
@@ -720,8 +720,8 @@ export function LessonForum({ courseId, lessonId, userId }: LessonForumProps) {
           >
             <ImageIcon className="h-5 w-5 text-emerald-600" />
             Photo
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             disabled={!userId}
             onClick={() => {
@@ -732,8 +732,8 @@ export function LessonForum({ courseId, lessonId, userId }: LessonForumProps) {
           >
             <Video className="h-5 w-5 text-rose-600" />
             Video
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             disabled={!userId}
             onClick={() => {
@@ -744,7 +744,7 @@ export function LessonForum({ courseId, lessonId, userId }: LessonForumProps) {
           >
             <Smile className="h-5 w-5 text-amber-500" />
             Feeling
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -820,14 +820,14 @@ export function LessonForum({ courseId, lessonId, userId }: LessonForumProps) {
             {emojiOpen && (
               <div className="flex flex-wrap gap-1 rounded-lg border bg-card p-2">
                 {QUICK_EMOJIS.map((emoji) => (
-                  <button
+                  <Button
                     key={emoji}
                     type="button"
                     className="flex h-9 w-9 items-center justify-center rounded-md text-lg hover:bg-muted"
                     onClick={() => insertEmoji(emoji)}
                   >
                     {emoji}
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -835,7 +835,7 @@ export function LessonForum({ courseId, lessonId, userId }: LessonForumProps) {
             {feelingOpen && (
               <div className="grid grid-cols-2 gap-1 rounded-lg border bg-card p-2">
                 {FEELINGS.map((f) => (
-                  <button
+                  <Button
                     key={f}
                     type="button"
                     className="rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted"
@@ -845,7 +845,7 @@ export function LessonForum({ courseId, lessonId, userId }: LessonForumProps) {
                     }}
                   >
                     {f}
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -868,7 +868,7 @@ export function LessonForum({ courseId, lessonId, userId }: LessonForumProps) {
                     filteredMembers.map((m) => {
                       const selected = tagged.some((t) => t.id === m.id)
                       return (
-                        <button
+                        <Button
                           key={m.id}
                           type="button"
                           onClick={() => toggleTag(m)}
@@ -882,7 +882,7 @@ export function LessonForum({ courseId, lessonId, userId }: LessonForumProps) {
                           {selected ? (
                             <span className="text-xs font-semibold text-[#0866FF]">Tagged</span>
                           ) : null}
-                        </button>
+                        </Button>
                       )
                     })
                   )}
@@ -926,7 +926,7 @@ export function LessonForum({ courseId, lessonId, userId }: LessonForumProps) {
               <div className="relative overflow-hidden rounded-xl border">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={photoPreview} alt="Upload preview" className="max-h-64 w-full object-cover" />
-                <button
+                <Button
                   type="button"
                   className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white"
                   onClick={() => {
@@ -936,13 +936,13 @@ export function LessonForum({ courseId, lessonId, userId }: LessonForumProps) {
                   }}
                 >
                   <X className="h-4 w-4" />
-                </button>
+                </Button>
               </div>
             )}
             {videoPreview && (
               <div className="relative overflow-hidden rounded-xl border">
                 <video src={videoPreview} controls className="max-h-64 w-full bg-black" />
-                <button
+                <Button
                   type="button"
                   className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white"
                   onClick={() => {
@@ -952,7 +952,7 @@ export function LessonForum({ courseId, lessonId, userId }: LessonForumProps) {
                   }}
                 >
                   <X className="h-4 w-4" />
-                </button>
+                </Button>
               </div>
             )}
 
@@ -1122,7 +1122,7 @@ export function LessonForum({ courseId, lessonId, userId }: LessonForumProps) {
               </div>
 
               <div className="grid grid-cols-2 gap-1 border-t px-2 py-1">
-                <button
+                <Button
                   type="button"
                   className="flex min-h-11 items-center justify-center gap-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted/60"
                   onClick={() =>
@@ -1134,7 +1134,7 @@ export function LessonForum({ courseId, lessonId, userId }: LessonForumProps) {
                 >
                   <MessageCircle className="h-4 w-4" />
                   Comment
-                </button>
+                </Button>
                 <div
                   className="relative"
                   onPointerEnter={(event) => {
@@ -1162,7 +1162,7 @@ export function LessonForum({ courseId, lessonId, userId }: LessonForumProps) {
                         className="flex items-end gap-0.5 rounded-full border bg-popover px-2 py-1.5 shadow-lg"
                       >
                         {REACTIONS.map((reaction) => (
-                          <button
+                          <Button
                             key={reaction.key}
                             type="button"
                             role="menuitem"
@@ -1180,12 +1180,12 @@ export function LessonForum({ courseId, lessonId, userId }: LessonForumProps) {
                             }
                           >
                             {reaction.emoji}
-                          </button>
+                          </Button>
                         ))}
                       </div>
                     </div>
                   ) : null}
-                  <button
+                  <Button
                     type="button"
                     disabled={!userId}
                     aria-pressed={Boolean(thread.reactions?.mine)}
@@ -1227,7 +1227,7 @@ export function LessonForum({ courseId, lessonId, userId }: LessonForumProps) {
                       <ThumbsUp className="h-4 w-4" />
                     )}
                     {reactionByKey(thread.reactions?.mine)?.label || 'Like'}
-                  </button>
+                  </Button>
                 </div>
               </div>
 

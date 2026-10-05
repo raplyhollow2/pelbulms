@@ -37,7 +37,7 @@ export function ExportPackBar({
       const blob = await res.blob()
       const cd = res.headers.get('Content-Disposition') || ''
       const match = cd.match(/filename="([^"]+)"/)
-      const filename = match?.[1] || `pelbu-report.${format}`
+      const filename = match?.[1] || `rigbu-report.${format}`
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url

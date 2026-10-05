@@ -4,7 +4,7 @@ import { getCloudinaryAccount } from '@/lib/cloudinary'
 import { parseMediaRef } from '@/lib/media'
 import { tryCreateServiceClient } from '@/lib/supabase/server'
 
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pelbu.bt'
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://rigbu.bt'
 
 async function publicThumbnail(ref: string | null | undefined) {
   if (!ref) return null
@@ -27,7 +27,7 @@ export async function generateMetadata({
   const { id } = await params
   const generic: Metadata = {
     title: 'Course',
-    description: 'View this course on Pelbu LMS.',
+    description: 'View this course on Rigbu LMS.',
     robots: { index: false, follow: false },
   }
 
@@ -44,7 +44,7 @@ export async function generateMetadata({
 
   const title = data.title
   const description =
-    courseDescriptionPlain(data.description).slice(0, 200) || 'View this course on Pelbu LMS.'
+    courseDescriptionPlain(data.description).slice(0, 200) || 'View this course on Rigbu LMS.'
   const url = `${SITE_URL}/courses/${id}`
   const image = (await publicThumbnail(data.thumbnail_url)) || `${SITE_URL}/icon.svg`
 

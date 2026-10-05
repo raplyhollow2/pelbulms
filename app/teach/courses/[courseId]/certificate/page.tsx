@@ -27,7 +27,7 @@ type CertSettings = {
 }
 
 const DEFAULTS: CertSettings = {
-  brandName: 'PELBU LMS',
+  brandName: 'RIGBU LMS',
   titleLine: 'Certificate of Completion',
   accentColor: '#E9B308',
   signatureName: '',
@@ -221,7 +221,7 @@ export default function CertificateDesignPage() {
   if (loading) {
     return (
       <div className="container mx-auto flex justify-center px-4 py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-bhutan-yellow" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
@@ -235,7 +235,7 @@ export default function CertificateDesignPage() {
         <Button
           onClick={save}
           disabled={saving}
-          className="bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+          className="bg-primary text-primary-foreground hover:bg-primary"
         >
           {saving ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

@@ -1,4 +1,5 @@
 'use client'
+import { Button } from '@/components/ui/button'
 
 import {
   Bar,
@@ -38,13 +39,13 @@ const FRICTION_TYPE_COLORS: Record<FrictionType, string> = {
 function ExplainButton({ onExplain }: { onExplain?: () => void }) {
   if (!onExplain) return null
   return (
-    <button
+    <Button
       type="button"
       onClick={onExplain}
-      className="shrink-0 text-xs font-medium text-bhutan-orange hover:underline"
+      className="shrink-0 text-xs font-medium text-primary hover:underline"
     >
       Explain
-    </button>
+    </Button>
   )
 }
 
@@ -64,7 +65,7 @@ export function FunnelChart({
   const data = steps.map((s) => ({ name: s.label, count: s.count }))
   const height = steps.length > 8 ? Math.max(256, steps.length * 28) : 256
   return (
-    <Card className="glass">
+    <Card className="bg-card/80 border border-border">
       <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
         <div>
           <CardTitle className="text-base">{title}</CardTitle>
@@ -105,7 +106,7 @@ export function FrictionHotspotChart({
   }))
 
   return (
-    <Card className="glass">
+    <Card className="bg-card/80 border border-border">
       <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
         <div>
           <CardTitle className="text-base">Friction hotspots</CardTitle>
@@ -161,7 +162,7 @@ export function TrendChart({
   })
 
   return (
-    <Card className="glass">
+    <Card className="bg-card/80 border border-border">
       <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
         <CardTitle className="text-base">Weekly trends</CardTitle>
         <ExplainButton onExplain={onExplain} />
@@ -203,7 +204,7 @@ export function InstitutionScoreChart({
     score: r.compositeScore,
   }))
   return (
-    <Card className="glass">
+    <Card className="bg-card/80 border border-border">
       <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
         <CardTitle className="text-base">Institution scoreboard</CardTitle>
         <ExplainButton onExplain={onExplain} />
@@ -234,12 +235,12 @@ export function SparkKpis({
     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
       {kpis.map((k) => {
         const className = cn(
-          'rounded-xl border border-bhutan-orange/20 bg-gradient-to-br from-bhutan-yellow/15 to-transparent p-4',
-          k.href && 'transition-colors hover:border-bhutan-orange/50'
+          'rounded-xl border border-primary/20 bg-gradient-to-br from-primary/15 to-transparent p-4',
+          k.href && 'transition-colors hover:border-primary/50'
         )
         const figures = (
           <>
-            <p className="mt-1 text-2xl font-semibold tabular-nums text-bhutan-orange">{k.value}</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums text-primary">{k.value}</p>
             {k.hint ? <p className="mt-1 text-[11px] text-muted-foreground">{k.hint}</p> : null}
           </>
         )
@@ -248,13 +249,13 @@ export function SparkKpis({
             <div className="flex items-start justify-between gap-2">
               <p className="text-xs text-muted-foreground">{k.label}</p>
               {onExplain ? (
-                <button
+                <Button
                   type="button"
-                  className="text-[11px] font-medium text-bhutan-orange hover:underline"
+                  className="text-[11px] font-medium text-primary hover:underline"
                   onClick={() => onExplain(k)}
                 >
                   Explain
-                </button>
+                </Button>
               ) : null}
             </div>
             {k.href ? (

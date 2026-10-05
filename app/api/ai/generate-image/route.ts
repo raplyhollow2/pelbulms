@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       const cloudinary = cloudinaryClient(account)
       const uploaded: any = await new Promise((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream(
-          { folder: 'pelbu/ai-images', resource_type: 'image' },
+          { folder: 'rigbu/ai-images', resource_type: 'image' },
           (err, result) => (err ? reject(err) : resolve(result))
         )
         stream.end(png)

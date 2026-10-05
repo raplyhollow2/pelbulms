@@ -37,8 +37,8 @@ export function CourseCompletionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg" showCloseButton>
         <DialogHeader className="items-center text-center sm:items-center">
-          <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-bhutan-yellow/20">
-            <PartyPopper className="h-8 w-8 text-bhutan-orange" aria-hidden />
+          <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-primary/20">
+            <PartyPopper className="h-8 w-8 text-primary" aria-hidden />
           </div>
           <DialogTitle className="text-xl sm:text-2xl">Congratulations!</DialogTitle>
           <DialogDescription className="text-center text-base">
@@ -56,13 +56,13 @@ export function CourseCompletionDialog({
         </DialogHeader>
 
         <div className="rounded-lg border bg-muted/40 px-4 py-3 text-center text-sm text-muted-foreground">
-          <Award className="mx-auto mb-2 h-5 w-5 text-bhutan-yellow" />
+          <Award className="mx-auto mb-2 h-5 w-5 text-primary" />
           Download your PDF certificate, or open the claim page to verify and save it anytime.
         </div>
 
         <DialogFooter className="gap-2 sm:flex-col sm:space-x-0">
           <Button
-            className="min-h-11 w-full bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+            className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary"
             disabled={issuing}
             onClick={onDownload}
           >

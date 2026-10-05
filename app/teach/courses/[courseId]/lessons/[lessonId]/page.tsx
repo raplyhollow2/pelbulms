@@ -191,7 +191,7 @@ export default function LessonEditPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-bhutan-yellow" />
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
           <p className="text-muted-foreground">Loading lesson...</p>
         </div>
       </div>
@@ -228,7 +228,7 @@ export default function LessonEditPage() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className="text-xs">{course.category}</Badge>
-                <Badge className="text-xs bg-bhutan-yellow text-black">Lesson</Badge>
+                <Badge className="text-xs bg-primary text-primary-foreground">Lesson</Badge>
                 {module && (
                   <Badge variant="secondary" className="text-xs">{module.title}</Badge>
                 )}
@@ -245,7 +245,7 @@ export default function LessonEditPage() {
             <Button
               onClick={saveChanges}
               disabled={saving || !hasChanges}
-              className="bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+              className="bg-primary hover:bg-primary text-primary-foreground"
             >
               {saving ? (
                 <>
@@ -262,7 +262,7 @@ export default function LessonEditPage() {
           </div>
         </div>
 
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg">Page options</CardTitle>
             <CardDescription className="text-sm">Title, video, activities, and gates. Page blocks are edited in Studio.</CardDescription>
@@ -278,7 +278,7 @@ export default function LessonEditPage() {
         </Card>
 
         {/* Quick Actions */}
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardHeader>
             <CardTitle className="text-lg">Quick Actions</CardTitle>
           </CardHeader>

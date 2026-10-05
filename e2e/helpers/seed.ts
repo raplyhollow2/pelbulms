@@ -5,7 +5,7 @@ import path from 'path'
 
 const FIXTURE_PATH = path.join(__dirname, '.fixture.json')
 
-export const TEST_PASSWORD = 'PelbuE2E!Test2026'
+export const TEST_PASSWORD = 'RigbuE2E!Test2026'
 export const RUN_ID = process.env.E2E_RUN_ID || `e2e${Date.now().toString(36)}`
 
 export type TestUser = {
@@ -155,13 +155,13 @@ export async function seedEnrollmentFixture(): Promise<Fixture> {
 
   const owner = await ensureUser(
     admin,
-    `owner.${runId}@pelbu-e2e.test`,
+    `owner.${runId}@rigbu-e2e.test`,
     `E2E Owner ${runId}`,
     'instructor'
   )
   const coTeacher = await ensureUser(
     admin,
-    `coteacher.${runId}@pelbu-e2e.test`,
+    `coteacher.${runId}@rigbu-e2e.test`,
     `E2E CoTeacher ${runId}`,
     'instructor'
   )
@@ -171,7 +171,7 @@ export async function seedEnrollmentFixture(): Promise<Fixture> {
     students.push(
       await ensureUser(
         admin,
-        `student${i}.${runId}@pelbu-e2e.test`,
+        `student${i}.${runId}@rigbu-e2e.test`,
         `E2E Student ${i} ${runId}`,
         'student'
       )
@@ -180,7 +180,7 @@ export async function seedEnrollmentFixture(): Promise<Fixture> {
 
   const noKycStudent = await ensureUser(
     admin,
-    `nokyc.${runId}@pelbu-e2e.test`,
+    `nokyc.${runId}@rigbu-e2e.test`,
     `E2E No KYC ${runId}`,
     'student'
   )
@@ -291,19 +291,19 @@ export async function seedTeachingKycFixture(): Promise<TeachingKycFixture> {
 
   const superadmin = await ensureUser(
     admin,
-    `super.${runId}@pelbu-e2e.test`,
+    `super.${runId}@rigbu-e2e.test`,
     `E2E Super ${runId}`,
     'superadmin'
   )
   const resourcePerson = await ensureUser(
     admin,
-    `rp.${runId}@pelbu-e2e.test`,
+    `rp.${runId}@rigbu-e2e.test`,
     `E2E RP ${runId}`,
     'resource_person'
   )
   const applicant = await ensureUser(
     admin,
-    `teachapp.${runId}@pelbu-e2e.test`,
+    `teachapp.${runId}@rigbu-e2e.test`,
     `E2E TeachApp ${runId}`,
     'student'
   )

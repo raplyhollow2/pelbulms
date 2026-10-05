@@ -154,7 +154,7 @@ export default function AnnouncementsPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-bhutan-yellow" />
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
           <span className="ml-3 text-muted-foreground">Loading announcements...</span>
         </div>
       </div>
@@ -179,7 +179,7 @@ export default function AnnouncementsPage() {
 
         {/* No Announcements */}
         {announcements.length === 0 && (
-          <Card className="glass">
+          <Card className="bg-card/80 border border-border">
             <CardContent className="flex flex-col items-center justify-center py-12">
               <Megaphone className="w-16 h-16 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">No announcements</h3>
@@ -196,7 +196,7 @@ export default function AnnouncementsPage() {
             {announcements.map((announcement) => (
               <Card
                 key={announcement.id}
-                className={`glass-strong border-l-4 ${getPriorityColor(announcement.priority)}`}
+                className={`bg-card border border-border shadow-sm border-l-4 ${getPriorityColor(announcement.priority)}`}
               >
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -254,7 +254,7 @@ export default function AnnouncementsPage() {
 
         {/* Group by Course View */}
         {Object.keys(courseAnnouncements).length > 0 && (
-          <Card className="glass">
+          <Card className="bg-card/80 border border-border">
             <CardHeader>
               <CardTitle>Announcements by Course</CardTitle>
               <CardDescription>Course-specific announcements</CardDescription>
@@ -272,7 +272,7 @@ export default function AnnouncementsPage() {
                           {courseAnn.map((announcement) => (
                             <div
                               key={announcement.id}
-                              className="p-3 border rounded-lg hover:border-bhutan-yellow/50 transition-colors"
+                              className="p-3 border rounded-lg hover:border-primary/50 transition-colors"
                             >
                               <div className="flex items-center justify-between mb-1">
                                 <h5 className="font-medium text-sm">{announcement.title}</h5>

@@ -147,8 +147,8 @@ export async function POST(request: NextRequest) {
 
     const result = await deliverWithHost(resolved.host, {
       to,
-      subject: 'Pelbu LMS email host test',
-      text: `This is a test message from the ${resolved.host.name} email host in Pelbu LMS.`,
+      subject: 'Rigbu LMS email host test',
+      text: `This is a test message from the ${resolved.host.name} email host in Rigbu LMS.`,
     })
     if (!result.sent) {
       return NextResponse.json({ error: result.error || 'Test email was not sent' }, { status: 400 })

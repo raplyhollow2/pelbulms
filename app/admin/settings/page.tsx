@@ -18,7 +18,7 @@ function AdminSiteSettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
-    site_name: 'Pelbu LMS',
+    site_name: 'Rigbu LMS',
     tagline: '',
     support_email: '',
     maintenance_mode: false,
@@ -32,7 +32,7 @@ function AdminSiteSettingsPage() {
         if (!res.ok) throw new Error(data.error || 'Failed to load settings')
         const s = data.settings as PlatformSettings
         setForm({
-          site_name: s.site_name || 'Pelbu LMS',
+          site_name: s.site_name || 'Rigbu LMS',
           tagline: s.tagline || '',
           support_email: s.support_email || '',
           maintenance_mode: !!s.maintenance_mode,
@@ -63,7 +63,7 @@ function AdminSiteSettingsPage() {
       const savedName = data.settings?.site_name
       if (typeof savedName === 'string' && savedName.trim()) {
         window.dispatchEvent(
-          new CustomEvent('pelbu:platform-identity', { detail: { siteName: savedName.trim() } })
+          new CustomEvent('rigbu:platform-identity', { detail: { siteName: savedName.trim() } })
         )
       }
       toast.success('Site settings saved')
@@ -115,7 +115,7 @@ function AdminSiteSettingsPage() {
             type="email"
             value={form.support_email}
             onChange={(e) => setForm((f) => ({ ...f, support_email: e.target.value }))}
-            placeholder="support@pelbu.bt"
+            placeholder="support@rigbu.bt"
           />
         </div>
       </section>

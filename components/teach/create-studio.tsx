@@ -1,4 +1,5 @@
 'use client'
+import { NativeSelect } from '@/components/ui/native-select'
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
@@ -54,7 +55,7 @@ export function CreateStudio() {
   const [startingBlank, setStartingBlank] = useState(false)
 
   useEffect(() => {
-    const saved = localStorage.getItem('pelbu:create-language')
+    const saved = localStorage.getItem('rigbu:create-language')
     if (saved) setLanguage(saved)
     void fetch('/api/ai/models')
       .then((r) => r.json())
@@ -269,14 +270,14 @@ export function CreateStudio() {
       <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:py-16">
         {phase === 'compose' && (
           <>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Pelbu Coursebox</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Rigbu Coursebox</p>
             <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-5xl">Create your course</h1>
             <p className="mt-2 text-sm text-muted-foreground sm:text-base">
               One prompt. The school AI drafts the structure, pages, quizzes, and scenarios.
             </p>
 
             {keyReady === false && (
-              <div className="mt-6 rounded-xl border border-bhutan-yellow/40 bg-bhutan-yellow/10 p-4 text-sm">
+              <div className="mt-6 rounded-xl border border-primary/40 bg-primary/10 p-4 text-sm">
                 Course generation is not configured yet. A superadmin needs to enable an AI provider under Admin → AI.
               </div>
             )}
@@ -298,31 +299,31 @@ export function CreateStudio() {
                 className="min-h-32 border-0 bg-transparent text-base shadow-none"
               />
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <select
+                <NativeSelect
                   value={language}
                   onChange={(e) => {
                     setLanguage(e.target.value)
-                    localStorage.setItem('pelbu:create-language', e.target.value)
+                    localStorage.setItem('rigbu:create-language', e.target.value)
                   }}
                   className="min-h-11 rounded-full border border-border bg-background px-3 text-sm"
                 >
                   {LANGS.map((l) => (
                     <option key={l}>{l}</option>
                   ))}
-                </select>
+                </NativeSelect>
                 <div className="flex rounded-full border border-border p-0.5">
                   {(['compact', 'standard', 'full'] as CourseSize[]).map((s) => (
-                    <button
+                    <Button
                       key={s}
                       type="button"
                       onClick={() => setSize(s)}
                       className={cn(
                         'min-h-11 rounded-full px-3 text-xs capitalize',
-                        size === s ? 'bg-bhutan-yellow text-black' : 'text-muted-foreground'
+                        size === s ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
                       )}
                     >
                       {s}
-                    </button>
+                    </Button>
                   ))}
                 </div>
                 <DropdownMenu>
@@ -364,7 +365,7 @@ export function CreateStudio() {
                 <div className="ml-auto">
                   <Button
                     type="button"
-                    className="min-h-11 rounded-full bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+                    className="min-h-11 rounded-full bg-primary text-primary-foreground hover:bg-primary"
                     disabled={loading || keyReady === false}
                     onClick={() => void design()}
                   >
@@ -427,25 +428,25 @@ export function CreateStudio() {
 
             <div className="mt-4 flex flex-wrap gap-2">
               {CHIPS.map((chip) => (
-                <button
+                <Button
                   key={chip}
                   type="button"
                   className="min-h-11 rounded-full border border-border px-3 text-xs text-foreground hover:bg-muted"
                   onClick={() => setPrompt(chip)}
                 >
                   {chip}
-                </button>
+                </Button>
               ))}
             </div>
             <p className="mt-6 text-sm text-muted-foreground">
-              <button
+              <Button
                 type="button"
                 className="text-foreground underline disabled:opacity-60"
                 disabled={startingBlank}
                 onClick={() => void startBlank()}
               >
                 {startingBlank ? 'Starting…' : 'Start blank'}
-              </button>
+              </Button>
             </p>
           </>
         )}
@@ -481,7 +482,7 @@ export function CreateStudio() {
         {phase === 'building' && (
           <div className="rounded-2xl border border-border bg-card p-6">
             <h2 className="flex items-center gap-2 text-xl font-semibold">
-              <Sparkles className="h-5 w-5 text-bhutan-orange" /> Designing your course
+              <Sparkles className="h-5 w-5 text-primary" /> Designing your course
             </h2>
             <ul className="mt-4 space-y-2 text-sm text-muted-foreground">
               {progress.map((line) => (
@@ -493,7 +494,7 @@ export function CreateStudio() {
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button
                   type="button"
-                  className="min-h-11 bg-bhutan-yellow text-black"
+                  className="min-h-11 bg-primary text-primary-foreground"
                   onClick={() => void fillFrom(draftCourseId, draftModuleIds, failedModule)}
                 >
                   Retry module {(failedModule || 0) + 1}

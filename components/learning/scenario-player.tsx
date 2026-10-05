@@ -51,7 +51,7 @@ export function ScenarioPlayer({ lessonId }: { lessonId: string }) {
   if (!node) return null
 
   return (
-    <Card className="glass">
+    <Card className="bg-card/80 border border-border">
       <CardHeader>
         <CardTitle className="text-lg">{scenario.title}</CardTitle>
       </CardHeader>

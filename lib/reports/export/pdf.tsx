@@ -207,7 +207,7 @@ function ReportPdfDocument({
   const outline = buildReportOutline(snapshot, brief)
   const parts = [...outline.parts, ...outline.appendix]
   return (
-    <Document title={pdfText(outline.title)} author="PelbuLMS">
+    <Document title={pdfText(outline.title)} author="RigbuLMS">
       <Page size="A4" style={styles.page} wrap>
         <Text style={styles.title}>{pdfText(outline.title)}</Text>
         <Text style={styles.subtitle}>{pdfText(outline.subtitle)}</Text>

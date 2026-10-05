@@ -138,7 +138,7 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-bhutan-yellow" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )
   }
@@ -509,7 +509,7 @@ export default function SettingsPage() {
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+            className="bg-primary hover:bg-primary text-primary-foreground"
           >
             {saving ? (
               <>

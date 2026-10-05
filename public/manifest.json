@@ -1,11 +1,11 @@
 {
-  "name": "Pelbu LMS",
-  "short_name": "Pelbu",
+  "name": "Rigbu LMS",
+  "short_name": "Rigbu",
   "description": "Bhutan Learning Management System - Quality education accessible to all",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FFF7ED",
-  "theme_color": "#FFC72C",
+  "background_color": "#fafaf9",
+  "theme_color": "#1c1917",
   "orientation": "portrait-primary",
   "icons": [
     {

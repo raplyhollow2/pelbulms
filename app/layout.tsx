@@ -15,7 +15,7 @@ const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getPlatformSettings()
-  const siteName = settings.site_name || 'Pelbu LMS'
+  const siteName = settings.site_name || 'Rigbu LMS'
   const description =
     settings.tagline ||
     settings.landing_description ||
@@ -48,7 +48,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#FFC72C",
+  themeColor: "#1c1917",
 }
 
 export default function RootLayout({
@@ -61,8 +61,7 @@ export default function RootLayout({
       lang="en"
       suppressHydrationWarning
       data-scroll-behavior="smooth"
-      className={cn("h-full antialiased", "font-sans", inter.variable)}
-      style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif' }}
+      className={cn("h-full antialiased font-sans", inter.variable)}
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>

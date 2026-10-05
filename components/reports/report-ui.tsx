@@ -16,12 +16,12 @@ export function ReportMetrics({ block }: { block: ReportBlock }) {
       {block.metrics.map((m) => {
         const className = cn(
           'rounded-lg border border-border/50 bg-muted/30 p-3',
-          m.href && 'transition-colors hover:border-bhutan-orange/40 hover:bg-bhutan-yellow/10'
+          m.href && 'transition-colors hover:border-primary/40 hover:bg-primary/10'
         )
         const body = (
           <>
             <p className="text-xs text-muted-foreground">{m.label}</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums text-bhutan-orange">{m.value}</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums text-primary">{m.value}</p>
             {m.hint ? <p className="mt-1 text-[11px] text-muted-foreground">{m.hint}</p> : null}
           </>
         )
@@ -94,7 +94,7 @@ export function ReportTable({ block }: { block: ReportBlock }) {
               {block.columns!.map((c) => (
                 <td key={c.key} className="px-3 py-2 align-top">
                   {row.href && c.key === block.columns![0]?.key ? (
-                    <Link href={row.href} className="font-medium text-bhutan-orange hover:underline">
+                    <Link href={row.href} className="font-medium text-primary hover:underline">
                       {row.cells[c.key] == null ? '—' : String(row.cells[c.key])}
                     </Link>
                   ) : row.cells[c.key] == null ? (
@@ -107,7 +107,7 @@ export function ReportTable({ block }: { block: ReportBlock }) {
               {linkable ? (
                 <td className="px-3 py-2 align-top">
                   {row.href ? (
-                    <Link href={row.href} className="font-medium text-bhutan-orange hover:underline">
+                    <Link href={row.href} className="font-medium text-primary hover:underline">
                       {row.actionLabel || 'Open'}
                     </Link>
                   ) : null}
@@ -137,8 +137,8 @@ export function ReportBlockCard({
     <Card
       id={withAnchor ? `report-block-${block.id}` : undefined}
       className={cn(
-        'glass scroll-mt-24',
-        highlight && 'ring-2 ring-bhutan-orange/50'
+        'bg-card/80 border border-border scroll-mt-24',
+        highlight && 'ring-2 ring-primary/50'
       )}
     >
       <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
@@ -154,7 +154,7 @@ export function ReportBlockCard({
             size="sm"
             onClick={() => {
               const csv = rowsToCsv(block.columns!, block.rows!)
-              downloadCsv(`pelbu-${block.id}`, csv)
+              downloadCsv(`rigbu-${block.id}`, csv)
             }}
           >
             <Download className="mr-2 h-4 w-4" />
@@ -186,19 +186,19 @@ export function ReportSectionTabs({
   return (
     <div className="flex flex-wrap gap-2">
       {sections.map((s) => (
-        <button
+        <Button
           key={s.id}
           type="button"
           onClick={() => onChange(s.id)}
           className={cn(
             'rounded-full border px-3 py-1.5 text-sm transition-colors',
             active === s.id
-              ? 'border-bhutan-orange/40 bg-bhutan-yellow/20 text-foreground'
+              ? 'border-primary/40 bg-primary/20 text-foreground'
               : 'border-border/60 text-muted-foreground hover:bg-muted/60'
           )}
         >
           {s.title}
-        </button>
+        </Button>
       ))}
     </div>
   )

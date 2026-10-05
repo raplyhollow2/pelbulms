@@ -1,3 +1,4 @@
+import { NativeSelect } from '@/components/ui/native-select'
 // @ts-nocheck - Supabase type inference issues documented in TYPESCRIPT_ISSUES.md
 'use client'
 
@@ -379,14 +380,14 @@ export function VideoPlayer({
 
         {/* Center play button */}
         {!isPlaying && (
-          <button
+          <Button
             onClick={togglePlay}
             className="absolute inset-0 flex items-center justify-center group"
           >
             <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
               <Play className="w-8 h-8 text-black ml-1" />
             </div>
-          </button>
+          </Button>
         )}
 
         {/* Buffering indicator */}
@@ -465,7 +466,7 @@ export function VideoPlayer({
 
             <div className="flex items-center gap-2">
               {/* Quality selector */}
-              <select
+              <NativeSelect
                 className="bg-transparent text-white text-sm border border-white/30 rounded px-2 py-1"
                 onChange={(e) => {
                   const quality = qualities.find(q => q.resolution === e.target.value)
@@ -478,10 +479,10 @@ export function VideoPlayer({
                     {quality.label}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
 
               {/* Speed selector */}
-              <select
+              <NativeSelect
                 className="bg-transparent text-white text-sm border border-white/30 rounded px-2 py-1"
                 onChange={(e) => changeSpeed(parseFloat(e.target.value))}
                 value={playbackSpeed}
@@ -491,7 +492,7 @@ export function VideoPlayer({
                     {speed.label}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
 
               <Button size="sm" variant="ghost" onClick={toggleFullscreen} className="text-white">
                 {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}

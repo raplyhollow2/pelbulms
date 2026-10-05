@@ -1,3 +1,4 @@
+import { Input } from '@/components/ui/input'
 // @ts-nocheck — existing Supabase and UI type drift; remove when database types are regenerated.
 'use client'
 
@@ -205,11 +206,11 @@ export function TimestampNotes({
   return (
     <div className="flex flex-col h-full">
       {/* Note Creation Area */}
-      <Card className="glass-strong mb-4">
+      <Card className="bg-card border border-border shadow-sm mb-4">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Plus className="w-5 h-5 text-bhutan-yellow" />
+              <Plus className="w-5 h-5 text-primary" />
               Timestamp Notes
             </div>
             {isRecording && (
@@ -266,7 +267,7 @@ export function TimestampNotes({
                   <Button
                     size="sm"
                     onClick={handleSaveNote}
-                    className="bg-bhutan-yellow hover:bg-bhutan-orange"
+                    className="bg-primary hover:bg-primary"
                   >
                     <Save className="w-4 h-4 mr-1" />
                     Save Note
@@ -282,7 +283,7 @@ export function TimestampNotes({
       {notes.length > 0 && (
         <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
+          <Input
             type="text"
             placeholder="Search notes..."
             value={searchQuery}
@@ -294,7 +295,7 @@ export function TimestampNotes({
 
       {/* Notes List */}
       {filteredNotes.length === 0 ? (
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <div className="text-center">
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
@@ -319,7 +320,7 @@ export function TimestampNotes({
               <Card
                 key={note.id}
                 className={cn(
-                  "glass hover:shadow-lg transition-all duration-200",
+                  "bg-card/80 border border-border hover:shadow-lg transition-all duration-200",
                   editingNote === note.id && "ring-2 ring-primary"
                 )}
               >
@@ -343,7 +344,7 @@ export function TimestampNotes({
                         <Button
                           size="sm"
                           onClick={handleSaveEdit}
-                          className="bg-bhutan-yellow hover:bg-bhutan-orange"
+                          className="bg-primary hover:bg-primary"
                         >
                           <Save className="w-4 h-4 mr-1" />
                           Save
@@ -357,17 +358,19 @@ export function TimestampNotes({
                           <div className="flex items-center gap-2 mb-2">
                             <TooltipProvider>
                               <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleJumpToTimestamp(note.timestamp)}
-                                    className="h-7 px-2 font-mono text-xs"
-                                  >
-                                    <Clock className="w-3 h-3 mr-1" />
-                                    {formatTimestamp(note.timestamp)}
-                                  </Button>
-                                </TooltipTrigger>
+                                <TooltipTrigger
+                                  render={
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleJumpToTimestamp(note.timestamp)}
+                                      className="h-7 px-2 font-mono text-xs"
+                                    >
+                                      <Clock className="w-3 h-3 mr-1" />
+                                      {formatTimestamp(note.timestamp)}
+                                    </Button>
+                                  }
+                                />
                                 <TooltipContent>
                                   <p>Click to jump to {formatTimestamp(note.timestamp)} in video</p>
                                 </TooltipContent>

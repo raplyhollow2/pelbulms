@@ -25,7 +25,7 @@ interface CourseHit {
 }
 
 /** Fired by the sidebar / mobile menu to open the palette without a keyboard. */
-export const OPEN_SEARCH_EVENT = 'pelbu:open-search'
+export const OPEN_SEARCH_EVENT = 'rigbu:open-search'
 
 export function CommandPalette() {
   const router = useRouter()
@@ -94,7 +94,7 @@ export function CommandPalette() {
         className="relative mx-4 w-full max-w-lg animate-in slide-in-from-top-4 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="overflow-hidden rounded-2xl border border-border/60 bg-popover shadow-overlay">
+        <div className="overflow-hidden rounded-2xl border border-border/60 bg-popover shadow-md">
           <Command shouldFilter>
             <CommandInput placeholder="Search courses or jump to a page…" />
             <CommandList>
@@ -116,7 +116,7 @@ export function CommandPalette() {
                       value={`${c.title} ${c.category ?? ''}`}
                       onSelect={() => runCommand(`/courses/${c.id}`)}
                     >
-                      <BookOpen className="mr-2 h-4 w-4 text-bhutan-orange" />
+                      <BookOpen className="mr-2 h-4 w-4 text-primary" />
                       <span className="truncate">{c.title}</span>
                       {c.category && (
                         <span className="ml-auto shrink-0 text-xs text-muted-foreground">{c.category}</span>

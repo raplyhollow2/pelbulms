@@ -389,7 +389,7 @@ export function QuizPlayer({
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-bhutan-yellow" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <span className="ml-3 text-muted-foreground">Loading quiz...</span>
       </div>
     )
@@ -411,7 +411,7 @@ export function QuizPlayer({
 
   if (attemptsExhausted && !submitted) {
     return (
-      <Card className="glass-strong">
+      <Card className="bg-card border border-border shadow-sm">
         <CardHeader>
           <CardTitle>Attempts used up</CardTitle>
           <CardDescription>
@@ -424,7 +424,7 @@ export function QuizPlayer({
           </p>
           <div className="flex flex-wrap gap-2">
             <Button
-              className="bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+              className="bg-primary text-primary-foreground hover:bg-primary"
               onClick={() => {
                 if (onRedoLesson) onRedoLesson()
                 else onClose?.()
@@ -449,7 +449,7 @@ export function QuizPlayer({
 
   return (
     <div className="space-y-6">
-      <Card className="glass-strong">
+      <Card className="bg-card border border-border shadow-sm">
         <CardHeader>
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -480,7 +480,7 @@ export function QuizPlayer({
       </Card>
 
       {!showResults ? (
-        <Card className="glass">
+        <Card className="bg-card/80 border border-border">
           <CardHeader>
             <div className="flex items-start justify-between gap-2">
               <CardTitle className="text-xl">{currentQuestionData.question_text}</CardTitle>
@@ -529,7 +529,7 @@ export function QuizPlayer({
               <Button
                 onClick={checkCurrentAndContinue}
                 disabled={!isAnswered}
-                className="bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+                className="bg-primary text-primary-foreground hover:bg-primary"
               >
                 {currentQuestion === questions.length - 1 ? 'Review answers' : 'Check & next'}
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -571,7 +571,7 @@ export function QuizPlayer({
           </DialogHeader>
           <DialogFooter>
             <Button
-              className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+              className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
               onClick={handleFeedbackContinue}
             >
               Continue
@@ -621,7 +621,7 @@ export function QuizPlayer({
           <DialogFooter className="flex-col gap-2 sm:flex-row">
             {lastOutcome?.passed && (
               <Button
-                className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+                className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
                 onClick={() => {
                   setOutcomeOpen(false)
                   onClose?.()
@@ -636,7 +636,7 @@ export function QuizPlayer({
                   Retake quiz
                 </Button>
                 <Button
-                  className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+                  className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
                   onClick={() => {
                     setOutcomeOpen(false)
                     onClose?.()
@@ -648,7 +648,7 @@ export function QuizPlayer({
             )}
             {lastOutcome?.attemptsExhausted && (
               <Button
-                className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+                className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
                 onClick={() => {
                   setOutcomeOpen(false)
                   onRedoLesson?.()
@@ -774,7 +774,7 @@ function QuizResults({
   const allAnswered = answeredCount === questions.length
 
   return (
-    <Card className="glass-strong">
+    <Card className="bg-card border border-border shadow-sm">
       <CardHeader>
         <CardTitle>{submitted ? 'Results' : 'Ready to submit?'}</CardTitle>
         <CardDescription>
@@ -815,7 +815,7 @@ function QuizResults({
               <Button
                 onClick={onSubmit}
                 disabled={!allAnswered || submitting}
-                className="flex-1 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+                className="flex-1 bg-primary text-primary-foreground hover:bg-primary"
               >
                 {submitting ? (
                   <>
@@ -856,7 +856,7 @@ function QuizResults({
                 </Button>
               )}
               {onClose && (
-                <Button onClick={onClose} className="bg-bhutan-yellow text-black hover:bg-bhutan-orange">
+                <Button onClick={onClose} className="bg-primary text-primary-foreground hover:bg-primary">
                   Continue
                 </Button>
               )}

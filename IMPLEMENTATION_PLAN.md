@@ -1,7 +1,7 @@
-# Pelbu LMS - Complete Architecture Implementation Plan
+# Rigbu LMS - Complete Architecture Implementation Plan
 
 ## Project Overview
-**Name**: Pelbu LMS - Advanced Learning Management System
+**Name**: Rigbu LMS - Advanced Learning Management System
 **Client**: Pelsung Bhutan
 **Users**: 500+ users across institutions
 **Vision**: Complete digital learning platform with Apple-inspired aesthetics, Udemy-like functionality, AI-enhanced learning
@@ -12,13 +12,13 @@
 
 ## 🎯 UDEMY-KILLER COURSE PAGE DESIGN SYSTEM
 
-To make [Pelbu LMS](https://pelbulms.vercel.app/courses) visually, functionally, and technically superior to Udemy, we need to move away from Udemy's dated, dense, and "ad-heavy" layout.
+To make [Rigbu LMS](https://pelbulms.vercel.app/courses) visually, functionally, and technically superior to Udemy, we need to move away from Udemy's dated, dense, and "ad-heavy" layout.
 
 A high-end 2026 SaaS aesthetic prioritizes **cognitive ease, visual breathing room (negative space), and micro-interactions**. Using **shadcn/ui** as our secret weapon for composing advanced Radix primitives without bloated libraries.
 
-### Udemy vs. Pelbu 2026 UI/UX Philosophy
+### Udemy vs. Rigbu 2026 UI/UX Philosophy
 
-| Feature | Udemy's Dated Approach 👎 | Pelbu's Premium 2026 Approach 👍 |
+| Feature | Udemy's Dated Approach 👎 | Rigbu's Premium 2026 Approach 👍 |
 | --- | --- | --- |
 | **Pricing & CTAs** | Sticky right sidebar that scrolls awkwardly and feels pushy | Sleek, floating **Action Deck** using bottom-sheet on mobile and minimalist card grid on desktop |
 | **Course Syllabus** | Rigid, boring toggle list with no video duration indicators | Interactive, visual, animated timeline using **shadcn Accordions & Progress Indicators** |
@@ -401,9 +401,9 @@ This ensures code splitting - students don't download admin chart components.
 
 ---
 
-## 🆚 Pelbu LMS vs Udemy: Why We Win
+## 🆚 Rigbu LMS vs Udemy: Why We Win
 
-| Feature | Udemy's Approach ❌ | Pelbu LMS Advantage 🏆 |
+| Feature | Udemy's Approach ❌ | Rigbu LMS Advantage 🏆 |
 | --- | --- | --- |
 | **Visual Aesthetic** | Standard corporate layout, dense walls of text, minimal visual depth | **Apple-Inspired Glassmorphic Depth**: Frosted glass components, subtle shadows, fluid scaling transitions like a premium native app |
 | **Mobile Experience** | Desktop catalog shoved into mobile, clunky menus, generic touch targets | **Native-First Interaction**: App-style Bottom Tab Bar, haptic feedback, strict 44px touch targets |
@@ -549,7 +549,7 @@ CREATE POLICY institution_isolation_policy ON courses
 
 ## 🏆 Legendary Architecture Status
 
-Your Pelbu LMS now exceeds standard platforms through:
+Your Rigbu LMS now exceeds standard platforms through:
 
 **🌏 Bhutan-Specific Resilience**: HLS streaming for variable network conditions
 **💰 Cost-Effective AI**: pgvector semantic cache eliminates 80%+ of LLM calls
@@ -688,7 +688,7 @@ CREATE POLICY student_attendance_submission ON attendance_records
 
 ## 🏆 Enterprise School Operating System
 
-Your Pelbu LMS now transcends standard LMS platforms:
+Your Rigbu LMS now transcends standard LMS platforms:
 
 **📚 Complete School Management**: Subject-wise cohorts with real teacher assignments
 **⏱️ Smart Attendance**: PIN + geo-fencing prevents cheating, works offline
@@ -760,7 +760,7 @@ const noteChannel = supabase.channel(`classroom-notes:${subjectId}`)
 
 ## 🚀 Next-Generation Learning Features
 
-Your Pelbu LMS now delivers futuristic AI-powered collaborative learning:
+Your Rigbu LMS now delivers futuristic AI-powered collaborative learning:
 
 **🤖 Automated Live Notes**: AI transcription with real-time collaborative canvas for 500+ students
 **⏱️ Interactive Timestamps**: Click any auto-generated note to jump to precise video moment
@@ -777,7 +777,7 @@ Your Pelbu LMS now delivers futuristic AI-powered collaborative learning:
 **File Organization Strategy**: Clear separation between Server Components (fast, secure) and Client Components (interactive, real-time)
 
 ```
-pelbu-lms/
+rigbu-lms/
 ├── src/
 │   ├── app/                                 # Next.js 15 App Router Layer
 │   │   ├── layout.tsx                       # Global entry (Fonts, Toast, Providers)
@@ -1141,7 +1141,7 @@ export async function verifyAndSubmitAttendance(formData: z.infer<typeof Attenda
 
 ---
 
-This complete plan ensures we build Pelbu LMS with hyper-specific attention to every UI/UX detail while maintaining rapid development speed through strategic technology choices and implementation priorities.
+This complete plan ensures we build Rigbu LMS with hyper-specific attention to every UI/UX detail while maintaining rapid development speed through strategic technology choices and implementation priorities.
 
 ---
 
@@ -1179,14 +1179,14 @@ HUGGINGFACE_API_KEY=your-huggingface-key
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your-cloud-name
 CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret
-NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=pelbu-lms-uploads
+NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=rigbu-lms-uploads
 ```
 
 #### Application Configuration
 ```env
 # Next.js & App Configuration
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-NEXT_PUBLIC_APP_NAME=Pelbu LMS
+NEXT_PUBLIC_APP_NAME=Rigbu LMS
 NEXT_PUBLIC_APP_ENV=development
 
 # Analytics & Monitoring
@@ -1386,10 +1386,10 @@ const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 #### Step 1: Project Initialization (Day 1)
 ```bash
 # Create Next.js 15 project
-npx create-next-app@latest pelbu-lms --typescript --tailwind --app --no-src-dir
+npx create-next-app@latest rigbu-lms --typescript --tailwind --app --no-src-dir
 
 # Install core dependencies
-cd pelbu-lms
+cd rigbu-lms
 npm install @supabase/supabase-js @tanstack/react-query zustand
 npm install react-hook-form @hookform/resolvers zod
 npm install lucide-react clsx tailwind-merge
@@ -1464,7 +1464,7 @@ This comprehensive setup ensures **super clean, perfect code from day one** with
 
 #### Project Structure
 ```
-pelbu-lms/
+rigbu-lms/
 ├── src/
 │   ├── app/                          # Next.js 15 App Router
 │   │   ├── (auth)/                   # Authentication routes

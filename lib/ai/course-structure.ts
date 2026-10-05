@@ -30,7 +30,7 @@ export async function proposeCourseStructure(opts: {
     userId: opts.userId,
     audience: 'instructor',
     schema: courseStructureSchema,
-    system: `You restructure PelbuLMS courses. Return a full module tree.
+    system: `You restructure RigbuLMS courses. Return a full module tree.
 keep: an existing page stays, matched by sourceTitle.
 move: an existing page changes module, matched by sourceTitle. Do not invent new body content.
 add: a new empty page. sourceTitle is empty.

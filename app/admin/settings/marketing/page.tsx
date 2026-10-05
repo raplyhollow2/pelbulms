@@ -1,4 +1,5 @@
 'use client'
+import { NativeSelect } from '@/components/ui/native-select'
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronUp, Loader2, Plus, Trash2, Upload } from 'lucide-react'
@@ -20,12 +21,15 @@ import {
   DEFAULT_HERO_CTA_PRIMARY,
   DEFAULT_HERO_ROTATING_WORDS,
   DEFAULT_HERO_VIDEO_URL,
+  defaultHeroSlides,
   DEFAULT_LANDING_FAQ,
   DEFAULT_LANDING_FEATURES,
   DEFAULT_LANDING_SECTION_TITLES,
   DEFAULT_LANDING_STATS,
   DEFAULT_LANDING_STEPS,
   LANDING_ICON_KEYS,
+  type HeroSlide,
+  type HeroSlideLayout,
   type LandingCampusCard,
   type LandingFaqItem,
   type LandingFeature,
@@ -35,7 +39,7 @@ import {
   type LandingStep,
 } from '@/lib/landing-content'
 import { getYoutubeId } from '@/lib/video-url'
-import { uploadImageDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
+import { uploadImageDirectToCloudinary, uploadVideoDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
 import { YoutubeFrame } from '@/components/course/youtube-frame'
 import {
   Select,
@@ -60,6 +64,8 @@ type FormState = {
   hero_cta_primary_label: string
   hero_cta_secondary_label: string
   hero_image_url: string
+  mascot_image_url: string
+  hero_slides: HeroSlide[]
   hero_glass_opacity: number
   landing_stats: LandingStat[]
   landing_features: LandingFeature[]
@@ -111,6 +117,11 @@ function settingsToForm(s: PlatformSettings): FormState {
     hero_cta_primary_label: s.hero_cta_primary_label || DEFAULT_HERO_CTA_PRIMARY,
     hero_cta_secondary_label: s.hero_cta_secondary_label || '',
     hero_image_url: s.hero_image_url || '',
+    mascot_image_url: s.mascot_image_url || '',
+    hero_slides: (s.hero_slides?.length ? s.hero_slides : defaultHeroSlides()).map((slide) => ({
+      ...slide,
+      items: [...slide.items],
+    })),
     hero_glass_opacity: s.hero_glass_opacity ?? 70,
     landing_stats: Array.isArray(s.landing_stats) ? s.landing_stats : [...DEFAULT_LANDING_STATS],
     landing_features: Array.isArray(s.landing_features)
@@ -154,6 +165,8 @@ export default function AdminMarketingSettingsPage() {
       hero_cta_primary_label: DEFAULT_HERO_CTA_PRIMARY,
       hero_cta_secondary_label: null,
       hero_image_url: null,
+      mascot_image_url: null,
+      hero_slides: defaultHeroSlides(),
       hero_glass_opacity: 70,
       landing_stats: [...DEFAULT_LANDING_STATS],
       landing_campus: [],
@@ -223,6 +236,8 @@ export default function AdminMarketingSettingsPage() {
           hero_cta_primary_label: form.hero_cta_primary_label || null,
           hero_cta_secondary_label: form.hero_cta_secondary_label || null,
           hero_image_url: form.hero_image_url || null,
+          mascot_image_url: form.mascot_image_url || null,
+          hero_slides: form.hero_slides,
           hero_glass_opacity: form.hero_glass_opacity,
           landing_stats: form.landing_stats,
           landing_features: form.landing_features,
@@ -313,9 +328,16 @@ export default function AdminMarketingSettingsPage() {
         <div>
           <h3 className="text-sm font-semibold">Hero</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            The video fills the first screen behind the card. On a phone the card sits along the bottom. Clear the video URL to use an uploaded image instead.
+            The menu and the hero share one mascot. Leave it blank to keep the built-in Rigbu. Upload a still, GIF, or video to replace both. The slideshow beside it is edited below. A YouTube URL replaces the whole scene. Clear the URL and upload a hero image for a still background instead.
           </p>
         </div>
+        <ImageUrlField
+          label="Mascot file"
+          hint="Same file in the menu and the hero. Leave blank for the built-in animated Rigbu. A GIF or MP4 plays on its own."
+          value={form.mascot_image_url}
+          accept="image/jpeg,image/png,image/webp,image/gif,image/avif,video/mp4,video/webm"
+          onChange={(url) => setForm((f) => ({ ...f, mascot_image_url: url }))}
+        />
         <div className="space-y-1.5">
           <Label htmlFor="hero_video_url">YouTube video URL</Label>
           <Input
@@ -460,7 +482,7 @@ export default function AdminMarketingSettingsPage() {
           onChange={(url) => setForm((f) => ({ ...f, hero_image_url: url }))}
         />
         <div className="space-y-1.5">
-          <Label htmlFor="hero_glass_opacity">Frosted glass opacity ({form.hero_glass_opacity}%)</Label>
+          <Label htmlFor="hero_glass_opacity">Frosted veil opacity ({form.hero_glass_opacity}%)</Label>
           <input
             id="hero_glass_opacity"
             type="range"
@@ -476,6 +498,149 @@ export default function AdminMarketingSettingsPage() {
           </p>
         </div>
       </section>
+
+      <ListEditorSection
+        title="Hero slideshow"
+        hint="These slides fade beside the mascot. Course list uses published course titles. Save before the homepage preview updates."
+        onAdd={() =>
+          setForm((f) => ({
+            ...f,
+            hero_slides:
+              f.hero_slides.length >= 8
+                ? f.hero_slides
+                : [
+                    ...f.hero_slides,
+                    { kicker: '', title: '', accent: '', body: '', layout: 'list' as HeroSlideLayout, items: [] },
+                  ],
+          }))
+        }
+      >
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setForm((f) => ({ ...f, hero_slides: defaultHeroSlides() }))}
+          >
+            Reset slides
+          </Button>
+        </div>
+        {form.hero_slides.map((slide, i) => (
+          <div key={i} className="space-y-2 rounded-lg border border-border/50 p-3">
+            <div className="flex flex-wrap gap-2">
+              <Input
+                className="min-w-[7rem] flex-1"
+                placeholder="Kicker"
+                value={slide.kicker}
+                onChange={(e) =>
+                  setForm((f) => {
+                    const next = [...f.hero_slides]
+                    next[i] = { ...next[i], kicker: e.target.value }
+                    return { ...f, hero_slides: next }
+                  })
+                }
+              />
+              <NativeSelect
+                className="w-40"
+                value={slide.layout}
+                onChange={(e) =>
+                  setForm((f) => {
+                    const next = [...f.hero_slides]
+                    next[i] = { ...next[i], layout: e.target.value as HeroSlideLayout }
+                    return { ...f, hero_slides: next }
+                  })
+                }
+              >
+                <option value="courses">Course list</option>
+                <option value="list">Bullet list</option>
+                <option value="steps">Numbered steps</option>
+                <option value="card">Card</option>
+              </NativeSelect>
+            </div>
+            <Input
+              placeholder="Title"
+              value={slide.title}
+              onChange={(e) =>
+                setForm((f) => {
+                  const next = [...f.hero_slides]
+                  next[i] = { ...next[i], title: e.target.value }
+                  return { ...f, hero_slides: next }
+                })
+              }
+            />
+            <Input
+              placeholder="Accent line"
+              value={slide.accent}
+              onChange={(e) =>
+                setForm((f) => {
+                  const next = [...f.hero_slides]
+                  next[i] = { ...next[i], accent: e.target.value }
+                  return { ...f, hero_slides: next }
+                })
+              }
+            />
+            <Textarea
+              rows={2}
+              placeholder="Supporting line"
+              value={slide.body}
+              onChange={(e) =>
+                setForm((f) => {
+                  const next = [...f.hero_slides]
+                  next[i] = { ...next[i], body: e.target.value }
+                  return { ...f, hero_slides: next }
+                })
+              }
+            />
+            {slide.layout !== 'courses' ? (
+              <Textarea
+                rows={3}
+                placeholder={slide.layout === 'card' ? 'Card label\nCard title' : 'One item per line'}
+                value={slide.items.join('\n')}
+                onChange={(e) =>
+                  setForm((f) => {
+                    const next = [...f.hero_slides]
+                    next[i] = { ...next[i], items: e.target.value.split('\n').slice(0, 8) }
+                    return { ...f, hero_slides: next }
+                  })
+                }
+              />
+            ) : (
+              <p className="text-[11px] text-muted-foreground">Shows up to three published course titles.</p>
+            )}
+            <div className="flex justify-end gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                disabled={i === 0}
+                onClick={() => setForm((f) => ({ ...f, hero_slides: moveItem(f.hero_slides, i, -1) }))}
+              >
+                <ChevronUp className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                disabled={i === form.hero_slides.length - 1}
+                onClick={() => setForm((f) => ({ ...f, hero_slides: moveItem(f.hero_slides, i, 1) }))}
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="text-muted-foreground"
+                onClick={() =>
+                  setForm((f) => ({ ...f, hero_slides: f.hero_slides.filter((_, j) => j !== i) }))
+                }
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        ))}
+      </ListEditorSection>
 
       {/* Stats */}
       <ListEditorSection
@@ -585,7 +750,7 @@ export default function AdminMarketingSettingsPage() {
                   })
                 }
               />
-              <select
+              <NativeSelect
                 className="h-9 rounded-md border border-input bg-background px-2 text-sm"
                 value={feat.icon}
                 onChange={(e) =>
@@ -601,7 +766,7 @@ export default function AdminMarketingSettingsPage() {
                     {k}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
               <Button
                 type="button"
                 variant="ghost"
@@ -672,7 +837,7 @@ export default function AdminMarketingSettingsPage() {
                   })
                 }
               />
-              <select
+              <NativeSelect
                 className="h-9 rounded-md border border-input bg-background px-2 text-sm"
                 value={step.icon}
                 onChange={(e) =>
@@ -688,7 +853,7 @@ export default function AdminMarketingSettingsPage() {
                     {k}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
               <Button
                 type="button"
                 variant="ghost"
@@ -1056,11 +1221,13 @@ function ImageUrlField({
   label,
   hint,
   value,
+  accept = 'image/jpeg,image/png,image/webp,image/gif,image/avif',
   onChange,
 }: {
   label: string
   hint?: string
   value: string
+  accept?: string
   onChange: (url: string) => void
 }) {
   const [uploading, setUploading] = useState(false)
@@ -1079,7 +1246,7 @@ function ImageUrlField({
           Upload
           <input
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+            accept={accept}
             className="sr-only"
             disabled={uploading}
             onChange={async (event) => {
@@ -1088,9 +1255,15 @@ function ImageUrlField({
               if (!file) return
               setUploading(true)
               try {
-                const uploaded = await uploadImageDirectToCloudinary(file, { folder: 'landing' })
-                onChange(uploaded.url)
-                toast.success('Image uploaded')
+                if (file.type.startsWith('video/')) {
+                  const uploaded = await uploadVideoDirectToCloudinary(file, { folder: 'landing' })
+                  onChange(uploaded.url)
+                  toast.success('Video uploaded')
+                } else {
+                  const uploaded = await uploadImageDirectToCloudinary(file, { folder: 'landing' })
+                  onChange(uploaded.url)
+                  toast.success('Image uploaded')
+                }
               } catch (error: any) {
                 toast.error(error?.message || 'Upload failed')
               } finally {

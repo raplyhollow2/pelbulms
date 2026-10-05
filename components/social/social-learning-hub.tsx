@@ -233,7 +233,7 @@ export function SocialLearningHub() {
           <h2 className="text-2xl font-bold">Social Learning Hub</h2>
           <p className="text-muted-foreground">Connect, collaborate, and learn together</p>
         </div>
-        <Button className="bg-bhutan-yellow hover:bg-bhutan-orange text-black">
+        <Button className="bg-primary hover:bg-primary text-primary-foreground">
           <UserPlus className="w-4 h-4 mr-2" />
           Find Study Partners
         </Button>
@@ -261,7 +261,7 @@ export function SocialLearningHub() {
                 className="pl-10"
               />
             </div>
-            <Button className="bg-bhutan-yellow hover:bg-bhutan-orange text-black">
+            <Button className="bg-primary hover:bg-primary text-primary-foreground">
               <MessageSquare className="w-4 h-4 mr-2" />
               New Discussion
             </Button>
@@ -270,12 +270,12 @@ export function SocialLearningHub() {
           {/* Forum Posts */}
           <div className="space-y-3">
             {filteredPosts.map((post) => (
-              <Card key={post.id} className="glass hover:shadow-lg transition-all cursor-pointer">
+              <Card key={post.id} className="bg-card/80 border border-border hover:shadow-lg transition-all cursor-pointer">
                 <CardContent className="p-4">
                   <div className="flex items-start gap-4">
-                    <Avatar className="w-12 h-12 border-2 border-bhutan-yellow/30">
+                    <Avatar className="w-12 h-12 border-2 border-primary/30">
                       <AvatarImage src={post.author.avatar_url} />
-                      <AvatarFallback className="bg-bhutan-yellow/20 text-black font-bold">
+                      <AvatarFallback className="bg-primary/20 text-black font-bold">
                         {getInitials(post.author.full_name)}
                       </AvatarFallback>
                     </Avatar>
@@ -284,8 +284,8 @@ export function SocialLearningHub() {
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            {post.is_pinned && <Pin className="w-4 h-4 text-bhutan-yellow" />}
-                            <h4 className="font-semibold hover:text-bhutan-yellow transition-colors">
+                            {post.is_pinned && <Pin className="w-4 h-4 text-primary" />}
+                            <h4 className="font-semibold hover:text-primary transition-colors">
                               {post.title}
                             </h4>
                           </div>
@@ -296,7 +296,7 @@ export function SocialLearningHub() {
                             <span>{formatDate(post.created_at)}</span>
                           </div>
                         </div>
-                        <Badge className="bg-bhutan-yellow text-black">
+                        <Badge className="bg-primary text-primary-foreground">
                           {post.category}
                         </Badge>
                       </div>
@@ -349,7 +349,7 @@ export function SocialLearningHub() {
                 Join groups to learn together with peers
               </p>
             </div>
-            <Button className="bg-bhutan-yellow hover:bg-bhutan-orange text-black">
+            <Button className="bg-primary hover:bg-primary text-primary-foreground">
               <Users className="w-4 h-4 mr-2" />
               Create Group
             </Button>
@@ -357,11 +357,11 @@ export function SocialLearningHub() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {studyGroups.map((group) => (
-              <Card key={group.id} className="glass hover:shadow-lg transition-all cursor-pointer">
+              <Card key={group.id} className="bg-card/80 border border-border hover:shadow-lg transition-all cursor-pointer">
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4 mb-4">
-                    <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20 flex items-center justify-center">
-                      <Users className="w-8 h-8 text-bhutan-yellow" />
+                    <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-primary/20 to-muted/20 flex items-center justify-center">
+                      <Users className="w-8 h-8 text-primary" />
                     </div>
                     <div className="flex-1">
                       <h4 className="font-semibold text-lg mb-1">{group.name}</h4>
@@ -403,7 +403,7 @@ export function SocialLearningHub() {
                       </Badge>
                     </div>
 
-                    <Button className="w-full bg-bhutan-yellow hover:bg-bhutan-orange text-black">
+                    <Button className="w-full bg-primary hover:bg-primary text-primary-foreground">
                       Join Group
                     </Button>
                   </div>
@@ -422,7 +422,7 @@ export function SocialLearningHub() {
                 Connect with fellow students for collaborative learning
               </p>
             </div>
-            <Button className="bg-bhutan-yellow hover:bg-bhutan-orange text-black">
+            <Button className="bg-primary hover:bg-primary text-primary-foreground">
               <HelpCircle className="w-4 h-4 mr-2" />
               Request Help
             </Button>
@@ -430,12 +430,12 @@ export function SocialLearningHub() {
 
           <div className="space-y-3">
             {peerRequests.map((request) => (
-              <Card key={request.id} className="glass">
+              <Card key={request.id} className="bg-card/80 border border-border">
                 <CardContent className="p-4">
                   <div className="flex items-start gap-4">
                     <Avatar className="w-12 h-12">
                       <AvatarImage src={request.from_user.avatar_url} />
-                      <AvatarFallback className="bg-bhutan-yellow/20 text-black font-bold">
+                      <AvatarFallback className="bg-primary/20 text-black font-bold">
                         {getInitials(request.from_user.full_name)}
                       </AvatarFallback>
                     </Avatar>
@@ -486,7 +486,7 @@ export function SocialLearningHub() {
 
           {/* Peer Help Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardContent className="p-6">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-lg bg-green-600/20 flex items-center justify-center">
@@ -500,7 +500,7 @@ export function SocialLearningHub() {
               </CardContent>
             </Card>
 
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardContent className="p-6">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-lg bg-blue-600/20 flex items-center justify-center">
@@ -514,7 +514,7 @@ export function SocialLearningHub() {
               </CardContent>
             </Card>
 
-            <Card className="glass">
+            <Card className="bg-card/80 border border-border">
               <CardContent className="p-6">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-lg bg-purple-600/20 flex items-center justify-center">
@@ -539,7 +539,7 @@ export function SocialLearningHub() {
                 Real-time collaboration with fellow learners
               </p>
             </div>
-            <Button className="bg-bhutan-yellow hover:bg-bhutan-orange text-black">
+            <Button className="bg-primary hover:bg-primary text-primary-foreground">
               <MessageSquare className="w-4 h-4 mr-2" />
               Start Discussion
             </Button>
@@ -547,12 +547,12 @@ export function SocialLearningHub() {
 
           <div className="space-y-3">
             {discussions.map((discussion) => (
-              <Card key={discussion.id} className="glass hover:shadow-lg transition-all cursor-pointer">
+              <Card key={discussion.id} className="bg-card/80 border border-border hover:shadow-lg transition-all cursor-pointer">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
                     <div className="relative">
-                      <div className="w-12 h-12 rounded-lg bg-bhutan-yellow/20 flex items-center justify-center">
-                        <MessageCircle className="w-6 h-6 text-bhutan-yellow" />
+                      <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center">
+                        <MessageCircle className="w-6 h-6 text-primary" />
                       </div>
                       {discussion.is_active && (
                         <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-600 rounded-full border-2 border-background" />
@@ -586,7 +586,7 @@ export function SocialLearningHub() {
                       <p className="text-xs text-muted-foreground mb-2">
                         {formatDate(discussion.last_message_time)}
                       </p>
-                      <Button size="sm" className="bg-bhutan-yellow hover:bg-bhutan-orange text-black">
+                      <Button size="sm" className="bg-primary hover:bg-primary text-primary-foreground">
                         Join
                       </Button>
                     </div>
@@ -598,11 +598,11 @@ export function SocialLearningHub() {
 
           {/* Discussion Features */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="glass-strong border-bhutan-yellow/30">
+            <Card className="bg-card border border-border shadow-sm border-primary/30">
               <CardContent className="p-6">
                 <div className="text-center">
-                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-bhutan-yellow/20 flex items-center justify-center">
-                    <Target className="w-8 h-8 text-bhutan-yellow" />
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/20 flex items-center justify-center">
+                    <Target className="w-8 h-8 text-primary" />
                   </div>
                   <h4 className="font-semibold mb-2">Topic-Based Rooms</h4>
                   <p className="text-sm text-muted-foreground">
@@ -612,7 +612,7 @@ export function SocialLearningHub() {
               </CardContent>
             </Card>
 
-            <Card className="glass-strong border-bhutan-yellow/30">
+            <Card className="bg-card border border-border shadow-sm border-primary/30">
               <CardContent className="p-6">
                 <div className="text-center">
                   <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-600/20 flex items-center justify-center">

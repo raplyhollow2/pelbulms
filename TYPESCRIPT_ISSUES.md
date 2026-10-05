@@ -2,7 +2,7 @@
 
 ## Comprehensive TypeScript Error Resolution Strategy
 
-This documentation captures all TypeScript issues encountered during the Pelbu LMS development and the systematic approaches used to resolve them.
+This documentation captures all TypeScript issues encountered during the Rigbu LMS development and the systematic approaches used to resolve them.
 
 ---
 

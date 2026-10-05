@@ -119,7 +119,7 @@ export function CourseLearningTabs({
   ]
 
   const LockedPanel = ({ title }: { title: string }) => (
-    <Card className="glass">
+    <Card className="bg-card/80 border border-border">
       <CardContent className="space-y-3 py-10 text-center">
         <Lock className="mx-auto h-8 w-8 text-muted-foreground" />
         <p className="font-medium">{title} locked</p>

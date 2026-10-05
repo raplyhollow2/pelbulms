@@ -1,4 +1,4 @@
--- Complete Pelbu LMS Database Schema
+-- Complete Rigbu LMS Database Schema
 -- Production-ready with complete RLS policies, indexes, and relationships
 
 -- ============================================================================

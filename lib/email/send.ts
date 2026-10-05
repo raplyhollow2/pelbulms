@@ -10,7 +10,7 @@ const PLACEHOLDER_HOSTS = new Set([
   'example.org',
 ])
 
-const E2E_EMAIL_RE = /@pelbu-e2e\.test$/i
+const E2E_EMAIL_RE = /@rigbu-e2e\.test$/i
 
 function usableOrigin(value: string | undefined | null): string | null {
   if (!value?.trim()) return null
@@ -189,6 +189,6 @@ export async function sendEmail(opts: OutboundEmail): Promise<{ sent: boolean; e
 
   const apiKey = (process.env.RESEND_API_KEY || '').trim()
   if (!apiKey) return { sent: false, error: 'RESEND_API_KEY is not configured' }
-  const from = (process.env.RESEND_FROM || '').trim() || 'Pelbu LMS <noreply@pelbu.bt>'
+  const from = (process.env.RESEND_FROM || '').trim() || 'Rigbu LMS <noreply@rigbu.bt>'
   return deliverResend(apiKey, from, { ...opts, to })
 }

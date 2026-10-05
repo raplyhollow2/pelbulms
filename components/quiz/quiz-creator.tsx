@@ -1,4 +1,5 @@
 'use client'
+import { NativeSelect } from '@/components/ui/native-select'
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -340,7 +341,7 @@ export function QuizCreator({ lessonId, quizId, compact, onSave, onCancel }: Qui
 
   return (
     <div className={compact ? 'space-y-4' : 'space-y-6'}>
-      <Card className={compact ? '' : 'glass-strong'}>
+      <Card className={compact ? '' : 'bg-card border border-border shadow-sm'}>
         {!compact && (
           <CardHeader>
             <CardTitle>Quiz Details</CardTitle>
@@ -418,7 +419,7 @@ export function QuizCreator({ lessonId, quizId, compact, onSave, onCancel }: Qui
         </CardContent>
       </Card>
 
-      <Card className={compact ? '' : 'glass-strong'}>
+      <Card className={compact ? '' : 'bg-card border border-border shadow-sm'}>
         <CardHeader className={compact ? 'px-0 pt-0' : undefined}>
           <div className="flex items-center justify-between gap-2">
             <div>
@@ -441,7 +442,7 @@ export function QuizCreator({ lessonId, quizId, compact, onSave, onCancel }: Qui
                 type="button"
                 onClick={addQuestion}
                 size="sm"
-                className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+                className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add question
@@ -482,7 +483,7 @@ export function QuizCreator({ lessonId, quizId, compact, onSave, onCancel }: Qui
           type="button"
           onClick={() => void handleSave()}
           disabled={saving}
-          className="min-h-11 bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+          className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
         >
           {saving ? (
             <>
@@ -541,7 +542,7 @@ function QuestionEditor({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <Label>Question type</Label>
-          <select
+          <NativeSelect
             value={question.question_type}
             onChange={(e) =>
               onUpdate({ question_type: e.target.value as DraftQuestion['question_type'] })
@@ -552,7 +553,7 @@ function QuestionEditor({
             <option value="true_false">True / false</option>
             <option value="short_answer">Short answer</option>
             <option value="essay">Essay</option>
-          </select>
+          </NativeSelect>
         </div>
         <div>
           <Label>Points</Label>
@@ -599,7 +600,7 @@ function QuestionEditor({
       {question.question_type === 'true_false' && (
         <div>
           <Label>Correct answer</Label>
-          <select
+          <NativeSelect
             value={question.correct_answer}
             onChange={(e) => onUpdate({ correct_answer: e.target.value })}
             className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -607,7 +608,7 @@ function QuestionEditor({
             <option value="">Select correct answer</option>
             <option value="true">True</option>
             <option value="false">False</option>
-          </select>
+          </NativeSelect>
         </div>
       )}
 

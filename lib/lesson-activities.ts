@@ -143,7 +143,7 @@ export const ACTIVITY_CATEGORY_FILTERS: {
   { id: 'extras', label: 'More' },
 ]
 
-/** Moodle core set first (matches Add activity picker), then Pelbu extras. */
+/** Moodle core set first (matches Add activity picker), then Rigbu extras. */
 export const LESSON_ACTIVITY_TYPES: ActivityDefinition[] = [
   {
     type: 'assignment',
@@ -310,7 +310,7 @@ export const LESSON_ACTIVITY_TYPES: ActivityDefinition[] = [
     fields: ['title', 'description', 'dueDate', 'maxGrade'],
     maturity: 'partial',
   },
-  // Pelbu extras (not in classic Moodle “All” core set)
+  // Rigbu extras (not in classic Moodle “All” core set)
   {
     type: 'chat',
     label: 'Chat',

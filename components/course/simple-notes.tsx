@@ -155,7 +155,7 @@ export function SimpleNotes({ lessonId, courseId }: SimpleNotesProps) {
   }
 
   return (
-    <Card className="glass">
+    <Card className="bg-card/80 border border-border">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Plus className="w-5 h-5" />
@@ -188,7 +188,7 @@ export function SimpleNotes({ lessonId, courseId }: SimpleNotesProps) {
               size="sm"
               onClick={handleSaveNote}
               disabled={!newNote.trim() || saving}
-              className="bg-bhutan-yellow hover:bg-bhutan-orange text-black"
+              className="bg-primary hover:bg-primary text-primary-foreground"
             >
               {saving ? (
                 <Loader2 className="w-4 h-4 mr-1 animate-spin" />
@@ -216,7 +216,7 @@ export function SimpleNotes({ lessonId, courseId }: SimpleNotesProps) {
                 {notes.map((note) => (
                   <div
                     key={note.id}
-                    className="rounded-lg border border-border/50 bg-secondary/50 p-3 transition-colors hover:border-bhutan-yellow/30"
+                    className="rounded-lg border border-border/50 bg-secondary/50 p-3 transition-colors hover:border-primary/30"
                   >
                     {editingNote === note.id ? (
                       <div className="space-y-2">
@@ -235,7 +235,7 @@ export function SimpleNotes({ lessonId, courseId }: SimpleNotesProps) {
                             size="sm"
                             onClick={() => handleSaveEdit(note.id)}
                             disabled={!editContent.trim()}
-                            className="bg-bhutan-yellow text-black hover:bg-bhutan-orange"
+                            className="bg-primary text-primary-foreground hover:bg-primary"
                           >
                             Save
                           </Button>

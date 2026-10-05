@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { BookOpen, Play, CheckCircle2, ChevronRight } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
 import { resolveMediaUrl } from '@/lib/media'
 import { cn } from '@/lib/utils'
 
@@ -35,13 +36,13 @@ export function DashboardCourseRow({
     <Link
       href={`/learn/${id}`}
         className={cn(
-          'group flex items-center gap-2.5 rounded-lg border border-border/50 bg-card/80 px-2.5 py-2 transition-all hover:border-bhutan-yellow/40 hover:bg-card hover:shadow-sm',
+          'group flex items-center gap-2.5 rounded-lg border border-border/50 bg-card/80 px-2.5 py-2 transition-all hover:border-primary/40 hover:bg-card hover:shadow-sm',
           compact && 'py-1.5'
         )}
       >
       <div
         className={cn(
-          'relative shrink-0 overflow-hidden rounded-md bg-gradient-to-br from-bhutan-yellow/20 to-bhutan-orange/20',
+          'relative shrink-0 overflow-hidden rounded-md bg-gradient-to-br from-primary/20 to-muted/20',
           compact ? 'h-9 w-9' : 'h-10 w-10 sm:h-9 sm:w-12'
         )}
       >
@@ -50,7 +51,7 @@ export function DashboardCourseRow({
           <img src={image} alt="" className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
-            <BookOpen className="h-3.5 w-3.5 text-bhutan-orange/70" />
+            <BookOpen className="h-3.5 w-3.5 text-primary/70" />
           </div>
         )}
         {completed && (
@@ -62,7 +63,7 @@ export function DashboardCourseRow({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="line-clamp-1 text-sm font-semibold leading-snug tracking-tight group-hover:text-bhutan-orange">
+          <h3 className="line-clamp-1 text-sm font-semibold leading-snug tracking-tight group-hover:text-primary">
             {title}
           </h3>
           <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
@@ -84,20 +85,10 @@ export function DashboardCourseRow({
             <span className="text-[10px] font-medium text-green-600">Completed</span>
           )}
         </div>
-        <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className={cn(
-              'h-full rounded-full transition-all',
-              completed
-                ? 'bg-green-600'
-                : 'bg-gradient-to-r from-bhutan-yellow to-bhutan-orange'
-            )}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
+        <Progress value={pct} className="mt-1.5 w-full" />
       </div>
 
-      <span className="hidden shrink-0 items-center gap-1 rounded-full bg-bhutan-yellow/90 px-2.5 py-1 text-xs font-medium text-black sm:inline-flex">
+      <span className="hidden shrink-0 items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground sm:inline-flex">
         <Play className="h-3.5 w-3.5" />
         {completed ? 'Review' : started ? 'Continue' : 'Start'}
       </span>
