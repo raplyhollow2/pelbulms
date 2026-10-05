@@ -292,7 +292,7 @@ export function ReviewsDashboard({ courseId, userId }: ReviewsDashboardProps) {
                 <h3 className="font-semibold text-sm">Rate this course</h3>
                 <div className="flex gap-1">
                   {[1, 2, 3, 4, 5].map((star) => (
-                    <Button
+                    <button
                       key={star}
                       type="button"
                       onClick={() => setMyRating(star)}
@@ -306,7 +306,7 @@ export function ReviewsDashboard({ courseId, userId }: ReviewsDashboardProps) {
                             : 'text-gray-300'
                         }`}
                       />
-                    </Button>
+                    </button>
                   ))}
                 </div>
                 <Input
@@ -318,7 +318,7 @@ export function ReviewsDashboard({ courseId, userId }: ReviewsDashboardProps) {
                   size="sm"
                   onClick={handleSubmitReview}
                   disabled={submitting}
-                  className="bg-primary text-primary-foreground hover:bg-primary"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
                 >
                   {submitting ? 'Saving…' : 'Submit review'}
                 </Button>

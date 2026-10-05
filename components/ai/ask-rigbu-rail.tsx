@@ -142,7 +142,7 @@ export function AskRigbuRail({
         </div>
         <div className="flex rounded-full border border-border/70 p-0.5 text-xs">
           {(['page', 'structure'] as const).map((item) => (
-            <Button
+            <button
               key={item}
               type="button"
               className={cn(
@@ -152,7 +152,7 @@ export function AskRigbuRail({
               onClick={() => setMode(item)}
             >
               {item}
-            </Button>
+            </button>
           ))}
         </div>
       </div>
@@ -201,7 +201,7 @@ export function AskRigbuRail({
       />
       <Button
         type="button"
-        className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+        className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
         disabled={loading}
         onClick={() => void (mode === 'structure' ? propose() : send())}
       >

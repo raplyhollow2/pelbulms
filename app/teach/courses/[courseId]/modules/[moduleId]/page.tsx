@@ -436,12 +436,12 @@ export default function ModuleLessonsPage() {
         {/* Sticky header with always-visible Save */}
         <div className="sticky top-0 z-30 -mx-4 border-b border-border/40 bg-background/85 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6">
           <div className="mb-1 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-            <Button
+            <button
               onClick={() => router.push(`/teach/courses/${courseId}/edit`)}
               className="min-w-0 truncate hover:text-foreground"
             >
               {course.title}
-            </Button>
+            </button>
             <span className="shrink-0">/</span>
             <span className="min-w-0 truncate font-medium text-foreground">
               {module.title || 'Untitled Module'}
@@ -469,7 +469,7 @@ export default function ModuleLessonsPage() {
             <Button
               onClick={saveAllChanges}
               disabled={saving || !hasChanges}
-              className="shrink-0 bg-primary hover:bg-primary text-primary-foreground"
+              className="shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {saving ? (
                 <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />

@@ -712,7 +712,7 @@ export default function ProfilePage() {
               <Button
                 onClick={handleSubmit}
                 disabled={saving || Boolean(linkedinError)}
-                className="bg-primary hover:bg-primary text-primary-foreground"
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {saving ? (
                   <>

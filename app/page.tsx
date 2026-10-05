@@ -3,11 +3,9 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
-import { Rigbu } from '@/components/brand/rigbu'
+import { ArrowRight } from 'lucide-react'
 import { SignedInPublicGuard } from '@/components/auth/signed-in-public-guard'
-import { LandingFaq } from '@/components/landing/landing-faq'
 import { LandingHero } from '@/components/landing/landing-hero'
-import { LandingNav } from '@/components/landing/landing-nav'
 import { LandingCatalog, type LandingCourse } from '@/components/landing/landing-catalog'
 import { LandingSection } from '@/components/landing/landing-section'
 import {
@@ -35,7 +33,7 @@ import {
 } from '@/lib/landing-content'
 import { resolveMediaUrl } from '@/lib/media'
 
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://rigbu.bt'
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pelbu.bt'
 const FALLBACK_NAME = 'Rigbu LMS'
 const FALLBACK_DESCRIPTION =
   'Rigbu LMS is Bhutan’s private, identity-verified learning platform. Students and teachers get world-class courses, progress tracking, private video lessons and recognised certificates — access granted only after Bhutan KYC approval.'
@@ -407,13 +405,7 @@ export default async function Home({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd(siteName, description, faq)) }}
       />
 
-      <main className="min-w-0 overflow-visible">
-        <LandingNav
-          siteName={siteName}
-          courses={published}
-          glassOpacity={settings.hero_glass_opacity}
-          mascotUrl={resolveMediaUrl(settings.mascot_image_url) || null}
-        />
+      <main className="min-w-0 overflow-x-clip">
         <LandingHero
           siteName={siteName}
           tagline={settings.tagline}
@@ -427,12 +419,10 @@ export default async function Home({
           ctaLabel={settings.hero_cta_primary_label}
           secondaryCtaLabel={settings.hero_cta_secondary_label}
           showCatalog={settings.public_catalog && published.length > 0}
+          glassOpacity={settings.hero_glass_opacity}
           requireIdentity={requireIdentity}
           fallbackImage={heroFallbackImage}
-          courseTopics={published.map((course) => course.title)}
-          heroSlides={settings.hero_slides}
-          mascotUrl={resolveMediaUrl(settings.mascot_image_url) || null}
-          siteNameForScene={siteName}
+          courses={published}
         />
 
         <LandingStats eyebrow={titles.stats_eyebrow} stats={settings.landing_stats} />
@@ -476,16 +466,28 @@ export default async function Home({
               {titles.faq_title}
             </h2>
           </div>
-          <LandingFaq items={faq} />
+          <div className="mt-6 divide-y divide-border/60 rounded-2xl border border-border/60 bg-card/50 backdrop-blur">
+            {faq.map((f) => (
+              <details
+                key={f.question}
+                className="group px-6 py-5 [&_summary::-webkit-details-marker]:hidden"
+              >
+                <summary className="flex cursor-pointer items-center justify-between gap-4 text-base font-medium">
+                  {f.question}
+                  <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-300 group-open:rotate-90" />
+                </summary>
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{f.answer}</p>
+              </details>
+            ))}
+          </div>
           </div>
         </LandingSection>
       </main>
 
       <footer>
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-8 text-sm text-muted-foreground sm:flex-row">
-          <p className="flex items-center gap-2">
-            <Rigbu className="h-8 w-8" />
-            <span>© {new Date().getFullYear()} {siteName} · Empowering education in Bhutan.</span>
+          <p>
+            © {new Date().getFullYear()} {siteName} · Empowering education in Bhutan.
           </p>
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
             <Link href="/auth/login" className="transition-colors hover:text-foreground">

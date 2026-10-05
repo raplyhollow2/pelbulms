@@ -1,5 +1,4 @@
 'use client'
-import { Button } from '@/components/ui/button'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -100,7 +99,7 @@ export function RoleReportDashboard({
         <div className="flex flex-col items-stretch gap-3 sm:items-end">
           <div className="flex gap-1 rounded-full border border-border/60 p-1">
             {ranges.map((r) => (
-              <Button
+              <button
                 key={r}
                 type="button"
                 onClick={() => onRangeChange(r)}
@@ -112,7 +111,7 @@ export function RoleReportDashboard({
                 )}
               >
                 {r}
-              </Button>
+              </button>
             ))}
           </div>
           <ExportPackBar

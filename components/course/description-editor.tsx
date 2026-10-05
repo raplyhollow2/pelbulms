@@ -28,7 +28,7 @@ function FormatButton({
   children: ReactNode
 }) {
   return (
-    <Button
+    <button
       type="button"
       aria-label={label}
       title={label}
@@ -37,7 +37,7 @@ function FormatButton({
       onClick={onApply}
     >
       {children}
-    </Button>
+    </button>
   )
 }
 

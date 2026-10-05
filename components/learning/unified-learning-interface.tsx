@@ -267,7 +267,7 @@ export function UnifiedLearningInterface({
                 const isActive = activeTab === tab.value
 
                 return (
-                  <Button
+                  <button
                     key={tab.value}
                     onClick={() => handleTabChange(tab.value)}
                     className={cn(
@@ -287,7 +287,7 @@ export function UnifiedLearningInterface({
                         {tab.badge}
                       </Badge>
                     )}
-                  </Button>
+                  </button>
                 )
               })}
             </div>

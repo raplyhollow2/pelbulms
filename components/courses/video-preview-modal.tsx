@@ -89,7 +89,7 @@ export function VideoPreviewModal({
         <div className="relative">
           <div className="group relative aspect-video w-full overflow-hidden bg-black">
             {!hasVideo ? (
-              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-muted/20">
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/20">
                 <div className="text-center px-6">
                   <Play className="w-16 h-16 text-primary mx-auto mb-4 opacity-50" />
                   <p className="text-primary/80 font-medium">No preview video yet</p>
@@ -178,7 +178,7 @@ export function VideoPreviewModal({
 
           <div className="flex items-center gap-3 mt-4">
             <Button
-              className="flex-1 bg-primary hover:bg-primary text-primary-foreground"
+              className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={() => {
                 handleOpenChange(false)
                 onEnroll?.()

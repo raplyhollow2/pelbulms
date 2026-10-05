@@ -2,7 +2,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -267,7 +266,7 @@ export function TimestampNotes({
                   <Button
                     size="sm"
                     onClick={handleSaveNote}
-                    className="bg-primary hover:bg-primary"
+                    className="bg-primary hover:bg-primary/90"
                   >
                     <Save className="w-4 h-4 mr-1" />
                     Save Note
@@ -283,7 +282,7 @@ export function TimestampNotes({
       {notes.length > 0 && (
         <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
+          <input
             type="text"
             placeholder="Search notes..."
             value={searchQuery}
@@ -344,7 +343,7 @@ export function TimestampNotes({
                         <Button
                           size="sm"
                           onClick={handleSaveEdit}
-                          className="bg-primary hover:bg-primary"
+                          className="bg-primary hover:bg-primary/90"
                         >
                           <Save className="w-4 h-4 mr-1" />
                           Save
@@ -358,19 +357,17 @@ export function TimestampNotes({
                           <div className="flex items-center gap-2 mb-2">
                             <TooltipProvider>
                               <Tooltip>
-                                <TooltipTrigger
-                                  render={
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleJumpToTimestamp(note.timestamp)}
-                                      className="h-7 px-2 font-mono text-xs"
-                                    >
-                                      <Clock className="w-3 h-3 mr-1" />
-                                      {formatTimestamp(note.timestamp)}
-                                    </Button>
-                                  }
-                                />
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleJumpToTimestamp(note.timestamp)}
+                                    className="h-7 px-2 font-mono text-xs"
+                                  >
+                                    <Clock className="w-3 h-3 mr-1" />
+                                    {formatTimestamp(note.timestamp)}
+                                  </Button>
+                                </TooltipTrigger>
                                 <TooltipContent>
                                   <p>Click to jump to {formatTimestamp(note.timestamp)} in video</p>
                                 </TooltipContent>

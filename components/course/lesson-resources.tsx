@@ -272,7 +272,7 @@ export function LessonResources({
                     <Button
                       type="button"
                       size="sm"
-                      className="min-h-11 shrink-0 gap-1 bg-primary text-primary-foreground hover:bg-primary"
+                      className="min-h-11 shrink-0 gap-1 bg-primary text-primary-foreground hover:bg-primary/90"
                       onClick={() => onTakeQuiz?.(item.quizId!)}
                     >
                       <HelpCircle className="h-3.5 w-3.5" />
@@ -490,7 +490,7 @@ function ActivityInputForm({
           <Button
             type="button"
             size="sm"
-            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
             disabled={marking || !choice}
             onClick={() => void submit({ choice })}
           >
@@ -632,14 +632,14 @@ function ActivityInputForm({
                     <span className="truncate">{fileName}</span>
                   )}
                   {!done ? (
-                    <Button
+                    <button
                       type="button"
                       className="shrink-0 rounded p-0.5 hover:bg-muted"
                       aria-label="Remove uploaded file"
                       onClick={clearUploadedFile}
                     >
                       <X className="h-3.5 w-3.5" />
-                    </Button>
+                    </button>
                   ) : null}
                 </span>
               ) : (
@@ -689,7 +689,7 @@ function ActivityInputForm({
           <Button
             type="button"
             size="sm"
-            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
             disabled={marking || uploading || !canSubmitAssignment}
             onClick={() =>
               void submit({
@@ -736,7 +736,7 @@ function ActivityInputForm({
           <Button
             type="button"
             size="sm"
-            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
             disabled={marking || !text.trim()}
             onClick={() => void submit({ text })}
           >
@@ -778,7 +778,7 @@ function ActivityInputForm({
           <Button
             type="button"
             size="sm"
-            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
             disabled={marking || !entryTitle.trim() || !entryBody.trim()}
             onClick={() => void submit({ entryTitle, entryBody })}
           >
@@ -822,7 +822,7 @@ function ActivityInputForm({
           <Button
             type="button"
             size="sm"
-            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
             disabled={marking || !term.trim() || !definition.trim()}
             onClick={() => void submit({ term, definition })}
           >
@@ -862,7 +862,7 @@ function ActivityInputForm({
             <Button
               type="button"
               size="sm"
-              className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+              className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
               disabled={marking || !message.trim()}
               onClick={() => void submit({ message })}
             >
@@ -910,7 +910,7 @@ function ActivityInputForm({
         <Button
           type="button"
           size="sm"
-          className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+          className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
           disabled={marking || !filled}
           onClick={() => void submit({ fields: fieldValues })}
         >
@@ -932,7 +932,7 @@ function ActivityInputForm({
           <Button
             type="button"
             size="sm"
-            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
             disabled={marking}
             onClick={() => void submit({ studied: true })}
           >

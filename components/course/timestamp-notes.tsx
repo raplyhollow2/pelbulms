@@ -147,7 +147,7 @@ export function TimestampNotes({ lessonId, courseId, videoRef, userId }: Timesta
           {!isRecording ? (
             <Button
               onClick={startRecordingNote}
-              className="w-full bg-primary hover:bg-primary"
+              className="w-full bg-primary hover:bg-primary/90"
               size="lg"
             >
               <StickyNote className="w-4 h-4 mr-2" />

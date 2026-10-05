@@ -303,7 +303,7 @@ export function PermissionsMatrix() {
           <ul className="max-h-[70vh] overflow-y-auto p-1">
             {orderedRoles.map((role) => (
               <li key={role.id}>
-                <Button
+                <button
                   type="button"
                   onClick={() => setSelectedRoleId(role.id)}
                   className={cn(
@@ -324,7 +324,7 @@ export function PermissionsMatrix() {
                       custom · {role.base_archetype}
                     </span>
                   )}
-                </Button>
+                </button>
               </li>
             ))}
           </ul>

@@ -319,7 +319,7 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
                       onClick={() => handlePomodoroModeChange('focus')}
                       className={cn(
                         "flex-1",
-                        pomodoroMode === 'focus' && "bg-primary hover:bg-primary"
+                        pomodoroMode === 'focus' && "bg-primary hover:bg-primary/90"
                       )}
                     >
                       Focus
@@ -356,7 +356,7 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
                       <Button
                         size="lg"
                         onClick={handlePomodoroStart}
-                        className="bg-primary hover:bg-primary"
+                        className="bg-primary hover:bg-primary/90"
                       >
                         <Play className="w-5 h-5 mr-2" />
                         Start
@@ -365,7 +365,7 @@ export function LearningTools({ courseId, lessonId }: LearningToolsProps) {
                       <Button
                         size="lg"
                         onClick={handlePomodoroPause}
-                        className="bg-primary hover:bg-primary"
+                        className="bg-primary hover:bg-primary/90"
                       >
                         <Pause className="w-5 h-5 mr-2" />
                         Pause

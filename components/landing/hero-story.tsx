@@ -56,11 +56,7 @@ export function HeroStory({
       <div className="relative flex h-full flex-col items-center justify-start gap-4 px-5 pb-6 pt-8 sm:pt-10 md:flex-row md:items-center md:justify-center md:gap-12 md:px-[6%] md:pt-6">
         <RigbuLive
           src={mascotUrl}
-          className={
-            reduced
-              ? 'h-56 max-w-[78%] shrink-0 drop-shadow-2xl sm:h-72 md:h-80 lg:h-[24rem] xl:h-[28rem]'
-              : 'mascot-float h-56 max-w-[78%] shrink-0 drop-shadow-2xl sm:h-72 md:h-80 lg:h-[24rem] xl:h-[28rem]'
-          }
+          className="h-56 max-w-[78%] shrink-0 drop-shadow-2xl sm:h-72 md:h-80 lg:h-[24rem] xl:h-[28rem]"
         />
         <div key={`${index}-${slide.title}`} className="hero-slide-in w-full max-w-md md:w-[28rem]">
           {slide.kicker ? (

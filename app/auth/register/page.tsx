@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  BookOpen,
   Loader2,
   AlertCircle,
   Upload,
@@ -15,7 +16,6 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
-import { Rigbu, RigbuLoader } from '@/components/brand/rigbu'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -115,7 +115,7 @@ function PhotoUpload({
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <Button
+      <button
         type="button"
         onClick={() => inputRef.current?.click()}
         className="group relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-muted/30 transition-colors hover:border-primary hover:bg-muted/50"
@@ -138,7 +138,7 @@ function PhotoUpload({
             <CheckCircle2 className="h-4 w-4" />
           </span>
         )}
-      </Button>
+      </button>
       <input
         ref={inputRef}
         type="file"
@@ -378,7 +378,7 @@ export default function RegisterPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <RigbuLoader label="Opening registration..." />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
@@ -443,12 +443,14 @@ export default function RegisterPage() {
   )
 
   return (
-    <div className="min-h-screen bg-background px-4 py-6 pb-[calc(2rem+env(safe-area-inset-bottom))]">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-white px-4 py-6 pb-[calc(2rem+env(safe-area-inset-bottom))] dark:from-gray-900 dark:via-gray-900 dark:to-black">
       <div className="mx-auto w-full max-w-lg space-y-5">
         <div className="text-center">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-card px-5 py-2">
-            <Rigbu className="h-9 w-9" />
-            <span className="text-lg font-bold text-foreground">{siteName}</span>
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-card border border-border shadow-sm px-5 py-2">
+            <BookOpen className="h-6 w-6 text-primary" />
+            <span className="text-foreground text-lg font-bold">
+              {siteName}
+            </span>
           </div>
           <h1 className="text-2xl font-bold">
             {policy.require_identity_documents ? 'Verify your identity' : 'Complete your profile'}
@@ -785,7 +787,7 @@ export default function RegisterPage() {
               <Button
                 type="button"
                 onClick={goNext}
-                className="h-12 flex-1 gap-1 bg-primary text-primary-foreground hover:bg-primary"
+                className="h-12 flex-1 gap-1 bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 Next <ChevronRight className="h-4 w-4" />
               </Button>
@@ -794,7 +796,7 @@ export default function RegisterPage() {
                 type="button"
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="h-12 flex-1 bg-primary text-primary-foreground hover:bg-primary"
+                className="h-12 flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {submitting ? (
                   <>

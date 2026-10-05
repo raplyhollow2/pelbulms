@@ -1,5 +1,4 @@
 'use client'
-import { NativeSelect } from '@/components/ui/native-select'
 
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -135,7 +134,7 @@ export function PlatformAiConsole() {
             return (
               <div key={feature.id} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_16rem] sm:items-center">
                 <Label htmlFor={`route-${feature.id}`}>{feature.label}</Label>
-                <NativeSelect
+                <select
                   id={`route-${feature.id}`}
                   className="min-h-11 rounded-md border bg-background px-3 text-sm"
                   value={current}
@@ -151,14 +150,14 @@ export function PlatformAiConsole() {
                       {options.includes(id) ? '' : ' (not enabled)'}
                     </option>
                   ))}
-                </NativeSelect>
+                </select>
               </div>
             )
           })}
           <div className="flex flex-wrap items-center gap-3">
             <Button
               type="button"
-              className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+              className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
               disabled={savingRoutes}
               onClick={() => void saveRoutes()}
             >
@@ -322,7 +321,7 @@ function ProviderCard({
         ) : (
           <div className="space-y-2">
             <Label htmlFor={`${provider}-model`}>Model</Label>
-            <NativeSelect
+            <select
               id={`${provider}-model`}
               className="min-h-11 w-full rounded-md border bg-background px-3 text-sm"
               value={model}
@@ -333,7 +332,7 @@ function ProviderCard({
                   {id}
                 </option>
               ))}
-            </NativeSelect>
+            </select>
           </div>
         )}
         <div className="space-y-2">
@@ -350,7 +349,7 @@ function ProviderCard({
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"
-            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
             disabled={saving}
             onClick={() => void save()}
           >

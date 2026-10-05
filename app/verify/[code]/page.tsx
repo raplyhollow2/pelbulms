@@ -107,7 +107,7 @@ export default function VerifyCertificatePage() {
 
               {result.certificateUrl && (
                 <Button
-                  className="w-full bg-primary hover:bg-primary text-primary-foreground"
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                   onClick={() => window.open(result.certificateUrl!, '_blank')}
                 >
                   <Download className="mr-2 h-4 w-4" />

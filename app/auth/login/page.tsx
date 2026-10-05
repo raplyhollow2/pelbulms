@@ -3,8 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Loader2, AlertCircle, Fingerprint, Home, Mail } from 'lucide-react'
-import { Rigbu, RigbuLoader } from '@/components/brand/rigbu'
+import { BookOpen, Loader2, AlertCircle, Fingerprint, Home, Mail } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -211,16 +210,16 @@ function LoginPage() {
   const disabled = busy !== null
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-yellow-50 via-orange-50 to-white p-4 dark:from-gray-900 dark:to-black">
       <SignedInPublicGuard />
       <div className="w-full max-w-md space-y-8">
         <div className="space-y-4 text-center">
           <Link
             href="/"
-            className="inline-flex items-center gap-3 rounded-full border border-border bg-card px-6 py-3"
+            className="bg-card border border-border shadow-sm inline-flex items-center gap-3 rounded-full px-6 py-3 transition-opacity hover:opacity-90"
           >
-            <Rigbu className="h-10 w-10" />
-            <span className="text-2xl font-bold text-foreground">
+            <BookOpen className="h-8 w-8 text-primary" />
+            <span className="text-foreground text-2xl font-bold">
               {siteName}
             </span>
           </Link>
@@ -230,7 +229,7 @@ function LoginPage() {
           </p>
         </div>
 
-        <Card>
+        <Card className="bg-card border border-border shadow-sm">
           <CardHeader>
             <CardTitle>Sign in to continue</CardTitle>
             <CardDescription>
@@ -244,7 +243,7 @@ function LoginPage() {
                 onClick={() => handleOAuthSignIn('google')}
                 disabled={disabled}
                 variant="outline"
-                className="h-12 w-full border-border bg-background text-base font-medium text-foreground hover:bg-muted"
+                className="h-12 w-full border-border bg-white text-base font-medium text-foreground hover:bg-gray-50 dark:bg-background"
               >
                 {busy === 'google' ? (
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
@@ -259,7 +258,7 @@ function LoginPage() {
                   <span className="w-full border-t" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-card px-2 text-muted-foreground">Or</span>
+                  <span className="bg-background px-2 text-muted-foreground">Or</span>
                 </div>
               </div>
 
@@ -292,15 +291,14 @@ function LoginPage() {
                   />
                   {emailMode === 'signin' ? (
                     <p className="text-right text-sm">
-                      <Button
+                      <button
                         type="button"
-                        variant="link"
-                        className="h-auto p-0 text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                        className="text-muted-foreground underline underline-offset-4 hover:text-foreground"
                         onClick={handlePasswordLink}
                         disabled={disabled}
                       >
                         Forgot password?
-                      </Button>
+                      </button>
                     </p>
                   ) : null}
                 </div>
@@ -318,10 +316,9 @@ function LoginPage() {
                 </Button>
                 <p className="text-center text-sm text-muted-foreground">
                   {emailMode === 'signup' ? 'Already have an account?' : 'New here?'}{' '}
-                  <Button
+                  <button
                     type="button"
-                    variant="link"
-                    className="h-auto p-0 font-medium text-foreground underline underline-offset-4"
+                    className="font-medium text-foreground underline underline-offset-4"
                     onClick={() => {
                       setEmailMode((mode) => (mode === 'signin' ? 'signup' : 'signin'))
                       setError('')
@@ -329,7 +326,7 @@ function LoginPage() {
                     }}
                   >
                     {emailMode === 'signup' ? 'Sign in' : 'Create an account'}
-                  </Button>
+                  </button>
                 </p>
               </form>
 
@@ -388,7 +385,7 @@ function LoginPage() {
 
 function LoginPageWrapper() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><RigbuLoader label="Opening sign in..." /></div>}>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
       <LoginPage />
     </Suspense>
   )

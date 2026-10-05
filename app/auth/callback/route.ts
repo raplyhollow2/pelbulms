@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   // Handle errors from Supabase
   if (error) {
     console.error('Supabase auth error:', error, errorDescription)
-    return NextResponse.redirect(
+    return redirectReplacing(
       `${requestUrl.origin}/auth/login?error=${encodeURIComponent(errorDescription || error)}`
     )
   }
@@ -68,20 +68,20 @@ export async function GET(request: Request) {
 
       if (exchangeError) {
         console.error('Code exchange error:', exchangeError)
-        return NextResponse.redirect(
+        return redirectReplacing(
           `${requestUrl.origin}/auth/login?error=${encodeURIComponent(exchangeError.message)}`
         )
       }
 
       if (data.session) {
         const next = safeAuthNext(requestUrl.searchParams.get('next'))
-        if (next) return NextResponse.redirect(`${requestUrl.origin}${next}`)
+        if (next) return redirectReplacing(`${requestUrl.origin}${next}`)
         const destination = await destinationFor(data.session.user.id, requestUrl.origin)
-        return NextResponse.redirect(destination)
+        return redirectReplacing(destination)
       }
     } catch (error) {
       console.error('Auth callback error:', error)
-      return NextResponse.redirect(
+      return redirectReplacing(
         `${requestUrl.origin}/auth/login?error=${encodeURIComponent('Authentication failed')}`
       )
     }
@@ -89,7 +89,18 @@ export async function GET(request: Request) {
 
   // If there's no code, redirect to login
   console.log('No code received in callback')
-  return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=no_code`)
+  return redirectReplacing(`${requestUrl.origin}/auth/login?error=no_code`)
+}
+
+function redirectReplacing(url: string) {
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Continuing</title></head><body><script>location.replace(${JSON.stringify(url)})</script></body></html>`
+  return new NextResponse(html, {
+    status: 200,
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'cache-control': 'no-store',
+    },
+  })
 }
 
 function safeAuthNext(value: string | null) {

@@ -122,7 +122,7 @@ export function CourseCard({
       ? 'bg-green-600 text-white hover:bg-green-700'
       : enrollmentPending
         ? 'bg-amber-500 text-black hover:bg-amber-600'
-        : 'bg-primary text-primary-foreground hover:bg-primary'
+        : 'bg-primary text-primary-foreground hover:bg-primary/90'
   )
 
   return (
@@ -141,7 +141,7 @@ export function CourseCard({
               onError={() => setImageError(true)}
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/20 to-muted/20">
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/20 to-primary/20">
               <BookOpen className="h-12 w-12 text-primary" />
             </div>
           )}

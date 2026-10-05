@@ -12,7 +12,16 @@ export async function middleware(req: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   const pathname = req.nextUrl.pathname
-  const protectedPaths = ['/dashboard', '/courses', '/learn', '/teach', '/profile', '/admin']
+  const protectedPaths = [
+    '/dashboard',
+    '/courses',
+    '/learn',
+    '/teach',
+    '/profile',
+    '/admin',
+    '/announcements',
+    '/settings',
+  ]
   const isProtectedPath = protectedPaths.some((path) => pathname.startsWith(path))
 
   // Missing Auth config must not open protected pages.
@@ -75,25 +84,20 @@ export async function middleware(req: NextRequest) {
     email?: string | null
     app_metadata?: Record<string, unknown>
   } | null = null
-  const hasAuthCookie = req.cookies.getAll().some((cookie) => cookie.name.includes('-auth-token'))
-  if (hasAuthCookie) {
-    try {
-      const { data, error } = await supabase.auth.getUser()
-      if (error) {
-        // Guests and expired cookies have no session. That is not a server failure.
-        const missingSession = /auth session missing/i.test(error.message || '')
-        if (!missingSession) {
-          console.warn('[middleware] auth.getUser error:', error.message)
-        }
-        user = null
-      } else {
-        user = data.user
+  try {
+    const { data, error } = await supabase.auth.getUser()
+    if (error) {
+      const missingSession = /auth session missing/i.test(error.message || '')
+      if (!missingSession) {
+        console.warn('[middleware] auth.getUser error:', error.message)
       }
-    } catch (err) {
-      console.warn('[middleware] auth.getUser failed; continuing without refresh:', err)
-      // Do not call getSession() here — it can re-trigger the same network refresh.
       user = null
+    } else {
+      user = data.user
     }
+  } catch (err) {
+    console.warn('[middleware] auth.getUser failed; continuing without refresh:', err)
+    user = null
   }
 
   const forward = async () => {
@@ -223,6 +227,8 @@ export const config = {
     '/teach/:path*',
     '/profile/:path*',
     '/admin/:path*',
+    '/announcements/:path*',
+    '/settings/:path*',
     '/auth/:path*',
     '/api/:path*',
   ],

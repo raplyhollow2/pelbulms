@@ -1,5 +1,4 @@
 'use client'
-import { Input } from '@/components/ui/input'
 
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -125,17 +124,17 @@ export function CourseActionDeck({
           ? 'Request'
           : 'Enroll'
 
-  const buttonClass = `min-h-12 w-full text-base font-bold text-black ${
+  const buttonClass = `min-h-12 w-full text-base font-bold ${
     isEnrolled
-      ? 'bg-green-600 hover:bg-green-700'
+      ? 'bg-green-600 text-white hover:bg-green-700'
       : enrollmentPending
-        ? 'bg-amber-500 hover:bg-amber-600'
-        : 'bg-primary hover:bg-primary'
+        ? 'bg-amber-500 text-black hover:bg-amber-600'
+        : 'bg-primary text-primary-foreground hover:bg-primary/90'
   }`
 
   const inviteField =
     inviteMode && !isEnrolled && !enrollmentPending ? (
-      <Input
+      <input
         value={inviteCode}
         onChange={(e) => onInviteCodeChange?.(e.target.value.toUpperCase())}
         placeholder="Enter your enrollment code"
@@ -158,7 +157,7 @@ export function CourseActionDeck({
   ].filter(Boolean) as { icon: typeof Clock; label: string }[]
 
   const media = showMedia ? (
-    <Button
+    <button
       type="button"
       onClick={() => hasPreview && setShowVideoPreview(true)}
       disabled={!hasPreview}
@@ -174,7 +173,7 @@ export function CourseActionDeck({
             onError={() => setImageError(true)}
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/30 to-muted/30">
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/30 to-primary/30">
             <BookOpen className="h-10 w-10 text-white" />
           </div>
         )}
@@ -192,7 +191,7 @@ export function CourseActionDeck({
           </>
         )}
       </div>
-    </Button>
+    </button>
   ) : null
 
   const offer = (
@@ -288,12 +287,12 @@ export function CourseActionDeck({
             <p className="min-w-0 flex-1 truncate text-lg font-bold">{priceLabel}</p>
             <Button
               size="lg"
-              className={`min-h-11 shrink-0 px-5 text-black ${
+              className={`min-h-11 shrink-0 px-5 ${
                 isEnrolled
-                  ? 'bg-green-600 hover:bg-green-700'
+                  ? 'bg-green-600 text-white hover:bg-green-700'
                   : enrollmentPending
-                    ? 'bg-amber-500 hover:bg-amber-600'
-                    : 'bg-primary hover:bg-primary'
+                    ? 'bg-amber-500 text-black hover:bg-amber-600'
+                    : 'bg-primary text-primary-foreground hover:bg-primary/90'
               }`}
               disabled={enrollmentPending || enrolling}
               onClick={isEnrolled ? onLearn : onEnroll}

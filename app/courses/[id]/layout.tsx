@@ -4,7 +4,7 @@ import { getCloudinaryAccount } from '@/lib/cloudinary'
 import { parseMediaRef } from '@/lib/media'
 import { tryCreateServiceClient } from '@/lib/supabase/server'
 
-const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://rigbu.bt'
+const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://pelbu.bt'
 
 async function publicThumbnail(ref: string | null | undefined) {
   if (!ref) return null

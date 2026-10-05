@@ -245,7 +245,7 @@ export default function LessonEditPage() {
             <Button
               onClick={saveChanges}
               disabled={saving || !hasChanges}
-              className="bg-primary hover:bg-primary text-primary-foreground"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {saving ? (
                 <>

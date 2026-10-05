@@ -789,7 +789,7 @@ function HotspotBlockEditor({
               <span
                 key={`${spot.x}-${spot.y}-${index}`}
                 data-hotspot-marker
-                className="absolute flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-xs font-bold text-black shadow"
+                className="absolute flex size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground shadow"
                 style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
               >
                 {index + 1}
@@ -1167,7 +1167,7 @@ function QuizCard({ quizId, onTakeQuiz }: { quizId: string; onTakeQuiz?: (quizId
         <p className="text-sm font-medium">Knowledge check</p>
         <Button
           type="button"
-          className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+          className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
           onClick={() => onTakeQuiz?.(quizId)}
         >
           Take quiz
@@ -1207,16 +1207,16 @@ function HotspotImage({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={resolveMediaUrl(imageUrl) || imageUrl} alt="" className="w-full" />
         {spots.map((spot, i) => (
-          <Button
+          <button
             key={i}
             type="button"
             title={spot.label}
-            className="absolute size-7 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary text-xs font-bold text-black shadow"
+            className="absolute size-7 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary text-xs font-bold text-primary-foreground shadow"
             style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
             onClick={() => setOpen(i)}
           >
             {i + 1}
-          </Button>
+          </button>
         ))}
       </div>
       {active && (
@@ -1329,14 +1329,14 @@ function FlipDeck({ cards }: { cards: { front: string; back: string }[] }) {
   const card = cards[Math.min(i, cards.length - 1)]
   return (
     <div className="space-y-3">
-      <Button
+      <button
         type="button"
         onClick={() => setFlipped((v) => !v)}
         className="min-h-40 w-full rounded-xl border bg-card p-6 text-left shadow-sm"
       >
         <p className="text-xs uppercase text-muted-foreground">{flipped ? 'Back' : 'Front'}</p>
         <p className="mt-2 text-base font-medium">{flipped ? card.back : card.front}</p>
-      </Button>
+      </button>
       <div className="flex items-center justify-between">
         <Button type="button" variant="outline" className="min-h-11" disabled={i === 0} onClick={() => { setI(i - 1); setFlipped(false) }}>
           <ChevronLeft className="h-4 w-4" />
@@ -1408,7 +1408,7 @@ function Carousel({ slides }: { slides: { html: string; imageUrl?: string }[] })
           </Button>
           <div className="flex items-center gap-1.5 px-1">
             {slides.map((_, n) => (
-              <Button
+              <button
                 key={n}
                 type="button"
                 aria-label={`Slide ${n + 1}`}

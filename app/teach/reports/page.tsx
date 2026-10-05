@@ -1,6 +1,4 @@
 'use client'
-import { NativeSelect } from '@/components/ui/native-select'
-import { Button } from '@/components/ui/button'
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -141,7 +139,7 @@ export default function TeachReportsPage() {
           <label className="text-sm text-muted-foreground" htmlFor="instructor-filter">
             Instructor
           </label>
-          <NativeSelect
+          <select
             id="instructor-filter"
             value={instructorFilter}
             onChange={(e) => setInstructorFilter(e.target.value)}
@@ -153,12 +151,12 @@ export default function TeachReportsPage() {
                 {person.name}
               </option>
             ))}
-          </NativeSelect>
+          </select>
         </div>
       ) : null}
       {approvalsSnap ? (
         <div className="mb-4 flex gap-2">
-          <Button
+          <button
             type="button"
             onClick={() => setMode('courses')}
             className={`rounded-full border px-3 py-1.5 text-sm ${
@@ -168,8 +166,8 @@ export default function TeachReportsPage() {
             }`}
           >
             Course insights
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
             onClick={() => setMode('approvals')}
             className={`rounded-full border px-3 py-1.5 text-sm ${
@@ -179,7 +177,7 @@ export default function TeachReportsPage() {
             }`}
           >
             Approvals health
-          </Button>
+          </button>
         </div>
       ) : null}
       <RoleReportDashboard

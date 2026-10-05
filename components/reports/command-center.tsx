@@ -1,5 +1,4 @@
 'use client'
-import { Button } from '@/components/ui/button'
 
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
@@ -49,7 +48,7 @@ export function CommandCenter({
         <div className="flex flex-col items-stretch gap-3 sm:items-end">
           <div className="flex gap-1 rounded-full border border-border/60 p-1">
             {ranges.map((r) => (
-              <Button
+              <button
                 key={r}
                 type="button"
                 onClick={() => onRangeChange(r)}
@@ -61,7 +60,7 @@ export function CommandCenter({
                 )}
               >
                 {r}
-              </Button>
+              </button>
             ))}
           </div>
           <ExportPackBar range={range} includeAiBrief />

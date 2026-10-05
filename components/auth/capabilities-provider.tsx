@@ -27,22 +27,12 @@ type CapabilitiesContextValue = {
 
 const CapabilitiesContext = createContext<CapabilitiesContextValue | null>(null)
 
-function hasAuthCookie() {
-  if (typeof document === 'undefined') return false
-  return document.cookie.split(';').some((part) => part.trim().includes('-auth-token'))
-}
-
 export function CapabilitiesProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState(false)
   const [role, setRole] = useState<UserRole>('student')
   const [keys, setKeys] = useState<Set<string>>(new Set())
 
   const refresh = useCallback(async () => {
-    if (!hasAuthCookie()) {
-      setKeys(new Set())
-      setLoaded(true)
-      return
-    }
     try {
       const res = await fetch('/api/admin/capabilities/me')
       if (res.status === 401) {

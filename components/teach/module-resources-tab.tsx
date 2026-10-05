@@ -1,5 +1,4 @@
 'use client'
-import { NativeSelect } from '@/components/ui/native-select'
 
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -106,7 +105,7 @@ export function ModuleResourcesTab({
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="min-w-0 flex-1 space-y-1.5">
               <Label>Attach to</Label>
-              <NativeSelect
+              <select
                 className="min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
@@ -117,7 +116,7 @@ export function ModuleResourcesTab({
                     {l.title || 'Untitled lesson'}
                   </option>
                 ))}
-              </NativeSelect>
+              </select>
             </div>
             <label className="inline-flex">
               <input
@@ -132,7 +131,7 @@ export function ModuleResourcesTab({
               />
               <Button
                 type="button"
-                className="min-h-11 gap-1.5 bg-primary text-primary-foreground hover:bg-primary"
+                className="min-h-11 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
                 disabled={uploading}
                 onClick={(e) => {
                   const input = (e.currentTarget.parentElement as HTMLLabelElement)?.querySelector(

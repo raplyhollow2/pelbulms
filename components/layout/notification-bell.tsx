@@ -147,14 +147,14 @@ export function NotificationBell({
           <div className="flex items-center justify-between border-b px-3 py-2.5">
             <p className="text-sm font-semibold">Notifications</p>
             {unreadCount > 0 && (
-              <Button
+              <button
                 type="button"
                 onClick={markAll}
                 className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
               >
                 <CheckCheck className="h-3.5 w-3.5" />
                 Mark all read
-              </Button>
+              </button>
             )}
           </div>
 

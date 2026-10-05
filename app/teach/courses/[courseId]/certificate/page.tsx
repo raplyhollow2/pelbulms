@@ -27,7 +27,7 @@ type CertSettings = {
 }
 
 const DEFAULTS: CertSettings = {
-  brandName: 'RIGBU LMS',
+  brandName: 'PELBU LMS',
   titleLine: 'Certificate of Completion',
   accentColor: '#E9B308',
   signatureName: '',
@@ -235,7 +235,7 @@ export default function CertificateDesignPage() {
         <Button
           onClick={save}
           disabled={saving}
-          className="bg-primary text-primary-foreground hover:bg-primary"
+          className="bg-primary text-primary-foreground hover:bg-primary/90"
         >
           {saving ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

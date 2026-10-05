@@ -424,7 +424,7 @@ export function QuizPlayer({
           </p>
           <div className="flex flex-wrap gap-2">
             <Button
-              className="bg-primary text-primary-foreground hover:bg-primary"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={() => {
                 if (onRedoLesson) onRedoLesson()
                 else onClose?.()
@@ -529,7 +529,7 @@ export function QuizPlayer({
               <Button
                 onClick={checkCurrentAndContinue}
                 disabled={!isAnswered}
-                className="bg-primary text-primary-foreground hover:bg-primary"
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {currentQuestion === questions.length - 1 ? 'Review answers' : 'Check & next'}
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -571,7 +571,7 @@ export function QuizPlayer({
           </DialogHeader>
           <DialogFooter>
             <Button
-              className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+              className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={handleFeedbackContinue}
             >
               Continue
@@ -621,7 +621,7 @@ export function QuizPlayer({
           <DialogFooter className="flex-col gap-2 sm:flex-row">
             {lastOutcome?.passed && (
               <Button
-                className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+                className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
                 onClick={() => {
                   setOutcomeOpen(false)
                   onClose?.()
@@ -636,7 +636,7 @@ export function QuizPlayer({
                   Retake quiz
                 </Button>
                 <Button
-                  className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+                  className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
                   onClick={() => {
                     setOutcomeOpen(false)
                     onClose?.()
@@ -648,7 +648,7 @@ export function QuizPlayer({
             )}
             {lastOutcome?.attemptsExhausted && (
               <Button
-                className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+                className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
                 onClick={() => {
                   setOutcomeOpen(false)
                   onRedoLesson?.()
@@ -815,7 +815,7 @@ function QuizResults({
               <Button
                 onClick={onSubmit}
                 disabled={!allAnswered || submitting}
-                className="flex-1 bg-primary text-primary-foreground hover:bg-primary"
+                className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {submitting ? (
                   <>
@@ -856,7 +856,7 @@ function QuizResults({
                 </Button>
               )}
               {onClose && (
-                <Button onClick={onClose} className="bg-primary text-primary-foreground hover:bg-primary">
+                <Button onClick={onClose} className="bg-primary text-primary-foreground hover:bg-primary/90">
                   Continue
                 </Button>
               )}

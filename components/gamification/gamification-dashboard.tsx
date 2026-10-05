@@ -461,7 +461,7 @@ export function GamificationDashboard() {
                     {/* User Info */}
                     <Avatar className="w-12 h-12 border-2 border-primary/30">
                       <AvatarImage src={entry.avatar_url} />
-                      <AvatarFallback className="bg-primary/20 text-black font-bold">
+                      <AvatarFallback className="bg-primary/20 text-foreground font-bold">
                         {getInitials(entry.full_name)}
                       </AvatarFallback>
                     </Avatar>
@@ -495,7 +495,7 @@ export function GamificationDashboard() {
                   <div className="border-t border-border/50 pt-3">
                     <div className="p-3 rounded-lg bg-primary/10 border border-primary/30">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-bold text-black">
+                        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center font-bold text-primary-foreground">
                           {stats.leaderboard_rank}
                         </div>
                         <div className="flex-1">

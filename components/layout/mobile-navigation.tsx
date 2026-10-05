@@ -103,7 +103,7 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
           className="absolute inset-x-0 bottom-0 top-0 bg-background"
         />
         <div className="relative px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 sm:px-4">
-        <div className="pointer-events-auto mx-auto flex w-full max-w-lg items-stretch justify-around gap-0.5 rounded-2xl border border-border/50 bg-background p-1.5 shadow-md sm:gap-1">
+        <div className="pointer-events-auto mx-auto flex w-full max-w-lg items-stretch justify-around gap-0.5 rounded-2xl border border-border/50 bg-background p-1.5 shadow-lg sm:gap-1">
           {mainNavigation.map((item) => {
             const active = isActive(item.href)
             return (
@@ -112,7 +112,7 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
                 href={item.href}
                 onClick={() => haptic()}
                 aria-current={active ? 'page' : undefined}
-                className="relative flex min-h-11 flex-1 flex-col items-center justify-center gap-1 min-w-0 rounded-xl py-2"
+                className="press relative flex min-h-11 flex-1 flex-col items-center justify-center gap-1 min-w-0 rounded-xl py-2"
               >
                 {active && (
                   <span
@@ -139,13 +139,13 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
             )
           })}
 
-          <Button
+          <button
             type="button"
             onClick={() => {
               haptic()
               setMenuOpen((open) => !open)
             }}
-            className="relative flex flex-1 flex-col items-center justify-center gap-1 min-w-0 rounded-xl py-2"
+            className="press relative flex flex-1 flex-col items-center justify-center gap-1 min-w-0 rounded-xl py-2"
             aria-expanded={menuOpen}
             aria-label="Open menu"
           >
@@ -170,7 +170,7 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
             >
               Menu
             </span>
-          </Button>
+          </button>
         </div>
         </div>
       </nav>
@@ -181,7 +181,7 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
           onClick={() => setMenuOpen(false)}
         >
           <div
-            className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-3xl border-t border-border/40 bg-background p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-md animate-in slide-in-from-bottom-8 duration-300 sm:mx-auto sm:max-w-lg sm:rounded-t-3xl"
+            className="absolute inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-3xl border-t border-border/40 bg-background p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-overlay animate-in slide-in-from-bottom-8 duration-300 sm:mx-auto sm:max-w-lg sm:rounded-t-3xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted" />
@@ -203,7 +203,7 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
               </div>
             </div>
 
-            <Button
+            <button
               type="button"
               onClick={() => {
                 haptic()
@@ -215,7 +215,7 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
               <Search className="h-4 w-4" />
               <span>Search courses…</span>
               <span className="ml-auto rounded-md bg-background px-1.5 py-0.5 text-[10px] font-medium">Live</span>
-            </Button>
+            </button>
 
             {ROLE_PANELS.map((panel) => {
               const items = panels[panel.id].filter(

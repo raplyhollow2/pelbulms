@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Rigbu, RigbuLoader } from '@/components/brand/rigbu'
+import { Loader2 } from 'lucide-react'
 import { ResponsiveLayout } from '@/components/layout/responsive-layout'
 import { PresenceTracker } from '@/components/presence/presence-tracker'
 import { createClient } from '@/lib/supabase/client'
@@ -105,8 +105,11 @@ export function AuthShell({
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <RigbuLoader label={loadingLabel} />
+      <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-white dark:from-gray-900 dark:to-black flex items-center justify-center px-4">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-sm text-muted-foreground">{loadingLabel}</p>
+        </div>
       </div>
     )
   }
@@ -115,8 +118,7 @@ export function AuthShell({
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-6">
         <div className="max-w-md text-center">
-          <Rigbu className="mx-auto h-16 w-16" />
-          <p className="mt-4 text-sm font-semibold uppercase tracking-widest text-primary">
+          <p className="text-sm font-semibold uppercase tracking-widest text-primary">
             {maintenance.siteName}
           </p>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight">We’ll be back shortly</h1>

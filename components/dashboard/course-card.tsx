@@ -64,7 +64,7 @@ export function DashboardCourseCard({
     'h-9 w-full rounded-full text-sm font-medium',
     completed || started
       ? 'bg-green-600 text-white hover:bg-green-700'
-      : 'bg-primary text-primary-foreground hover:bg-primary'
+      : 'bg-primary text-primary-foreground hover:bg-primary/90'
   )
 
   return (
@@ -84,7 +84,7 @@ export function DashboardCourseCard({
               onError={() => setImageError(true)}
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/20 to-muted/20">
+            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/20 to-primary/20">
               <BookOpen className="h-12 w-12 text-primary" />
             </div>
           )}

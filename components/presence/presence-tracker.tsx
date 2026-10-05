@@ -36,7 +36,7 @@ export function PresenceTracker() {
     }
 
     const beat = async (force = false) => {
-      if (stopped || (typeof window !== 'undefined' && (window as any).__rigbuLeaving)) return
+      if (stopped || (typeof window !== 'undefined' && (window as any).__pelbuLeaving)) return
       try {
         const {
           data: { session },
@@ -116,7 +116,7 @@ export function PresenceTracker() {
 
 export async function leavePresenceAndSignOut() {
   if (typeof window !== 'undefined') {
-    ;(window as any).__rigbuLeaving = true
+    ;(window as any).__pelbuLeaving = true
   }
   const supabase = createClient()
   try {

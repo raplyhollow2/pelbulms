@@ -107,7 +107,7 @@ export function InstructorShowcase({
             <CardContent className="p-0">
               <div className="grid md:grid-cols-2 gap-0">
                 {/* Image & Basic Info */}
-                <div className="bg-gradient-to-br from-primary/20 to-muted/20 p-8 flex flex-col items-center justify-center text-center">
+                <div className="bg-gradient-to-br from-primary/20 to-primary/20 p-8 flex flex-col items-center justify-center text-center">
                   <Avatar className="w-32 h-32 mb-4 border-4 border-primary">
                     <AvatarImage src={resolveMediaUrl(featuredInstructor.avatar_url) || undefined} />
                     <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
@@ -130,7 +130,7 @@ export function InstructorShowcase({
                   </div>
 
                   <Button
-                    className="bg-primary hover:bg-primary text-primary-foreground"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
                     onClick={() => window.location.href = `/instructors/${featuredInstructor.id}`}
                   >
                     View Profile
@@ -241,7 +241,7 @@ export function InstructorShowcase({
                   <div className="flex items-center gap-3 mb-3">
                     <Avatar className="w-12 h-12 border-2 border-primary/30">
                       <AvatarImage src={instructor.avatar_url} />
-                      <AvatarFallback className="bg-primary/20 text-black font-bold">
+                      <AvatarFallback className="bg-primary/20 text-foreground font-bold">
                         {getInitials(instructor.full_name)}
                       </AvatarFallback>
                     </Avatar>
@@ -292,9 +292,9 @@ export function InstructorShowcase({
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         {displayedInstructors.map((instructor) => (
           <Link key={instructor.id} href={`/instructors/${instructor.id}`} className="block">
-            <Card className="bg-card/80 border border-border  overflow-hidden p-0 h-full">
+            <Card className="bg-card/80 border border-border transition-shadow overflow-hidden p-0 h-full">
               <CardContent className="flex h-full flex-col p-0">
-                <div className="relative aspect-[2/3] w-full overflow-hidden bg-gradient-to-br from-primary/25 to-muted/20">
+                <div className="relative aspect-[2/3] w-full overflow-hidden bg-gradient-to-br from-primary/25 to-primary/20">
                   {instructor.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img

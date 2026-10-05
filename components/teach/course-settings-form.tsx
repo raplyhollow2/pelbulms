@@ -1,5 +1,4 @@
 'use client'
-import { NativeSelect } from '@/components/ui/native-select'
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
@@ -678,7 +677,7 @@ export function CourseSettingsForm({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="space-y-1.5">
             <Label htmlFor="settings-level">Level</Label>
-            <NativeSelect
+            <select
               id="settings-level"
               value={courseData.level}
               onChange={(e) => setCourseData({ ...courseData, level: e.target.value })}
@@ -687,7 +686,7 @@ export function CourseSettingsForm({
               <option value="beginner">Beginner</option>
               <option value="intermediate">Intermediate</option>
               <option value="advanced">Advanced</option>
-            </NativeSelect>
+            </select>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="settings-language">Language</Label>
@@ -973,7 +972,7 @@ export function CourseSettingsForm({
                 ['paid', 'Paid (Stripe)', 'Checkout when Stripe is configured'],
               ] as const
             ).map(([mode, label, hint]) => (
-              <Button
+              <button
                 key={mode}
                 type="button"
                 aria-pressed={courseData.enrollment_mode === mode}
@@ -984,7 +983,7 @@ export function CourseSettingsForm({
               >
                 <p className="text-sm font-medium">{label}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
-              </Button>
+              </button>
             ))}
           </div>
         </div>
@@ -1037,7 +1036,7 @@ export function CourseSettingsForm({
                   ['lesson', 'Per lesson', 'Each lesson has its own posts'],
                 ] as const
               ).map(([scope, label, hint]) => (
-                <Button
+                <button
                   key={scope}
                   type="button"
                   disabled={forumScopeSaving}
@@ -1049,7 +1048,7 @@ export function CourseSettingsForm({
                 >
                   <p className="text-sm font-medium">{label}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
-                </Button>
+                </button>
               ))}
             </div>
           </div>
@@ -1142,11 +1141,11 @@ export function CourseSettingsForm({
 
 function ThemeForm({ value, onSave }: { value: CourseTheme; onSave: (theme: CourseTheme) => void }) {
   const [theme, setTheme] = useState({
-    primary: value.primary || '#8a5a12',
+    primary: value.primary || '#FFC72C',
     heading: value.heading || '#111111',
     background: value.background || '#ffffff',
     body: value.body || '#3f3f46',
-    link: value.link || '#8a5a12',
+    link: value.link || '#c2410c',
     logoUrl: value.logoUrl || '',
   })
   return (

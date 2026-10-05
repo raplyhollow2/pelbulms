@@ -85,7 +85,7 @@ export function LessonContentStage({
             onEnded={onEnded}
           />
           <div className="pointer-events-none absolute inset-x-0 top-0 aspect-video">
-            <Button
+            <button
               type="button"
               aria-label="Previous lecture"
               disabled={!canGoPrev}
@@ -96,8 +96,8 @@ export function LessonContentStage({
               )}
             >
               <ChevronLeft className="h-6 w-6" />
-            </Button>
-            <Button
+            </button>
+            <button
               type="button"
               aria-label="Next lecture"
               disabled={!canGoNext}
@@ -108,7 +108,7 @@ export function LessonContentStage({
               )}
             >
               <ChevronRight className="h-6 w-6" />
-            </Button>
+            </button>
           </div>
         </div>
       ) : kind === 'resource' ? (

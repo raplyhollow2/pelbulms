@@ -58,7 +58,7 @@ export function LessonFocusHeader({
           className={`min-h-11 ${
             isCompleted
               ? 'bg-green-600 text-white hover:bg-green-700'
-              : 'bg-primary text-primary-foreground hover:bg-primary'
+              : 'bg-primary text-primary-foreground hover:bg-primary/90'
           }`}
         >
           {savingProgress ? (

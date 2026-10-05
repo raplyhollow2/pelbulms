@@ -1,11 +1,5 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+export { cn } from "cn"
 
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
-}
-
-// Haptic feedback utilities for mobile devices
 const hapticUtils = {
   success: () => {
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
@@ -41,14 +35,16 @@ const hapticUtils = {
     if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
       navigator.vibrate(30)
     }
-  }
+  },
 }
 
-// Export haptic methods for advanced usage
 export const hapticMethods = hapticUtils
-
-// Export individual methods for convenience
 export const { success, warning, error, light, medium, heavy, tap } = hapticUtils
-
-// Default haptic function (uses tap method) - exported as tap for clarity
 export const haptic = hapticUtils.tap
+
+/** One product name. "Rigbu" and "Rigbu LMS" are the same label. */
+export function productLabel(name?: string | null) {
+  const trimmed = name?.trim() || ''
+  if (!trimmed || /^rigbu(\s+lms)?$/i.test(trimmed)) return 'Rigbu'
+  return trimmed
+}

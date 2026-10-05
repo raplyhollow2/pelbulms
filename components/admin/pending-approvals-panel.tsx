@@ -126,7 +126,7 @@ function LazyKycThumb({
   }
 
   return (
-    <Button
+    <button
       ref={ref}
       type="button"
       onClick={() => onOpen(url, label)}
@@ -169,7 +169,7 @@ function LazyKycThumb({
         </span>
         <Maximize2 className="h-3 w-3 shrink-0 text-white/80 opacity-0 transition-opacity group-hover:opacity-100" />
       </span>
-    </Button>
+    </button>
   )
 }
 

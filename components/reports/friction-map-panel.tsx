@@ -1,5 +1,4 @@
 'use client'
-import { Button } from '@/components/ui/button'
 
 import { useState } from 'react'
 import Link from 'next/link'
@@ -67,7 +66,7 @@ export function FrictionMapPanel({
           <p className="text-sm text-muted-foreground">No friction hotspots detected.</p>
         )}
 
-        <Button
+        <button
           type="button"
           onClick={() => setGuideOpen((o) => !o)}
           className="flex w-full items-center gap-2 rounded-lg border border-border/50 px-3 py-2 text-left text-sm hover:bg-muted/40"
@@ -78,7 +77,7 @@ export function FrictionMapPanel({
             <ChevronRight className="h-4 w-4 shrink-0 text-primary" />
           )}
           <span className="font-medium">How to read this friction map</span>
-        </Button>
+        </button>
 
         {guideOpen ? (
           <div className="space-y-3 rounded-lg border border-border/40 bg-muted/20 p-4 text-sm text-muted-foreground">

@@ -24,7 +24,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Plus, BookOpen, Users, Loader2, Award, HardDrive, Check, X, ClipboardCheck, Trash2, MoreVertical, ListFilter, Share2 } from 'lucide-react'
-import { RigbuLoader } from '@/components/brand/rigbu'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -520,7 +519,8 @@ export default function TeacherDashboard() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center py-12">
-          <RigbuLoader label="Loading dashboard..." />
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <span className="ml-3 text-muted-foreground">Loading dashboard...</span>
         </div>
       </div>
     )
@@ -552,7 +552,7 @@ export default function TeacherDashboard() {
           {canCreateCourse && (
           <Button
             onClick={() => router.push('/teach/create')}
-            className="flex-1 sm:flex-initial bg-primary hover:bg-primary"
+            className="flex-1 sm:flex-initial bg-primary hover:bg-primary/90"
             size="sm"
           >
             <Plus className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-2" />
@@ -785,7 +785,7 @@ export default function TeacherDashboard() {
                 <ListFilter className="size-4" />
                 Filter
                 {filterChips.length > 0 ? (
-                  <span className="rounded-full bg-primary px-1.5 text-xs font-semibold text-foreground">
+                  <span className="rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
                     {filterChips.length}
                   </span>
                 ) : null}
@@ -872,7 +872,7 @@ export default function TeacherDashboard() {
           {filterChips.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
               {filterChips.map((chip) => (
-                <Button
+                <button
                   key={chip.id}
                   type="button"
                   onClick={chip.clear}
@@ -881,7 +881,7 @@ export default function TeacherDashboard() {
                   {chip.label}
                   <X className="size-3" />
                   <span className="sr-only">Remove {chip.label} filter</span>
-                </Button>
+                </button>
               ))}
               <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={clearFilters}>
                 Clear all
@@ -900,7 +900,7 @@ export default function TeacherDashboard() {
               {canCreateCourse && (
               <Button
                 onClick={() => router.push('/teach/create')}
-                className="bg-primary hover:bg-primary"
+                className="bg-primary hover:bg-primary/90"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Create Course
@@ -1002,7 +1002,7 @@ export default function TeacherDashboard() {
                       aria-label={`Select ${course.title}`}
                       disabled={bulkWorking !== null || deleting}
                     />
-                    <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded bg-gradient-to-br from-primary/20 to-muted/20">
+                    <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded bg-gradient-to-br from-primary/20 to-primary/20">
                       {course.thumbnail_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -1104,7 +1104,7 @@ export default function TeacherDashboard() {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={bulkWorking === 'unpublish'}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-primary text-primary-foreground hover:bg-primary"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
               disabled={bulkWorking === 'unpublish'}
               onClick={(event) => {
                 event.preventDefault()

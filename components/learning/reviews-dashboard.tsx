@@ -2,7 +2,6 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -162,7 +161,7 @@ export function ReviewsDashboard({
               star <= rating && getStarColor(true),
               star > rating && getStarColor(false)
             )}
-            fill={star <= rating ? "currentColor" : "none"}
+            fill={star <= rating}
           />
         ))}
       </div>
@@ -271,7 +270,7 @@ export function ReviewsDashboard({
               {/* Search */}
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
+                <input
                   type="text"
                   placeholder="Search reviews..."
                   value={searchQuery}

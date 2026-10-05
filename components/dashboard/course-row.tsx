@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { BookOpen, Play, CheckCircle2, ChevronRight } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 import { resolveMediaUrl } from '@/lib/media'
 import { cn } from '@/lib/utils'
 
@@ -42,7 +41,7 @@ export function DashboardCourseRow({
       >
       <div
         className={cn(
-          'relative shrink-0 overflow-hidden rounded-md bg-gradient-to-br from-primary/20 to-muted/20',
+          'relative shrink-0 overflow-hidden rounded-md bg-gradient-to-br from-primary/20 to-primary/20',
           compact ? 'h-9 w-9' : 'h-10 w-10 sm:h-9 sm:w-12'
         )}
       >
@@ -85,10 +84,20 @@ export function DashboardCourseRow({
             <span className="text-[10px] font-medium text-green-600">Completed</span>
           )}
         </div>
-        <Progress value={pct} className="mt-1.5 w-full" />
+        <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className={cn(
+              'h-full rounded-full transition-all',
+              completed
+                ? 'bg-green-600'
+                : 'bg-primary'
+            )}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
       </div>
 
-      <span className="hidden shrink-0 items-center gap-1 rounded-full bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground sm:inline-flex">
+      <span className="hidden shrink-0 items-center gap-1 rounded-full bg-primary/90 px-2.5 py-1 text-xs font-medium text-primary-foreground sm:inline-flex">
         <Play className="h-3.5 w-3.5" />
         {completed ? 'Review' : started ? 'Continue' : 'Start'}
       </span>

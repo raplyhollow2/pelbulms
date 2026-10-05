@@ -1,5 +1,4 @@
 'use client'
-import { Button } from '@/components/ui/button'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Activity, Loader2, Users } from 'lucide-react'
@@ -210,7 +209,7 @@ export function LiveUsersPanel({ className }: { className?: string }) {
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <Button
+        <button
           type="button"
           onClick={() => setTab('now')}
           className={cn(
@@ -233,9 +232,9 @@ export function LiveUsersPanel({ className }: { className?: string }) {
           <div className="mt-3">
             <RoleChips byRole={presence?.counts.nowByRole || {}} />
           </div>
-        </Button>
+        </button>
 
-        <Button
+        <button
           type="button"
           onClick={() => setTab('today')}
           className={cn(
@@ -258,7 +257,7 @@ export function LiveUsersPanel({ className }: { className?: string }) {
           <div className="mt-3">
             <RoleChips byRole={presence?.counts.todayByRole || {}} />
           </div>
-        </Button>
+        </button>
       </div>
 
       <div className="mt-4 border-t border-border/50 pt-3">

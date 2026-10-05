@@ -115,7 +115,7 @@ function AdminSiteSettingsPage() {
             type="email"
             value={form.support_email}
             onChange={(e) => setForm((f) => ({ ...f, support_email: e.target.value }))}
-            placeholder="support@rigbu.bt"
+            placeholder="support@pelbu.bt"
           />
         </div>
       </section>

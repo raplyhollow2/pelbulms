@@ -233,7 +233,7 @@ export function SocialLearningHub() {
           <h2 className="text-2xl font-bold">Social Learning Hub</h2>
           <p className="text-muted-foreground">Connect, collaborate, and learn together</p>
         </div>
-        <Button className="bg-primary hover:bg-primary text-primary-foreground">
+        <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
           <UserPlus className="w-4 h-4 mr-2" />
           Find Study Partners
         </Button>
@@ -261,7 +261,7 @@ export function SocialLearningHub() {
                 className="pl-10"
               />
             </div>
-            <Button className="bg-primary hover:bg-primary text-primary-foreground">
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
               <MessageSquare className="w-4 h-4 mr-2" />
               New Discussion
             </Button>
@@ -275,7 +275,7 @@ export function SocialLearningHub() {
                   <div className="flex items-start gap-4">
                     <Avatar className="w-12 h-12 border-2 border-primary/30">
                       <AvatarImage src={post.author.avatar_url} />
-                      <AvatarFallback className="bg-primary/20 text-black font-bold">
+                      <AvatarFallback className="bg-primary/20 text-foreground font-bold">
                         {getInitials(post.author.full_name)}
                       </AvatarFallback>
                     </Avatar>
@@ -349,7 +349,7 @@ export function SocialLearningHub() {
                 Join groups to learn together with peers
               </p>
             </div>
-            <Button className="bg-primary hover:bg-primary text-primary-foreground">
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
               <Users className="w-4 h-4 mr-2" />
               Create Group
             </Button>
@@ -360,7 +360,7 @@ export function SocialLearningHub() {
               <Card key={group.id} className="bg-card/80 border border-border hover:shadow-lg transition-all cursor-pointer">
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4 mb-4">
-                    <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-primary/20 to-muted/20 flex items-center justify-center">
+                    <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-primary/20 to-primary/20 flex items-center justify-center">
                       <Users className="w-8 h-8 text-primary" />
                     </div>
                     <div className="flex-1">
@@ -403,7 +403,7 @@ export function SocialLearningHub() {
                       </Badge>
                     </div>
 
-                    <Button className="w-full bg-primary hover:bg-primary text-primary-foreground">
+                    <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
                       Join Group
                     </Button>
                   </div>
@@ -422,7 +422,7 @@ export function SocialLearningHub() {
                 Connect with fellow students for collaborative learning
               </p>
             </div>
-            <Button className="bg-primary hover:bg-primary text-primary-foreground">
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
               <HelpCircle className="w-4 h-4 mr-2" />
               Request Help
             </Button>
@@ -435,7 +435,7 @@ export function SocialLearningHub() {
                   <div className="flex items-start gap-4">
                     <Avatar className="w-12 h-12">
                       <AvatarImage src={request.from_user.avatar_url} />
-                      <AvatarFallback className="bg-primary/20 text-black font-bold">
+                      <AvatarFallback className="bg-primary/20 text-foreground font-bold">
                         {getInitials(request.from_user.full_name)}
                       </AvatarFallback>
                     </Avatar>
@@ -539,7 +539,7 @@ export function SocialLearningHub() {
                 Real-time collaboration with fellow learners
               </p>
             </div>
-            <Button className="bg-primary hover:bg-primary text-primary-foreground">
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
               <MessageSquare className="w-4 h-4 mr-2" />
               Start Discussion
             </Button>
@@ -586,7 +586,7 @@ export function SocialLearningHub() {
                       <p className="text-xs text-muted-foreground mb-2">
                         {formatDate(discussion.last_message_time)}
                       </p>
-                      <Button size="sm" className="bg-primary hover:bg-primary text-primary-foreground">
+                      <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
                         Join
                       </Button>
                     </div>

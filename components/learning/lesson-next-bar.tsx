@@ -57,7 +57,7 @@ export function LessonNextBar({
       <Button
         type="button"
         size="sm"
-        className="min-h-11 gap-1 bg-primary text-primary-foreground hover:bg-primary"
+        className="min-h-11 gap-1 bg-primary text-primary-foreground hover:bg-primary/90"
         onClick={onNext}
         disabled={!canGoNext}
       >

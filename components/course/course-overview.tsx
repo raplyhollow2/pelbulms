@@ -248,7 +248,7 @@ export function CourseOverview({
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-primary text-xl font-bold text-black">
+                      <div className="flex h-full w-full items-center justify-center bg-primary text-xl font-bold text-primary-foreground">
                         {initialsFor(instructorName) || 'IN'}
                       </div>
                     )}
@@ -261,7 +261,7 @@ export function CourseOverview({
                     className="h-16 w-16 rounded-full object-cover"
                   />
                 ) : (
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-xl font-bold text-black">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-xl font-bold text-primary-foreground">
                     {initialsFor(instructorName) || 'IN'}
                   </div>
                 )}

@@ -3,9 +3,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { RigbuLoader } from '@/components/brand/rigbu'
 import { Card, CardContent } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -14,6 +12,7 @@ import {
   Clock,
   Trophy,
   TrendingUp,
+  Loader2,
   Search,
   ChevronLeft,
   ChevronRight,
@@ -186,7 +185,8 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="container mx-auto flex items-center justify-center px-4 py-16">
-        <RigbuLoader label="Loading dashboard..." />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-3 text-muted-foreground">Loading dashboard...</span>
       </div>
     )
   }
@@ -259,7 +259,7 @@ export default function DashboardPage() {
         <div className="min-w-0 space-y-5">
           {/* Continue learning — one featured slot */}
           {continueCourse?.courses && (
-            <section className="overflow-hidden rounded-xl border bg-card">
+            <section className="overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-primary/10 via-card to-primary/5">
               <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4 sm:p-5">
                 <div className="relative h-20 w-full shrink-0 overflow-hidden rounded-lg bg-muted sm:h-16 sm:w-28">
                   {continueThumb ? (
@@ -286,7 +286,12 @@ export default function DashboardPage() {
                     {continueCourse.courses.title}
                   </h2>
                   <div className="flex items-center gap-3">
-                    <Progress value={continuePct} className="min-w-0 flex-1" />
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${continuePct}%` }}
+                      />
+                    </div>
                     <span className="text-xs font-medium tabular-nums text-muted-foreground">
                       {continuePct}%
                     </span>
@@ -294,7 +299,7 @@ export default function DashboardPage() {
                 </div>
                 <Button
                   size="sm"
-                  className="h-11 w-full shrink-0 gap-1.5 bg-primary text-primary-foreground hover:bg-primary sm:w-auto"
+                  className="h-11 w-full shrink-0 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto"
                   render={
                     <Link
                       href={resumeLearnPath(
@@ -426,7 +431,7 @@ export default function DashboardPage() {
                     </p>
                   </div>
                   <Button
-                    className="mt-1 bg-primary text-primary-foreground hover:bg-primary"
+                    className="mt-1 bg-primary text-primary-foreground hover:bg-primary/90"
                     render={<Link href="/courses" />}
                   >
                     Explore courses

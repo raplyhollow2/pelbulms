@@ -82,7 +82,7 @@ export function OutlineCanvas({
           </Button>
           <Button
             type="button"
-            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+            className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
             disabled={loading}
             onClick={onGenerate}
           >
@@ -166,13 +166,13 @@ export function OutlineCanvas({
                 Remove
               </Button>
             </div>
-            <Button
+            <button
               type="button"
               className="mt-2 text-xs text-foreground underline-offset-2 hover:underline"
               onClick={() => setOpen(open === i ? null : i)}
             >
               {open === i ? 'Hide pages' : 'Show pages'}
-            </Button>
+            </button>
             {open === i && (
               <div className="mt-3 space-y-2">
                 {mod.lessons.map((les, j) => (

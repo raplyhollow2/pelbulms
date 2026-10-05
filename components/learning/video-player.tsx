@@ -2,7 +2,6 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { NativeSelect } from '@/components/ui/native-select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
@@ -380,14 +379,14 @@ export function VideoPlayer({
 
         {/* Center play button */}
         {!isPlaying && (
-          <Button
+          <button
             onClick={togglePlay}
             className="absolute inset-0 flex items-center justify-center group"
           >
             <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
               <Play className="w-8 h-8 text-black ml-1" />
             </div>
-          </Button>
+          </button>
         )}
 
         {/* Buffering indicator */}
@@ -466,7 +465,7 @@ export function VideoPlayer({
 
             <div className="flex items-center gap-2">
               {/* Quality selector */}
-              <NativeSelect
+              <select
                 className="bg-transparent text-white text-sm border border-white/30 rounded px-2 py-1"
                 onChange={(e) => {
                   const quality = qualities.find(q => q.resolution === e.target.value)
@@ -479,10 +478,10 @@ export function VideoPlayer({
                     {quality.label}
                   </option>
                 ))}
-              </NativeSelect>
+              </select>
 
               {/* Speed selector */}
-              <NativeSelect
+              <select
                 className="bg-transparent text-white text-sm border border-white/30 rounded px-2 py-1"
                 onChange={(e) => changeSpeed(parseFloat(e.target.value))}
                 value={playbackSpeed}
@@ -492,7 +491,7 @@ export function VideoPlayer({
                     {speed.label}
                   </option>
                 ))}
-              </NativeSelect>
+              </select>
 
               <Button size="sm" variant="ghost" onClick={toggleFullscreen} className="text-white">
                 {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}

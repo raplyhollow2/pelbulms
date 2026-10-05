@@ -327,7 +327,7 @@ export default function TeachMediaLibraryPage() {
           <Button
             type="button"
             disabled={uploading}
-            className="bg-primary text-primary-foreground hover:bg-primary gap-1.5"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 gap-1.5"
             onClick={() => videoInputRef.current?.click()}
           >
             <UploadCloud className="w-4 h-4" />

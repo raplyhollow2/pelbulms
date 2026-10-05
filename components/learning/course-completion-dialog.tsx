@@ -62,7 +62,7 @@ export function CourseCompletionDialog({
 
         <DialogFooter className="gap-2 sm:flex-col sm:space-x-0">
           <Button
-            className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary"
+            className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90"
             disabled={issuing}
             onClick={onDownload}
           >

@@ -16,7 +16,7 @@ export function ReportMetrics({ block }: { block: ReportBlock }) {
       {block.metrics.map((m) => {
         const className = cn(
           'rounded-lg border border-border/50 bg-muted/30 p-3',
-          m.href && 'transition-colors hover:border-primary/40 hover:bg-primary/10'
+          m.href && 'transition-colors hover:border-primary/40 hover:bg-primary/90/10'
         )
         const body = (
           <>
@@ -154,7 +154,7 @@ export function ReportBlockCard({
             size="sm"
             onClick={() => {
               const csv = rowsToCsv(block.columns!, block.rows!)
-              downloadCsv(`rigbu-${block.id}`, csv)
+              downloadCsv(`pelbu-${block.id}`, csv)
             }}
           >
             <Download className="mr-2 h-4 w-4" />
@@ -186,7 +186,7 @@ export function ReportSectionTabs({
   return (
     <div className="flex flex-wrap gap-2">
       {sections.map((s) => (
-        <Button
+        <button
           key={s.id}
           type="button"
           onClick={() => onChange(s.id)}
@@ -198,7 +198,7 @@ export function ReportSectionTabs({
           )}
         >
           {s.title}
-        </Button>
+        </button>
       ))}
     </div>
   )

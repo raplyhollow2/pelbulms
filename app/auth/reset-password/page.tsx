@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { AlertCircle, Home, Loader2 } from 'lucide-react'
-import { Rigbu } from '@/components/brand/rigbu'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -69,12 +68,9 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-4">
-        <div className="flex justify-center">
-          <Rigbu className="h-14 w-14" />
-        </div>
-        <Card>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-yellow-50 via-orange-50 to-white p-4 dark:from-gray-900 dark:to-black">
+      <div className="w-full max-w-md">
+        <Card className="bg-card border border-border shadow-sm">
           <CardHeader>
             <CardTitle>Reset password</CardTitle>
             <CardDescription>

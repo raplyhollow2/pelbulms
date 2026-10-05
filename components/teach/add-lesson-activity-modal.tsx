@@ -243,7 +243,7 @@ export function AddLessonActivityModal({
           ? 'Limited'
           : 'Coming soon'
     return (
-      <Button
+      <button
         type="button"
         onClick={() => {
           setSelected(item.type)
@@ -254,7 +254,7 @@ export function AddLessonActivityModal({
           setError('')
         }}
         className={cn(
-          'flex min-w-0 flex-col items-start gap-2 rounded-lg border p-3 text-left transition-colors hover:border-primary/60 hover:bg-primary/5',
+          'flex min-w-0 flex-col items-start gap-2 rounded-lg border p-3 text-left transition-colors hover:border-primary/60 hover:bg-primary/90/5',
           selected === item.type && 'border-primary bg-primary/10'
         )}
       >
@@ -276,7 +276,7 @@ export function AddLessonActivityModal({
             <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
           </div>
         </div>
-      </Button>
+      </button>
     )
   }
 
@@ -313,7 +313,7 @@ export function AddLessonActivityModal({
                 aria-label="Activity categories"
               >
                 {ACTIVITY_CATEGORY_FILTERS.map((f) => (
-                  <Button
+                  <button
                     key={f.id}
                     type="button"
                     onClick={() => setCategory(f.id)}
@@ -325,7 +325,7 @@ export function AddLessonActivityModal({
                     )}
                   >
                     {f.label}
-                  </Button>
+                  </button>
                 ))}
               </nav>
 
@@ -704,7 +704,7 @@ export function AddLessonActivityModal({
           {selected && selected !== 'quiz' && (
             <Button
               type="button"
-              className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+              className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
               disabled={saving || uploading}
               onClick={() => void handleSave()}
             >

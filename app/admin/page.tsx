@@ -9,19 +9,17 @@ import {
   Building2,
   ClipboardCheck,
   GraduationCap,
+  Loader2,
   LogIn,
   RefreshCw,
   TrendingUp,
   Users,
 } from 'lucide-react'
-import { RigbuLoader } from '@/components/brand/rigbu'
 import { SuperadminGate } from '@/components/admin/superadmin-gate'
 import { useCapabilities } from '@/components/auth/capabilities-provider'
 import { CAP } from '@/lib/capability-keys'
 import { LiveUsersPanel } from '@/components/admin/live-users-panel'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
 import type { PlatformStats } from '@/lib/admin/platform-stats'
 import { cn } from '@/lib/utils'
 
@@ -45,7 +43,7 @@ function StatCard({
   icon: typeof Users
 }) {
   return (
-    <Card className="p-4 transition-shadow duration-200 hover:shadow-md">
+    <div className="rounded-xl border border-border/60 bg-card p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -54,11 +52,11 @@ function StatCard({
           <p className="mt-1.5 text-2xl font-semibold tracking-tight">{value}</p>
           {hint ? <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p> : null}
         </div>
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-royal">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
           <Icon className="h-4 w-4" />
         </span>
       </div>
-    </Card>
+    </div>
   )
 }
 
@@ -70,7 +68,12 @@ function BarRow({ label, count, max }: { label: string; count: number; max: numb
         <span className="text-muted-foreground">{label}</span>
         <span className="tabular-nums font-medium">{count}</span>
       </div>
-      <Progress value={width} />
+      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+        <div
+          className="h-full rounded-full bg-primary"
+          style={{ width: `${width}%` }}
+        />
+      </div>
     </div>
   )
 }
@@ -148,8 +151,8 @@ function AdminOverviewBody() {
 
   if (loading && !stats) {
     return (
-      <div className="px-4 py-16 sm:px-6">
-        <RigbuLoader label="Loading LMS overview…" />
+      <div className="flex items-center gap-2 px-4 py-16 text-sm text-muted-foreground sm:px-6">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading LMS overview…
       </div>
     )
   }
@@ -173,7 +176,7 @@ function AdminOverviewBody() {
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-5 sm:px-6 sm:py-8">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-royal">
+          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
             Superadmin
           </p>
           <h1 className="text-2xl font-semibold tracking-tight">LMS overview</h1>
@@ -206,7 +209,7 @@ function AdminOverviewBody() {
 
       <LiveUsersPanel />
 
-      <section className="grid animate-in fade-in gap-3 duration-300 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           icon={Users}
           label="Users"
@@ -233,7 +236,7 @@ function AdminOverviewBody() {
         />
       </section>
 
-      <section className="grid animate-in fade-in gap-3 duration-300 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           icon={Award}
           label="Certificates"

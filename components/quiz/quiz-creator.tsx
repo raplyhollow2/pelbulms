@@ -1,5 +1,4 @@
 'use client'
-import { NativeSelect } from '@/components/ui/native-select'
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -442,7 +441,7 @@ export function QuizCreator({ lessonId, quizId, compact, onSave, onCancel }: Qui
                 type="button"
                 onClick={addQuestion}
                 size="sm"
-                className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+                className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add question
@@ -483,7 +482,7 @@ export function QuizCreator({ lessonId, quizId, compact, onSave, onCancel }: Qui
           type="button"
           onClick={() => void handleSave()}
           disabled={saving}
-          className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+          className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
         >
           {saving ? (
             <>
@@ -542,7 +541,7 @@ function QuestionEditor({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <Label>Question type</Label>
-          <NativeSelect
+          <select
             value={question.question_type}
             onChange={(e) =>
               onUpdate({ question_type: e.target.value as DraftQuestion['question_type'] })
@@ -553,7 +552,7 @@ function QuestionEditor({
             <option value="true_false">True / false</option>
             <option value="short_answer">Short answer</option>
             <option value="essay">Essay</option>
-          </NativeSelect>
+          </select>
         </div>
         <div>
           <Label>Points</Label>
@@ -600,7 +599,7 @@ function QuestionEditor({
       {question.question_type === 'true_false' && (
         <div>
           <Label>Correct answer</Label>
-          <NativeSelect
+          <select
             value={question.correct_answer}
             onChange={(e) => onUpdate({ correct_answer: e.target.value })}
             className="mt-1 min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -608,7 +607,7 @@ function QuestionEditor({
             <option value="">Select correct answer</option>
             <option value="true">True</option>
             <option value="false">False</option>
-          </NativeSelect>
+          </select>
         </div>
       )}
 

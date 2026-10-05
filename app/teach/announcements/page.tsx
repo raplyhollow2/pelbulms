@@ -208,7 +208,7 @@ export default function TeacherAnnouncementsPage() {
           </div>
           <Button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="bg-primary hover:bg-primary"
+            className="bg-primary hover:bg-primary/90"
           >
             <Plus className="w-4 h-4 mr-2" />
             New Announcement
@@ -310,7 +310,7 @@ export default function TeacherAnnouncementsPage() {
                 <Button
                   onClick={handleCreateAnnouncement}
                   disabled={saving}
-                  className="bg-primary hover:bg-primary"
+                  className="bg-primary hover:bg-primary/90"
                 >
                   {saving ? (
                     <>

@@ -30,7 +30,7 @@ export default function AccessDeniedPage() {
         </CardHeader>
         <CardContent className="space-y-3">
           <Button
-            className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary"
+            className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
             onClick={() => router.push('/auth/register')}
           >
             Update KYC and resubmit

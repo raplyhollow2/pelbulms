@@ -1,24 +1,36 @@
 'use client'
-import { Input } from '@/components/ui/input'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { LogIn, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { RigbuLive } from '@/components/brand/rigbu-live'
 import type { LandingCourse } from '@/components/landing/landing-catalog'
+
+function BookGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11a2 2 0 0 1 2 2v13a1.5 1.5 0 0 0-1.5-1.5H5.5A1.5 1.5 0 0 1 4 16V5.5Z"
+        fill="currentColor"
+        opacity="0.9"
+      />
+      <path
+        d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13a2 2 0 0 0-2 2v13a1.5 1.5 0 0 1 1.5-1.5h6A1.5 1.5 0 0 0 20 16V5.5Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
 
 export function LandingNav({
   siteName,
   courses,
   glassOpacity = 70,
-  mascotUrl,
 }: {
   siteName: string
   courses: LandingCourse[]
   glassOpacity?: number
-  mascotUrl?: string | null
 }) {
   const router = useRouter()
   const rootRef = useRef<HTMLElement>(null)
@@ -75,24 +87,20 @@ export function LandingNav({
     router.push(q ? `/courses?q=${encodeURIComponent(q)}` : '/courses')
   }
 
-  const veil = Math.min(90, Math.max(20, Math.round(glassOpacity))) / 100
+  const glass = Math.min(90, Math.max(20, Math.round(glassOpacity))) / 100
 
   return (
     <header
       ref={rootRef}
-      className="sticky top-0 z-50 w-full shrink-0 overflow-visible safe-area-top"
+      className="absolute inset-x-0 top-0 z-30 border-b border-white/50 shadow-sm backdrop-blur-xl"
+      style={{ backgroundColor: `rgb(255 255 255 / ${glass})` }}
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 border-b border-border shadow-sm backdrop-blur-xl"
-        style={{ backgroundColor: `color-mix(in oklch, var(--background) ${Math.round(veil * 100)}%, transparent)` }}
-      />
-      <Link href="/" aria-label={siteName} className="absolute left-3 top-0 z-20 h-full border-0 outline-none ring-0 sm:left-4">
-        <RigbuLive src={mascotUrl} />
-      </Link>
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl items-center gap-2 overflow-visible py-2.5 pl-[4.6rem] pr-4 sm:gap-3 sm:py-2.5 sm:pl-[5.1rem] sm:pr-5">
-        <Link href="/" className="hidden min-w-0 shrink-0 truncate text-base font-semibold tracking-tight sm:inline">
-          {siteName}
+      <div className="mx-auto flex w-full max-w-6xl items-center gap-2 px-4 py-3 sm:gap-3 sm:px-5">
+        <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary shadow-md">
+            <BookGlyph className="h-5 w-5 text-white" />
+          </span>
+          <span className="hidden truncate text-base font-semibold tracking-tight sm:inline">{siteName}</span>
         </Link>
 
         {categories.length > 0 && (
@@ -121,7 +129,7 @@ export function LandingNav({
           }}
         >
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
+          <input
             value={query}
             onChange={(event) => {
               setQuery(event.target.value)
@@ -137,20 +145,19 @@ export function LandingNav({
             className="h-10 w-full rounded-full border border-border bg-background pl-9 pr-3 text-sm outline-none ring-primary/30 focus:ring-2"
           />
           {searchOpen && suggestions.length > 0 && (
-            <ul className="absolute left-0 right-0 top-12 z-40 overflow-hidden rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md">
+            <ul className="absolute left-0 right-0 top-12 z-40 overflow-hidden rounded-lg border border-border bg-background shadow-lg">
               {suggestions.map((course) => (
                 <li key={course.id}>
-                  <Button
+                  <button
                     type="button"
-                    variant="ghost"
-                    className="h-auto w-full justify-start rounded-md px-3 py-2 text-left text-sm font-normal"
+                    className="flex w-full px-3 py-2 text-left text-sm hover:bg-muted"
                     onClick={() => {
                       setSearchOpen(false)
                       goToSearch(course.title)
                     }}
                   >
                     {course.title}
-                  </Button>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -195,7 +202,7 @@ export function LandingNav({
                   <Link
                     href={`/courses?category=${encodeURIComponent(category)}`}
                     className={`block px-4 py-2 text-sm hover:bg-muted ${
-                      category === activeCategory ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground'
+                      category === activeCategory ? 'bg-muted font-semibold text-primary' : ''
                     }`}
                     onMouseEnter={() => setActiveCategory(category)}
                     onFocus={() => setActiveCategory(category)}

@@ -1,5 +1,4 @@
 'use client'
-import { Button } from '@/components/ui/button'
 
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
@@ -93,13 +92,13 @@ export function CurriculumTimeline({
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm text-muted-foreground">{summary}</p>
         {modules.length > 0 && (
-          <Button
+          <button
             type="button"
             onClick={toggleAll}
             className="shrink-0 text-sm font-semibold text-primary"
           >
             {allExpanded ? 'Collapse all' : 'Expand all'}
-          </Button>
+          </button>
         )}
       </div>
 
@@ -111,7 +110,7 @@ export function CurriculumTimeline({
 
           return (
             <div key={module.id} className={moduleIndex > 0 ? 'border-t' : undefined}>
-              <Button
+              <button
                 type="button"
                 className="flex w-full items-start gap-3 bg-muted/70 px-3 py-3 text-left"
                 aria-expanded={isExpanded}
@@ -128,7 +127,7 @@ export function CurriculumTimeline({
                   {lessons.length} {lessons.length === 1 ? 'lecture' : 'lectures'}
                   {duration ? ` • ${duration}` : ''}
                 </span>
-              </Button>
+              </button>
 
               {isExpanded && lessons.length > 0 && (
                 <ul>
@@ -137,7 +136,7 @@ export function CurriculumTimeline({
                     const lessonDuration = formatLectureDuration(lesson.duration_minutes)
                     return (
                       <li key={lesson.id} className="border-t">
-                        <Button
+                        <button
                           type="button"
                           className={cn(
                             'flex w-full items-start gap-3 px-3 py-3 text-left',
@@ -163,7 +162,7 @@ export function CurriculumTimeline({
                           {lessonDuration && (
                             <span className="shrink-0 text-xs text-muted-foreground">{lessonDuration}</span>
                           )}
-                        </Button>
+                        </button>
                       </li>
                     )
                   })}

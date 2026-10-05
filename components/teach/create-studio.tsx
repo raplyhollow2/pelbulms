@@ -1,5 +1,4 @@
 'use client'
-import { NativeSelect } from '@/components/ui/native-select'
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
@@ -299,7 +298,7 @@ export function CreateStudio() {
                 className="min-h-32 border-0 bg-transparent text-base shadow-none"
               />
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <NativeSelect
+                <select
                   value={language}
                   onChange={(e) => {
                     setLanguage(e.target.value)
@@ -310,10 +309,10 @@ export function CreateStudio() {
                   {LANGS.map((l) => (
                     <option key={l}>{l}</option>
                   ))}
-                </NativeSelect>
+                </select>
                 <div className="flex rounded-full border border-border p-0.5">
                   {(['compact', 'standard', 'full'] as CourseSize[]).map((s) => (
-                    <Button
+                    <button
                       key={s}
                       type="button"
                       onClick={() => setSize(s)}
@@ -323,7 +322,7 @@ export function CreateStudio() {
                       )}
                     >
                       {s}
-                    </Button>
+                    </button>
                   ))}
                 </div>
                 <DropdownMenu>
@@ -365,7 +364,7 @@ export function CreateStudio() {
                 <div className="ml-auto">
                   <Button
                     type="button"
-                    className="min-h-11 rounded-full bg-primary text-primary-foreground hover:bg-primary"
+                    className="min-h-11 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
                     disabled={loading || keyReady === false}
                     onClick={() => void design()}
                   >
@@ -428,25 +427,25 @@ export function CreateStudio() {
 
             <div className="mt-4 flex flex-wrap gap-2">
               {CHIPS.map((chip) => (
-                <Button
+                <button
                   key={chip}
                   type="button"
                   className="min-h-11 rounded-full border border-border px-3 text-xs text-foreground hover:bg-muted"
                   onClick={() => setPrompt(chip)}
                 >
                   {chip}
-                </Button>
+                </button>
               ))}
             </div>
             <p className="mt-6 text-sm text-muted-foreground">
-              <Button
+              <button
                 type="button"
                 className="text-foreground underline disabled:opacity-60"
                 disabled={startingBlank}
                 onClick={() => void startBlank()}
               >
                 {startingBlank ? 'Starting…' : 'Start blank'}
-              </Button>
+              </button>
             </p>
           </>
         )}

@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { ArrowLeft, Users, Search, TrendingUp, Clock, Loader2, Award, Check, X } from 'lucide-react'
@@ -359,7 +358,7 @@ export default function CourseStudentsPage() {
                     >
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-3">
                         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-muted/20 flex items-center justify-center shrink-0">
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/20 flex items-center justify-center shrink-0">
                             {student.avatar_url ? (
                               <img
                                 src={student.avatar_url}
@@ -447,7 +446,12 @@ export default function CourseStudentsPage() {
                       {/* Progress Bar */}
                       {(student.enrollment as any).status !== 'pending' && (
                       <div className="space-y-2">
-                        <Progress value={progressPercentage} />
+                        <div className="w-full bg-secondary rounded-full h-2">
+                          <div
+                            className="bg-primary h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${progressPercentage}%` }}
+                          />
+                        </div>
 
                         {/* Additional Stats */}
                         <div className="flex items-center justify-between text-xs text-muted-foreground">

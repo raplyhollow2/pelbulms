@@ -58,7 +58,7 @@ export function LessonActivitiesPanel({
         <Button
           type="button"
           size="sm"
-          className="min-h-11 gap-1.5 bg-primary text-primary-foreground hover:bg-primary"
+          className="min-h-11 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
           onClick={() => setOpen(true)}
         >
           <Plus className="h-4 w-4" />

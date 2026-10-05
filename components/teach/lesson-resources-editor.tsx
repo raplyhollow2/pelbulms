@@ -105,7 +105,7 @@ export function LessonResourcesEditor({
         className={
           compact
             ? 'gap-1.5'
-            : 'gap-1.5 bg-primary hover:bg-primary text-primary-foreground'
+            : 'gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90'
         }
         disabled={uploading}
         onClick={() => document.getElementById(inputId)?.click()}

@@ -1,5 +1,4 @@
 'use client'
-import { NativeSelect } from '@/components/ui/native-select'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -298,7 +297,7 @@ export function CertificateEditor({
               ['brand', 'Brand'],
             ] as const
           ).map(([id, label]) => (
-            <Button
+            <button
               key={id}
               type="button"
               onClick={() => setAssetTab(id)}
@@ -308,14 +307,14 @@ export function CertificateEditor({
               )}
             >
               {label}
-            </Button>
+            </button>
           ))}
         </div>
 
         <div className="flex-1 space-y-2 overflow-y-auto p-3">
           {assetTab === 'templates' &&
             CERT_TEMPLATES.map((t) => (
-              <Button
+              <button
                 key={t.id}
                 type="button"
                 onClick={() => {
@@ -339,12 +338,12 @@ export function CertificateEditor({
                 )}
                 <div className="text-sm font-medium">{t.label}</div>
                 <div className="text-xs text-white/50">{t.description}</div>
-              </Button>
+              </button>
             ))}
 
           {(assetTab === 'text' || assetTab === 'shapes' || assetTab === 'decor') &&
             insertAssets.map((asset) => (
-              <Button
+              <button
                 key={asset.id}
                 type="button"
                 onClick={() => addLayer(asset.create(layout.accentColor))}
@@ -357,7 +356,7 @@ export function CertificateEditor({
                     <span className="block text-xs text-white/45">{asset.description}</span>
                   ) : null}
                 </span>
-              </Button>
+              </button>
             ))}
 
           {assetTab === 'brand' && (
@@ -366,7 +365,7 @@ export function CertificateEditor({
                 <Label className="text-white/70">Background</Label>
                 <div className="mt-2 grid grid-cols-3 gap-2">
                   {CERT_BG_PRESETS.map((bg) => (
-                    <Button
+                    <button
                       key={bg.id}
                       type="button"
                       title={bg.label}
@@ -392,7 +391,7 @@ export function CertificateEditor({
                 <Label className="text-white/70">Accent / border color</Label>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {CERT_COLOR_SWATCHES.map((c) => (
-                    <Button
+                    <button
                       key={c}
                       type="button"
                       className={cn(
@@ -407,7 +406,7 @@ export function CertificateEditor({
               </div>
               <div>
                 <Label className="text-white/70">Border style</Label>
-                <NativeSelect
+                <select
                   className="mt-1 min-h-11 w-full rounded-md border border-white/15 bg-[#1e1e1e] px-3 text-sm"
                   value={layout.borderStyle}
                   onChange={(e) =>
@@ -421,7 +420,7 @@ export function CertificateEditor({
                   <option value="single">Single</option>
                   <option value="double">Double</option>
                   <option value="ornate">Ornate</option>
-                </NativeSelect>
+                </select>
               </div>
               <div>
                 <Label className="text-white/70">Upload image / logo</Label>
@@ -755,7 +754,7 @@ export function CertificateEditor({
                 </div>
                 <div>
                   <Label className="text-white/70">Font family</Label>
-                  <NativeSelect
+                  <select
                     className="mt-1 min-h-11 w-full rounded-md border border-white/15 bg-[#1e1e1e] px-3 text-sm"
                     value={selectedLayer.fontFamily || 'sans'}
                     onChange={(e) =>
@@ -767,7 +766,7 @@ export function CertificateEditor({
                     <option value="serif">Serif</option>
                     <option value="sans">Sans</option>
                     <option value="script">Script</option>
-                  </NativeSelect>
+                  </select>
                 </div>
                 <div>
                   <Label className="text-white/70">Align</Label>
@@ -799,7 +798,7 @@ export function CertificateEditor({
                   <Label className="text-white/70">Text color</Label>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {CERT_COLOR_SWATCHES.map((c) => (
-                      <Button
+                      <button
                         key={c}
                         type="button"
                         className={cn(

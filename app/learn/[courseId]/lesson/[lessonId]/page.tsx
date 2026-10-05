@@ -1258,7 +1258,7 @@ export default function LessonViewPage() {
 
   const celebrateCourseCompletion = (opts?: { force?: boolean }) => {
     if (typeof window !== 'undefined') {
-      const key = `rigbu-cert-congrats-${courseId}`
+      const key = `pelbu-cert-congrats-${courseId}`
       if (!opts?.force && sessionStorage.getItem(key) === '1') return
     }
     if (congratsShownRef.current && !opts?.force) return
@@ -1287,7 +1287,7 @@ export default function LessonViewPage() {
           return
         }
         if (typeof window !== 'undefined') {
-          sessionStorage.setItem(`rigbu-cert-congrats-${courseId}`, '1')
+          sessionStorage.setItem(`pelbu-cert-congrats-${courseId}`, '1')
         }
         congratsShownRef.current = true
         clearAutoAdvance()
@@ -1504,7 +1504,7 @@ export default function LessonViewPage() {
           </CardHeader>
           <CardContent>
             <Button
-              className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+              className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={() => setShowQuiz(true)}
             >
               Start quiz
@@ -1529,7 +1529,7 @@ export default function LessonViewPage() {
               You have earned your certificate of completion.
             </p>
             <Button
-              className="w-full bg-primary text-primary-foreground hover:bg-primary"
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={() => router.push(`/certificates/${courseId}`)}
             >
               <Award className="mr-2 h-4 w-4" />

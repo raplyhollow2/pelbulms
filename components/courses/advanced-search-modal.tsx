@@ -136,14 +136,14 @@ export function AdvancedSearchModal({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       {trigger ? (
-        <DialogTrigger render={trigger as React.ReactElement} />
+        <DialogTrigger asChild>
+          {trigger}
+        </DialogTrigger>
       ) : (
-        <DialogTrigger
-          render={
-          <Button
+        <DialogTrigger>
+          <button
             type="button"
-            variant="outline"
-            className="h-11"
+            className="group inline-flex items-center justify-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-11 px-8 rounded-md bg-card/80 border border-border"
           >
             <SlidersHorizontal className="w-5 h-5 mr-2" />
             Advanced Search
@@ -152,9 +152,8 @@ export function AdvancedSearchModal({
                 {activeFilterCount}
               </Badge>
             )}
-          </Button>
-          }
-        />
+          </button>
+        </DialogTrigger>
       )}
 
       <DialogContent className="max-h-[90vh] w-full overflow-y-auto sm:max-w-3xl">
@@ -208,8 +207,8 @@ export function AdvancedSearchModal({
                     className={cn(
                       'cursor-pointer transition-colors',
                       filters.categories.includes(category)
-                        ? 'bg-primary text-primary-foreground hover:bg-primary'
-                        : 'hover:bg-primary/20'
+                        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                        : 'hover:bg-primary/90/20'
                     )}
                     onClick={() => toggleCategory(category)}
                   >
@@ -234,8 +233,8 @@ export function AdvancedSearchModal({
                   className={cn(
                     'cursor-pointer transition-colors',
                     filters.levels.includes(level)
-                      ? 'bg-primary text-primary-foreground hover:bg-primary'
-                      : 'hover:bg-primary/20'
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      : 'hover:bg-primary/90/20'
                   )}
                   onClick={() => toggleLevel(level)}
                 >
@@ -382,7 +381,7 @@ export function AdvancedSearchModal({
               Cancel
             </Button>
             <Button
-              className="flex-1 bg-primary hover:bg-primary text-primary-foreground"
+              className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={handleSearch}
             >
               <Search className="w-4 h-4 mr-2" />

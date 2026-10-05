@@ -188,7 +188,7 @@ export function SimpleNotes({ lessonId, courseId }: SimpleNotesProps) {
               size="sm"
               onClick={handleSaveNote}
               disabled={!newNote.trim() || saving}
-              className="bg-primary hover:bg-primary text-primary-foreground"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {saving ? (
                 <Loader2 className="w-4 h-4 mr-1 animate-spin" />
@@ -235,7 +235,7 @@ export function SimpleNotes({ lessonId, courseId }: SimpleNotesProps) {
                             size="sm"
                             onClick={() => handleSaveEdit(note.id)}
                             disabled={!editContent.trim()}
-                            className="bg-primary text-primary-foreground hover:bg-primary"
+                            className="bg-primary text-primary-foreground hover:bg-primary/90"
                           >
                             Save
                           </Button>

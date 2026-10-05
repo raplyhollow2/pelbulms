@@ -5,7 +5,6 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { DescriptionEditor } from '@/components/course/description-editor'
@@ -617,7 +616,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
               >
                 {sectionOpen ? <ChevronDown /> : <ChevronRight />}
               </Button>
-              <Textarea
+              <textarea
                 value={mod.title}
                 aria-label="Section title"
                 rows={1}
@@ -668,7 +667,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
                     }}
                     className="flex items-start gap-1"
                   >
-                    <Button
+                    <button
                       type="button"
                       onClick={() => selectLesson(les.id)}
                       className={`flex min-h-11 flex-1 items-start gap-2 rounded-lg px-2 py-2 text-left text-sm ${
@@ -691,7 +690,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
                           <span className="ml-1 text-xs font-normal text-muted-foreground">Preview</span>
                         ) : null}
                       </span>
-                    </Button>
+                    </button>
                     <DropdownMenu>
                       <DropdownMenuTrigger className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md hover:bg-muted">
                         <MoreHorizontal className="h-4 w-4" />
@@ -939,7 +938,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
         </Button>
         <Button
           type="button"
-          className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+          className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
           disabled={publishing}
           onClick={() => void togglePublish()}
         >
@@ -1028,7 +1027,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-primary text-primary-foreground hover:bg-primary"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={(event) => {
                 event.preventDefault()
                 void commitPublish(false)
@@ -1051,7 +1050,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-primary text-primary-foreground hover:bg-primary"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={(event) => {
                 event.preventDefault()
                 void commitPublish(true)

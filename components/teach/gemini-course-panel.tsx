@@ -20,7 +20,7 @@ export function GeminiCoursePanel({ courseId }: { courseId: string }) {
       <CardContent className="flex flex-wrap gap-2">
         <Button
           type="button"
-          className="min-h-11 bg-primary text-primary-foreground hover:bg-primary"
+          className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
           render={<Link href={`/teach/courses/${courseId}/studio`} />}
         >
           <Sparkles className="mr-2 h-4 w-4" />

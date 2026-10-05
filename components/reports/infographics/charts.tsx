@@ -1,5 +1,4 @@
 'use client'
-import { Button } from '@/components/ui/button'
 
 import {
   Bar,
@@ -39,13 +38,13 @@ const FRICTION_TYPE_COLORS: Record<FrictionType, string> = {
 function ExplainButton({ onExplain }: { onExplain?: () => void }) {
   if (!onExplain) return null
   return (
-    <Button
+    <button
       type="button"
       onClick={onExplain}
       className="shrink-0 text-xs font-medium text-primary hover:underline"
     >
       Explain
-    </Button>
+    </button>
   )
 }
 
@@ -249,13 +248,13 @@ export function SparkKpis({
             <div className="flex items-start justify-between gap-2">
               <p className="text-xs text-muted-foreground">{k.label}</p>
               {onExplain ? (
-                <Button
+                <button
                   type="button"
                   className="text-[11px] font-medium text-primary hover:underline"
                   onClick={() => onExplain(k)}
                 >
                   Explain
-                </Button>
+                </button>
               ) : null}
             </div>
             {k.href ? (

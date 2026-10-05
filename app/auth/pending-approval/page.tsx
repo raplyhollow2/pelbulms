@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Clock, LogOut, FilePenLine } from 'lucide-react'
-import { RigbuLoader } from '@/components/brand/rigbu'
+import { Clock, LogOut, Loader2, FilePenLine } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/client'
@@ -93,7 +92,7 @@ export default function PendingApprovalPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <RigbuLoader label="Checking your approval..." />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
   }
@@ -121,7 +120,7 @@ export default function PendingApprovalPage() {
         <CardContent className="space-y-3">
           {kycStatus === 'rejected' && (
             <Button
-              className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary"
+              className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={() => router.push('/auth/register')}
             >
               <FilePenLine className="h-4 w-4" />

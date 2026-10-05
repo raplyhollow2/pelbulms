@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { RigbuLoader } from '@/components/brand/rigbu'
+import { Loader2 } from 'lucide-react'
 import { ResponsiveLayout } from '@/components/layout/responsive-layout'
 import { PresenceTracker } from '@/components/presence/presence-tracker'
 import { createClient } from '@/lib/supabase/client'
@@ -76,8 +76,11 @@ export default function TeachLayout({
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <RigbuLoader label="Loading teacher workspace..." />
+      <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-white dark:from-gray-900 dark:to-black flex items-center justify-center px-4">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+          <p className="text-sm text-muted-foreground">Loading teacher workspace...</p>
+        </div>
       </div>
     )
   }

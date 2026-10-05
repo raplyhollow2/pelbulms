@@ -341,7 +341,7 @@ export function ProgressTracking() {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-primary/20 to-muted/20 flex items-center justify-center">
+                      <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/20 flex items-center justify-center">
                         <BookOpen className="w-8 h-8 text-primary" />
                       </div>
                     )}
@@ -418,7 +418,7 @@ export function ProgressTracking() {
                             <p className="text-xs text-muted-foreground">{course.next_lesson.title}</p>
                             <p className="text-xs text-muted-foreground">{course.next_lesson.module_title}</p>
                           </div>
-                          <Button size="sm" className="bg-primary hover:bg-primary text-primary-foreground">
+                          <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
                             Continue
                           </Button>
                         </div>

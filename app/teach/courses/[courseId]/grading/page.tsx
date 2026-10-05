@@ -342,7 +342,7 @@ export default function CourseGradingPage() {
                 const key = `${a.lessonId}:${a.activityId}`
                 const active = key === selectedKey
                 return (
-                  <Button
+                  <button
                     key={key}
                     type="button"
                     onClick={() => setSelectedKey(key)}
@@ -370,7 +370,7 @@ export default function CourseGradingPage() {
                         </Badge>
                       )}
                     </div>
-                  </Button>
+                  </button>
                 )
               })
             )}
@@ -541,7 +541,7 @@ export default function CourseGradingPage() {
                           <div className="flex items-end">
                             <Button
                               type="button"
-                              className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary sm:w-auto"
+                              className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90 sm:w-auto"
                               disabled={
                                 savingId === row.progressId || uploadingId === row.progressId
                               }
@@ -621,7 +621,7 @@ export default function CourseGradingPage() {
                                   ) : (
                                     <span className="truncate">{draft.returnFileName}</span>
                                   )}
-                                  <Button
+                                  <button
                                     type="button"
                                     className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                                     aria-label="Remove return file"
@@ -637,7 +637,7 @@ export default function CourseGradingPage() {
                                     }
                                   >
                                     <X className="h-3.5 w-3.5" />
-                                  </Button>
+                                  </button>
                                 </span>
                               ) : null}
                             </div>

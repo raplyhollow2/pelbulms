@@ -204,7 +204,7 @@ export function LearningTools({ courseId, lessonId, userId }: LearningToolsProps
               <Button
                 onClick={togglePomodoro}
                 size="lg"
-                className="bg-primary hover:bg-primary"
+                className="bg-primary hover:bg-primary/90"
               >
                 {pomodoroActive ? (
                   <>
@@ -336,7 +336,7 @@ export function LearningTools({ courseId, lessonId, userId }: LearningToolsProps
             >
               {/* Front */}
               <div className="absolute w-full h-full backface-hidden">
-                <div className="h-full p-6 bg-gradient-to-br from-primary/20 to-muted/20 rounded-lg border-2 border-primary/30 flex items-center justify-center">
+                <div className="h-full p-6 bg-gradient-to-br from-primary/20 to-primary/20 rounded-lg border-2 border-primary/30 flex items-center justify-center">
                   <p className="text-center text-lg font-medium">
                     {flashcards[currentCardIndex]?.front}
                   </p>

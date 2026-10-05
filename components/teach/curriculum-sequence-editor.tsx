@@ -233,7 +233,7 @@ export function CurriculumSequenceEditor({
                     {index + 1}.
                   </span>
                   <KindIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <Button
+                  <button
                     type="button"
                     className="min-w-0 flex-1 text-left"
                     onClick={() => setExpandedId(expanded ? null : lesson.id)}
@@ -251,7 +251,7 @@ export function CurriculumSequenceEditor({
                         </Badge>
                       ) : null}
                     </span>
-                  </Button>
+                  </button>
                   <Button
                     type="button"
                     variant="ghost"
@@ -313,7 +313,7 @@ export function CurriculumSequenceEditor({
                     {kind !== 'article' && (
                       <div className="space-y-2 rounded-md border bg-background p-3">
                         <Label className="text-xs">Video</Label>
-                        <Input
+                        <input
                           ref={(el) => {
                             videoInputByLesson.current[lesson.id] = el
                           }}

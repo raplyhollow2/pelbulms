@@ -1,5 +1,4 @@
 'use client'
-import { Button } from '@/components/ui/button'
 
 import { useRef, useState } from 'react'
 import Link from 'next/link'
@@ -23,7 +22,7 @@ function QuoteCard({ quote }: { quote: LandingQuote }) {
       <figcaption className="mt-6 flex items-center gap-3">
         <Avatar className="size-10">
           {quote.avatar_url ? <AvatarImage src={quote.avatar_url} alt="" /> : null}
-          <AvatarFallback className="bg-primary text-xs font-semibold text-black">
+          <AvatarFallback className="bg-primary text-xs font-semibold text-primary-foreground">
             {reviewerInitials(quote.name) || 'U'}
           </AvatarFallback>
         </Avatar>
@@ -101,7 +100,7 @@ export function LandingQuotes({
                 <figcaption className="mt-5 flex items-center gap-3 border-t border-border/60 pt-4">
                   <Avatar className="size-10 bg-primary">
                     {quote.avatar_url ? <AvatarImage src={quote.avatar_url} alt="" /> : null}
-                    <AvatarFallback className="bg-primary text-xs font-semibold text-black">
+                    <AvatarFallback className="bg-primary text-xs font-semibold text-primary-foreground">
                       {reviewerInitials(quote.name) || 'U'}
                     </AvatarFallback>
                   </Avatar>
@@ -116,25 +115,25 @@ export function LandingQuotes({
         </div>
         {quotes.length > 1 ? (
           <>
-            <Button
+            <button
               type="button"
               aria-label="Previous review"
               className="absolute left-0 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background shadow-sm"
               onClick={() => go(index - 1)}
             >
               <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
+            </button>
+            <button
               type="button"
               aria-label="Next review"
               className="absolute right-0 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background shadow-sm"
               onClick={() => go(index + 1)}
             >
               <ChevronRight className="h-4 w-4" />
-            </Button>
+            </button>
             <div className="mt-4 flex justify-center gap-1.5">
               {quotes.map((quote, dot) => (
-                <Button
+                <button
                   key={`${quote.name}-${dot}`}
                   type="button"
                   aria-label={`Show review ${dot + 1}`}

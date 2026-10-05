@@ -441,7 +441,7 @@ export function RealtimeHub() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button className="flex-1 bg-primary hover:bg-primary text-primary-foreground">
+                    <Button className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90">
                       <Users className="w-4 h-4 mr-2" />
                       Invite Members
                     </Button>
@@ -545,7 +545,7 @@ export function RealtimeHub() {
                     className="flex-1"
                   />
                   <Button
-                    className="bg-primary hover:bg-primary text-primary-foreground"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
                     onClick={handleSendMessage}
                     disabled={!newMessage.trim()}
                   >
@@ -589,7 +589,7 @@ export function RealtimeHub() {
                     <div className="relative">
                       <Avatar className="w-12 h-12">
                         <AvatarImage src={user.avatar_url} />
-                        <AvatarFallback className="bg-primary/20 text-black font-bold">
+                        <AvatarFallback className="bg-primary/20 text-foreground font-bold">
                           {getInitials(user.full_name)}
                         </AvatarFallback>
                       </Avatar>

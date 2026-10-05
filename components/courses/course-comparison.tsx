@@ -357,7 +357,7 @@ export function CourseComparison({
               {comparisonCourses.map((course) => (
                 <TableCell key={course.id} className="text-center py-4">
                   <Button
-                    className="w-full bg-primary hover:bg-primary text-primary-foreground"
+                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                     size="sm"
                     onClick={() => (window.location.href = `/courses/${course.id}`)}
                   >

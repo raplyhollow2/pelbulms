@@ -310,7 +310,7 @@ export function LearningDashboard() {
             </div>
           </div>
           <Button
-            className="bg-primary hover:bg-primary text-primary-foreground"
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
             onClick={() => router.push('/courses')}
           >
             <BookOpen className="w-4 h-4 mr-2" />
@@ -418,7 +418,7 @@ export function LearningDashboard() {
                     Start your learning journey by enrolling in your first course
                   </p>
                   <Button
-                    className="bg-primary hover:bg-primary text-primary-foreground"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
                     onClick={() => router.push('/courses')}
                   >
                     Browse Courses
@@ -442,7 +442,7 @@ export function LearningDashboard() {
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
                         ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-primary/20 to-muted/20 flex items-center justify-center">
+                          <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/20 flex items-center justify-center">
                             <BookOpen className="w-8 h-8 text-primary" />
                           </div>
                         )}
@@ -461,7 +461,7 @@ export function LearningDashboard() {
                       </div>
 
                       <Button
-                        className="w-full bg-primary hover:bg-primary text-primary-foreground"
+                        className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
                         size="sm"
                       >
                         <Play className="w-4 h-4 mr-2" />

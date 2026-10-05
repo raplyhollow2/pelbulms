@@ -447,7 +447,7 @@ function EmailsSettingsPage() {
                 value={draft.fromEmail}
                 autoComplete="off"
                 onChange={(e) => setDraft({ ...draft, fromEmail: e.target.value })}
-                placeholder={draft.provider === 'resend' ? 'noreply@rigbu.bt' : 'school@gmail.com'}
+                placeholder={draft.provider === 'resend' ? 'noreply@pelbu.bt' : 'school@gmail.com'}
               />
             </div>
           </div>

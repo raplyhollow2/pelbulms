@@ -304,7 +304,7 @@ export default function StudentDetailPage() {
           </Button>
 
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary/20 to-muted/20 flex items-center justify-center shrink-0 overflow-hidden">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary/20 to-primary/20 flex items-center justify-center shrink-0 overflow-hidden">
               {student?.avatar_url ? (
                 <img src={student.avatar_url} alt={student?.full_name || 'Student'} className="w-full h-full object-cover" />
               ) : (

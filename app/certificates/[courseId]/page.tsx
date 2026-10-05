@@ -191,7 +191,7 @@ export default function CertificateClaimPage() {
                 </p>
               ) : null}
               <Button
-                className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary"
+                className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90"
                 onClick={download}
               >
                 <Download className="mr-2 h-4 w-4" />
@@ -212,7 +212,7 @@ export default function CertificateClaimPage() {
             </div>
           ) : complete && !issuing ? (
             <Button
-              className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary"
+              className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={() => void load()}
             >
               <Award className="mr-2 h-4 w-4" />

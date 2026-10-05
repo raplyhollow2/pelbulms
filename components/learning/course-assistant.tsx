@@ -226,22 +226,22 @@ export function CourseAssistant({
           <div className="space-y-2">
             {chips.map((chip) => (
               <div key={chip.id} className="flex items-stretch gap-1">
-                <Button
+                <button
                   type="button"
                   onClick={() => applyChip(chip)}
                   className="min-h-11 flex-1 rounded-lg border px-3 py-2 text-left text-sm hover:bg-muted/60"
                 >
                   {chip.label}
-                </Button>
+                </button>
                 {chip.savedPromptId ? (
-                  <Button
+                  <button
                     type="button"
                     aria-label="Remove saved prompt"
                     className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border text-muted-foreground hover:bg-muted/60"
                     onClick={() => void removePrompt(chip.savedPromptId!)}
                   >
                     <X className="h-4 w-4" />
-                  </Button>
+                  </button>
                 ) : null}
               </div>
             ))}
@@ -253,7 +253,7 @@ export function CourseAssistant({
             <p className="text-xs font-semibold">Your documents</p>
             <div className="flex flex-wrap gap-1.5">
               {artifacts.map((artifact) => (
-                <Button
+                <button
                   key={artifact.id}
                   type="button"
                   onClick={() =>
@@ -265,7 +265,7 @@ export function CourseAssistant({
                   )}
                 >
                   {artifact.title}
-                </Button>
+                </button>
               ))}
             </div>
             {openArtifact ? (
@@ -322,22 +322,22 @@ export function CourseAssistant({
           <div className="max-h-40 space-y-2 overflow-y-auto pb-2">
             {chips.map((chip) => (
               <div key={chip.id} className="flex items-stretch gap-1">
-                <Button
+                <button
                   type="button"
                   onClick={() => applyChip(chip)}
                   className="min-h-11 flex-1 rounded-lg border px-3 py-2 text-left text-sm hover:bg-muted/60"
                 >
                   {chip.label}
-                </Button>
+                </button>
                 {chip.savedPromptId ? (
-                  <Button
+                  <button
                     type="button"
                     aria-label="Remove saved prompt"
                     className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border text-muted-foreground hover:bg-muted/60"
                     onClick={() => void removePrompt(chip.savedPromptId!)}
                   >
                     <X className="h-4 w-4" />
-                  </Button>
+                  </button>
                 ) : null}
               </div>
             ))}
@@ -374,14 +374,14 @@ export function CourseAssistant({
           <Button
             type="submit"
             size="icon"
-            className="min-h-11 min-w-11 shrink-0 bg-primary text-primary-foreground hover:bg-primary"
+            className="min-h-11 min-w-11 shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
             disabled={sending || !draft.trim()}
             aria-label="Send"
           >
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" />}
           </Button>
         </div>
-        <Button
+        <button
           type="button"
           className="mt-2 inline-flex min-h-11 items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-50"
           disabled={savingPrompt || !draft.trim()}
@@ -389,7 +389,7 @@ export function CourseAssistant({
         >
           {savingPrompt ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
           Save this prompt
-        </Button>
+        </button>
       </form>
     </div>
   )

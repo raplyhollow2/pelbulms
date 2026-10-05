@@ -65,7 +65,7 @@ export type PlatformSettings = {
   hero_cta_primary_label: string | null
   hero_cta_secondary_label: string | null
   hero_image_url: string | null
-  /** 3D mascot shared by the public menu and the hero. Null uses the built-in file. */
+  /** Optional uploaded mascot. Null shows the built-in fox. */
   mascot_image_url: string | null
   /** Hero text slides. Empty storage falls back to the built-in three. */
   hero_slides: HeroSlide[]

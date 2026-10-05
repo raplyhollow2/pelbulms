@@ -94,7 +94,7 @@ export function CommandPalette() {
         className="relative mx-4 w-full max-w-lg animate-in slide-in-from-top-4 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="overflow-hidden rounded-2xl border border-border/60 bg-popover shadow-md">
+        <div className="overflow-hidden rounded-2xl border border-border/60 bg-popover shadow-overlay">
           <Command shouldFilter>
             <CommandInput placeholder="Search courses or jump to a page…" />
             <CommandList>

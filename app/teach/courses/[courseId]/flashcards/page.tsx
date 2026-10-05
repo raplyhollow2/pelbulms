@@ -191,7 +191,7 @@ export default function CourseFlashcardsPage() {
             <Button
               onClick={save}
               disabled={saving}
-              className="bg-primary text-primary-foreground hover:bg-primary"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
               Save deck

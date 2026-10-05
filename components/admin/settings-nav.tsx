@@ -44,7 +44,7 @@ export function AdminSettingsNav() {
             className={cn(
               'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors',
               active
-                ? 'bg-royal shadow-sm'
+                ? 'bg-foreground text-background'
                 : 'text-muted-foreground hover:bg-muted hover:text-foreground'
             )}
           >

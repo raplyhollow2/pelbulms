@@ -588,7 +588,7 @@ export default function CourseDetailPage() {
       <div className="min-w-0">
         <div className="relative -mx-8 bg-[#1c1d1f] px-8 py-8 text-white before:absolute before:inset-y-0 before:left-full before:w-[calc(22rem+2rem)] before:bg-[#1c1d1f] before:content-['']">
           {course.is_featured && (
-            <p className="mb-3 inline-flex rounded bg-primary px-2 py-0.5 text-xs font-bold text-black">
+            <p className="mb-3 inline-flex rounded bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">
               Featured
             </p>
           )}
