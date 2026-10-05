@@ -1,4 +1,5 @@
 'use client'
+import { Button } from '@/components/ui/button'
 
 import { useRef, useState } from 'react'
 import Link from 'next/link'
@@ -115,25 +116,25 @@ export function LandingQuotes({
         </div>
         {quotes.length > 1 ? (
           <>
-            <button
+            <Button
               type="button"
               aria-label="Previous review"
               className="absolute left-0 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background shadow-sm"
               onClick={() => go(index - 1)}
             >
               <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               aria-label="Next review"
               className="absolute right-0 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background shadow-sm"
               onClick={() => go(index + 1)}
             >
               <ChevronRight className="h-4 w-4" />
-            </button>
+            </Button>
             <div className="mt-4 flex justify-center gap-1.5">
               {quotes.map((quote, dot) => (
-                <button
+                <Button
                   key={`${quote.name}-${dot}`}
                   type="button"
                   aria-label={`Show review ${dot + 1}`}

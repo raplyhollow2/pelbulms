@@ -9,11 +9,10 @@ import {
   DEFAULT_HERO_CTA_PRIMARY,
   DEFAULT_HERO_ROTATING_WORDS,
   DEFAULT_HERO_VIDEO_URL,
+  type HeroSlide,
   type LandingStat,
 } from '@/lib/landing-content'
-import { LandingNav } from '@/components/landing/landing-nav'
-import type { LandingCourse } from '@/components/landing/landing-catalog'
-
+import { HeroStory } from '@/components/landing/hero-story'
 function useTypewriter(words: string[]) {
   const [index, setIndex] = useState(0)
   const [text, setText] = useState('')
@@ -314,6 +313,10 @@ function HeroVideoBackground({
   )
 }
 
+function isDirectVideoFile(url: string) {
+  return /\.(mp4|webm)(?:$|[?#])/i.test(url)
+}
+
 export function LandingHero({
   siteName = 'Rigbu LMS',
   tagline,
@@ -327,10 +330,12 @@ export function LandingHero({
   ctaLabel,
   secondaryCtaLabel,
   showCatalog = false,
-  glassOpacity = 70,
   requireIdentity = true,
   fallbackImage,
-  courses = [],
+  courseTopics = [],
+  heroSlides,
+  mascotUrl,
+  siteNameForScene,
 }: {
   siteName?: string
   tagline?: string | null
@@ -344,18 +349,20 @@ export function LandingHero({
   ctaLabel?: string | null
   secondaryCtaLabel?: string | null
   showCatalog?: boolean
-  glassOpacity?: number
   requireIdentity?: boolean
   fallbackImage?: string | null
-  courses?: LandingCourse[]
+  courseTopics?: string[]
+  heroSlides?: HeroSlide[]
+  mascotUrl?: string | null
+  siteNameForScene?: string
 }) {
   const words = rotatingWords?.length ? rotatingWords : DEFAULT_HERO_ROTATING_WORDS
   const typed = useTypewriter(words)
   const resolvedVideo = videoUrl?.trim() || ''
+  const directVideo = isDirectVideoFile(resolvedVideo)
+  const youtubeVideo = !directVideo && Boolean(getYoutubeId(resolvedVideo))
   const primaryCta = ctaLabel?.trim() || DEFAULT_HERO_CTA_PRIMARY
   const secondaryCta = secondaryCtaLabel?.trim() || 'Browse courses'
-  const glass = Math.min(90, Math.max(20, Math.round(glassOpacity))) / 100
-
   const defaultHeadlinePrefix = 'Advanced learning for'
   const resolvedDescription =
     description ||
@@ -364,10 +371,21 @@ export function LandingHero({
       : `${siteName} is Bhutan's learning platform — world-class courses, progress tracking, and recognised certificates.`)
 
   return (
-    <div className="relative h-[100svh] bg-background text-foreground">
-      <section className="absolute inset-0 overflow-hidden bg-neutral-100">
-        <div className="absolute inset-0 overflow-hidden">
-          {resolvedVideo ? (
+    <div className="relative flex min-h-[calc(100svh-4.75rem)] flex-col bg-background text-foreground">
+      <section className="relative flex flex-1 flex-col bg-[#2a1608]">
+        <div className="relative aspect-[9/16] w-full overflow-hidden bg-[linear-gradient(165deg,#3a220c_0%,#1a1208_42%,#4a2a10_100%)] md:absolute md:inset-0 md:aspect-auto">
+          {directVideo ? (
+            <video
+              aria-hidden
+              className="pointer-events-none absolute inset-0 z-0 h-full w-full object-contain object-top md:object-cover md:object-center"
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="auto"
+              src={resolvedVideo}
+            />
+          ) : youtubeVideo ? (
             <HeroVideoBackground
               videoUrl={resolvedVideo}
               startSeconds={videoStartSeconds ?? 0}
@@ -376,42 +394,53 @@ export function LandingHero({
             />
           ) : fallbackImage ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={fallbackImage} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            <img src={fallbackImage} alt="" className="absolute inset-0 h-full w-full object-contain object-top md:object-cover md:object-center" />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/40 to-primary/30" />
+            <HeroStory
+              topics={courseTopics}
+              slides={heroSlides}
+              mascotUrl={mascotUrl}
+              siteName={siteNameForScene || siteName || 'Rigbu'}
+            />
           )}
+          <div aria-hidden className="pointer-events-none absolute inset-0 z-[1] bg-[#EDB81C]/25 mix-blend-soft-light" />
         </div>
 
-        <div className="relative z-10 flex h-full items-end p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4 lg:p-10">
+        <div className="relative z-10 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4 md:absolute md:inset-x-0 md:bottom-0 md:p-6">
             <div
-              className="w-full max-w-sm rounded-lg border border-white/50 p-3.5 text-neutral-900 shadow-2xl backdrop-blur-xl sm:p-4"
-              style={{ backgroundColor: `rgb(255 255 255 / ${glass})` }}
+              className="w-full max-w-sm overflow-hidden rounded-2xl border border-[#C99612] p-3.5 text-card-foreground shadow-lg shadow-orange-950/15 sm:p-4"
+              style={{ backgroundColor: '#EDB81C' }}
             >
+              <div
+                className="mb-3 h-1 w-10 rounded-full"
+                style={{ backgroundImage: 'linear-gradient(90deg, var(--royal-from), var(--royal-to))' }}
+                aria-hidden
+              />
               {(tagline || requireIdentity) && (
-                <p className="text-xs font-semibold uppercase tracking-widest text-primary">
+                <p className="text-xs font-semibold uppercase tracking-widest text-[var(--royal-to)]">
                   {tagline ||
                     (requireIdentity
                       ? 'A verified learning network for Bhutan'
                       : 'A learning network for Bhutan')}
                 </p>
               )}
-              <h1 className="mt-2 text-xl font-bold leading-tight tracking-tight text-neutral-900 sm:text-2xl">
+              <h1 className="mt-2 text-xl font-bold leading-tight tracking-tight text-stone-950 sm:text-2xl">
                 {headline ? (
                   headline
                 ) : (
                   <>
                     <span className="block">{defaultHeadlinePrefix}</span>
-                    <span className="mt-1 block text-primary">{typed || '\u00A0'}</span>
+                    <span className="mt-1 block text-[var(--royal-to)]">{typed || '\u00A0'}</span>
                   </>
                 )}
               </h1>
-              <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-neutral-600">
+              <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-stone-700">
                 {resolvedDescription}
               </p>
-              <div className="mt-3 flex flex-nowrap items-center gap-1.5">
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
                 <Button
                   size="sm"
-                  className="h-8 shrink gap-1 rounded-full bg-primary px-3 text-xs font-bold text-primary-foreground hover:bg-primary/90"
+                  className="h-8 gap-1 rounded-full bg-royal px-3 text-xs font-bold shadow-sm shadow-orange-900/25 hover:brightness-105"
                   render={<Link href="/auth/login" />}
                 >
                   {primaryCta}
@@ -421,7 +450,7 @@ export function LandingHero({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 shrink rounded-full border-white/70 bg-white/60 px-3 text-xs font-bold text-neutral-900 hover:bg-white/80"
+                    className="h-8 rounded-full border-orange-400/80 bg-white/80 px-3 text-xs font-bold text-orange-800 hover:bg-orange-50"
                     render={<Link href="#courses" />}
                   >
                     {secondaryCta}
@@ -431,7 +460,6 @@ export function LandingHero({
             </div>
           </div>
       </section>
-      <LandingNav siteName={siteName} courses={courses} glassOpacity={glassOpacity} />
     </div>
   )
 }

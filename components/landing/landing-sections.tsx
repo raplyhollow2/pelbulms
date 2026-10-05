@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 import { resolveLandingIcon } from '@/lib/landing-icons'
 import { resolveMediaUrl } from '@/lib/media'
 import type {
@@ -17,21 +18,21 @@ const TILES = [
   {
     surface: 'bg-primary text-primary-foreground',
     copy: 'text-primary-foreground/80',
-    button: 'bg-background text-foreground hover:bg-background/90',
-  },
-  {
-    surface: 'bg-foreground text-background',
-    copy: 'text-background/90',
-    button: 'bg-background text-foreground hover:bg-background/90',
-  },
-  {
-    surface: 'bg-destructive text-white',
-    copy: 'text-white/90',
-    button: 'bg-background text-foreground hover:bg-background/90',
+    button: 'bg-primary-foreground text-primary hover:bg-primary-foreground/90',
   },
   {
     surface: 'bg-secondary text-secondary-foreground',
-    copy: 'text-secondary-foreground/80',
+    copy: 'text-muted-foreground',
+    button: 'bg-primary text-primary-foreground hover:bg-primary/90',
+  },
+  {
+    surface: 'bg-muted text-foreground',
+    copy: 'text-muted-foreground',
+    button: 'bg-primary text-primary-foreground hover:bg-primary/90',
+  },
+  {
+    surface: 'bg-foreground text-background',
+    copy: 'text-background/80',
     button: 'bg-background text-foreground hover:bg-background/90',
   },
 ]
@@ -89,9 +90,9 @@ export function LandingPrograms({
           const Icon = resolveLandingIcon(feature.icon)
           const tile = TILES[index % TILES.length]
           return (
-            <article
+            <Card
               key={`${feature.title}-${index}`}
-              className={`flex min-w-0 flex-col rounded-2xl p-5 ${tile.surface}`}
+              className={`flex min-w-0 flex-col gap-0 rounded-2xl border-0 p-5 shadow-sm ring-0 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${tile.surface}`}
             >
               <Icon className="h-8 w-8" />
               <h3 className="mt-4 text-lg font-bold">{feature.title}</h3>
@@ -105,7 +106,7 @@ export function LandingPrograms({
                   {feature.cta_label}
                 </Button>
               ) : null}
-            </article>
+            </Card>
           )
         })}
       </div>
@@ -210,9 +211,9 @@ export function LandingJoin({
           ))}
         </div>
       ) : null}
-      <div className="flex flex-col justify-center rounded-3xl bg-[#12324d] px-6 py-10 text-white">
+      <div className="flex flex-col justify-center rounded-3xl bg-foreground px-6 py-10 text-background">
         <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h2>
-        {subtitle ? <p className="mt-3 text-sm leading-relaxed text-white/80">{subtitle}</p> : null}
+        {subtitle ? <p className="mt-3 text-sm leading-relaxed text-background/80">{subtitle}</p> : null}
         <Button
           size="lg"
           className="mt-6 h-11 w-fit gap-2 rounded-full bg-primary px-5 font-bold text-primary-foreground hover:bg-primary/90"
