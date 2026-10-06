@@ -34,8 +34,8 @@ import {
   type LandingStat,
   type LandingStep,
 } from '@/lib/landing-content'
-import { getYoutubeId } from '@/lib/video-url'
-import { uploadImageDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
+import { getYoutubeId, isDirectVideoFile, MAX_VIDEO_UPLOAD_LABEL } from '@/lib/video-url'
+import { uploadImageDirectToCloudinary, uploadVideoDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
 import { YoutubeFrame } from '@/components/course/youtube-frame'
 import {
   Select,
@@ -139,6 +139,8 @@ export default function AdminMarketingSettingsPage() {
   const canEdit = has(CAP.SETTINGS_MARKETING_EDIT)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploadingVideo, setUploadingVideo] = useState(false)
+  const [videoUploadPercent, setVideoUploadPercent] = useState(0)
   const [previewFrame, setPreviewFrame] = useState<'phone' | 'desktop'>('phone')
   const [previewKey, setPreviewKey] = useState(0)
   const [courses, setCourses] = useState<CourseOpt[]>([])
@@ -257,6 +259,7 @@ export default function AdminMarketingSettingsPage() {
 
   const published = courses.filter((c) => c.is_published)
   const previewId = getYoutubeId(form.hero_video_url)
+  const directPreview = !previewId && isDirectVideoFile(form.hero_video_url.trim())
   const previewStart = parseSecondsInput(form.hero_video_start_seconds, { allowZero: true }) ?? 0
   const previewEnd = parseSecondsInput(form.hero_video_end_seconds, { allowZero: false })
 
@@ -313,17 +316,62 @@ export default function AdminMarketingSettingsPage() {
         <div>
           <h3 className="text-sm font-semibold">Hero</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            The video fills the first screen behind the card. On a phone the card sits along the bottom. Clear the video URL to use an uploaded image instead.
+            The video fills the first screen behind the card. On a phone the card sits along the bottom. Paste a YouTube URL or upload a video from your computer. Clear the video to use an uploaded image instead.
           </p>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="hero_video_url">YouTube video URL</Label>
-          <Input
-            id="hero_video_url"
-            value={form.hero_video_url}
-            onChange={(e) => setForm((f) => ({ ...f, hero_video_url: e.target.value }))}
-            placeholder={DEFAULT_HERO_VIDEO_URL}
-          />
+          <Label htmlFor="hero_video_url">Video</Label>
+          <div className="flex gap-2">
+            <Input
+              id="hero_video_url"
+              value={form.hero_video_url}
+              onChange={(e) => setForm((f) => ({ ...f, hero_video_url: e.target.value }))}
+              placeholder={DEFAULT_HERO_VIDEO_URL}
+              disabled={uploadingVideo}
+            />
+            <label className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm">
+              {uploadingVideo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+              {uploadingVideo ? `${videoUploadPercent}%` : 'Upload'}
+              <input
+                type="file"
+                accept="video/mp4,video/webm,video/ogg,video/quicktime,.mp4,.webm,.ogg,.mov"
+                className="sr-only"
+                disabled={uploadingVideo || !canEdit}
+                onChange={async (event) => {
+                  const file = event.target.files?.[0]
+                  event.target.value = ''
+                  if (!file) return
+                  setUploadingVideo(true)
+                  setVideoUploadPercent(0)
+                  try {
+                    const uploaded = await uploadVideoDirectToCloudinary(file, {
+                      folder: 'landing',
+                      visibility: 'public',
+                      onProgress: setVideoUploadPercent,
+                    })
+                    setForm((f) => ({ ...f, hero_video_url: uploaded.url }))
+                    toast.success('Video uploaded. Save to publish it.')
+                  } catch (error: any) {
+                    toast.error(error?.message || 'Upload failed')
+                  } finally {
+                    setUploadingVideo(false)
+                  }
+                }}
+              />
+            </label>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 shrink-0"
+              disabled={!canEdit || uploadingVideo || !form.hero_video_url.trim()}
+              onClick={() => setForm((f) => ({ ...f, hero_video_url: '' }))}
+            >
+              Clear
+            </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            MP4, WebM, OGG, or MOV, up to {MAX_VIDEO_UPLOAD_LABEL}. Save to publish an upload.
+          </p>
           {previewId ? (
             <div className="relative mt-2 aspect-video w-full overflow-hidden rounded-lg border border-border/50 bg-black">
               <YoutubeFrame
@@ -338,9 +386,30 @@ export default function AdminMarketingSettingsPage() {
                 }}
               />
             </div>
-          ) : (
+          ) : directPreview ? (
+            <div className="relative mt-2 aspect-video w-full overflow-hidden rounded-lg border border-border/50 bg-black">
+              <video
+                key={`${form.hero_video_url}-${previewStart}-${previewEnd ?? 'end'}`}
+                className="h-full w-full object-contain"
+                src={form.hero_video_url.trim()}
+                controls
+                muted
+                playsInline
+                loop={previewEnd == null || previewEnd <= previewStart}
+                preload="metadata"
+                onLoadedMetadata={(event) => {
+                  if (previewStart > 0) event.currentTarget.currentTime = previewStart
+                }}
+                onTimeUpdate={(event) => {
+                  if (previewEnd != null && previewEnd > previewStart && event.currentTarget.currentTime >= previewEnd) {
+                    event.currentTarget.currentTime = previewStart
+                  }
+                }}
+              />
+            </div>
+          ) : form.hero_video_url.trim() ? (
             <p className="text-xs text-destructive">Enter a valid YouTube URL to preview.</p>
-          )}
+          ) : null}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">

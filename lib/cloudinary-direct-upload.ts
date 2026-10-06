@@ -100,6 +100,8 @@ export async function uploadVideoDirectToCloudinary(
   opts: {
     folder: string
     onProgress?: DirectUploadProgress
+    /** Public assets (the homepage hero) return an HTTPS URL. Lesson uploads stay private. */
+    visibility?: 'public' | 'private'
   }
 ): Promise<DirectVideoUploadResult> {
   if (!ALLOWED_VIDEO.includes(file.type)) {
@@ -109,10 +111,11 @@ export async function uploadVideoDirectToCloudinary(
     throw new Error(`File too large. Maximum size is ${MAX_VIDEO_UPLOAD_LABEL}.`)
   }
 
+  const visibility = opts.visibility === 'public' ? 'public' : 'private'
   const result = await signAndUpload(file, {
     folder: opts.folder,
     resourceType: 'video',
-    accessType: 'authenticated',
+    accessType: visibility === 'public' ? 'upload' : 'authenticated',
     onProgress: opts.onProgress,
     eager: VIDEO_EAGER_TRANSFORM,
     eagerAsync: true,
@@ -124,9 +127,13 @@ export async function uploadVideoDirectToCloudinary(
     typeof rawDuration === 'number' && Number.isFinite(rawDuration) && rawDuration > 0
       ? Math.round(rawDuration)
       : null
+  const secureUrl = typeof result.secure_url === 'string' ? result.secure_url : ''
+  if (visibility === 'public' && !secureUrl) {
+    throw new Error('Cloudinary did not return a video URL')
+  }
   return {
     publicId,
-    url: makeMediaRef('video', publicId),
+    url: visibility === 'public' ? secureUrl : makeMediaRef('video', publicId),
     duration,
   }
 }

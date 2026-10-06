@@ -9,7 +9,7 @@ import { VIDEO_EAGER_TRANSFORM } from '@/lib/video-url'
  * Body: {
  *   folder?,
  *   resourceType?: 'image' | 'video',
- *   accessType?: 'upload' | 'authenticated',  // images/covers → upload (public); videos → authenticated
+ *   accessType?: 'upload' | 'authenticated',  // images/covers → upload (public); videos → authenticated unless accessType is "upload"
  *   eager?,
  *   eagerAsync?
  * }
@@ -40,11 +40,17 @@ export async function POST(request: NextRequest) {
 
   const folder = (body.folder as string) || `uploads/${rbac.userId}`
   const resourceType = (body.resourceType as string) === 'video' ? 'video' : 'image'
-  // Videos stay private; images/covers are public so catalog cards can use secure_url.
+  const requestedAccess =
+    body.accessType === 'upload' || body.accessType === 'authenticated' ? body.accessType : null
+  // Lesson videos stay private. A public hero file must ask for accessType "upload".
   const accessType =
-    (body.accessType as string) === 'authenticated' || resourceType === 'video'
-      ? 'authenticated'
-      : 'upload'
+    resourceType === 'video'
+      ? requestedAccess === 'upload'
+        ? 'upload'
+        : 'authenticated'
+      : requestedAccess === 'authenticated'
+        ? 'authenticated'
+        : 'upload'
   const timestamp = Math.round(Date.now() / 1000)
 
   // Params must exactly match what the browser sends to Cloudinary.

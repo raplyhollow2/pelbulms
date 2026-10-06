@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { createYoutubeIframe, getYoutubeId } from '@/lib/video-url'
+import { createYoutubeIframe, getYoutubeId, isDirectVideoFile } from '@/lib/video-url'
 import {
   DEFAULT_HERO_CTA_PRIMARY,
   DEFAULT_HERO_ROTATING_WORDS,
@@ -313,8 +313,66 @@ function HeroVideoBackground({
   )
 }
 
-function isDirectVideoFile(url: string) {
-  return /\.(mp4|webm)(?:$|[?#])/i.test(url)
+function DirectHeroVideo({
+  src,
+  startSeconds = 0,
+  endSeconds = null,
+}: {
+  src: string
+  startSeconds?: number
+  endSeconds?: number | null
+}) {
+  const ref = useRef<HTMLVideoElement>(null)
+  const start = Math.max(0, Math.floor(startSeconds || 0))
+  const end =
+    endSeconds != null && Number.isFinite(endSeconds) && endSeconds > start
+      ? Math.floor(endSeconds)
+      : null
+  const clipped = start > 0 || end != null
+
+  useEffect(() => {
+    const video = ref.current
+    if (!video || !clipped) return
+
+    const seekStart = () => {
+      if (Math.abs(video.currentTime - start) > 0.25) {
+        video.currentTime = start
+      }
+    }
+    if (video.readyState >= 1) seekStart()
+    const onTime = () => {
+      if (end != null && video.currentTime >= end) {
+        video.currentTime = start
+        void video.play().catch(() => {})
+      }
+    }
+    const onEnded = () => {
+      video.currentTime = start
+      void video.play().catch(() => {})
+    }
+    video.addEventListener('loadedmetadata', seekStart)
+    video.addEventListener('timeupdate', onTime)
+    video.addEventListener('ended', onEnded)
+    return () => {
+      video.removeEventListener('loadedmetadata', seekStart)
+      video.removeEventListener('timeupdate', onTime)
+      video.removeEventListener('ended', onEnded)
+    }
+  }, [src, start, end, clipped])
+
+  return (
+    <video
+      ref={ref}
+      aria-hidden
+      className="pointer-events-none absolute inset-0 z-0 h-full w-full object-contain object-top md:object-cover md:object-center"
+      autoPlay
+      muted
+      loop={!clipped}
+      playsInline
+      preload="auto"
+      src={src}
+    />
+  )
 }
 
 export function LandingHero({
@@ -373,15 +431,10 @@ export function LandingHero({
       <section className="relative flex flex-1 flex-col bg-[#2a1608]">
         <div className="relative aspect-[9/16] w-full overflow-hidden bg-[linear-gradient(165deg,#3a220c_0%,#1a1208_42%,#4a2a10_100%)] md:absolute md:inset-0 md:aspect-auto">
           {directVideo ? (
-            <video
-              aria-hidden
-              className="pointer-events-none absolute inset-0 z-0 h-full w-full object-contain object-top md:object-cover md:object-center"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="auto"
+            <DirectHeroVideo
               src={resolvedVideo}
+              startSeconds={videoStartSeconds ?? 0}
+              endSeconds={videoEndSeconds ?? null}
             />
           ) : youtubeVideo ? (
             <HeroVideoBackground
