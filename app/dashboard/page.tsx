@@ -23,6 +23,7 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 import { DashboardCourseCard } from '@/components/dashboard/course-card'
+import { BrandCharacter } from '@/components/brand/brand-character'
 import { resolveMediaUrl } from '@/lib/media'
 import { resumeLearnPath } from '@/lib/resume-path'
 import {
@@ -423,7 +424,7 @@ export default function DashboardPage() {
             ) : (
               <Card className="border-dashed">
                 <CardContent className="flex flex-col items-center gap-2 py-10 text-center">
-                  <BookOpen className="h-6 w-6 text-muted-foreground" />
+                  <BrandCharacter pose="thinking" className="mx-auto" />
                   <div>
                     <p className="text-sm font-medium">No enrollments yet</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">

@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/client'
+import { BrandCharacter } from '@/components/brand/brand-character'
 
 type CertificateRow = {
   id: string
@@ -149,9 +150,7 @@ export default function CertificateClaimPage() {
 
       <Card className="bg-card/80 border border-border overflow-hidden">
         <CardHeader className="space-y-3 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/20">
-            <Award className="h-8 w-8 text-primary" />
-          </div>
+          <BrandCharacter pose="celebrate" className="mx-auto" />
           <CardTitle className="text-2xl">Certificate claim</CardTitle>
           <CardDescription className="text-base">
             {courseTitle || 'Your course'}

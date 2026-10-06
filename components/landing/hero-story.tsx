@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { RigbuLive } from '@/components/brand/rigbu-live'
+import { BrandCharacter } from '@/components/brand/brand-character'
 import { defaultHeroSlides, type HeroSlide } from '@/lib/landing-content'
 
 const FALLBACK_TOPICS = ['Lessons', 'Practice', 'Certificates']
@@ -10,12 +10,10 @@ const CHIP_COLORS = ['#1e7a4c', '#e8b423', '#e25c14']
 export function HeroStory({
   topics,
   slides,
-  mascotUrl,
   siteName,
 }: {
   topics: string[]
   slides?: HeroSlide[]
-  mascotUrl?: string | null
   siteName: string
 }) {
   const deck = slides?.length ? slides : defaultHeroSlides()
@@ -54,14 +52,7 @@ export function HeroStory({
         }}
       />
       <div className="relative flex h-full flex-col items-center justify-start gap-4 px-5 pb-6 pt-8 sm:pt-10 md:flex-row md:items-center md:justify-center md:gap-12 md:px-[6%] md:pt-6">
-        <RigbuLive
-          src={mascotUrl}
-          className={
-            reduced
-              ? 'h-56 max-w-[78%] shrink-0 drop-shadow-2xl sm:h-72 md:h-80 lg:h-[24rem] xl:h-[28rem]'
-              : 'mascot-float h-56 max-w-[78%] shrink-0 drop-shadow-2xl sm:h-72 md:h-80 lg:h-[24rem] xl:h-[28rem]'
-          }
-        />
+        <BrandCharacter pose="hero" className="shrink-0" />
         <div key={`${index}-${slide.title}`} className="hero-slide-in w-full max-w-md md:w-[28rem]">
           {slide.kicker ? (
             <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#e8b423] sm:text-xs">

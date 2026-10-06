@@ -26,6 +26,7 @@ import {
   BarChart3,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { BrandCharacter } from '@/components/brand/brand-character'
 import type { Database } from '@/types/database.types'
 import { resolveMediaUrl } from '@/lib/media'
 
@@ -412,7 +413,7 @@ export function LearningDashboard() {
             {enrolledCourses.length === 0 ? (
               <Card className="bg-card/80 border border-border">
                 <CardContent className="p-12 text-center">
-                  <BookOpen className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                  <BrandCharacter pose="thinking" className="mx-auto mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No courses yet</h3>
                   <p className="text-muted-foreground mb-4">
                     Start your learning journey by enrolling in your first course

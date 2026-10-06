@@ -1,6 +1,7 @@
 'use client'
 
-import { Award, Download, ExternalLink, Loader2, PartyPopper } from 'lucide-react'
+import { Award, Download, ExternalLink, Loader2 } from 'lucide-react'
+import { BrandCharacter } from '@/components/brand/brand-character'
 import {
   Dialog,
   DialogContent,
@@ -37,9 +38,7 @@ export function CourseCompletionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg" showCloseButton>
         <DialogHeader className="items-center text-center sm:items-center">
-          <div className="mb-2 flex h-16 w-16 items-center justify-center rounded-full bg-primary/20">
-            <PartyPopper className="h-8 w-8 text-primary" aria-hidden />
-          </div>
+          <BrandCharacter pose="celebrate" className="mx-auto mb-2" />
           <DialogTitle className="text-xl sm:text-2xl">Congratulations!</DialogTitle>
           <DialogDescription className="text-center text-base">
             You have completed

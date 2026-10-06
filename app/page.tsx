@@ -436,7 +436,6 @@ export default async function Home({
           fallbackImage={heroFallbackImage}
           courseTopics={published.map((course) => course.title)}
           heroSlides={settings.hero_slides}
-          mascotUrl={resolveMediaUrl(settings.mascot_image_url) || null}
           siteNameForScene={siteName}
         />
 

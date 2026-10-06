@@ -334,7 +334,6 @@ export function LandingHero({
   fallbackImage,
   courseTopics = [],
   heroSlides,
-  mascotUrl,
   siteNameForScene,
 }: {
   siteName?: string
@@ -353,7 +352,6 @@ export function LandingHero({
   fallbackImage?: string | null
   courseTopics?: string[]
   heroSlides?: HeroSlide[]
-  mascotUrl?: string | null
   siteNameForScene?: string
 }) {
   const words = rotatingWords?.length ? rotatingWords : DEFAULT_HERO_ROTATING_WORDS
@@ -399,7 +397,6 @@ export function LandingHero({
             <HeroStory
               topics={courseTopics}
               slides={heroSlides}
-              mascotUrl={mascotUrl}
               siteName={siteNameForScene || siteName || 'Rigbu'}
             />
           )}

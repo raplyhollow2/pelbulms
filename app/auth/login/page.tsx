@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2, AlertCircle, Fingerprint, Home, Mail } from 'lucide-react'
 import { BrandLogo } from '@/components/brand/brand-logo'
+import { BrandCharacter } from '@/components/brand/brand-character'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -215,6 +216,7 @@ function LoginPage() {
       <SignedInPublicGuard />
       <div className="w-full max-w-md space-y-8">
         <div className="space-y-4 text-center">
+          <BrandCharacter pose="hello" className="mx-auto" />
           <BrandLogo
             href="/"
             size={36}
