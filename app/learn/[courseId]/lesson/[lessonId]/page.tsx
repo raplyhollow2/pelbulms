@@ -186,6 +186,31 @@ export default function LessonViewPage() {
   }, [courseId, lessonId])
 
   useEffect(() => {
+    let cancel = false
+    const pullLesson = async () => {
+      if (document.visibilityState === 'hidden') return
+      const { data, error } = await supabase
+        .from('lessons')
+        .select('id, content, resources, description, updated_at')
+        .eq('id', lessonId)
+        .maybeSingle()
+      if (cancel || error || !data || activeLessonIdRef.current !== lessonId) return
+      setLesson((current) => (current && current.id === data.id ? { ...current, ...data } : current))
+      setAllLessons((rows) => rows.map((row) => (row.id === data.id ? { ...row, ...data } : row)))
+    }
+    const onShow = () => {
+      if (document.visibilityState === 'visible') void pullLesson()
+    }
+    window.addEventListener('focus', onShow)
+    document.addEventListener('visibilitychange', onShow)
+    return () => {
+      cancel = true
+      window.removeEventListener('focus', onShow)
+      document.removeEventListener('visibilitychange', onShow)
+    }
+  }, [lessonId])
+
+  useEffect(() => {
     if (loading || !lesson) return
     const activityId = activityIdFromHash(window.location.hash)
     if (!activityId) return

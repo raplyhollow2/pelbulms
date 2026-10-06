@@ -69,6 +69,7 @@ export function LessonBlocks({
   onOpenLessonOptions?: () => void
   highlightItemKey?: string | null
 }) {
+  const removedBlockIds = useRef(new Set<string>())
   const blocks = parseLessonBlocks(content)
   if (blocks.length === 0) {
     if (editable && (onAddBlock || onInsert || onAskRigbu || onOpenLessonOptions)) {
@@ -136,6 +137,7 @@ export function LessonBlocks({
                   size="icon-sm"
                   aria-label="Move up"
                   disabled={index === 0}
+                  onMouseDown={(event) => event.preventDefault()}
                   onClick={() => move(index, -1)}
                 >
                   <ChevronUp />
@@ -146,6 +148,7 @@ export function LessonBlocks({
                   size="icon-sm"
                   aria-label="Move down"
                   disabled={index === blocks.length - 1}
+                  onMouseDown={(event) => event.preventDefault()}
                   onClick={() => move(index, 1)}
                 >
                   <ChevronDown />
@@ -155,6 +158,7 @@ export function LessonBlocks({
                   variant="ghost"
                   size="icon-sm"
                   aria-label="Duplicate"
+                  onMouseDown={(event) => event.preventDefault()}
                   onClick={() => duplicate(index)}
                 >
                   <Copy />
@@ -165,7 +169,12 @@ export function LessonBlocks({
                   size="icon-sm"
                   aria-label="Remove"
                   className="text-destructive"
-                  onClick={() => update((current) => current.filter((_, i) => i !== index))}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    const id = block.id
+                    if (id) removedBlockIds.current.add(id)
+                    update((current) => current.filter((item) => item.id !== id))
+                  }}
                 >
                   <Trash2 />
                 </Button>
@@ -180,6 +189,7 @@ export function LessonBlocks({
             editable={editable}
             onOpenLessonOptions={onOpenLessonOptions}
             onBlockChange={(next) => {
+              if (removedBlockIds.current.has(next.id)) return
               update((current) =>
                 current.map((item) => (item.id === next.id ? mergeLessonBlock(item, next) : item))
               )

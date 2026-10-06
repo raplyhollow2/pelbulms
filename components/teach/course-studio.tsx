@@ -128,7 +128,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   const [lessonId, setLessonId] = useState<string | null>(null)
   const [blocks, setBlocks] = useState<LessonBlock[]>([])
   const [mobileTab, setMobileTab] = useState<'outline' | 'page' | 'ai'>('page')
-  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [publishing, setPublishing] = useState(false)
   const [publishWarn, setPublishWarn] = useState(false)
   const [unpublishConfirm, setUnpublishConfirm] = useState(false)
@@ -139,6 +139,12 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   const [denied, setDenied] = useState(false)
   const [outlineError, setOutlineError] = useState('')
   const detailToken = useRef(0)
+  const blocksRef = useRef<LessonBlock[]>([])
+  const lessonIdRef = useRef<string | null>(lessonId)
+  const saveQueue = useRef(Promise.resolve())
+  const contentRevision = useRef(0)
+  const resourceRevision = useRef(0)
+  lessonIdRef.current = lessonId
   const outlineOpen = useSyncExternalStore(subscribeOutline, readOutlineOpen, getServerOutlineOpen)
   const titleRef = useRef<HTMLInputElement>(null)
   const focusTitle = useRef(false)
@@ -149,6 +155,8 @@ export function CourseStudio({ courseId }: { courseId: string }) {
 
   const hydrateLesson = async (id: string) => {
     const token = ++detailToken.current
+    await saveQueue.current.catch(() => undefined)
+    if (token !== detailToken.current) return
     const { data, error } = await (supabase as any)
       .from('lessons')
       .select('description, content, resources')
@@ -156,8 +164,12 @@ export function CourseStudio({ courseId }: { courseId: string }) {
       .maybeSingle()
     if (token !== detailToken.current) return
     if (error || !data) return
+    const parsed = parseLessonBlocks(data.content)
     setLessons((rows) => rows.map((row) => (row.id === id ? { ...row, ...data } : row)))
-    setBlocks(parseLessonBlocks(data.content))
+    if (lessonIdRef.current === id) {
+      blocksRef.current = parsed
+      setBlocks(parsed)
+    }
   }
 
   const load = async () => {
@@ -205,6 +217,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
       activeId = prev && lessonRows.some((row) => row.id === prev) ? prev : first || null
       return activeId
     })
+    blocksRef.current = []
     setBlocks([])
     setLoading(false)
     if (activeId) void hydrateLesson(activeId)
@@ -263,16 +276,13 @@ export function CourseStudio({ courseId }: { courseId: string }) {
     })
   }
 
-  const blocksRef = useRef<LessonBlock[]>([])
-  const lessonIdRef = useRef(lessonId)
-  const saveQueue = useRef(Promise.resolve())
-  blocksRef.current = blocks
-  lessonIdRef.current = lessonId
-
   const saveBlocks = (nextOrUpdater: LessonBlock[] | ((current: LessonBlock[]) => LessonBlock[])) => {
     const id = lessonIdRef.current
     if (!id) return
     const next = typeof nextOrUpdater === 'function' ? nextOrUpdater(blocksRef.current) : nextOrUpdater
+    if (JSON.stringify(next) === JSON.stringify(blocksRef.current)) return
+    const revision = ++contentRevision.current
+    detailToken.current += 1
     blocksRef.current = next
     setBlocks(next)
     setLessons((rows) => rows.map((row) => (row.id === id ? { ...row, content: next } : row)))
@@ -280,24 +290,39 @@ export function CourseStudio({ courseId }: { courseId: string }) {
     saveQueue.current = saveQueue.current
       .catch(() => undefined)
       .then(async () => {
+        if (revision !== contentRevision.current) return
         setSaveState('saving')
-        await (supabase as any)
+        const { data, error } = await (supabase as any)
           .from('lessons')
           .update({ content: snapshot, updated_at: new Date().toISOString() })
           .eq('id', id)
+          .select('id')
+        if (revision !== contentRevision.current) return
+        if (error || !data?.length) {
+          setSaveState('error')
+          return
+        }
         setSaveState('saved')
       })
   }
 
   const saveResources = async (next: unknown) => {
-    const id = lessonId
+    const id = lessonIdRef.current
     if (!id) return
+    const revision = ++resourceRevision.current
+    detailToken.current += 1
     setLessons((rows) => rows.map((row) => (row.id === id ? { ...row, resources: next } : row)))
     setSaveState('saving')
-    await (supabase as any)
+    const { data, error } = await (supabase as any)
       .from('lessons')
       .update({ resources: next, updated_at: new Date().toISOString() })
       .eq('id', id)
+      .select('id')
+    if (revision !== resourceRevision.current) return
+    if (error || !data?.length) {
+      setSaveState('error')
+      return
+    }
     setSaveState('saved')
   }
 
@@ -429,6 +454,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
     if (data) {
       setLessons((rows) => [...rows, data])
       setLessonId(data.id)
+      blocksRef.current = []
       setBlocks([])
       setMobileTab('page')
     }
@@ -498,6 +524,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
       if (fallback) selectLesson(fallback, nextRows)
       else {
         setLessonId(null)
+        blocksRef.current = []
         setBlocks([])
       }
     }
@@ -509,9 +536,12 @@ export function CourseStudio({ courseId }: { courseId: string }) {
     const row = source.find((item) => item.id === id)
     if (row && row.content !== undefined) {
       detailToken.current += 1
-      setBlocks(parseLessonBlocks(row.content))
+      const parsed = parseLessonBlocks(row.content)
+      blocksRef.current = parsed
+      setBlocks(parsed)
       return
     }
+    blocksRef.current = []
     setBlocks([])
     void hydrateLesson(id)
   }
@@ -768,7 +798,9 @@ export function CourseStudio({ courseId }: { courseId: string }) {
         )}
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 pt-1">
           {saveState !== 'idle' && (
-            <p className="text-xs text-muted-foreground">{saveState === 'saving' ? 'Saving…' : 'Saved'}</p>
+            <p className={`text-xs ${saveState === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}>
+              {saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Could not save' : 'Saved'}
+            </p>
           )}
         </div>
       </div>
