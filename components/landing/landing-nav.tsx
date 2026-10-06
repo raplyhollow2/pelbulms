@@ -6,19 +6,15 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { LogIn, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { RigbuLive } from '@/components/brand/rigbu-live'
+import { BrandLogo } from '@/components/brand/brand-logo'
 import type { LandingCourse } from '@/components/landing/landing-catalog'
 
 export function LandingNav({
-  siteName,
   courses,
   glassOpacity = 70,
-  mascotUrl,
 }: {
-  siteName: string
   courses: LandingCourse[]
   glassOpacity?: number
-  mascotUrl?: string | null
 }) {
   const router = useRouter()
   const rootRef = useRef<HTMLElement>(null)
@@ -87,13 +83,8 @@ export function LandingNav({
         className="pointer-events-none absolute inset-0 border-b border-border shadow-sm backdrop-blur-xl"
         style={{ backgroundColor: `color-mix(in oklch, var(--background) ${Math.round(veil * 100)}%, transparent)` }}
       />
-      <Link href="/" aria-label={siteName} className="absolute left-3 top-0 z-20 h-full border-0 outline-none ring-0 sm:left-4">
-        <RigbuLive src={mascotUrl} />
-      </Link>
-      <div className="relative z-10 mx-auto flex w-full max-w-6xl items-center gap-2 overflow-visible py-2.5 pl-[4.6rem] pr-4 sm:gap-3 sm:py-2.5 sm:pl-[5.1rem] sm:pr-5">
-        <Link href="/" className="hidden min-w-0 shrink-0 truncate text-base font-semibold tracking-tight sm:inline">
-          {siteName}
-        </Link>
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl items-center gap-2 overflow-visible px-4 py-2.5 sm:gap-3 sm:px-5">
+        <BrandLogo href="/" size={36} className="shrink-0" />
 
         {categories.length > 0 && (
           <Button

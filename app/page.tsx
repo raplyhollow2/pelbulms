@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
-import { Rigbu } from '@/components/brand/rigbu'
+import { BrandLogo } from '@/components/brand/brand-logo'
 import { SignedInPublicGuard } from '@/components/auth/signed-in-public-guard'
 import { LandingFaq } from '@/components/landing/landing-faq'
 import { LandingHero } from '@/components/landing/landing-hero'
@@ -416,10 +416,8 @@ export default async function Home({
 
       <main className="min-w-0 overflow-visible">
         <LandingNav
-          siteName={siteName}
           courses={published}
           glassOpacity={settings.hero_glass_opacity}
-          mascotUrl={resolveMediaUrl(settings.mascot_image_url) || null}
         />
         <LandingHero
           siteName={siteName}
@@ -491,7 +489,7 @@ export default async function Home({
       <footer>
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-8 text-sm text-muted-foreground sm:flex-row">
           <p className="flex items-center gap-2">
-            <Rigbu className="h-8 w-8" />
+            <BrandLogo href="/" size={32} />
             <span>© {new Date().getFullYear()} {siteName} · Empowering education in Bhutan.</span>
           </p>
           <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">

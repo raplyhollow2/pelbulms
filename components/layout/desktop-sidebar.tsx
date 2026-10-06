@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
-  BookOpen,
   ChevronLeft, ChevronRight, LogOut, Search,
   type LucideIcon,
 } from 'lucide-react'
+import { BrandLogo } from '@/components/brand/brand-logo'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -43,7 +43,7 @@ interface NavItem {
 
 const STORAGE_KEY = 'rigbu:sidebar-collapsed'
 
-export function DesktopSidebar({ user, siteName = 'Rigbu LMS', profile: profileHint = null }: DesktopSidebarProps) {
+export function DesktopSidebar({ user, profile: profileHint = null }: DesktopSidebarProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [collapsed, setCollapsed] = useState(false)
@@ -240,18 +240,9 @@ export function DesktopSidebar({ user, siteName = 'Rigbu LMS', profile: profileH
         {/* Logo & Collapse Button */}
         <div className="flex h-16 shrink-0 items-center gap-3 border-b border-border/40 px-4">
           {!collapsed ? (
-            <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15">
-                <BookOpen className="h-5 w-5 text-primary" />
-              </div>
-              <span className="truncate text-foreground text-base font-bold">
-                {siteName}
-              </span>
-            </Link>
+            <BrandLogo href="/dashboard" size={32} className="min-w-0" />
           ) : (
-            <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15">
-              <BookOpen className="h-5 w-5 text-primary" />
-            </div>
+            <BrandLogo href="/dashboard" variant="mark" size={32} className="mx-auto" />
           )}
           <Button
             variant="ghost"

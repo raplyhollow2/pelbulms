@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BookOpen, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
+import { BrandLogo } from '@/components/brand/brand-logo'
 import { Button } from '@/components/ui/button'
 import { DesktopSidebar } from './desktop-sidebar'
 import { MobileNavigation } from './mobile-navigation'
@@ -21,7 +21,7 @@ interface ResponsiveLayoutProps {
   } | null
 }
 
-export function ResponsiveLayout({ children, user, siteName = 'Rigbu LMS', profile = null }: ResponsiveLayoutProps) {
+export function ResponsiveLayout({ children, user, profile = null }: ResponsiveLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const pathname = usePathname()
   const isLearnPlayer = /^\/learn\/[^/]+\/lesson\//.test(pathname || '')
@@ -53,7 +53,7 @@ export function ResponsiveLayout({ children, user, siteName = 'Rigbu LMS', profi
   return (
     <div className="relative min-h-dvh overflow-x-clip bg-background">
       <div className="hidden md:block">
-        <DesktopSidebar user={user} siteName={siteName} profile={profile} />
+        <DesktopSidebar user={user} profile={profile} />
       </div>
 
       <main
@@ -63,15 +63,7 @@ export function ResponsiveLayout({ children, user, siteName = 'Rigbu LMS', profi
       >
         <header className="sticky top-0 z-40 flex shrink-0 items-center gap-2 border-b border-border/40 bg-background/85 px-3 py-2 backdrop-blur-xl safe-area-top sm:gap-3 sm:px-5 md:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-2 md:hidden">
-            <Link
-              href="/dashboard"
-              className="flex min-w-0 items-center gap-2 rounded-lg px-1 py-1"
-            >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/15">
-                <BookOpen className="h-4 w-4 text-primary" />
-              </span>
-              <span className="truncate text-sm font-semibold tracking-tight">{siteName}</span>
-            </Link>
+            <BrandLogo href="/dashboard" size={32} className="rounded-lg px-1 py-1" />
           </div>
 
           {/* Desktop page chrome (catalog toolbar, etc.) mounts here */}

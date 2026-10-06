@@ -3,7 +3,8 @@
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { BookOpen, Loader2, AlertCircle, Fingerprint, Home, Mail } from 'lucide-react'
+import { Loader2, AlertCircle, Fingerprint, Home, Mail } from 'lucide-react'
+import { BrandLogo } from '@/components/brand/brand-logo'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -214,15 +215,11 @@ function LoginPage() {
       <SignedInPublicGuard />
       <div className="w-full max-w-md space-y-8">
         <div className="space-y-4 text-center">
-          <Link
+          <BrandLogo
             href="/"
-            className="bg-card border border-border shadow-sm inline-flex items-center gap-3 rounded-full px-6 py-3 transition-opacity hover:opacity-90"
-          >
-            <BookOpen className="h-8 w-8 text-primary" />
-            <span className="text-foreground text-2xl font-bold">
-              {siteName}
-            </span>
-          </Link>
+            size={36}
+            className="rounded-full border border-border bg-card px-6 py-3 shadow-sm transition-opacity hover:opacity-90"
+          />
           <h1 className="text-3xl font-bold">Welcome to {siteName}</h1>
           <p className="text-muted-foreground">
             Sign in with Google, or use your email and password

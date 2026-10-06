@@ -5,7 +5,8 @@ import { useParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Award, CheckCircle, XCircle, Loader2, Download, Calendar, BookOpen } from 'lucide-react'
+import { CheckCircle, XCircle, Loader2, Download, Calendar, BookOpen } from 'lucide-react'
+import { BrandLogo } from '@/components/brand/brand-logo'
 
 interface VerifyResult {
   valid: boolean
@@ -46,11 +47,10 @@ export default function VerifyCertificatePage() {
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4 py-12">
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
-            <Award className="h-6 w-6 text-primary" />
+          <div className="mb-3 flex justify-center">
+            <BrandLogo href="/" size={40} />
           </div>
           <CardTitle>Certificate Verification</CardTitle>
-          <p className="text-sm text-muted-foreground">Rigbu LMS</p>
         </CardHeader>
         <CardContent>
           {loading ? (

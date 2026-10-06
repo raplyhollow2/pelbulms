@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { BrandLogo } from '@/components/brand/brand-logo'
 import {
-  BookOpen,
   Loader2,
   AlertCircle,
   Upload,
@@ -446,11 +446,12 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-white px-4 py-6 pb-[calc(2rem+env(safe-area-inset-bottom))] dark:from-gray-900 dark:via-gray-900 dark:to-black">
       <div className="mx-auto w-full max-w-lg space-y-5">
         <div className="text-center">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-card border border-border shadow-sm px-5 py-2">
-            <BookOpen className="h-6 w-6 text-primary" />
-            <span className="text-foreground text-lg font-bold">
-              {siteName}
-            </span>
+          <div className="mb-3">
+            <BrandLogo
+              href="/"
+              size={32}
+              className="rounded-full border border-border bg-card px-5 py-2 shadow-sm"
+            />
           </div>
           <h1 className="text-2xl font-bold">
             {policy.require_identity_documents ? 'Verify your identity' : 'Complete your profile'}

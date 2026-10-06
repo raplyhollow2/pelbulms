@@ -316,6 +316,22 @@ html.video-landscape-lock [data-landscape-fallback] {
   animation: lesson-carousel-prev 420ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .brand-mark-pulse {
+    animation: brand-mark-pulse 2.4s ease-in-out infinite;
+  }
+}
+
+@keyframes brand-mark-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
 .rigbu-bob {
   transform-box: fill-box;
   transform-origin: center bottom;
