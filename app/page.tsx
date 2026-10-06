@@ -82,13 +82,20 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName,
       title: `${siteName} — Bhutan’s Private Learning Platform`,
       description,
-      images: [{ url: '/icon.svg', width: 512, height: 512, alt: siteName }],
+      images: [
+        {
+          url: '/brand/rigbu-character-on-light-1024.png',
+          width: 1024,
+          height: 1024,
+          alt: siteName,
+        },
+      ],
     },
     twitter: {
       card: 'summary_large_image',
       title: `${siteName} — Bhutan’s Private Learning Platform`,
       description,
-      images: ['/icon.svg'],
+      images: ['/brand/rigbu-character-on-light-1024.png'],
     },
     robots: {
       index: true,
@@ -109,7 +116,7 @@ function jsonLd(siteName: string, description: string, faq: LandingFaqItem[]) {
         url: SITE_URL,
         description,
         areaServed: { '@type': 'Country', name: 'Bhutan' },
-        logo: `${SITE_URL}/icon.svg`,
+        logo: `${SITE_URL}/brand/rigbu-mark-on-light-512.png`,
       },
       {
         '@type': 'WebSite',

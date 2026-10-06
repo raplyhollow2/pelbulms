@@ -88,7 +88,7 @@ export function LearningTools({ courseId, lessonId, userId }: LearningToolsProps
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('Pomodoro Timer Complete!', {
         body: pomodoroMode === 'focus' ? 'Time for a break!' : 'Ready to focus again?',
-        icon: '/favicon.ico'
+        icon: '/favicon-32x32.png'
       })
     }
 

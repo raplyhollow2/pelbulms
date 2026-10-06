@@ -46,7 +46,9 @@ export async function generateMetadata({
   const description =
     courseDescriptionPlain(data.description).slice(0, 200) || 'View this course on Rigbu LMS.'
   const url = `${SITE_URL}/courses/${id}`
-  const image = (await publicThumbnail(data.thumbnail_url)) || `${SITE_URL}/icon.svg`
+  const image =
+    (await publicThumbnail(data.thumbnail_url)) ||
+    `${SITE_URL}/brand/rigbu-character-on-light-1024.png`
 
   return {
     metadataBase: new URL(SITE_URL),

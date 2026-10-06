@@ -22,6 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
     'Empowering education in Bhutan with modern learning management'
 
   return {
+    metadataBase: new URL("https://www.rigbu.app"),
     title: {
       default: `${siteName} - Advanced Learning Platform`,
       template: `%s · ${siteName}`,
@@ -31,11 +32,21 @@ export async function generateMetadata(): Promise<Metadata> {
     manifest: "/manifest.json",
     icons: {
       icon: [
-        { url: "/icon.svg", type: "image/svg+xml" },
-        { url: "/icon.svg", sizes: "any" },
+        { url: "/favicon.svg", type: "image/svg+xml" },
+        { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+        { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       ],
-      shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
-      apple: [{ url: "/apple-icon" }],
+      apple: "/apple-touch-icon.png",
+    },
+    openGraph: {
+      images: [
+        {
+          url: "/brand/rigbu-character-on-light-1024.png",
+          width: 1024,
+          height: 1024,
+          alt: "Rigbu",
+        },
+      ],
     },
     appleWebApp: {
       capable: true,
@@ -48,10 +59,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
-  ],
+  themeColor: "#1B2433",
 }
 
 export default function RootLayout({
