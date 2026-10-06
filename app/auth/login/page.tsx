@@ -50,6 +50,7 @@ function LoginPage() {
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [siteName, setSiteName] = useState('Rigbu LMS')
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [emailMode, setEmailMode] = useState<EmailMode>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -77,6 +78,7 @@ function LoginPage() {
         if (typeof data.site_name === 'string' && data.site_name.trim()) {
           setSiteName(data.site_name.trim())
         }
+        setLogoUrl(typeof data.logo_url === 'string' && data.logo_url.trim() ? data.logo_url.trim() : null)
       })
       .catch(() => {})
     return () => {
@@ -219,6 +221,7 @@ function LoginPage() {
           <BrandCharacter pose="hello" className="mx-auto" />
           <BrandLogo
             href="/"
+            src={logoUrl}
             size={36}
             className="rounded-full border border-border bg-card px-6 py-3 shadow-sm transition-opacity hover:opacity-90"
           />

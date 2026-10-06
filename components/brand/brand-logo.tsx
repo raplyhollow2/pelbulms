@@ -19,6 +19,8 @@ type BrandLogoProps = {
   size?: number
   href?: string
   className?: string
+  /** Uploaded LMS logo. When set, replaces the built-in mark. */
+  src?: string | null
 }
 
 function MarkImage({
@@ -52,21 +54,40 @@ function Mark({ theme, size }: { theme: 'light' | 'dark' | 'auto'; size: number 
   )
 }
 
+function CustomMark({ src, size }: { src: string; size: number }) {
+  return (
+    <img
+      src={src}
+      alt="Rigbu"
+      width={size}
+      height={size}
+      className="block shrink-0 object-contain"
+      style={{ width: size, height: size }}
+    />
+  )
+}
+
 export function BrandLogo({
   variant = 'full',
   theme = 'auto',
   size = 32,
   href,
   className,
+  src,
 }: BrandLogoProps) {
   const wordmarkColor = theme === 'dark' ? '#FAF7F2' : theme === 'light' ? '#1B2433' : undefined
+  const customSrc = src?.trim() || ''
 
   const logo = (
     <span
       className={cn('inline-flex items-center', className)}
       style={{ gap: variant === 'full' ? size * 0.3 : undefined }}
     >
-      <Mark theme={theme} size={size} />
+      {customSrc ? (
+        <CustomMark src={customSrc} size={size} />
+      ) : (
+        <Mark theme={theme} size={size} />
+      )}
       {variant === 'full' ? (
         <span
           aria-hidden
@@ -82,7 +103,7 @@ export function BrandLogo({
             color: wordmarkColor,
           }}
         >
-          rigbu
+          Rigbu
         </span>
       ) : null}
     </span>

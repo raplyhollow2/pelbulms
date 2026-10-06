@@ -41,7 +41,7 @@ function bustPublicSiteCache() {
   revalidatePath('/api/public/site')
 }
 
-const SITE_FIELDS = ['site_name', 'tagline', 'support_email', 'maintenance_mode'] as const
+const SITE_FIELDS = ['site_name', 'tagline', 'support_email', 'maintenance_mode', 'logo_url'] as const
 const REGISTRATION_FIELDS = [
   'require_identity_documents',
   'require_cid',
@@ -128,6 +128,7 @@ const BOOLEAN_KEYS = [
 
 const STRING_KEYS = [
   'site_name',
+  'logo_url',
   'tagline',
   'support_email',
   'landing_headline',
@@ -201,6 +202,9 @@ export async function PATCH(request: NextRequest) {
     const value = body[key].trim()
     if (key === 'site_name' && !value) {
       return NextResponse.json({ error: 'Site name cannot be empty' }, { status: 400 })
+    }
+    if (key === 'logo_url' && value.length > 2000) {
+      return NextResponse.json({ error: 'Logo URL is too long' }, { status: 400 })
     }
     updates[key] = value || null
   }

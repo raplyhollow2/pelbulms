@@ -165,6 +165,7 @@ export default function RegisterPage() {
   const [institutions, setInstitutions] = useState<Institution[]>([])
   const [policy, setPolicy] = useState<RegistrationPolicy>(DEFAULT_POLICY)
   const [siteName, setSiteName] = useState('Rigbu LMS')
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [tosAccepted, setTosAccepted] = useState(false)
 
   const [form, setForm] = useState({
@@ -209,6 +210,9 @@ export default function RegisterPage() {
         setInstitutions(data.institutions || [])
         if (data.policy) setPolicy({ ...DEFAULT_POLICY, ...data.policy })
         if (data.site_name) setSiteName(data.site_name)
+        if (typeof data.logo_url === 'string' && data.logo_url.trim()) {
+          setLogoUrl(data.logo_url.trim())
+        }
         setForm((f) => ({
           ...f,
           full_name: data.user?.full_name || '',
@@ -449,6 +453,7 @@ export default function RegisterPage() {
           <div className="mb-3">
             <BrandLogo
               href="/"
+              src={logoUrl}
               size={32}
               className="rounded-full border border-border bg-card px-5 py-2 shadow-sm"
             />

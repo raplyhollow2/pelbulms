@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
+import { BrandLogo } from '@/components/brand/brand-logo'
 import { ResponsiveLayout } from '@/components/layout/responsive-layout'
 import { PresenceTracker } from '@/components/presence/presence-tracker'
 import { createClient } from '@/lib/supabase/client'
@@ -28,12 +29,16 @@ export function AuthShell({
   } | null>(null)
   const [loading, setLoading] = useState(true)
   const [siteName, setSiteName] = useState('Rigbu LMS')
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [maintenance, setMaintenance] = useState<{ siteName: string } | null>(null)
 
   useEffect(() => {
     const onIdentity = (event: Event) => {
-      const name = (event as CustomEvent<{ siteName?: string }>).detail?.siteName
-      if (typeof name === 'string' && name.trim()) setSiteName(name.trim())
+      const detail = (event as CustomEvent<{ siteName?: string; logoUrl?: string | null }>).detail
+      if (typeof detail?.siteName === 'string' && detail.siteName.trim()) setSiteName(detail.siteName.trim())
+      if (detail && 'logoUrl' in detail) {
+        setLogoUrl(typeof detail.logoUrl === 'string' && detail.logoUrl.trim() ? detail.logoUrl.trim() : null)
+      }
     }
     window.addEventListener('rigbu:platform-identity', onIdentity)
     return () => window.removeEventListener('rigbu:platform-identity', onIdentity)
@@ -57,7 +62,7 @@ export function AuthShell({
         const [{ data: settings }, { data: profile }] = await Promise.all([
           supabase
             .from('platform_settings' as any)
-            .select('maintenance_mode, site_name')
+            .select('maintenance_mode, site_name, logo_url')
             .eq('id', 'default')
             .maybeSingle(),
           supabase
@@ -71,11 +76,16 @@ export function AuthShell({
           typeof (settings as any)?.site_name === 'string' && (settings as any).site_name.trim()
             ? (settings as any).site_name.trim()
             : 'Rigbu LMS'
+        const resolvedLogo =
+          typeof (settings as any)?.logo_url === 'string' && (settings as any).logo_url.trim()
+            ? (settings as any).logo_url.trim()
+            : null
         const role = (profile as { role?: string } | null)?.role
         const staff = role === 'admin' || role === 'superadmin'
         if ((settings as any)?.maintenance_mode && !staff) {
           if (mounted) {
             setSiteName(resolvedName)
+            setLogoUrl(resolvedLogo)
             setMaintenance({ siteName: resolvedName })
             setUser(session.user)
           }
@@ -84,6 +94,7 @@ export function AuthShell({
 
         if (mounted) {
           setSiteName(resolvedName)
+          setLogoUrl(resolvedLogo)
           setUser(session.user)
           setProfile((profile as { role?: string | null; full_name?: string | null; avatar_url?: string | null } | null) || null)
         }
@@ -118,6 +129,9 @@ export function AuthShell({
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-6">
         <div className="max-w-md text-center">
+          <div className="mb-4 flex justify-center">
+            <BrandLogo src={logoUrl} size={40} />
+          </div>
           <p className="text-sm font-semibold uppercase tracking-widest text-primary">
             {maintenance.siteName}
           </p>
@@ -131,7 +145,7 @@ export function AuthShell({
   }
 
   return (
-    <ResponsiveLayout user={user} siteName={siteName} profile={profile}>
+    <ResponsiveLayout user={user} siteName={siteName} logoUrl={logoUrl} profile={profile}>
       <PresenceTracker />
       {children}
     </ResponsiveLayout>

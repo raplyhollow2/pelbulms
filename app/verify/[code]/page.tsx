@@ -24,9 +24,19 @@ export default function VerifyCertificatePage() {
 
   const [loading, setLoading] = useState(true)
   const [result, setResult] = useState<VerifyResult | null>(null)
+  const [logoUrl, setLogoUrl] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
+    fetch('/api/public/site')
+      .then((r) => r.json())
+      .then((data) => {
+        if (!active) return
+        setLogoUrl(typeof data.logo_url === 'string' && data.logo_url.trim() ? data.logo_url.trim() : null)
+      })
+      .catch(() => {
+        if (active) setLogoUrl(null)
+      })
     fetch(`/api/verify/${encodeURIComponent(code)}`)
       .then((r) => r.json())
       .then((data) => {
@@ -48,7 +58,7 @@ export default function VerifyCertificatePage() {
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
           <div className="mb-3 flex justify-center">
-            <BrandLogo href="/" size={40} />
+            <BrandLogo href="/" src={logoUrl} size={40} />
           </div>
           <CardTitle>Certificate Verification</CardTitle>
         </CardHeader>

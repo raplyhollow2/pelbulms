@@ -26,7 +26,7 @@ export type DirectImageUploadResult = {
 }
 
 const ALLOWED_VIDEO = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime']
-const ALLOWED_IMAGE = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']
+const ALLOWED_IMAGE = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/svg+xml']
 
 async function signAndUpload(
   file: File,
@@ -139,8 +139,9 @@ export async function uploadImageDirectToCloudinary(
     onProgress?: DirectUploadProgress
   }
 ): Promise<DirectImageUploadResult> {
-  if (!ALLOWED_IMAGE.includes(file.type)) {
-    throw new Error('Unsupported image type. Use JPG, PNG, WEBP, AVIF or GIF.')
+  const svgByName = file.type === '' && /\.svg$/i.test(file.name)
+  if (!ALLOWED_IMAGE.includes(file.type) && !svgByName) {
+    throw new Error('Unsupported image type. Use JPG, PNG, WEBP, AVIF, GIF or SVG.')
   }
   if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
     throw new Error(`File too large. Maximum size is ${MAX_IMAGE_UPLOAD_LABEL}.`)

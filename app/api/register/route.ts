@@ -78,6 +78,7 @@ export async function GET(request: Request) {
     account_status: profile?.account_status || 'pending',
     policy,
     site_name: settings.site_name,
+    logo_url: settings.logo_url,
   })
 }
 

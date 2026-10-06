@@ -28,6 +28,7 @@ import { coerceUserRole, ROLE_LABELS } from '@/lib/roles'
 interface DesktopSidebarProps {
   user?: any
   siteName?: string
+  logoUrl?: string | null
   profile?: {
     role?: string | null
     full_name?: string | null
@@ -43,7 +44,7 @@ interface NavItem {
 
 const STORAGE_KEY = 'rigbu:sidebar-collapsed'
 
-export function DesktopSidebar({ user, profile: profileHint = null }: DesktopSidebarProps) {
+export function DesktopSidebar({ user, logoUrl = null, profile: profileHint = null }: DesktopSidebarProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [collapsed, setCollapsed] = useState(false)
@@ -240,9 +241,9 @@ export function DesktopSidebar({ user, profile: profileHint = null }: DesktopSid
         {/* Logo & Collapse Button */}
         <div className="flex h-16 shrink-0 items-center gap-3 border-b border-border/40 px-4">
           {!collapsed ? (
-            <BrandLogo href="/dashboard" size={32} className="min-w-0" />
+            <BrandLogo href="/dashboard" src={logoUrl} size={32} className="min-w-0" />
           ) : (
-            <BrandLogo href="/dashboard" variant="mark" size={32} className="mx-auto" />
+            <BrandLogo href="/dashboard" src={logoUrl} variant="mark" size={32} className="mx-auto" />
           )}
           <Button
             variant="ghost"

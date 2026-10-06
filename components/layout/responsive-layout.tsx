@@ -14,6 +14,7 @@ interface ResponsiveLayoutProps {
   children: React.ReactNode
   user?: any
   siteName?: string
+  logoUrl?: string | null
   profile?: {
     role?: string | null
     full_name?: string | null
@@ -21,7 +22,7 @@ interface ResponsiveLayoutProps {
   } | null
 }
 
-export function ResponsiveLayout({ children, user, profile = null }: ResponsiveLayoutProps) {
+export function ResponsiveLayout({ children, user, logoUrl = null, profile = null }: ResponsiveLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const pathname = usePathname()
   const isLearnPlayer = /^\/learn\/[^/]+\/lesson\//.test(pathname || '')
@@ -53,7 +54,7 @@ export function ResponsiveLayout({ children, user, profile = null }: ResponsiveL
   return (
     <div className="relative min-h-dvh overflow-x-clip bg-background">
       <div className="hidden md:block">
-        <DesktopSidebar user={user} profile={profile} />
+        <DesktopSidebar user={user} logoUrl={logoUrl} profile={profile} />
       </div>
 
       <main
@@ -63,7 +64,7 @@ export function ResponsiveLayout({ children, user, profile = null }: ResponsiveL
       >
         <header className="sticky top-0 z-40 flex shrink-0 items-center gap-2 border-b border-border/40 bg-background/85 px-3 py-2 backdrop-blur-xl safe-area-top sm:gap-3 sm:px-5 md:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-2 md:hidden">
-            <BrandLogo href="/dashboard" size={32} className="rounded-lg px-1 py-1" />
+            <BrandLogo href="/dashboard" src={logoUrl} size={32} className="rounded-lg px-1 py-1" />
           </div>
 
           {/* Desktop page chrome (catalog toolbar, etc.) mounts here */}

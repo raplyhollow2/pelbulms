@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -11,6 +11,8 @@ import type { PlatformSettings } from '@/lib/platform-settings'
 import { SuperadminGate } from '@/components/admin/superadmin-gate'
 import { useCapabilities } from '@/components/auth/capabilities-provider'
 import { CAP } from '@/lib/capability-keys'
+import { BrandLogo } from '@/components/brand/brand-logo'
+import { uploadImageDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
 
 function AdminSiteSettingsPage() {
   const { has } = useCapabilities()
@@ -19,10 +21,12 @@ function AdminSiteSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
     site_name: 'Rigbu LMS',
+    logo_url: '',
     tagline: '',
     support_email: '',
     maintenance_mode: false,
   })
+  const [uploadingLogo, setUploadingLogo] = useState(false)
 
   useEffect(() => {
     ;(async () => {
@@ -33,6 +37,7 @@ function AdminSiteSettingsPage() {
         const s = data.settings as PlatformSettings
         setForm({
           site_name: s.site_name || 'Rigbu LMS',
+          logo_url: s.logo_url || '',
           tagline: s.tagline || '',
           support_email: s.support_email || '',
           maintenance_mode: !!s.maintenance_mode,
@@ -53,6 +58,7 @@ function AdminSiteSettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           site_name: form.site_name,
+          logo_url: form.logo_url.trim() || null,
           tagline: form.tagline || null,
           support_email: form.support_email || null,
           maintenance_mode: form.maintenance_mode,
@@ -61,11 +67,15 @@ function AdminSiteSettingsPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Save failed')
       const savedName = data.settings?.site_name
-      if (typeof savedName === 'string' && savedName.trim()) {
-        window.dispatchEvent(
-          new CustomEvent('rigbu:platform-identity', { detail: { siteName: savedName.trim() } })
-        )
-      }
+      const savedLogo = typeof data.settings?.logo_url === 'string' ? data.settings.logo_url.trim() : ''
+      window.dispatchEvent(
+        new CustomEvent('rigbu:platform-identity', {
+          detail: {
+            siteName: typeof savedName === 'string' ? savedName.trim() : '',
+            logoUrl: savedLogo || null,
+          },
+        })
+      )
       toast.success('Site settings saved')
     } catch (e: any) {
       toast.error(e.message || 'Save failed')
@@ -88,7 +98,57 @@ function AdminSiteSettingsPage() {
         <div>
           <h2 className="text-sm font-semibold">Platform identity</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Name and support contact shown across the LMS and landing page.
+            Name and support contact shown across the LMS and landing page. The logo appears in the app, on sign-in, and in the browser tab.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label>Logo</Label>
+          <div className="flex items-center gap-3">
+            <div className="flex h-16 items-center justify-center rounded-lg border border-border/60 bg-muted/40 px-3">
+              <BrandLogo src={form.logo_url || null} variant="full" size={40} />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <label className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium">
+                {uploadingLogo ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                {form.logo_url ? 'Replace' : 'Add'}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/avif,image/svg+xml,.svg"
+                  className="sr-only"
+                  disabled={uploadingLogo || !canEdit}
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0]
+                    event.target.value = ''
+                    if (!file) return
+                    setUploadingLogo(true)
+                    try {
+                      const uploaded = await uploadImageDirectToCloudinary(file, { folder: 'branding' })
+                      setForm((f) => ({ ...f, logo_url: uploaded.url }))
+                      toast.success(form.logo_url ? 'Logo replaced. Save to publish it.' : 'Logo added. Save to publish it.')
+                    } catch (error: any) {
+                      toast.error(error?.message || 'Upload failed')
+                    } finally {
+                      setUploadingLogo(false)
+                    }
+                  }}
+                />
+              </label>
+              {form.logo_url ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-9"
+                  disabled={!canEdit || uploadingLogo}
+                  onClick={() => setForm((f) => ({ ...f, logo_url: '' }))}
+                >
+                  <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                  Remove
+                </Button>
+              ) : null}
+            </div>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            PNG, JPEG, WebP, GIF, AVIF, or SVG. Removing it restores the built-in Rigbu mark. Save to apply.
           </p>
         </div>
         <div className="space-y-1.5">

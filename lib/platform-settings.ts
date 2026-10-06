@@ -35,6 +35,8 @@ export { VIDEO_QUALITY_OPTIONS, parseVideoQuality } from '@/lib/video-quality'
 export type PlatformSettings = {
   id: string
   site_name: string
+  /** Uploaded LMS mark. Null keeps the built-in Rigbu mark. */
+  logo_url: string | null
   tagline: string | null
   support_email: string | null
   landing_headline: string | null
@@ -98,6 +100,7 @@ export type RegistrationPolicy = {
 export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   id: 'default',
   site_name: 'Rigbu LMS',
+  logo_url: null,
   tagline: "Bhutan's private learning platform",
   support_email: null,
   landing_headline: null,
@@ -167,6 +170,7 @@ export function parsePlatformSettings(row: Record<string, unknown> | null | unde
     site_name: typeof row.site_name === 'string' && row.site_name.trim()
       ? row.site_name.trim()
       : DEFAULT_PLATFORM_SETTINGS.site_name,
+    logo_url: typeof row.logo_url === 'string' && row.logo_url.trim() ? row.logo_url.trim() : null,
     tagline: typeof row.tagline === 'string' ? row.tagline : DEFAULT_PLATFORM_SETTINGS.tagline,
     support_email: typeof row.support_email === 'string' ? row.support_email : null,
     landing_headline: typeof row.landing_headline === 'string' ? row.landing_headline : null,
@@ -254,6 +258,7 @@ export function toRegistrationPolicy(settings: PlatformSettings): RegistrationPo
 export function toPublicSite(settings: PlatformSettings) {
   return {
     site_name: settings.site_name,
+    logo_url: settings.logo_url,
     tagline: settings.tagline,
     support_email: settings.support_email,
     landing_headline: settings.landing_headline,
