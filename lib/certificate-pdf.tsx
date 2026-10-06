@@ -276,6 +276,31 @@ function CertificateDocument(data: CertificateData) {
               }}
             />
           ) : null}
+          <Image
+            src={resolvePdfImageSrc('/brand/rigbu-mark-mono-ink-512.png')}
+            style={{
+              position: 'absolute',
+              left: (PAGE.w - 36 - 280) / 2,
+              top: (PAGE.h - 36 - 280) / 2,
+              width: 280,
+              height: 280,
+              objectFit: 'contain',
+              opacity: 0.12,
+            }}
+          />
+          {layout.logos.length === 0 ? (
+            <Image
+              src={resolvePdfImageSrc('/brand/rigbu-mark-on-light-512.png')}
+              style={{
+                position: 'absolute',
+                left: 16,
+                top: 12,
+                width: 56,
+                height: 56,
+                objectFit: 'contain',
+              }}
+            />
+          ) : null}
           {layout.logos.map((logo) =>
             logo.src ? (
               <Image

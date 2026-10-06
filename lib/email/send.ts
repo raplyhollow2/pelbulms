@@ -79,11 +79,31 @@ function smtpOptions(host: EmailHost) {
   }
 }
 
+const RIGBU_EMAIL_LOGO = 'https://www.rigbu.app/brand/rigbu-mark-on-light-256.png'
+
+function escapeEmailText(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function withBrandLogo(html: string | undefined, text: string) {
+  const logo = `<p style="margin:0 0 16px"><img src="${RIGBU_EMAIL_LOGO}" width="48" height="48" alt="Rigbu" style="display:block;border:0" /></p>`
+  if (html?.trim()) return `${logo}${html}`
+  return `${logo}<p style="margin:0">${escapeEmailText(text).replace(/\n/g, '<br />')}</p>`
+}
+
+function brandOutboundEmail(opts: OutboundEmail): OutboundEmail {
+  return { ...opts, html: withBrandLogo(opts.html, opts.text) }
+}
+
 async function deliverResend(
   apiKey: string,
   from: string,
   opts: OutboundEmail
 ): Promise<{ sent: boolean; error?: string }> {
+  const branded = brandOutboundEmail(opts)
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -93,10 +113,10 @@ async function deliverResend(
       },
       body: JSON.stringify({
         from,
-        to: [opts.to],
-        subject: opts.subject,
-        text: opts.text,
-        ...(opts.html ? { html: opts.html } : {}),
+        to: [branded.to],
+        subject: branded.subject,
+        text: branded.text,
+        html: branded.html,
       }),
       signal: AbortSignal.timeout(15_000),
     })
@@ -121,15 +141,16 @@ async function deliverSmtp(
   host: EmailHost,
   opts: OutboundEmail
 ): Promise<{ sent: boolean; error?: string }> {
+  const branded = brandOutboundEmail(opts)
   try {
     const nodemailer = await import('nodemailer')
     const transporter = nodemailer.createTransport(smtpOptions(host))
     await transporter.sendMail({
       from: formatFromAddress(host.fromName, host.fromEmail),
-      to: opts.to,
-      subject: opts.subject,
-      text: opts.text,
-      ...(opts.html ? { html: opts.html } : {}),
+      to: branded.to,
+      subject: branded.subject,
+      text: branded.text,
+      html: branded.html,
     })
     return { sent: true }
   } catch (e: unknown) {
