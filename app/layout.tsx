@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { CapabilitiesProvider } from "@/components/auth/capabilities-provider";
 import { PortraitShell } from "@/components/portrait-shell";
 import { StandaloneOrientationLock } from "@/components/standalone-orientation-lock";
-// import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
+import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { getPlatformSettings } from "@/lib/platform-settings";
@@ -91,7 +91,7 @@ export default function RootLayout({
             </PortraitShell>
           </CapabilitiesProvider>
         </ThemeProvider>
-        {/* <ServiceWorkerRegistration /> */}
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );

@@ -16,7 +16,7 @@ import {
   Shield,
   Sparkles,
 } from 'lucide-react'
-import { MENU_LINKS, type NavSection } from '@/lib/capability-catalog'
+import { defaultKeysForRole, hasCap, MENU_LINKS, type NavSection } from '@/lib/capability-catalog'
 
 const ICONS: Record<(typeof MENU_LINKS)[number]['icon'], LucideIcon> = {
   Home,
@@ -60,6 +60,15 @@ function panelForLink(link: (typeof MENU_LINKS)[number]): RolePanel {
   if (link.section === 'learn') return 'student'
   if (link.section === 'teach') return 'instructor'
   return 'admin'
+}
+
+/** Role defaults always count, and a granted key can add a link. An empty catalog cannot hide the role menu. */
+export function hasMenuAccess(
+  role: string | null | undefined,
+  extraHas: (key: string) => boolean
+): (key: string) => boolean {
+  const defaults = defaultKeysForRole(role)
+  return (key: string) => hasCap(defaults, key) || extraHas(key)
 }
 
 export function buildAccessNav(has: (key: string) => boolean): Record<RolePanel, AccessNavItem[]> {

@@ -12,8 +12,7 @@ import { createClient } from '@/lib/supabase/client'
 import { leavePresenceAndSignOut } from '@/components/presence/presence-tracker'
 import { cn, haptic, warning as hapticWarning } from '@/lib/utils'
 import { useCapabilities } from '@/components/auth/capabilities-provider'
-import { defaultKeysForRole, hasCap } from '@/lib/capability-catalog'
-import { buildAccessNav, ROLE_PANELS } from '@/lib/nav-access'
+import { buildAccessNav, hasMenuAccess, ROLE_PANELS } from '@/lib/nav-access'
 import { coerceUserRole, ROLE_LABELS } from '@/lib/roles'
 
 interface MobileNavigationProps {
@@ -29,9 +28,8 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
     'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
   >('student')
 
-  const roleForNav = capsLoaded ? capRole : userRole
-  const has = (key: string) =>
-    capsLoaded ? hasCapKey(key) : hasCap(defaultKeysForRole(roleForNav), key)
+  const roleForNav = coerceUserRole(profile?.role || (capsLoaded ? capRole : userRole))
+  const has = hasMenuAccess(roleForNav, hasCapKey)
   const panels = buildAccessNav(has)
   const accountLabel = ROLE_LABELS[roleForNav]
   const studentNav = panels.student

@@ -1,8 +1,8 @@
 // Service Worker for Rigbu LMS PWA
 // Bump this version whenever the SW logic changes so clients pick up the update
 // and old caches are purged.
-const CACHE_NAME = 'rigbu-lms-v3'
-const PRECACHE_URLS = ['/', '/offline.html', '/manifest.json', '/favicon.svg']
+const CACHE_NAME = 'rigbu-lms-v4'
+const PRECACHE_URLS = ['/offline.html', '/manifest.json', '/favicon.svg']
 
 // Install - precache core assets (best-effort so a single 404 can't break install)
 self.addEventListener('install', (event) => {
@@ -27,7 +27,26 @@ self.addEventListener('activate', (event) => {
   )
 })
 
-// Fetch - cache-first for same-origin GET assets; bypass everything else
+function isDocumentRequest(request, url) {
+  if (request.mode === 'navigate') return true
+  if (request.headers.get('RSC') === '1') return true
+  if (request.headers.get('Next-Router-Prefetch')) return true
+  if (url.searchParams.has('_rsc')) return true
+  const accept = request.headers.get('accept') || ''
+  return accept.includes('text/html')
+}
+
+function isStaticAsset(url) {
+  if (url.pathname.startsWith('/_next/static/')) return true
+  if (url.pathname.startsWith('/brand/')) return true
+  if (url.pathname === '/offline.html' || url.pathname === '/manifest.json' || url.pathname === '/favicon.svg') {
+    return true
+  }
+  return /\.(?:png|jpe?g|webp|gif|svg|ico|woff2?)$/i.test(url.pathname)
+}
+
+// Fetch - network for HTML so middleware can refresh the session cookie.
+// Cache-first only for static files.
 self.addEventListener('fetch', (event) => {
   let url
   try {
@@ -37,15 +56,17 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Let the browser handle: non-GET, cross-origin (e.g. Supabase), auth/API,
-  // and OAuth callback URLs. We intentionally do NOT call respondWith here so
-  // these requests are never intercepted by the service worker.
+  // HTML/RSC navigations, and OAuth callback URLs. We intentionally do NOT
+  // call respondWith here so these requests are never intercepted.
   if (
     event.request.method !== 'GET' ||
     url.origin !== self.location.origin ||
     url.pathname.startsWith('/auth/') ||
     url.pathname.startsWith('/api/') ||
     url.searchParams.has('code') ||
-    url.searchParams.has('error')
+    url.searchParams.has('error') ||
+    isDocumentRequest(event.request, url) ||
+    !isStaticAsset(url)
   ) {
     return
   }
