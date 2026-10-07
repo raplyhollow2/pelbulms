@@ -155,6 +155,15 @@ export const LESSON_ACTIVITY_TYPES: ActivityDefinition[] = [
     maturity: 'working',
   },
   {
+    type: 'quiz',
+    label: 'Quiz',
+    description: 'Multiple-choice and other questions, stored and graded',
+    category: 'assessment',
+    icon: HelpCircle,
+    fields: ['title', 'description', 'passGrade'],
+    maturity: 'working',
+  },
+  {
     type: 'book',
     label: 'Book',
     description: 'Multi-page reading content',
@@ -254,15 +263,6 @@ export const LESSON_ACTIVITY_TYPES: ActivityDefinition[] = [
     icon: FileText,
     fields: ['title', 'content'],
     maturity: 'partial',
-  },
-  {
-    type: 'quiz',
-    label: 'Quiz',
-    description: 'Multiple-choice and other questions, stored and graded',
-    category: 'assessment',
-    icon: HelpCircle,
-    fields: ['title', 'description', 'passGrade'],
-    maturity: 'working',
   },
   {
     type: 'scorm',

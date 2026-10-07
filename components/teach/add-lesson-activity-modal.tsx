@@ -32,7 +32,7 @@ import {
 } from '@/lib/lesson-activities'
 import { QuizCreator } from '@/components/quiz/quiz-creator'
 import { useCapabilities } from '@/components/auth/capabilities-provider'
-import { ACTIVITY_MODULE_CAP } from '@/lib/capability-catalog'
+import { ACTIVITY_MODULE_CAP, defaultKeysForRole } from '@/lib/capability-catalog'
 
 type Props = {
   open: boolean
@@ -83,7 +83,8 @@ export function AddLessonActivityModal({
   lessonId,
   onAdd,
 }: Props) {
-  const { has } = useCapabilities()
+  const { has, role } = useCapabilities()
+  const roleDefaults = useMemo(() => defaultKeysForRole(role), [role])
   const [selected, setSelected] = useState<LessonActivityType | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm())
   const [required, setRequired] = useState(true)
@@ -103,9 +104,10 @@ export function AddLessonActivityModal({
     () =>
       filterActivityTypes(category, search).filter((def) => {
         const cap = ACTIVITY_MODULE_CAP[def.type]
-        return cap ? has(cap) : true
+        if (!cap) return true
+        return has(cap) || roleDefaults.has(cap)
       }),
-    [category, search, has]
+    [category, search, has, roleDefaults]
   )
 
   useEffect(() => {
@@ -661,10 +663,12 @@ export function AddLessonActivityModal({
             <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
               <div className="min-w-0">
                 <Label htmlFor="quiz-required" className="text-sm">
-                  Mandatory
+                  {required ? 'Mandatory' : 'Optional'}
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Completes when the learner passes the quiz
+                  {required
+                    ? 'The learner must pass this quiz before the next lesson when gating is on.'
+                    : 'This quiz does not block the next lesson.'}
                 </p>
               </div>
               <Switch

@@ -135,10 +135,18 @@ export function LessonActivitiesPanel({
                         />
                         <div className="min-w-0">
                           <Label htmlFor={`req-${item.id}`} className="text-xs text-muted-foreground">
-                            Mandatory for progression
+                            {item.activity === 'quiz'
+                              ? isActivityRequired(item)
+                                ? 'Mandatory'
+                                : 'Optional'
+                              : 'Mandatory for progression'}
                           </Label>
                           <p className="text-[11px] text-muted-foreground">
-                            The learner must submit or finish this task. Grading does not block the next lesson.
+                            {item.activity === 'quiz'
+                              ? isActivityRequired(item)
+                                ? 'The learner must pass this quiz before the next lesson when gating is on.'
+                                : 'This quiz does not block the next lesson.'
+                              : 'The learner must submit or finish this task. Grading does not block the next lesson.'}
                           </p>
                         </div>
                       </div>
