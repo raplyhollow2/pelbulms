@@ -60,6 +60,20 @@ export function CapabilitiesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
+    let timer = 0
+    let attempt = 0
+
+    const run = async () => {
+      const ok = await refresh()
+      if (cancelled || ok) return
+      attempt += 1
+      if (attempt >= 5) return
+      timer = window.setTimeout(() => {
+        void run()
+      }, Math.min(8000, 400 * 2 ** attempt))
+    }
+
+    void run()
 
     const { data } = getBrowserClient().auth.onAuthStateChange((event, session) => {
       if (cancelled) return
@@ -78,6 +92,7 @@ export function CapabilitiesProvider({ children }: { children: ReactNode }) {
     window.addEventListener('rigbu:capabilities-changed', onChange)
     return () => {
       cancelled = true
+      window.clearTimeout(timer)
       data.subscription.unsubscribe()
       window.removeEventListener('rigbu:capabilities-changed', onChange)
     }

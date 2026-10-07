@@ -433,7 +433,8 @@ export default function LessonViewPage() {
 
       const sidebarLessons = ((sidebarResult.data || []) as Lesson[]).filter((row) => {
         if (managing) return true
-        if (guestPreview) return lessonIsPublished(row) && lessonIsFreePreview(row)
+        if (!lessonIsPublished(row)) return false
+        if (guestPreview) return lessonIsFreePreview(row)
         return true
       })
       const courseLessons = sidebarLessons.map((row) =>
@@ -1665,8 +1666,9 @@ export default function LessonViewPage() {
               currentIndex={playableIndex >= 0 ? playableIndex : 0}
               total={playableLessons.length}
               currentTitle={
-                (playableIndex >= 0 ? playableLessons[playableIndex] : allLessons[outlineIndex])
-                  ?.title
+                (playableIndex >= 0 ? playableLessons[playableIndex]?.title : undefined) ||
+                (outlineIndex >= 0 ? allLessons[outlineIndex]?.title : undefined) ||
+                lesson.title
               }
               canGoPrev={playableIndex > 0}
               canGoNext={

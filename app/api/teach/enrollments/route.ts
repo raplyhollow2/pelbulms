@@ -83,6 +83,7 @@ export async function GET(request: NextRequest) {
         .from('lessons')
         .select('id')
         .in('module_id', moduleIds)
+        .eq('is_published', true)
       for (const row of lessonRows || []) {
         if ((row as { id?: string }).id) lessonIds.add((row as { id: string }).id)
       }
