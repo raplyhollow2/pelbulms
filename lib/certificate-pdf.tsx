@@ -277,7 +277,7 @@ function CertificateDocument(data: CertificateData) {
             />
           ) : null}
           <Image
-            src={resolvePdfImageSrc('/brand/rigbu-mark-mono-ink-512.png')}
+            src={resolvePdfImageSrc('/brand/logo/rigbu-mark-mono-ink-512.png')}
             style={{
               position: 'absolute',
               left: (PAGE.w - 36 - 280) / 2,
@@ -290,7 +290,7 @@ function CertificateDocument(data: CertificateData) {
           />
           {layout.logos.length === 0 ? (
             <Image
-              src={resolvePdfImageSrc('/brand/rigbu-mark-on-light-512.png')}
+              src={resolvePdfImageSrc('/brand/logo/rigbu-logo-stacked-light-h512.png')}
               style={{
                 position: 'absolute',
                 left: 16,

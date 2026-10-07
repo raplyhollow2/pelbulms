@@ -79,7 +79,7 @@ function smtpOptions(host: EmailHost) {
   }
 }
 
-const RIGBU_EMAIL_LOGO = 'https://www.rigbu.app/brand/rigbu-mark-on-light-256.png'
+const RIGBU_EMAIL_LOGO = 'https://www.rigbu.app/email-logo-400.png'
 
 function escapeEmailText(value: string) {
   return value
@@ -89,7 +89,7 @@ function escapeEmailText(value: string) {
 }
 
 function withBrandLogo(html: string | undefined, text: string) {
-  const logo = `<p style="margin:0 0 16px"><img src="${RIGBU_EMAIL_LOGO}" width="48" height="48" alt="Rigbu" style="display:block;border:0" /></p>`
+  const logo = `<p style="margin:0 0 16px"><img src="${RIGBU_EMAIL_LOGO}" width="200" height="70" alt="Rigbu" style="display:block;border:0;width:200px;height:auto" /></p>`
   if (html?.trim()) return `${logo}${html}`
   return `${logo}<p style="margin:0">${escapeEmailText(text).replace(/\n/g, '<br />')}</p>`
 }
