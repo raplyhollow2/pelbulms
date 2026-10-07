@@ -85,6 +85,10 @@ type CourseForm = {
   preview_video_url: string
 }
 
+function normalizeRequirements(items: string[]) {
+  return items.map((item) => item.trim()).filter(Boolean)
+}
+
 const EMPTY: CourseForm = {
   title: '',
   slug: '',
@@ -215,7 +219,7 @@ export function CourseSettingsForm({
         price: Number(row.price) || 0,
         duration_minutes: row.duration_minutes || 0,
         learning_objectives: row.learning_objectives || [],
-        requirements: row.requirements || [],
+        requirements: normalizeRequirements(row.requirements || []),
         is_published: Boolean(row.is_published),
         is_featured: Boolean(row.is_featured),
         enrollment_mode: ['auto', 'approval', 'invite_code', 'paid'].includes(row.enrollment_mode)
@@ -290,6 +294,7 @@ export function CourseSettingsForm({
           .toLowerCase()
           .replace(/[^a-z0-9]+/g, '-')
           .replace(/^-+|-+$/g, '')
+      const savedRequirements = normalizeRequirements(current.requirements)
       const { error: saveError } = await (supabase as any)
         .from('courses')
         .update({
@@ -306,10 +311,7 @@ export function CourseSettingsForm({
           duration_minutes: current.duration_minutes || null,
           prerequisites: preservedRef.current.prerequisites.length ? preservedRef.current.prerequisites : null,
           learning_objectives: current.learning_objectives.length ? current.learning_objectives : null,
-          requirements: (() => {
-            const lines = current.requirements.map((item) => item.trim()).filter(Boolean)
-            return lines.length ? lines : null
-          })(),
+          requirements: savedRequirements.length ? savedRequirements : null,
           tags: preservedRef.current.tags.length ? preservedRef.current.tags : null,
           is_published: current.is_published,
           is_featured: current.is_featured,
@@ -320,6 +322,23 @@ export function CourseSettingsForm({
         })
         .eq('id', courseId)
       if (saveError) throw saveError
+      const latestRequirements = courseDataRef.current.requirements
+      const draftUnchanged =
+        latestRequirements.length === current.requirements.length &&
+        latestRequirements.every((item, index) => item === current.requirements[index])
+      const requirementsChanged =
+        savedRequirements.length !== current.requirements.length ||
+        savedRequirements.some((item, index) => item !== current.requirements[index])
+      if (draftUnchanged && requirementsChanged) {
+        const nextCourse = { ...courseDataRef.current, requirements: savedRequirements }
+        courseDataRef.current = nextCourse
+        hydratedKey.current = JSON.stringify({
+          course: nextCourse,
+          audienceIds: audienceRef.current,
+          restrict: restrictRef.current,
+        })
+        setCourseData(nextCourse)
+      }
       setMetadata(mergedMetadata)
       const idsToSync = restrictRef.current ? audienceRef.current : []
       const sync = await syncCourseInstitutions(supabase as any, courseId, idsToSync)
@@ -836,6 +855,15 @@ export function CourseSettingsForm({
                     onChange={(e) => {
                       const next = [...courseData.requirements]
                       next[index] = e.target.value
+                      setCourseData({ ...courseData, requirements: next })
+                    }}
+                    onBlur={() => {
+                      const trimmed = requirement.trim()
+                      if (trimmed === requirement) return
+                      const next = courseData.requirements.flatMap((item, itemIndex) => {
+                        if (itemIndex !== index) return [item]
+                        return trimmed ? [trimmed] : []
+                      })
                       setCourseData({ ...courseData, requirements: next })
                     }}
                   />

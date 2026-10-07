@@ -35,6 +35,8 @@ export function CapabilitiesProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
+      const { data } = await getBrowserClient().auth.getSession()
+      if (!data.session) return false
       const res = await fetch('/api/admin/capabilities/me')
       // A rejected session cookie is not an empty menu. Leave the last keys
       // and keep loaded false so the nav can stay on the role defaults.
@@ -58,24 +60,15 @@ export function CapabilitiesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
-    let timer = 0
-    let attempt = 0
 
-    const run = async () => {
-      const ok = await refresh()
-      if (cancelled || ok) return
-      attempt += 1
-      if (attempt >= 5) return
-      timer = window.setTimeout(() => {
-        void run()
-      }, Math.min(8000, 400 * 2 ** attempt))
-    }
-
-    void run()
-
-    const { data } = getBrowserClient().auth.onAuthStateChange((event) => {
+    const { data } = getBrowserClient().auth.onAuthStateChange((event, session) => {
+      if (cancelled) return
+      if (!session) return
       if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        void refresh()
+        // Defer so this callback does not call auth methods re-entrantly.
+        window.setTimeout(() => {
+          if (!cancelled) void refresh()
+        }, 0)
       }
     })
 
@@ -85,7 +78,6 @@ export function CapabilitiesProvider({ children }: { children: ReactNode }) {
     window.addEventListener('rigbu:capabilities-changed', onChange)
     return () => {
       cancelled = true
-      window.clearTimeout(timer)
       data.subscription.unsubscribe()
       window.removeEventListener('rigbu:capabilities-changed', onChange)
     }

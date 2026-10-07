@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { createYoutubeIframe, getYoutubeId, isDirectVideoFile } from '@/lib/video-url'
+import { createYoutubeIframe, getYoutubeId, isDirectVideoFile, youtubePosterUrl } from '@/lib/video-url'
 import {
   DEFAULT_HERO_CTA_PRIMARY,
   DEFAULT_HERO_ROTATING_WORDS,
@@ -123,17 +123,8 @@ function HeroVideoBackground({
     () => getYoutubeId(videoUrl) || getYoutubeId(DEFAULT_HERO_VIDEO_URL),
     [videoUrl]
   )
-  const poster = videoId
-    ? `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`
-    : undefined
-
-  // Always paint a visible base (poster or dark gradient) — never rely on iframe alone.
-  const baseStyle = poster
-    ? { backgroundImage: `url(${poster})` }
-    : {
-        backgroundImage:
-          'linear-gradient(135deg, #1a1208 0%, #3d2314 45%, #0a0a0a 100%)',
-      }
+  const poster =
+    youtubePosterUrl(videoUrl) || youtubePosterUrl(DEFAULT_HERO_VIDEO_URL) || undefined
 
   const ytQuality =
     preferredQuality === 'max'
@@ -198,7 +189,10 @@ function HeroVideoBackground({
       }
     }
 
-    loadYouTubeApi().then((YT) => {
+    // Poster is the LCP image. Start the player after the first paint so the
+    // iframe API does not compete with it.
+    const startPlayer = () => {
+      loadYouTubeApi().then((YT) => {
       if (cancelled || !host) return
 
       if (playerRef.current) {
@@ -230,7 +224,7 @@ function HeroVideoBackground({
         playerVars.playlist = videoId
       }
 
-      const iframe = createYoutubeIframe(videoId, playerVars)
+      const iframe = createYoutubeIframe(videoId, playerVars, { privacyEnhanced: true })
       host.appendChild(iframe)
 
       const player = new YT.Player(iframe, {
@@ -273,9 +267,39 @@ function HeroVideoBackground({
         }, 250)
       }
     })
+    }
+
+    let idleId = 0
+    let timerId = 0
+    let started = false
+    const begin = () => {
+      if (started || cancelled) return
+      started = true
+      window.removeEventListener('pointerdown', begin)
+      window.removeEventListener('keydown', begin)
+      window.removeEventListener('scroll', begin)
+      window.clearTimeout(fallbackId)
+      if (typeof window.requestIdleCallback === 'function') {
+        idleId = window.requestIdleCallback(startPlayer, { timeout: 1200 })
+      } else {
+        timerId = window.setTimeout(startPlayer, 400)
+      }
+    }
+    // Keep the poster as the first paint. The player starts on the first
+    // gesture, or shortly after, so it does not compete with that image.
+    const fallbackId = window.setTimeout(begin, 12000)
+    window.addEventListener('pointerdown', begin, { passive: true })
+    window.addEventListener('keydown', begin)
+    window.addEventListener('scroll', begin, { passive: true })
 
     return () => {
       cancelled = true
+      window.removeEventListener('pointerdown', begin)
+      window.removeEventListener('keydown', begin)
+      window.removeEventListener('scroll', begin)
+      window.clearTimeout(fallbackId)
+      if (idleId) window.cancelIdleCallback(idleId)
+      if (timerId) window.clearTimeout(timerId)
       observer?.disconnect()
       if (pollRef.current) {
         clearInterval(pollRef.current)
@@ -292,23 +316,34 @@ function HeroVideoBackground({
     }
   }, [videoId, reducedMotion, start, end, ytQuality, preferredQuality])
 
+  const posterFrame = poster ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={poster}
+      alt=""
+      fetchPriority="high"
+      decoding="async"
+      className="absolute inset-0 h-full w-full object-cover object-center"
+    />
+  ) : (
+    <div
+      className="absolute inset-0"
+      style={{ backgroundImage: 'linear-gradient(135deg, #1a1208 0%, #3d2314 45%, #0a0a0a 100%)' }}
+    />
+  )
+
   if (!videoId || reducedMotion) {
     return (
-      <div
-        aria-hidden
-        className="absolute inset-0 z-0 bg-cover bg-center"
-        style={baseStyle}
-      />
+      <div aria-hidden className="absolute inset-0 z-0">
+        {posterFrame}
+      </div>
     )
   }
 
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-      <div className="absolute inset-0 bg-cover bg-center" style={baseStyle} />
-      <div
-        ref={mountRef}
-        className="absolute"
-      />
+      {posterFrame}
+      <div ref={mountRef} className="absolute" />
     </div>
   )
 }
@@ -467,7 +502,7 @@ export function LandingHero({
                 aria-hidden
               />
               {(tagline || requireIdentity) && (
-                <p className="text-xs font-semibold uppercase tracking-widest text-[var(--royal-to)]">
+                <p className="text-xs font-semibold uppercase tracking-widest text-[#3F2208]">
                   {tagline ||
                     (requireIdentity
                       ? 'A verified learning network for Bhutan'

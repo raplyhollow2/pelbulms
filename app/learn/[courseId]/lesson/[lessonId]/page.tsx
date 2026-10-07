@@ -1051,7 +1051,7 @@ export default function LessonViewPage() {
     attemptsExhausted: boolean
   }) => {
     try {
-      if (!skipProgressRef.current) {
+      if (outcome?.passed && !skipProgressRef.current) {
         await refreshActivityProgress({ action: 'sync' })
       }
     } catch (e) {
@@ -1503,7 +1503,9 @@ export default function LessonViewPage() {
 
   const courseAi = readCourseAiMetadata((course as any)?.metadata)
   const completedCount = allLessons.filter((l) => completedLessonIds.has(l.id)).length
-  const progressPercent = enrollment?.progress_percentage ?? 0
+  const progressPercent =
+    enrollment?.progress_percentage ??
+    (allLessons.length > 0 ? Math.round((completedCount / allLessons.length) * 100) : 0)
 
   const openQuiz = async (quizId: string) => {
     setShowQuiz(true)
@@ -1660,9 +1662,12 @@ export default function LessonViewPage() {
           {certificateSection}
           <div className="px-3 py-2 lg:hidden">
             <LessonNextBar
-              currentIndex={outlineIndex >= 0 ? outlineIndex : 0}
-              total={allLessons.length}
-              currentTitle={allLessons[outlineIndex]?.title}
+              currentIndex={playableIndex >= 0 ? playableIndex : 0}
+              total={playableLessons.length}
+              currentTitle={
+                (playableIndex >= 0 ? playableLessons[playableIndex] : allLessons[outlineIndex])
+                  ?.title
+              }
               canGoPrev={playableIndex > 0}
               canGoNext={
                 playableIndex >= 0 &&

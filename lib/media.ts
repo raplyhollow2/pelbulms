@@ -47,3 +47,14 @@ export function resolveMediaUrl(ref?: string | null): string | null {
   if (!parsed) return ref
   return `/api/media/${parsed.publicId}?type=${parsed.type}`
 }
+
+/** Downscale a Cloudinary delivery URL. Other URLs are returned unchanged. */
+export function cloudinaryDisplayUrl(url: string, width: number): string {
+  const marker = '/image/upload/'
+  const at = url.indexOf(marker)
+  if (at === -1) return url
+  const rest = url.slice(at + marker.length)
+  if (/^[a-z]_/.test(rest)) return url
+  const px = Math.max(64, Math.round(width))
+  return `${url.slice(0, at + marker.length)}f_auto,q_auto,c_limit,w_${px}/${rest}`
+}

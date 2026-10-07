@@ -75,18 +75,14 @@ async function syncQuizPasses(
   const quizIds = quizzes.map((q) => q.quizId!)
   const { data: attempts } = await db
     .from('quiz_attempts')
-    .select('quiz_id, passed')
+    .select('quiz_id')
     .eq('user_id', userId)
     .in('quiz_id', quizIds)
+    .eq('passed', true)
 
-  const passedByQuiz = new Map<string, boolean>()
-  for (const attempt of attempts || []) {
-    const quizId = attempt.quiz_id as string
-    passedByQuiz.set(quizId, Boolean(passedByQuiz.get(quizId)) || Boolean(attempt.passed))
-  }
+  const passedQuizIds = new Set((attempts || []).map((attempt: { quiz_id: string }) => attempt.quiz_id))
   for (const quiz of quizzes) {
-    if (!passedByQuiz.has(quiz.quizId!)) continue
-    const passed = passedByQuiz.get(quiz.quizId!)
+    if (!passedQuizIds.has(quiz.quizId!)) continue
     await db.from('lesson_activity_progress').upsert(
       {
         user_id: userId,
@@ -94,7 +90,7 @@ async function syncQuizPasses(
         activity_id: quiz.id,
         completed: true,
         completed_at: new Date().toISOString(),
-        source: passed ? 'quiz_pass' : 'quiz_attempt',
+        source: 'quiz_pass',
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'user_id,lesson_id,activity_id' }

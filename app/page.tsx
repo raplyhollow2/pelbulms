@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
+import { preconnect, preload } from 'react-dom'
 
 export const dynamic = 'force-dynamic'
 import { BrandLogo } from '@/components/brand/brand-logo'
@@ -34,6 +36,7 @@ import {
   type LandingStep,
 } from '@/lib/landing-content'
 import { resolveMediaUrl } from '@/lib/media'
+import { isDirectVideoFile, youtubePosterUrl } from '@/lib/video-url'
 
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://rigbu.bt'
 const FALLBACK_NAME = 'Rigbu LMS'
@@ -42,6 +45,13 @@ const FALLBACK_DESCRIPTION =
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getPlatformSettings()
+  const heroVideo = settings.hero_video_url?.trim() || ''
+  const poster =
+    heroVideo && !isDirectVideoFile(heroVideo) ? youtubePosterUrl(heroVideo) : null
+  if (poster) {
+    preconnect('https://i.ytimg.com')
+    preload(poster, { as: 'image', fetchPriority: 'high' })
+  }
   const siteName = settings.site_name || FALLBACK_NAME
   const description =
     settings.landing_description ||
@@ -164,7 +174,29 @@ function toLandingCourse(row: {
   }
 }
 
+const LANDING_DATA_CACHE_MS = 60_000
+let publishedCache: { at: number; value: LandingCourse[] } | null = null
+let publishedInflight: Promise<LandingCourse[]> | null = null
+let reviewsCache: { at: number; value: LandingQuote[] } | null = null
+let reviewsInflight: Promise<LandingQuote[]> | null = null
+
 async function loadLiveReviews(): Promise<LandingQuote[]> {
+  if (reviewsCache && Date.now() - reviewsCache.at < LANDING_DATA_CACHE_MS) {
+    return reviewsCache.value
+  }
+  if (reviewsInflight) return reviewsInflight
+  reviewsInflight = fetchLiveReviews()
+    .then((value) => {
+      reviewsCache = { at: Date.now(), value }
+      return value
+    })
+    .finally(() => {
+      reviewsInflight = null
+    })
+  return reviewsInflight
+}
+
+async function fetchLiveReviews(): Promise<LandingQuote[]> {
   try {
     const service = await tryCreateServiceClient()
     if (!service) return []
@@ -235,6 +267,22 @@ async function loadLiveReviews(): Promise<LandingQuote[]> {
 }
 
 async function loadPublishedCourses() {
+  if (publishedCache && Date.now() - publishedCache.at < LANDING_DATA_CACHE_MS) {
+    return publishedCache.value
+  }
+  if (publishedInflight) return publishedInflight
+  publishedInflight = fetchPublishedCourses()
+    .then((value) => {
+      publishedCache = { at: Date.now(), value }
+      return value
+    })
+    .finally(() => {
+      publishedInflight = null
+    })
+  return publishedInflight
+}
+
+async function fetchPublishedCourses() {
   try {
     const service = await tryCreateServiceClient()
     const client = service || (await createSupabaseServerClient())
@@ -372,24 +420,12 @@ export default async function Home({
     (requireIdentity
       ? FALLBACK_DESCRIPTION
       : `${siteName} is Bhutan’s learning platform for students, teachers and institutions.`)
-  const [published, liveReviews] = await Promise.all([
-    settings.public_catalog ? loadPublishedCourses() : Promise.resolve([] as LandingCourse[]),
-    loadLiveReviews(),
-  ])
-  const publishedById = new Map(published.map((course) => [course.id, course]))
-  const featured = settings.featured_course_ids
-    .map((id) => publishedById.get(id))
-    .filter((course): course is LandingCourse => Boolean(course))
-  const heroFallbackImage =
-    resolveMediaUrl(settings.hero_image_url) ||
-    (featured[0] ? resolveMediaUrl(featured[0].thumbnail_url) : null)
-  const footerCategories = published.reduce<string[]>((names, course) => {
-    const name = course.category.trim()
-    if (name && !names.some((existing) => existing.toLowerCase() === name.toLowerCase())) {
-      names.push(name)
-    }
-    return names
-  }, [])
+  const videoUrl = settings.hero_video_url?.trim() || ''
+  const lcpImage =
+    videoUrl && !isDirectVideoFile(videoUrl)
+      ? youtubePosterUrl(videoUrl)
+      : resolveMediaUrl(settings.hero_image_url)
+  if (lcpImage) preload(lcpImage, { as: 'image', fetchPriority: 'high' })
 
   const titles = {
     ...DEFAULT_LANDING_SECTION_TITLES,
@@ -415,11 +451,21 @@ export default async function Home({
       />
 
       <main className="min-w-0 overflow-visible">
-        <LandingNav
-          courses={published}
-          glassOpacity={settings.hero_glass_opacity}
-          logoUrl={settings.logo_url}
-        />
+        <Suspense
+          fallback={
+            <LandingNav
+              courses={[]}
+              glassOpacity={settings.hero_glass_opacity}
+              logoUrl={settings.logo_url}
+            />
+          }
+        >
+          <HomeNav
+            enabled={settings.public_catalog}
+            glassOpacity={settings.hero_glass_opacity}
+            logoUrl={settings.logo_url}
+          />
+        </Suspense>
         <LandingHero
           siteName={siteName}
           tagline={settings.tagline}
@@ -432,19 +478,18 @@ export default async function Home({
           rotatingWords={settings.hero_rotating_words}
           ctaLabel={settings.hero_cta_primary_label}
           secondaryCtaLabel={settings.hero_cta_secondary_label}
-          showCatalog={settings.public_catalog && published.length > 0}
+          showCatalog={settings.public_catalog}
           requireIdentity={requireIdentity}
-          fallbackImage={heroFallbackImage}
-          courseTopics={published.map((course) => course.title)}
+          fallbackImage={resolveMediaUrl(settings.hero_image_url)}
           heroSlides={settings.hero_slides}
           siteNameForScene={siteName}
         />
 
         <LandingStats eyebrow={titles.stats_eyebrow} stats={settings.landing_stats} />
 
-        <div id="courses">
-          <LandingCatalog courses={published} featured={featured} />
-        </div>
+        <Suspense fallback={<div id="courses" className="min-h-24" />}>
+          <HomeCatalog enabled={settings.public_catalog} featuredIds={settings.featured_course_ids} />
+        </Suspense>
 
         <LandingPrograms
           eyebrow={titles.features_eyebrow}
@@ -462,7 +507,9 @@ export default async function Home({
           steps={steps}
         />
 
-        <LandingQuotes title={titles.quotes_title || 'Hear from the community'} quotes={liveReviews} />
+        <Suspense fallback={null}>
+          <HomeQuotes title={titles.quotes_title || 'Hear from the community'} />
+        </Suspense>
 
         <LandingJoin
           images={settings.landing_gallery}
@@ -502,18 +549,69 @@ export default async function Home({
             <Link href="#faq" className="transition-colors hover:text-foreground">
               FAQ
             </Link>
-            {footerCategories.map((category) => (
-              <Link
-                key={category}
-                href={`/courses?category=${encodeURIComponent(category)}`}
-                className="transition-colors hover:text-foreground"
-              >
-                {category}
-              </Link>
-            ))}
+            <Suspense fallback={null}>
+              <HomeFooterCategories />
+            </Suspense>
           </nav>
         </div>
       </footer>
     </div>
   )
+}
+
+async function HomeNav({
+  enabled,
+  glassOpacity,
+  logoUrl,
+}: {
+  enabled: boolean
+  glassOpacity: number
+  logoUrl: string | null
+}) {
+  const courses = enabled ? await loadPublishedCourses() : []
+  return <LandingNav courses={courses} glassOpacity={glassOpacity} logoUrl={logoUrl} />
+}
+
+async function HomeCatalog({
+  enabled,
+  featuredIds,
+}: {
+  enabled: boolean
+  featuredIds: string[]
+}) {
+  const published = enabled ? await loadPublishedCourses() : []
+  const publishedById = new Map(published.map((course) => [course.id, course]))
+  const featured = featuredIds
+    .map((id) => publishedById.get(id))
+    .filter((course): course is LandingCourse => Boolean(course))
+  return (
+    <div id="courses">
+      <LandingCatalog courses={published} featured={featured} />
+    </div>
+  )
+}
+
+async function HomeQuotes({ title }: { title: string }) {
+  const quotes = await loadLiveReviews()
+  return <LandingQuotes title={title} quotes={quotes} />
+}
+
+async function HomeFooterCategories() {
+  const published = await loadPublishedCourses()
+  const categories = published.reduce<string[]>((names, course) => {
+    const name = course.category.trim()
+    if (name && !names.some((existing) => existing.toLowerCase() === name.toLowerCase())) {
+      names.push(name)
+    }
+    return names
+  }, [])
+  return categories.map((category) => (
+    <Link
+      key={category}
+      href={`/courses?category=${encodeURIComponent(category)}`}
+      className="transition-colors hover:text-foreground"
+    >
+      {category}
+    </Link>
+  ))
 }

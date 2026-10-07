@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Lighthouse and other browsers read <head> before streamed metadata arrives.
+  // Blocking metadata keeps the description in the initial head. The homepage
+  // already waits on the same cached settings read.
+  htmlLimitedBots: /.*/,
   async redirects() {
     return [
       {

@@ -41,8 +41,9 @@ type OutlineLesson = {
   duration_minutes?: number | null
   order_index?: number | null
   is_published: boolean
-  is_free?: boolean
-  is_preview?: boolean
+  is_free: boolean
+  is_preview: boolean
+  is_upcoming: boolean
 }
 
 type OutlineModule = {
@@ -51,6 +52,29 @@ type OutlineModule = {
   description?: string | null
   order_index: number
   lessons?: OutlineLesson[]
+}
+
+function toOutlineLesson(lesson: {
+  id: string
+  title: string
+  duration_minutes?: number | null
+  order_index?: number | null
+  is_published?: boolean | null
+  is_free?: boolean | null
+  is_preview?: boolean | null
+}): OutlineLesson {
+  const published = lesson.is_published === true
+  const free = published && lesson.is_free === true
+  return {
+    id: lesson.id,
+    title: lesson.title,
+    duration_minutes: lesson.duration_minutes || undefined,
+    order_index: lesson.order_index ?? null,
+    is_published: published,
+    is_free: free,
+    is_preview: published && (free || lesson.is_preview === true),
+    is_upcoming: !published,
+  }
 }
 
 async function fetchLiveStudentCount(courseId: string): Promise<number | null> {
@@ -269,13 +293,7 @@ export default function CourseDetailPage() {
         setModules(
           outlineModules.map((moduleRow) => ({
             ...moduleRow,
-            lessons: (moduleRow.lessons || []).map((lesson) => ({
-              id: lesson.id,
-              title: lesson.title,
-              duration_minutes: lesson.duration_minutes || undefined,
-              is_preview: lesson.is_published && (lesson.is_free || lesson.is_preview),
-              is_upcoming: !lesson.is_published,
-            })),
+            lessons: (moduleRow.lessons || []).map((lesson) => toOutlineLesson(lesson)),
           }))
         )
       } else {
@@ -285,11 +303,12 @@ export default function CourseDetailPage() {
           .eq('course_id', courseId)
           .order('order_index', { ascending: true })
         const moduleIds = ((moduleRows || []) as { id: string }[]).map((row) => row.id)
-        let publishedLessons: {
+        let visibleLessons: {
           id: string
           module_id: string
           title: string
           duration_minutes?: number | null
+          order_index?: number | null
           is_free?: boolean | null
           is_preview?: boolean | null
           is_published?: boolean | null
@@ -297,24 +316,17 @@ export default function CourseDetailPage() {
         if (moduleIds.length > 0) {
           const { data: lessonRows } = await supabase
             .from('lessons')
-            .select('id, module_id, title, duration_minutes, is_published, is_free, is_preview')
+            .select('id, module_id, title, duration_minutes, order_index, is_published, is_free, is_preview')
             .in('module_id', moduleIds)
-            .eq('is_published', true)
             .order('order_index', { ascending: true })
-          publishedLessons = (lessonRows || []) as typeof publishedLessons
+          visibleLessons = (lessonRows || []) as typeof visibleLessons
         }
         setModules(
           ((moduleRows || []) as { id: string }[]).map((moduleRow) => ({
             ...moduleRow,
-            lessons: publishedLessons
+            lessons: visibleLessons
               .filter((lesson) => lesson.module_id === moduleRow.id)
-              .map((lesson) => ({
-                id: lesson.id,
-                title: lesson.title,
-                duration_minutes: lesson.duration_minutes || undefined,
-                is_preview: lesson.is_free === true || lesson.is_preview === true,
-                is_upcoming: false,
-              })),
+              .map((lesson) => toOutlineLesson(lesson)),
           }))
         )
       }

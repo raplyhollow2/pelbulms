@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/card'
 
 import Link from 'next/link'
 import { ArrowRight, BookOpen, Star } from 'lucide-react'
-import { resolveMediaUrl } from '@/lib/media'
+import { cloudinaryDisplayUrl, resolveMediaUrl } from '@/lib/media'
 import { LandingSection } from '@/components/landing/landing-section'
 import { cn } from '@/lib/utils'
 
@@ -44,11 +44,20 @@ function Cover({ url, className }: { url: string | null; className?: string }) {
       </div>
     )
   }
+  const sized = (width: number) => (thumb.startsWith('/') ? thumb : cloudinaryDisplayUrl(thumb, width))
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={thumb}
+      src={sized(840)}
+      srcSet={
+        thumb.startsWith('/')
+          ? undefined
+          : `${sized(480)} 480w, ${sized(840)} 840w, ${sized(1200)} 1200w`
+      }
+      sizes="(min-width: 768px) 60vw, 100vw"
       alt=""
+      loading="lazy"
+      decoding="async"
       onError={() => setFailed(true)}
       className={cn('object-cover transition-transform duration-700 ease-out group-hover:scale-105', className)}
     />

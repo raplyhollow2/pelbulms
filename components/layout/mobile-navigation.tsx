@@ -28,6 +28,16 @@ const MOBILE_TABS: { name: string; href: string; icon: RigbuIconName }[] = [
   { name: 'Profile', href: '/profile', icon: 'profile' },
 ]
 
+/** Path plus hash, without the query string. Keeps `/profile#certificates` distinct from `/profile`. */
+function hrefWithoutQuery(href: string) {
+  const hashIndex = href.indexOf('#')
+  const queryIndex = href.indexOf('?')
+  const cuts = [hashIndex, queryIndex].filter((index) => index >= 0)
+  const path = href.slice(0, cuts.length ? Math.min(...cuts) : href.length)
+  if (hashIndex === -1) return path
+  return path + href.slice(hashIndex).split('?')[0]
+}
+
 export function MobileNavigation({
   user,
   profile = null,
@@ -45,7 +55,15 @@ export function MobileNavigation({
   const has = hasMenuAccess(roleForNav, hasCapKey)
   const panels = buildAccessNav(has)
   const accountLabel = ROLE_LABELS[roleForNav]
-  const tabHrefs = new Set(['/dashboard', '/courses', '/learn/progress', '/profile'])
+  const allowedHrefs = new Set(
+    ROLE_PANELS.flatMap((panel) => panels[panel.id].map((item) => hrefWithoutQuery(item.href)))
+  )
+  const visibleTabs = MOBILE_TABS.filter((item) => {
+    const key = hrefWithoutQuery(item.href)
+    if (allowedHrefs.has(key)) return true
+    return key === '/profile#certificates' && allowedHrefs.has('/profile')
+  })
+  const tabHrefs = new Set(visibleTabs.map((item) => hrefWithoutQuery(item.href)))
 
   const setMenuOpen = (open: boolean) => onMenuOpenChange?.(open)
 
@@ -128,7 +146,7 @@ export function MobileNavigation({
         />
         <div className="relative px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 sm:px-4">
         <div className="pointer-events-auto mx-auto flex w-full max-w-lg items-stretch justify-around gap-0.5 rounded-2xl border border-border/50 bg-background p-1.5 shadow-lg sm:gap-1">
-          {MOBILE_TABS.map((item) => {
+          {visibleTabs.map((item) => {
             const active = isTabActive(item.href)
             return (
               <Link
@@ -207,7 +225,9 @@ export function MobileNavigation({
             </button>
 
             {ROLE_PANELS.map((panel) => {
-              const items = panels[panel.id].filter((item) => !tabHrefs.has(item.href.split('?')[0]))
+              const items = panels[panel.id].filter(
+                (item) => !tabHrefs.has(hrefWithoutQuery(item.href))
+              )
               if (items.length === 0) return null
               return (
                 <div key={panel.id} className="mb-4">

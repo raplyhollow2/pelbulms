@@ -74,9 +74,17 @@ export function getYoutubeId(url: string): string | null {
   return match?.[1] || null
 }
 
+/** Always-available poster. maxresdefault 404s on some videos and is far larger than the hero needs. */
+export function youtubePosterUrl(url: string | null | undefined): string | null {
+  const id = url ? getYoutubeId(url) : null
+  if (!id) return null
+  return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
+}
+
 export function youtubeEmbedSrc(
   id: string,
-  params?: Record<string, string | number | boolean | null | undefined>
+  params?: Record<string, string | number | boolean | null | undefined>,
+  options?: { privacyEnhanced?: boolean }
 ) {
   const query = new URLSearchParams()
   for (const [key, value] of Object.entries(params || {})) {
@@ -84,7 +92,10 @@ export function youtubeEmbedSrc(
     query.set(key, String(value))
   }
   const qs = query.toString()
-  return `https://www.youtube.com/embed/${encodeURIComponent(id)}${qs ? `?${qs}` : ''}`
+  const host = options?.privacyEnhanced
+    ? 'https://www.youtube-nocookie.com'
+    : 'https://www.youtube.com'
+  return `${host}/embed/${encodeURIComponent(id)}${qs ? `?${qs}` : ''}`
 }
 
 const CONTAINED_STYLE_PROPS = [
@@ -248,7 +259,7 @@ export function pinYoutubeIframe(iframe: HTMLIFrameElement) {
 export function createYoutubeIframe(
   videoId: string,
   playerVars: Record<string, string | number | boolean | null | undefined> = {},
-  options?: { contain?: boolean }
+  options?: { contain?: boolean; privacyEnhanced?: boolean }
 ) {
   const iframe = document.createElement('iframe')
   iframe.title = 'YouTube'
@@ -256,11 +267,15 @@ export function createYoutubeIframe(
   iframe.referrerPolicy = 'strict-origin-when-cross-origin'
   iframe.allow = YOUTUBE_EMBED_ALLOW
   iframe.allowFullscreen = true
-  iframe.src = youtubeEmbedSrc(videoId, {
-    ...playerVars,
-    enablejsapi: 1,
-    origin: window.location.origin,
-  })
+  iframe.src = youtubeEmbedSrc(
+    videoId,
+    {
+      ...playerVars,
+      enablejsapi: 1,
+      origin: window.location.origin,
+    },
+    { privacyEnhanced: options?.privacyEnhanced }
+  )
   if (options?.contain) {
     fitYoutubeIframe(iframe)
     queueMicrotask(() => {
