@@ -3,9 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import {
-  Menu, X, LogOut, Search,
-} from 'lucide-react'
+import { RigbuIcon, type RigbuIconName } from '@/components/brand/RigbuIcon'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { createClient } from '@/lib/supabase/client'
@@ -18,11 +16,26 @@ import { coerceUserRole, ROLE_LABELS } from '@/lib/roles'
 interface MobileNavigationProps {
   user?: any
   profile?: { role?: string | null } | null
+  menuOpen?: boolean
+  onMenuOpenChange?: (open: boolean) => void
 }
 
-export function MobileNavigation({ user, profile = null }: MobileNavigationProps) {
+const MOBILE_TABS: { name: string; href: string; icon: RigbuIconName }[] = [
+  { name: 'Home', href: '/dashboard', icon: 'home' },
+  { name: 'Explore', href: '/courses', icon: 'explore' },
+  { name: 'My learning', href: '/learn/progress', icon: 'progress' },
+  { name: 'Certificates', href: '/profile#certificates', icon: 'certificates' },
+  { name: 'Profile', href: '/profile', icon: 'profile' },
+]
+
+export function MobileNavigation({
+  user,
+  profile = null,
+  menuOpen = false,
+  onMenuOpenChange,
+}: MobileNavigationProps) {
   const pathname = usePathname()
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [hash, setHash] = useState('')
   const { loaded: capsLoaded, has: hasCapKey, role: capRole } = useCapabilities()
   const [userRole, setUserRole] = useState<
     'student' | 'instructor' | 'admin' | 'resource_person' | 'superadmin'
@@ -32,17 +45,25 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
   const has = hasMenuAccess(roleForNav, hasCapKey)
   const panels = buildAccessNav(has)
   const accountLabel = ROLE_LABELS[roleForNav]
-  const studentNav = panels.student
-  const mainNavigation = studentNav.filter((item) =>
-    ['/dashboard', '/courses', '/learn/reports', '/profile'].includes(item.href)
-  )
+  const tabHrefs = new Set(['/dashboard', '/courses', '/learn/progress', '/profile'])
+
+  const setMenuOpen = (open: boolean) => onMenuOpenChange?.(open)
+
+  useEffect(() => {
+    const syncHash = () => setHash(window.location.hash)
+    syncHash()
+    window.addEventListener('hashchange', syncHash)
+    return () => window.removeEventListener('hashchange', syncHash)
+  }, [pathname])
 
   useEffect(() => {
     if (user) fetchUserRole()
   }, [user, profile])
 
   useEffect(() => {
-    setMenuOpen(false)
+    onMenuOpenChange?.(false)
+    // Close the overflow sheet when the route changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname])
 
   useEffect(() => {
@@ -85,10 +106,15 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
     }
   }
 
-  const isActive = (href: string) =>
-    href === '/admin'
-      ? pathname === '/admin'
-      : pathname === href || pathname.startsWith(`${href}/`)
+  const isTabActive = (href: string) => {
+    if (href === '/profile#certificates') {
+      return pathname === '/profile' && hash === '#certificates'
+    }
+    if (href === '/profile') {
+      return (pathname === '/profile' || pathname.startsWith('/profile/')) && hash !== '#certificates'
+    }
+    return pathname === href || pathname.startsWith(`${href}/`)
+  }
 
   return (
     <>
@@ -102,32 +128,30 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
         />
         <div className="relative px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 sm:px-4">
         <div className="pointer-events-auto mx-auto flex w-full max-w-lg items-stretch justify-around gap-0.5 rounded-2xl border border-border/50 bg-background p-1.5 shadow-lg sm:gap-1">
-          {mainNavigation.map((item) => {
-            const active = isActive(item.href)
+          {MOBILE_TABS.map((item) => {
+            const active = isTabActive(item.href)
             return (
               <Link
                 key={item.name}
                 href={item.href}
-                onClick={() => haptic()}
+                onClick={() => {
+                  haptic()
+                  if (item.href === '/profile') setHash('')
+                  if (item.href === '/profile#certificates') setHash('#certificates')
+                }}
                 aria-current={active ? 'page' : undefined}
-                className="press relative flex min-h-11 flex-1 flex-col items-center justify-center gap-1 min-w-0 rounded-xl py-2"
+                className="press relative flex min-h-11 min-w-11 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2"
               >
                 {active && (
                   <span
                     aria-hidden
-                    className="absolute inset-0 rounded-xl bg-primary/15 ring-1 ring-primary/25"
+                    className="absolute inset-0 rounded-xl bg-[rgba(245,184,46,0.16)]"
                   />
                 )}
-                <item.icon
-                  className={cn(
-                    'relative h-5 w-5 shrink-0 transition-transform duration-300',
-                    active ? 'scale-110 text-primary' : 'text-muted-foreground'
-                  )}
-                  style={{ transitionTimingFunction: 'var(--ease-spring)' }}
-                />
+                <RigbuIcon name={item.icon} size={20} active={active} className="relative" />
                 <span
                   className={cn(
-                    'relative max-w-full truncate px-0.5 text-[10px] font-medium transition-colors',
+                    'relative max-w-full text-center text-[10px] font-medium leading-tight',
                     active ? 'text-foreground' : 'text-muted-foreground'
                   )}
                 >
@@ -136,39 +160,6 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
               </Link>
             )
           })}
-
-          <button
-            type="button"
-            onClick={() => {
-              haptic()
-              setMenuOpen((open) => !open)
-            }}
-            className="press relative flex flex-1 flex-col items-center justify-center gap-1 min-w-0 rounded-xl py-2"
-            aria-expanded={menuOpen}
-            aria-label="Open menu"
-          >
-            {menuOpen && (
-              <span
-                aria-hidden
-                className="absolute inset-0 rounded-xl bg-primary/15 ring-1 ring-primary/25"
-              />
-            )}
-            <span className="relative">
-              {menuOpen ? (
-                <X className="h-5 w-5 text-primary" />
-              ) : (
-                <Menu className="h-5 w-5 text-muted-foreground" />
-              )}
-            </span>
-            <span
-              className={cn(
-                'relative text-[10px] font-medium transition-colors',
-                menuOpen ? 'text-foreground' : 'text-muted-foreground'
-              )}
-            >
-              Menu
-            </span>
-          </button>
         </div>
         </div>
       </nav>
@@ -210,15 +201,13 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
               }}
               className="mb-3 flex w-full items-center gap-3 rounded-xl border border-border/60 bg-muted/40 px-4 py-3 text-left text-sm text-muted-foreground transition-colors active:bg-muted"
             >
-              <Search className="h-4 w-4" />
+              <RigbuIcon name="search" size={16} />
               <span>Search courses…</span>
               <span className="ml-auto rounded-md bg-background px-1.5 py-0.5 text-[10px] font-medium">Live</span>
             </button>
 
             {ROLE_PANELS.map((panel) => {
-              const items = panels[panel.id].filter(
-                (item) => !mainNavigation.some((main) => main.href === item.href)
-              )
+              const items = panels[panel.id].filter((item) => !tabHrefs.has(item.href.split('?')[0]))
               if (items.length === 0) return null
               return (
                 <div key={panel.id} className="mb-4">
@@ -233,7 +222,7 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
                         onClick={() => setMenuOpen(false)}
                         className="flex flex-col items-center justify-center gap-2 rounded-xl bg-muted/50 p-4 transition-colors active:bg-muted"
                       >
-                        <item.icon className="h-5 w-5 text-muted-foreground" />
+                        <RigbuIcon name={item.icon} size={20} />
                         <span className="text-center text-xs font-medium">{item.name}</span>
                       </Link>
                     ))}
@@ -243,7 +232,7 @@ export function MobileNavigation({ user, profile = null }: MobileNavigationProps
             })}
 
             <Button variant="outline" onClick={handleLogout} className="w-full">
-              <LogOut className="w-4 h-4 mr-2" />
+              <RigbuIcon name="sign-out" size={16} />
               Logout
             </Button>
           </div>

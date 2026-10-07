@@ -18,6 +18,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { RoleBadge } from '@/components/auth/role-badge'
+import { PageBadge } from '@/components/brand/page-badge'
 import { Separator } from '@/components/ui/separator'
 import { canAccessTeaching } from '@/lib/roles'
 import { linkedinFromProfile, mergeSocialLinks, normalizeLinkedInUrl } from '@/lib/social-links'
@@ -337,11 +338,14 @@ export default function ProfilePage() {
     <div className="container mx-auto max-w-4xl px-4 py-5 sm:px-5 sm:py-7 md:px-6 md:py-8">
       <div className="space-y-6">
         {/* Header */}
-        <div className="space-y-1">
+        <div className="flex items-center gap-3">
+          <PageBadge name="profile" />
+          <div className="space-y-1">
           <h1 className="text-2xl sm:text-3xl font-bold">My Profile</h1>
           <p className="text-sm sm:text-base text-muted-foreground">
             Manage your personal information and preferences
           </p>
+          </div>
         </div>
 
         {/* Profile Card */}
@@ -826,10 +830,10 @@ export default function ProfilePage() {
         </Card>
 
         {/* Certificates Card */}
-        <Card>
+        <Card id="certificates">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Award className="w-5 h-5" />
+            <CardTitle className="flex items-center gap-3">
+              <PageBadge name="certificates" />
               Certificates
             </CardTitle>
             <CardDescription>

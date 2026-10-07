@@ -51,6 +51,7 @@
 
 /* Vega neutral theme. Royal tokens are only the landing hero accent. */
 :root {
+  --rigbu-accent: #F5B82E;
   --shadcn-yellow: oklch(0.852 0.199 91.936);
   --shadcn-orange: oklch(0.553 0.195 38.402);
   --card: oklch(1 0 0);

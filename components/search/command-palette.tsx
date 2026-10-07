@@ -13,10 +13,8 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useCapabilities } from '@/components/auth/capabilities-provider'
 import { MENU_LINKS } from '@/lib/capability-catalog'
-import {
-  BookOpen,
-  Loader2,
-} from 'lucide-react'
+import { RigbuIcon } from '@/components/brand/RigbuIcon'
+import { Loader2 } from 'lucide-react'
 
 interface CourseHit {
   id: string
@@ -116,7 +114,7 @@ export function CommandPalette() {
                       value={`${c.title} ${c.category ?? ''}`}
                       onSelect={() => runCommand(`/courses/${c.id}`)}
                     >
-                      <BookOpen className="mr-2 h-4 w-4 text-primary" />
+                      <RigbuIcon name="courses" size={16} className="mr-2 text-primary" />
                       <span className="truncate">{c.title}</span>
                       {c.category && (
                         <span className="ml-auto shrink-0 text-xs text-muted-foreground">{c.category}</span>
@@ -133,6 +131,7 @@ export function CommandPalette() {
                     value={`${link.name} ${link.href} ${link.section} ${link.group ?? ''} ${link.keywords ?? ''}`}
                     onSelect={() => runCommand(link.href)}
                   >
+                    <RigbuIcon name={link.icon} size={16} active={false} className="mr-2" />
                     <span className="truncate">{link.name}</span>
                   </CommandItem>
                 ))}

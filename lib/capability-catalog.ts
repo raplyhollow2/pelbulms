@@ -1,5 +1,6 @@
 import type { UserRole } from '@/lib/roles'
 import { CAP, type CapabilityKey } from '@/lib/capability-keys'
+import type { RigbuIconName } from '@/components/brand/RigbuIcon'
 
 export type NavSection = 'learn' | 'teach' | 'admin'
 
@@ -8,22 +9,7 @@ export type MenuLink = {
   name: string
   href: string
   section: NavSection
-  icon:
-    | 'Home'
-    | 'BookOpen'
-    | 'TrendingUp'
-    | 'Activity'
-    | 'Bell'
-    | 'User'
-    | 'Settings'
-    | 'GraduationCap'
-    | 'HardDrive'
-    | 'BarChart3'
-    | 'LayoutDashboard'
-    | 'Users'
-    | 'Building2'
-    | 'Shield'
-    | 'Sparkles'
+  icon: RigbuIconName
   keywords?: string
   /** Optional command-palette subgroup. */
   group?: string
@@ -33,27 +19,27 @@ export type MenuLink = {
 
 /** Sidebar / command-palette rows keyed to capability catalog keys. */
 export const MENU_LINKS: MenuLink[] = [
-  { cap: CAP.LEARN_DASHBOARD_VIEW, name: 'Dashboard', href: '/dashboard', section: 'learn', icon: 'Home' },
-  { cap: CAP.LEARN_COURSES_VIEW, name: 'Courses', href: '/courses', section: 'learn', icon: 'BookOpen' },
-  { cap: CAP.LEARN_PROGRESS_VIEW, name: 'Progress', href: '/learn/progress', section: 'learn', icon: 'Activity', keywords: 'my progress learning' },
-  { cap: CAP.LEARN_REPORTS_VIEW, name: 'Reports', href: '/learn/reports', section: 'learn', icon: 'TrendingUp' },
-  { cap: CAP.LEARN_ANNOUNCEMENTS_VIEW, name: 'Announcements', href: '/announcements', section: 'learn', icon: 'Bell' },
-  { cap: CAP.LEARN_PROFILE_VIEW, name: 'Profile', href: '/profile', section: 'learn', icon: 'User' },
-  { cap: CAP.LEARN_SETTINGS_VIEW, name: 'Settings', href: '/settings', section: 'learn', icon: 'Settings' },
+  { cap: CAP.LEARN_DASHBOARD_VIEW, name: 'Dashboard', href: '/dashboard', section: 'learn', icon: 'home' },
+  { cap: CAP.LEARN_COURSES_VIEW, name: 'Courses', href: '/courses', section: 'learn', icon: 'explore' },
+  { cap: CAP.LEARN_PROGRESS_VIEW, name: 'Progress', href: '/learn/progress', section: 'learn', icon: 'progress', keywords: 'my progress learning' },
+  { cap: CAP.LEARN_REPORTS_VIEW, name: 'Reports', href: '/learn/reports', section: 'learn', icon: 'progress' },
+  { cap: CAP.LEARN_ANNOUNCEMENTS_VIEW, name: 'Announcements', href: '/announcements', section: 'learn', icon: 'notifications' },
+  { cap: CAP.LEARN_PROFILE_VIEW, name: 'Profile', href: '/profile', section: 'learn', icon: 'profile' },
+  { cap: CAP.LEARN_SETTINGS_VIEW, name: 'Settings', href: '/settings', section: 'learn', icon: 'settings' },
 
-  { cap: CAP.TEACH_DASHBOARD_VIEW, name: 'Teacher Dashboard', href: '/teach/dashboard', section: 'teach', icon: 'GraduationCap' },
-  { cap: CAP.TEACH_MEDIA_VIEW, name: 'Media Library', href: '/teach/media', section: 'teach', icon: 'HardDrive' },
-  { cap: CAP.TEACH_REPORTS_VIEW, name: 'Reports', href: '/teach/reports', section: 'teach', icon: 'BarChart3' },
-  { cap: CAP.TEACH_ANNOUNCEMENTS_VIEW, name: 'Announcements', href: '/teach/announcements', section: 'teach', icon: 'Bell' },
+  { cap: CAP.TEACH_DASHBOARD_VIEW, name: 'Teacher Dashboard', href: '/teach/dashboard', section: 'teach', icon: 'my-courses' },
+  { cap: CAP.TEACH_MEDIA_VIEW, name: 'Media Library', href: '/teach/media', section: 'teach', icon: 'resources' },
+  { cap: CAP.TEACH_REPORTS_VIEW, name: 'Reports', href: '/teach/reports', section: 'teach', icon: 'insights' },
+  { cap: CAP.TEACH_ANNOUNCEMENTS_VIEW, name: 'Announcements', href: '/teach/announcements', section: 'teach', icon: 'notifications' },
 
-  { cap: CAP.APPROVALS_VIEW, name: 'Approvals', href: '/admin/users?tab=approvals', section: 'admin', icon: 'Users', panel: 'resource_person' },
-  { cap: CAP.DASHBOARD_VIEW, name: 'Overview', href: '/admin?overview=1', section: 'admin', icon: 'LayoutDashboard', panel: 'admin' },
-  { cap: CAP.USERS_VIEW, name: 'Users', href: '/admin/users', section: 'admin', icon: 'Users', panel: 'admin' },
-  { cap: CAP.REPORTS_VIEW, name: 'Reports', href: '/admin/reports', section: 'admin', icon: 'BarChart3', panel: 'admin' },
-  { cap: CAP.INSTITUTIONS_VIEW, name: 'Institutions', href: '/admin/settings/institutions', section: 'admin', icon: 'Building2', panel: 'admin' },
-  { cap: CAP.PERMISSIONS_VIEW, name: 'Permissions', href: '/admin/permissions', section: 'admin', icon: 'Shield', panel: 'superadmin' },
-  { cap: CAP.AI_VIEW, name: 'AI', href: '/admin/ai', section: 'admin', icon: 'Sparkles', panel: 'superadmin' },
-  { cap: CAP.SETTINGS_VIEW, name: 'Site admin', href: '/admin/settings', section: 'admin', icon: 'Settings', panel: 'superadmin' },
+  { cap: CAP.APPROVALS_VIEW, name: 'Approvals', href: '/admin/users?tab=approvals', section: 'admin', icon: 'enrollments', panel: 'resource_person' },
+  { cap: CAP.DASHBOARD_VIEW, name: 'Overview', href: '/admin?overview=1', section: 'admin', icon: 'admin', panel: 'admin' },
+  { cap: CAP.USERS_VIEW, name: 'Users', href: '/admin/users', section: 'admin', icon: 'learners', panel: 'admin' },
+  { cap: CAP.REPORTS_VIEW, name: 'Reports', href: '/admin/reports', section: 'admin', icon: 'insights', panel: 'admin' },
+  { cap: CAP.INSTITUTIONS_VIEW, name: 'Institutions', href: '/admin/settings/institutions', section: 'admin', icon: 'admin', panel: 'admin' },
+  { cap: CAP.PERMISSIONS_VIEW, name: 'Permissions', href: '/admin/permissions', section: 'admin', icon: 'admin', panel: 'superadmin' },
+  { cap: CAP.AI_VIEW, name: 'AI', href: '/admin/ai', section: 'admin', icon: 'ai-assistant', panel: 'superadmin' },
+  { cap: CAP.SETTINGS_VIEW, name: 'Site admin', href: '/admin/settings', section: 'admin', icon: 'settings', panel: 'superadmin' },
 ]
 
 export const LEARN_MENU_CAPS: CapabilityKey[] = MENU_LINKS.filter((l) => l.section === 'learn').map(

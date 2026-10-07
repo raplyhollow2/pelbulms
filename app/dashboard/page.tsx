@@ -24,6 +24,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 import { DashboardCourseCard } from '@/components/dashboard/course-card'
 import { BrandCharacter } from '@/components/brand/brand-character'
+import { PageBadge } from '@/components/brand/page-badge'
 import { resolveMediaUrl } from '@/lib/media'
 import { resumeLearnPath } from '@/lib/resume-path'
 import {
@@ -212,13 +213,16 @@ export default function DashboardPage() {
     <div className="container mx-auto max-w-6xl px-4 py-5 sm:px-5 sm:py-7 md:px-6 md:py-7 lg:px-8 lg:pb-8">
       {/* Compact header */}
       <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-3">
+          <PageBadge name="dashboard" />
+          <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Learning hub
           </p>
           <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
             Welcome back, {firstName}
           </h1>
+          </div>
         </div>
         <Button
           variant="outline"

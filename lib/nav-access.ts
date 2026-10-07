@@ -1,45 +1,10 @@
-import type { LucideIcon } from 'lucide-react'
-import {
-  Home,
-  BookOpen,
-  TrendingUp,
-  Activity,
-  Bell,
-  User,
-  Settings,
-  GraduationCap,
-  HardDrive,
-  BarChart3,
-  LayoutDashboard,
-  Users,
-  Building2,
-  Shield,
-  Sparkles,
-} from 'lucide-react'
+import type { RigbuIconName } from '@/components/brand/RigbuIcon'
 import { defaultKeysForRole, hasCap, MENU_LINKS, type NavSection } from '@/lib/capability-catalog'
-
-const ICONS: Record<(typeof MENU_LINKS)[number]['icon'], LucideIcon> = {
-  Home,
-  BookOpen,
-  TrendingUp,
-  Activity,
-  Bell,
-  User,
-  Settings,
-  GraduationCap,
-  HardDrive,
-  BarChart3,
-  LayoutDashboard,
-  Users,
-  Building2,
-  Shield,
-  Sparkles,
-}
 
 export type AccessNavItem = {
   name: string
   href: string
-  icon: LucideIcon
+  icon: RigbuIconName
   section: NavSection
   group?: string
   panel: RolePanel
@@ -86,7 +51,7 @@ export function buildAccessNav(has: (key: string) => boolean): Record<RolePanel,
     grouped[panel].push({
       name: link.name,
       href: link.href,
-      icon: ICONS[link.icon],
+      icon: link.icon,
       section: link.section,
       group: link.group,
       panel,

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { Search } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { BrandLogo } from '@/components/brand/brand-logo'
+import { RigbuIcon } from '@/components/brand/RigbuIcon'
 import { Button } from '@/components/ui/button'
 import { DesktopSidebar } from './desktop-sidebar'
 import { MobileNavigation } from './mobile-navigation'
@@ -24,6 +25,7 @@ interface ResponsiveLayoutProps {
 
 export function ResponsiveLayout({ children, user, logoUrl = null, profile = null }: ResponsiveLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const pathname = usePathname()
   const isLearnPlayer = /^\/learn\/[^/]+\/lesson\//.test(pathname || '')
   const isCourseAuthoring =
@@ -63,7 +65,18 @@ export function ResponsiveLayout({ children, user, logoUrl = null, profile = nul
         }`}
       >
         <header className="sticky top-0 z-40 flex shrink-0 items-center gap-2 border-b border-border/40 bg-background/85 px-3 py-2 backdrop-blur-xl safe-area-top sm:gap-3 sm:px-5 md:px-6 lg:px-8">
-          <div className="flex min-w-0 items-center gap-2 md:hidden">
+          <div className="flex min-w-0 items-center gap-1 md:hidden">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-11 w-11"
+              aria-label="Open menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
             <BrandLogo href="/dashboard" src={logoUrl} height={32} markBelow400 className="rounded-lg px-1 py-1" />
           </div>
 
@@ -82,7 +95,7 @@ export function ResponsiveLayout({ children, user, logoUrl = null, profile = nul
               aria-label="Search"
               onClick={() => window.dispatchEvent(new Event('rigbu:open-search'))}
             >
-              <Search className="h-4 w-4" />
+              <RigbuIcon name="search" size={18} />
             </Button>
             <NotificationBell compact />
           </div>
@@ -97,7 +110,12 @@ export function ResponsiveLayout({ children, user, logoUrl = null, profile = nul
       </main>
 
       <div className="md:hidden">
-        <MobileNavigation user={user} profile={profile} />
+        <MobileNavigation
+          user={user}
+          profile={profile}
+          menuOpen={menuOpen}
+          onMenuOpenChange={setMenuOpen}
+        />
       </div>
     </div>
   )

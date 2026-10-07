@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
+import { PageBadge } from '@/components/brand/page-badge'
 import {
   Select,
   SelectContent,
@@ -147,11 +148,14 @@ export default function SettingsPage() {
     <div className="container mx-auto max-w-4xl px-4 py-5 sm:px-5 sm:py-7 md:px-6 md:py-8">
       <div className="space-y-6">
         {/* Header */}
-        <div className="space-y-1">
+        <div className="flex items-center gap-3">
+          <PageBadge name="settings" />
+          <div className="space-y-1">
           <h1 className="text-2xl sm:text-3xl font-bold">Settings</h1>
           <p className="text-sm sm:text-base text-muted-foreground">
             Manage your account preferences and configuration
           </p>
+          </div>
         </div>
 
         {/* Notification Settings */}

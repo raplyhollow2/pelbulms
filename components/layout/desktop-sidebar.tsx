@@ -4,10 +4,10 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import {
-  ChevronLeft, ChevronRight, LogOut, Search,
-  type LucideIcon,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { BrandLogo } from '@/components/brand/brand-logo'
+import { RigbuIcon, type RigbuIconName } from '@/components/brand/RigbuIcon'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -38,7 +38,7 @@ interface DesktopSidebarProps {
 interface NavItem {
   name: string
   href: string
-  icon: LucideIcon
+  icon: RigbuIconName
 }
 
 const STORAGE_KEY = 'rigbu:sidebar-collapsed'
@@ -187,7 +187,7 @@ export function DesktopSidebar({ user, logoUrl = null, profile: profileHint = nu
             'group press relative flex items-center rounded-xl text-sm font-medium transition-all duration-300',
             collapsed ? 'h-11 w-11 justify-center' : 'gap-3 px-3 py-2.5',
             isActive
-              ? 'bg-gradient-to-r from-primary/20 to-primary/10 text-foreground shadow-sm'
+              ? 'bg-[rgba(245,184,46,0.16)] text-foreground'
               : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground'
           )}
         >
@@ -199,9 +199,7 @@ export function DesktopSidebar({ user, logoUrl = null, profile: profileHint = nu
               )}
             />
           )}
-          <item.icon
-            className={cn('h-5 w-5 shrink-0', isActive && 'text-primary')}
-          />
+          <RigbuIcon name={item.icon} size={20} active={isActive} />
           {!collapsed && <span className="truncate">{item.name}</span>}
         </Link>
       )
@@ -302,7 +300,7 @@ export function DesktopSidebar({ user, logoUrl = null, profile: profileHint = nu
                     className="mx-auto mb-2 h-11 w-11"
                     aria-label="Search"
                   >
-                    <Search className="h-5 w-5" />
+                    <RigbuIcon name="search" size={20} />
                   </Button>
                 }
               />
@@ -316,7 +314,7 @@ export function DesktopSidebar({ user, logoUrl = null, profile: profileHint = nu
               className="mb-2 w-full justify-start gap-3 text-muted-foreground"
               onClick={openCommandPalette}
             >
-              <Search className="h-5 w-5" />
+              <RigbuIcon name="search" size={20} />
               <span>Search</span>
               <kbd className="ml-auto rounded bg-muted px-1.5 py-0.5 text-xs">⌘K</kbd>
             </Button>
@@ -347,7 +345,7 @@ export function DesktopSidebar({ user, logoUrl = null, profile: profileHint = nu
                     aria-label="Logout"
                     className="mx-auto h-11 w-11 text-muted-foreground hover:text-destructive"
                   >
-                    <LogOut className="h-5 w-5" />
+                    <RigbuIcon name="sign-out" size={20} />
                   </Button>
                 }
               />
@@ -359,7 +357,7 @@ export function DesktopSidebar({ user, logoUrl = null, profile: profileHint = nu
               onClick={handleLogout}
               className="w-full justify-start gap-3 text-muted-foreground hover:text-destructive"
             >
-              <LogOut className="h-5 w-5" />
+              <RigbuIcon name="sign-out" size={20} />
               <span>Logout</span>
             </Button>
           )}

@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { PageBadge } from '@/components/brand/page-badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -529,13 +530,16 @@ export default function TeacherDashboard() {
   return (
     <div className="container mx-auto px-4 py-6 lg:py-8 space-y-6 lg:space-y-8 max-w-7xl md:px-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-3">
+          <PageBadge name="my-courses" />
+          <div className="min-w-0">
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-1 sm:mb-2">
             {isAdminView ? 'Course Design Dashboard' : 'Teacher Dashboard'}
           </h1>
           <p className="text-sm text-muted-foreground sm:text-base lg:text-xl">
             Welcome back, {profile?.full_name || user?.user_metadata?.full_name || 'Instructor'}!
           </p>
+          </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           {canOpenMedia && (
