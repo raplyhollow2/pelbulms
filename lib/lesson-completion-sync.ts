@@ -1,6 +1,6 @@
 import {
   activityGateState,
-  activitySatisfiesCompletion,
+  activitySatisfiesProgression,
   type ActivityCompletionSnapshot,
   type CompletionBlocker,
 } from '@/lib/activity-responses'
@@ -53,7 +53,7 @@ export function mandatoryBlockersForLesson(
   for (const activity of activities) {
     if (!isActivityRequired(activity)) continue
     const progress = progressByActivity.get(activity.id) || null
-    if (activitySatisfiesCompletion(activity, progress)) continue
+    if (activitySatisfiesProgression(activity, progress)) continue
     const state = activityGateState(activity, progress)
     blockers.push({
       lessonId: lesson.id,

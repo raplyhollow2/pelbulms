@@ -10,7 +10,7 @@ import {
   type LessonActivity,
 } from '@/lib/lesson-activities'
 import {
-  activitySatisfiesCompletion,
+  activitySatisfiesProgression,
   isAssessableActivity,
   requiresLearnerInput,
   submissionStatusForActivity,
@@ -78,11 +78,15 @@ async function syncQuizPasses(
     .select('quiz_id, passed')
     .eq('user_id', userId)
     .in('quiz_id', quizIds)
-    .eq('passed', true)
 
-  const passedQuizIds = new Set((attempts || []).map((a: any) => a.quiz_id))
+  const passedByQuiz = new Map<string, boolean>()
+  for (const attempt of attempts || []) {
+    const quizId = attempt.quiz_id as string
+    passedByQuiz.set(quizId, Boolean(passedByQuiz.get(quizId)) || Boolean(attempt.passed))
+  }
   for (const quiz of quizzes) {
-    if (!passedQuizIds.has(quiz.quizId)) continue
+    if (!passedByQuiz.has(quiz.quizId!)) continue
+    const passed = passedByQuiz.get(quiz.quizId!)
     await db.from('lesson_activity_progress').upsert(
       {
         user_id: userId,
@@ -90,7 +94,7 @@ async function syncQuizPasses(
         activity_id: quiz.id,
         completed: true,
         completed_at: new Date().toISOString(),
-        source: 'quiz_pass',
+        source: passed ? 'quiz_pass' : 'quiz_attempt',
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'user_id,lesson_id,activity_id' }
@@ -179,7 +183,7 @@ async function buildProgressPayload(
   const satisfiedIds = new Set(
     activities
       .filter((activity) =>
-        activitySatisfiesCompletion(activity, progressById[activity.id] || null)
+        activitySatisfiesProgression(activity, progressById[activity.id] || null)
       )
       .map((activity) => activity.id)
   )
@@ -315,7 +319,7 @@ export async function POST(
       }
       if (activity.activity === 'quiz') {
         return NextResponse.json(
-          { error: 'Quizzes complete automatically when you pass' },
+          { error: 'Quizzes complete automatically when you submit an attempt' },
           { status: 400 }
         )
       }

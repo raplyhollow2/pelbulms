@@ -76,14 +76,17 @@ export async function GET(request: NextRequest) {
 
     const { data: modules } = await service.from('modules').select('id').eq('course_id', courseId)
     let totalLessons = 0
+    const lessonIds = new Set<string>()
     if (modules && modules.length > 0) {
       const moduleIds = modules.map((m: any) => m.id)
-      const { count } = await service
+      const { data: lessonRows } = await service
         .from('lessons')
-        .select('*', { count: 'exact', head: true })
+        .select('id')
         .in('module_id', moduleIds)
-        .eq('is_published', true)
-      totalLessons = count || 0
+      for (const row of lessonRows || []) {
+        if ((row as { id?: string }).id) lessonIds.add((row as { id: string }).id)
+      }
+      totalLessons = lessonIds.size
     }
 
     const { data: certs } = await service.from('certificates').select('user_id').eq('course_id', courseId)
@@ -91,13 +94,15 @@ export async function GET(request: NextRequest) {
 
     const { data: progressRows } = await service
       .from('lesson_progress')
-      .select('user_id')
+      .select('user_id, lesson_id')
       .eq('course_id', courseId)
       .eq('completed', true)
       .in('user_id', userIds)
 
     const completedByUser = new Map<string, number>()
     for (const row of progressRows || []) {
+      const lessonId = (row as { lesson_id?: string }).lesson_id
+      if (!lessonId || !lessonIds.has(lessonId)) continue
       const uid = (row as any).user_id as string
       completedByUser.set(uid, (completedByUser.get(uid) || 0) + 1)
     }

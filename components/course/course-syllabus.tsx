@@ -152,11 +152,15 @@ export function CourseSyllabus({
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm font-medium truncate">{lesson.title}</span>
-                                {isLocked && (
+                                {lesson.is_published === false && isLocked ? (
+                                  <Badge variant="outline" className="text-[10px]">
+                                    Upcoming
+                                  </Badge>
+                                ) : isLocked ? (
                                   <Badge variant="outline" className="text-[10px]">
                                     Locked
                                   </Badge>
-                                )}
+                                ) : null}
                                 {isCompleted && (
                                   <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
                                 )}

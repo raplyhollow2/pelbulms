@@ -36,6 +36,7 @@ export type CurriculumLesson = {
   content?: unknown
   resources?: unknown
   metadata?: unknown
+  is_published?: boolean | null
 }
 
 export type CurriculumModule = {
@@ -228,9 +229,10 @@ export function CurriculumRail({
                     const done = completedLessonIds.has(lesson.id)
                     const current = lesson.id === currentLessonId
                     const locked = lockedLessonIds?.has(lesson.id)
+                    const upcoming = lesson.is_published === false && Boolean(locked)
                     const kind = inferLectureKind(lesson)
                     const duration = formatLectureDuration(lesson.duration_minutes)
-                    const activities = lessonMenuEntries(lesson)
+                    const activities = upcoming ? [] : lessonMenuEntries(lesson)
                     const activitiesOpen = openLessons.has(lesson.id) && activities.length > 0
 
                     return (
@@ -296,6 +298,7 @@ export function CurriculumRail({
                                     {activities.length}
                                   </span>
                                 ) : null}
+                                {upcoming ? <span>Upcoming</span> : null}
                               </span>
                             </span>
                           </button>

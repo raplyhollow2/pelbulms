@@ -188,7 +188,7 @@ export function LessonResources({
                       )}
                       {completable && item.trackable && gate === 'awaiting_grade' && (
                         <Badge className="bg-amber-600 text-[10px] hover:bg-amber-600">
-                          Awaiting grade
+                          Submitted
                         </Badge>
                       )}
                       {completable && item.trackable && gate === 'below_pass' && (

@@ -28,12 +28,29 @@ import { canAccessTeaching } from '@/lib/roles'
 import { LinkedInProfileLink } from '@/components/profile/linkedin-profile-link'
 import { linkedinFromProfile } from '@/lib/social-links'
 import { loadCourseFacilitators } from '@/lib/course-facilitators'
-import { lessonIsFreePreview } from '@/lib/lesson-visibility'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Profile = Database['public']['Tables']['profiles']['Row']
 type RelatedCourse = Course & {
   profiles?: Pick<Profile, 'full_name' | 'avatar_url' | 'bio'> | null
+}
+
+type OutlineLesson = {
+  id: string
+  title: string
+  duration_minutes?: number | null
+  order_index?: number | null
+  is_published: boolean
+  is_free?: boolean
+  is_preview?: boolean
+}
+
+type OutlineModule = {
+  id: string
+  title: string
+  description?: string | null
+  order_index: number
+  lessons?: OutlineLesson[]
 }
 
 async function fetchLiveStudentCount(courseId: string): Promise<number | null> {
@@ -213,13 +230,8 @@ export default function CourseDetailPage() {
 
       const ownerId = (courseData as any).instructor_id as string | null
       const category = (courseData as { category?: string | null }).category
-      const [{ data: modulesData }, liveStudentCount, orderedFacilitators, siblingResult] =
+      const [liveStudentCount, orderedFacilitators, siblingResult, outlineResult] =
         await Promise.all([
-        supabase
-          .from('modules')
-          .select('id, title, description, order_index')
-          .eq('course_id', courseId)
-          .order('order_index', { ascending: true }),
         fetchLiveStudentCount(courseId),
         loadCourseFacilitators(supabase, courseId, ownerId).catch((staffErr) => {
           console.log('Facilitators fetch error:', staffErr)
@@ -238,6 +250,10 @@ export default function CourseDetailPage() {
           .eq('is_published', true)
           .neq('id', courseId)
           .limit(24),
+        fetch(`/api/courses/${courseId}/outline`).then(async (res) => {
+          if (!res.ok) return null
+          return (await res.json()) as { modules?: OutlineModule[] }
+        }).catch(() => null),
       ])
 
       if (orderedFacilitators.length > 0) {
@@ -248,41 +264,60 @@ export default function CourseDetailPage() {
         )
       }
 
-      const moduleIds = ((modulesData || []) as { id: string }[]).map((row) => row.id)
-      let publishedLessons: {
-        id: string
-        module_id: string
-        title: string
-        description?: string | null
-        duration_minutes?: number | null
-        order_index?: number | null
-        is_free?: boolean | null
-        is_preview?: boolean | null
-      }[] = []
-      if (moduleIds.length > 0) {
-        const { data: lessonRows } = await supabase
-          .from('lessons')
-          .select('id, module_id, title, description, duration_minutes, order_index, is_published, is_free, is_preview')
-          .in('module_id', moduleIds)
-          .eq('is_published', true)
-          .order('order_index', { ascending: true })
-        publishedLessons = (lessonRows || []) as typeof publishedLessons
-      }
-
-      setModules(
-        ((modulesData || []) as { id: string }[]).map((moduleRow) => ({
-          ...moduleRow,
-          lessons: publishedLessons
-            .filter((lesson) => lesson.module_id === moduleRow.id)
-            .map((lesson) => ({
+      const outlineModules = outlineResult?.modules
+      if (outlineModules) {
+        setModules(
+          outlineModules.map((moduleRow) => ({
+            ...moduleRow,
+            lessons: (moduleRow.lessons || []).map((lesson) => ({
               id: lesson.id,
               title: lesson.title,
-              description: lesson.description || undefined,
               duration_minutes: lesson.duration_minutes || undefined,
-              is_preview: lessonIsFreePreview(lesson),
+              is_preview: lesson.is_published && (lesson.is_free || lesson.is_preview),
+              is_upcoming: !lesson.is_published,
             })),
-        }))
-      )
+          }))
+        )
+      } else {
+        const { data: moduleRows } = await supabase
+          .from('modules')
+          .select('id, title, description, order_index')
+          .eq('course_id', courseId)
+          .order('order_index', { ascending: true })
+        const moduleIds = ((moduleRows || []) as { id: string }[]).map((row) => row.id)
+        let publishedLessons: {
+          id: string
+          module_id: string
+          title: string
+          duration_minutes?: number | null
+          is_free?: boolean | null
+          is_preview?: boolean | null
+          is_published?: boolean | null
+        }[] = []
+        if (moduleIds.length > 0) {
+          const { data: lessonRows } = await supabase
+            .from('lessons')
+            .select('id, module_id, title, duration_minutes, is_published, is_free, is_preview')
+            .in('module_id', moduleIds)
+            .eq('is_published', true)
+            .order('order_index', { ascending: true })
+          publishedLessons = (lessonRows || []) as typeof publishedLessons
+        }
+        setModules(
+          ((moduleRows || []) as { id: string }[]).map((moduleRow) => ({
+            ...moduleRow,
+            lessons: publishedLessons
+              .filter((lesson) => lesson.module_id === moduleRow.id)
+              .map((lesson) => ({
+                id: lesson.id,
+                title: lesson.title,
+                duration_minutes: lesson.duration_minutes || undefined,
+                is_preview: lesson.is_free === true || lesson.is_preview === true,
+                is_upcoming: false,
+              })),
+          }))
+        )
+      }
       const siblingRows = ((siblingResult as { data?: RelatedCourse[] | null }).data || []) as RelatedCourse[]
       let siblingStats: Record<string, { modules?: number; students?: number }> = {}
       if (siblingRows.length > 0) {
@@ -467,7 +502,11 @@ export default function CourseDetailPage() {
       onLessonClick={(lessonId) => {
         const lesson = modules
           .flatMap((moduleRow) => moduleRow.lessons || [])
-          .find((row: { id: string }) => row.id === lessonId)
+          .find((row: { id: string; is_preview?: boolean; is_upcoming?: boolean }) => row.id === lessonId)
+        if (lesson?.is_upcoming) {
+          toast.message('This lesson is not available yet.')
+          return
+        }
         if (isEnrolled || lesson?.is_preview) {
           router.push(`/learn/${courseId}/lesson/${lessonId}`)
           return
@@ -750,9 +789,9 @@ function CourseDetailBody({
           <CurriculumTimeline
             modules={modules.map((moduleRow) => ({
               ...moduleRow,
-              lessons: (moduleRow.lessons || []).map((lesson: { is_preview?: boolean }) => ({
+              lessons: (moduleRow.lessons || []).map((lesson: { is_preview?: boolean; is_upcoming?: boolean }) => ({
                 ...lesson,
-                is_locked: !isEnrolled && !lesson.is_preview,
+                is_locked: Boolean(lesson.is_upcoming) || (!isEnrolled && !lesson.is_preview),
               })),
             }))}
             showProgress={false}
@@ -761,9 +800,9 @@ function CourseDetailBody({
         </section>
       )}
 
-      {requirements.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="text-xl font-bold">Requirements</h2>
+      <section className="space-y-3">
+        <h2 className="text-xl font-bold">Requirements</h2>
+        {requirements.length > 0 ? (
           <ul className="space-y-2">
             {requirements.map((requirement) => (
               <li key={requirement} className="flex items-start gap-2 text-sm">
@@ -772,8 +811,10 @@ function CourseDetailBody({
               </li>
             ))}
           </ul>
-        </section>
-      )}
+        ) : (
+          <p className="text-sm text-muted-foreground">No specific requirements listed.</p>
+        )}
+      </section>
 
       {lead && (
         <section className="space-y-3">

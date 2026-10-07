@@ -409,6 +409,9 @@ export function LessonOptionsFields({
                   <Label htmlFor={`gate-next-${lesson.id}`} className="text-sm">
                     Block next until mandatory activities are done
                   </Label>
+                  <p className="text-xs text-muted-foreground">
+                    The learner must submit or finish each mandatory task. A teacher grade is not required to open the next lesson.
+                  </p>
                 </div>
                 <Switch
                   id={`gate-next-${lesson.id}`}

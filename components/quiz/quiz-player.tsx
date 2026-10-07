@@ -647,16 +647,28 @@ export function QuizPlayer({
               </>
             )}
             {lastOutcome?.attemptsExhausted && (
-              <Button
-                className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
-                onClick={() => {
-                  setOutcomeOpen(false)
-                  onRedoLesson?.()
-                  onClose?.()
-                }}
-              >
-                Redo lesson
-              </Button>
+              <>
+                <Button
+                  className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
+                  onClick={() => {
+                    setOutcomeOpen(false)
+                    onClose?.()
+                  }}
+                >
+                  Continue learning
+                </Button>
+                <Button
+                  variant="outline"
+                  className="min-h-11"
+                  onClick={() => {
+                    setOutcomeOpen(false)
+                    onRedoLesson?.()
+                    onClose?.()
+                  }}
+                >
+                  Redo lesson
+                </Button>
+              </>
             )}
           </DialogFooter>
         </DialogContent>

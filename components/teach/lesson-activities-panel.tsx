@@ -133,9 +133,14 @@ export function LessonActivitiesPanel({
                             )
                           }
                         />
-                        <Label htmlFor={`req-${item.id}`} className="text-xs text-muted-foreground">
-                          Mandatory for progression
-                        </Label>
+                        <div className="min-w-0">
+                          <Label htmlFor={`req-${item.id}`} className="text-xs text-muted-foreground">
+                            Mandatory for progression
+                          </Label>
+                          <p className="text-[11px] text-muted-foreground">
+                            The learner must submit or finish this task. Grading does not block the next lesson.
+                          </p>
+                        </div>
                       </div>
                     ) : null}
                     {item.activity === 'assignment' ? (
@@ -175,7 +180,7 @@ export function LessonActivitiesPanel({
                         />
                         <span className="text-[11px] text-muted-foreground">
                           {item.maxGrade != null ? `out of ${item.maxGrade}. ` : ''}
-                          Empty accepts any recorded grade.
+                          Used when you grade. It does not block the next lesson.
                         </span>
                       </div>
                     ) : null}

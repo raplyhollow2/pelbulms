@@ -16,6 +16,7 @@ interface Lesson {
   is_completed?: boolean
   is_locked?: boolean
   is_preview?: boolean
+  is_upcoming?: boolean
 }
 
 interface Module {
@@ -156,6 +157,11 @@ export function CurriculumTimeline({
                             {lesson.is_preview && (
                               <Badge variant="outline" className="mt-1 text-[10px]">
                                 Preview
+                              </Badge>
+                            )}
+                            {lesson.is_upcoming && (
+                              <Badge variant="outline" className="mt-1 text-[10px]">
+                                Upcoming
                               </Badge>
                             )}
                           </span>

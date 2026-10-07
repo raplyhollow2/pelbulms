@@ -130,9 +130,41 @@ export function gradeMeetsPass(
   return score >= pass
 }
 
+function learnerHandedIn(progress: ActivityCompletionSnapshot | null | undefined): boolean {
+  if (!progress) return false
+  const status = progress.status
+  return (
+    Boolean(progress.completed) ||
+    status === 'submitted' ||
+    status === 'late' ||
+    status === 'graded' ||
+    status === 'returned'
+  )
+}
+
 /**
- * Whether this activity counts toward lesson unlock, course completion, and the certificate.
- * Submitted work is not enough for graded activities.
+ * Whether the learner has finished their own task.
+ * A teacher grade or pass mark is not required to unlock the next lesson.
+ */
+export function activitySatisfiesProgression(
+  activity: LessonActivity,
+  progress: ActivityCompletionSnapshot | null | undefined
+): boolean {
+  if (activity.activity === 'quiz') {
+    return (
+      Boolean(progress?.completed) &&
+      (progress?.source === 'quiz_pass' || progress?.source === 'quiz_attempt')
+    )
+  }
+
+  if (isAssessableActivity(activity)) return learnerHandedIn(progress)
+
+  return Boolean(progress?.completed)
+}
+
+/**
+ * Whether graded work meets its pass mark.
+ * This is for the gradebook. It does not gate lesson progression.
  */
 export function activitySatisfiesCompletion(
   activity: LessonActivity,
@@ -158,7 +190,12 @@ export function activityGateState(
 ): ActivityGateState {
   if (activitySatisfiesCompletion(activity, progress)) return 'satisfied'
 
-  if (activity.activity !== 'quiz' && isAssessableActivity(activity)) {
+  if (activity.activity === 'quiz') {
+    if (progress?.completed && progress.source === 'quiz_attempt') return 'below_pass'
+    return 'incomplete'
+  }
+
+  if (isAssessableActivity(activity)) {
     const status = progress?.status
     const handedIn =
       Boolean(progress?.completed) ||
@@ -182,37 +219,11 @@ export function activityGateState(
 export function describeCompletionBlockers(
   blockers: Pick<CompletionBlocker, 'title' | 'state' | 'grade' | 'passGrade' | 'maxGrade'>[]
 ): string {
-  if (blockers.length === 0) return ''
-  const parts: string[] = []
-  const waiting = blockers.filter((b) => b.state === 'awaiting_grade')
-  const failed = blockers.filter((b) => b.state === 'below_pass')
   const incomplete = blockers.filter(
     (b) => b.state !== 'awaiting_grade' && b.state !== 'below_pass'
   )
-
-  if (waiting.length > 0) {
-    const names = waiting.map((b) => b.title).join(', ')
-    parts.push(
-      `${names} ${waiting.length === 1 ? 'is' : 'are'} awaiting a grade`
-    )
-  }
-  if (failed.length > 0) {
-    const names = failed
-      .map((b) => {
-        const scored = b.grade != null ? `scored ${b.grade}` : 'did not pass'
-        const need =
-          b.passGrade != null
-            ? ` (need ${b.passGrade}${b.maxGrade != null ? ` / ${b.maxGrade}` : ''})`
-            : ''
-        return `${b.title} ${scored}${need}`
-      })
-      .join(', ')
-    parts.push(names)
-  }
-  if (incomplete.length > 0) {
-    parts.push(`Finish ${incomplete.map((b) => b.title).join(', ')}`)
-  }
-  return `${parts.join('. ')}.`
+  if (incomplete.length === 0) return ''
+  return `Finish ${incomplete.map((b) => b.title).join(', ')}.`
 }
 
 /** Lesson activities that still require a grade, based on the current lesson definition. */

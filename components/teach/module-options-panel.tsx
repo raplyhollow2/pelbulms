@@ -154,7 +154,12 @@ export function ModuleOptionsPanel({
           />
         </div>
         <div className="flex items-center justify-between gap-3">
-          <Label className="text-sm">Block next until mandatory activities are done</Label>
+          <div className="min-w-0">
+            <Label className="text-sm">Block next until mandatory activities are done</Label>
+            <p className="text-xs text-muted-foreground">
+              The learner must submit or finish each mandatory task. A teacher grade is not required to open the next lesson.
+            </p>
+          </div>
           <Switch
             checked={Boolean(gates.gateNextUntilActivitiesDone)}
             onCheckedChange={(checked) =>

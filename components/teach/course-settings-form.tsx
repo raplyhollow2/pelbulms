@@ -77,6 +77,7 @@ type CourseForm = {
   price: number
   duration_minutes: number
   learning_objectives: string[]
+  requirements: string[]
   is_published: boolean
   is_featured: boolean
   enrollment_mode: EnrollmentMode
@@ -94,6 +95,7 @@ const EMPTY: CourseForm = {
   price: 0,
   duration_minutes: 0,
   learning_objectives: [],
+  requirements: [],
   is_published: false,
   is_featured: false,
   enrollment_mode: 'approval',
@@ -140,10 +142,10 @@ export function CourseSettingsForm({
   const [metadata, setMetadata] = useState<Record<string, unknown>>({})
   const [preserved, setPreserved] = useState({
     prerequisites: [] as string[],
-    requirements: [] as string[],
     tags: [] as string[],
   })
   const [newObjective, setNewObjective] = useState('')
+  const [newRequirement, setNewRequirement] = useState('')
   const [discussionEnabled, setDiscussionEnabled] = useState(false)
   const [discussionSaving, setDiscussionSaving] = useState(false)
   const [forumScope, setForumScope] = useState<'course' | 'lesson'>('course')
@@ -213,6 +215,7 @@ export function CourseSettingsForm({
         price: Number(row.price) || 0,
         duration_minutes: row.duration_minutes || 0,
         learning_objectives: row.learning_objectives || [],
+        requirements: row.requirements || [],
         is_published: Boolean(row.is_published),
         is_featured: Boolean(row.is_featured),
         enrollment_mode: ['auto', 'approval', 'invite_code', 'paid'].includes(row.enrollment_mode)
@@ -224,7 +227,6 @@ export function CourseSettingsForm({
       const nextMeta = (row.metadata as Record<string, unknown>) || {}
       const nextPreserved = {
         prerequisites: row.prerequisites || [],
-        requirements: row.requirements || [],
         tags: row.tags || [],
       }
       const audience = await loadCourseInstitutions(supabase as any, courseId)
@@ -304,7 +306,10 @@ export function CourseSettingsForm({
           duration_minutes: current.duration_minutes || null,
           prerequisites: preservedRef.current.prerequisites.length ? preservedRef.current.prerequisites : null,
           learning_objectives: current.learning_objectives.length ? current.learning_objectives : null,
-          requirements: preservedRef.current.requirements.length ? preservedRef.current.requirements : null,
+          requirements: (() => {
+            const lines = current.requirements.map((item) => item.trim()).filter(Boolean)
+            return lines.length ? lines : null
+          })(),
           tags: preservedRef.current.tags.length ? preservedRef.current.tags : null,
           is_published: current.is_published,
           is_featured: current.is_featured,
@@ -562,6 +567,16 @@ export function CourseSettingsForm({
     setNewObjective('')
   }
 
+  const addRequirement = () => {
+    const value = newRequirement.trim()
+    if (!value) return
+    setCourseData({
+      ...courseData,
+      requirements: [...courseData.requirements, value],
+    })
+    setNewRequirement('')
+  }
+
   const copyShareLink = () => {
     void navigator.clipboard.writeText(courseShareUrl(courseId)).then(
       () => toast.success('Course link copied'),
@@ -767,6 +782,73 @@ export function CourseSettingsForm({
                     setCourseData({
                       ...courseData,
                       learning_objectives: courseData.learning_objectives.filter((_, i) => i !== index),
+                    })
+                  }
+                >
+                  Remove
+                </Button>
+              </li>
+            ))}
+          </ol>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="settings-new-requirement">Requirements</Label>
+          <p className="text-xs text-muted-foreground">
+            These lines are what learners read before they enroll.
+          </p>
+          <div className="flex gap-2">
+            <Input
+              id="settings-new-requirement"
+              value={newRequirement}
+              placeholder="What learners need before they enroll"
+              className="min-h-11"
+              onChange={(e) => setNewRequirement(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addRequirement()
+                }
+              }}
+            />
+            <Button type="button" className="min-h-11 shrink-0" onClick={addRequirement}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Add requirement
+            </Button>
+          </div>
+          <ol className="space-y-2">
+            {courseData.requirements.map((requirement, index) => (
+              <li key={index} className="flex items-start gap-2 rounded-lg bg-muted/50 p-3">
+                <span
+                  className="mt-2.5 w-6 shrink-0 text-sm font-medium tabular-nums text-muted-foreground"
+                  aria-hidden="true"
+                >
+                  {index + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <Label htmlFor={`settings-requirement-${index}`} className="sr-only">
+                    Requirement {index + 1}
+                  </Label>
+                  <Textarea
+                    id={`settings-requirement-${index}`}
+                    value={requirement}
+                    rows={2}
+                    className="min-h-11 resize-y bg-background"
+                    onChange={(e) => {
+                      const next = [...courseData.requirements]
+                      next[index] = e.target.value
+                      setCourseData({ ...courseData, requirements: next })
+                    }}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="min-h-11 shrink-0"
+                  aria-label={`Remove requirement: ${requirement || index + 1}`}
+                  onClick={() =>
+                    setCourseData({
+                      ...courseData,
+                      requirements: courseData.requirements.filter((_, i) => i !== index),
                     })
                   }
                 >

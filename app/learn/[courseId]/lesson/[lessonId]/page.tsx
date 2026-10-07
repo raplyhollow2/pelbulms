@@ -87,7 +87,6 @@ export default function LessonViewPage() {
   const [allLessons, setAllLessons] = useState<Lesson[]>([])
   const [allModules, setAllModules] = useState<Module[]>([])
   const [instructors, setInstructors] = useState<CourseFacilitator[]>([])
-  const [currentLessonIndex, setCurrentLessonIndex] = useState(0)
   const [loading, setLoading] = useState(true)
   const [currentUser, setCurrentUser] = useState<any>(null)
 
@@ -223,7 +222,7 @@ export default function LessonViewPage() {
   // If sequential unlock is enabled and this lesson isn't open yet, bounce back (no alert spam)
   useEffect(() => {
     if (staffPreview || freePreview || loading || !lesson || allLessons.length === 0) return
-    const ordered = allLessons.map((l) => l.id)
+    const ordered = allLessons.filter((row) => lessonIsPublished(row)).map((l) => l.id)
     const settingsFor = (id: string) => {
       const les = allLessons.find((l) => l.id === id)
       const mod = allModules.find((m) => m.id === (les as any)?.module_id) || module
@@ -434,8 +433,7 @@ export default function LessonViewPage() {
 
       const sidebarLessons = ((sidebarResult.data || []) as Lesson[]).filter((row) => {
         if (managing) return true
-        if (!lessonIsPublished(row)) return false
-        if (guestPreview) return lessonIsFreePreview(row)
+        if (guestPreview) return lessonIsPublished(row) && lessonIsFreePreview(row)
         return true
       })
       const courseLessons = sidebarLessons.map((row) =>
@@ -455,11 +453,8 @@ export default function LessonViewPage() {
           ordered.push(...lessonsInModule)
         }
         setAllLessons(ordered)
-        const index = ordered.findIndex((l) => l.id === lessonId)
-        setCurrentLessonIndex(index >= 0 ? index : 0)
       } else {
         setAllLessons([])
-        setCurrentLessonIndex(0)
       }
 
       let thisLessonCompleted = false
@@ -981,20 +976,12 @@ export default function LessonViewPage() {
 
   // Greet learners when the course is fully complete (fresh completion or revisit)
   useEffect(() => {
-    if (loading) return
-    const pct =
-      enrollment?.progress_percentage ??
-      (allLessons.length > 0
-        ? Math.round((completedLessonIds.size / allLessons.length) * 100)
-        : 0)
-    const allDone =
-      pct >= 100 ||
-      (allLessons.length > 0 && completedLessonIds.size >= allLessons.length)
-    if (!allDone) return
+    if (loading || staffPreview || freePreview) return
+    if ((enrollment?.progress_percentage ?? 0) < 100) return
     celebrateCourseCompletion()
     // celebrateCourseCompletion reads session storage and refs; listing it would retrigger every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, enrollment?.progress_percentage, completedLessonIds, allLessons.length])
+  }, [loading, staffPreview, freePreview, enrollment?.progress_percentage])
 
   const activityHoldMessage = () => {
     if (activityCompleted || mandatoryTotal === 0) return null
@@ -1064,7 +1051,7 @@ export default function LessonViewPage() {
     attemptsExhausted: boolean
   }) => {
     try {
-      if (outcome?.passed && !skipProgressRef.current) {
+      if (!skipProgressRef.current) {
         await refreshActivityProgress({ action: 'sync' })
       }
     } catch (e) {
@@ -1112,7 +1099,7 @@ export default function LessonViewPage() {
         .delete()
         .eq('user_id', currentUser.id)
         .eq('lesson_id', lessonId)
-        .in('source', ['ack', 'quiz_pass', 'choice', 'chat'])
+        .in('source', ['ack', 'quiz_pass', 'quiz_attempt', 'choice', 'chat'])
 
       setIsCompleted(false)
       setActivityCompleted(false)
@@ -1151,11 +1138,17 @@ export default function LessonViewPage() {
   }
 
   // Latest lesson runtime — video player callbacks stay stable via ref
+  const playableLessons = staffPreview
+    ? allLessons
+    : allLessons.filter((row) => lessonIsPublished(row))
+  const playableIndex = playableLessons.findIndex((row) => row.id === lessonId)
+  const outlineIndex = allLessons.findIndex((row) => row.id === lessonId)
+
   const videoEndRuntimeRef = useRef({
     lessonId,
     courseId,
-    currentLessonIndex,
-    allLessons,
+    playableIndex: -1,
+    playableLessons: [] as Lesson[],
     module,
     lesson,
     isCompleted,
@@ -1169,8 +1162,8 @@ export default function LessonViewPage() {
   videoEndRuntimeRef.current = {
     lessonId,
     courseId,
-    currentLessonIndex,
-    allLessons,
+    playableIndex,
+    playableLessons,
     module,
     lesson,
     isCompleted,
@@ -1234,8 +1227,8 @@ export default function LessonViewPage() {
         return
       }
 
-      if (ctx.currentLessonIndex >= ctx.allLessons.length - 1) return
-      const nextLesson = ctx.allLessons[ctx.currentLessonIndex + 1]
+      if (ctx.playableIndex < 0 || ctx.playableIndex >= ctx.playableLessons.length - 1) return
+      const nextLesson = ctx.playableLessons[ctx.playableIndex + 1]
       if (!nextLesson) return
 
       clearAutoAdvance()
@@ -1352,16 +1345,16 @@ export default function LessonViewPage() {
       }
       return
     }
-    if (currentLessonIndex < allLessons.length - 1) {
-      const nextLesson = allLessons[currentLessonIndex + 1]
+    if (playableIndex >= 0 && playableIndex < playableLessons.length - 1) {
+      const nextLesson = playableLessons[playableIndex + 1]
       router.push(lessonPlayerPath(courseId, nextLesson.id, previewRef.current))
     }
   }
 
   const goToPreviousLesson = () => {
     clearAutoAdvance()
-    if (currentLessonIndex > 0) {
-      const prevLesson = allLessons[currentLessonIndex - 1]
+    if (playableIndex > 0) {
+      const prevLesson = playableLessons[playableIndex - 1]
       router.push(lessonPlayerPath(courseId, prevLesson.id, previewRef.current))
     }
   }
@@ -1405,22 +1398,30 @@ export default function LessonViewPage() {
     activityCompleted,
   })
 
-  const orderedLessonIds = allLessons.map((l) => l.id)
+  const orderedLessonIds = playableLessons.map((l) => l.id)
   const lockedLessonIds = new Set(
     staffPreview
       ? []
-      : orderedLessonIds.filter(
-      (id) =>
-        !isLessonUnlocked({
-          orderedLessonIds,
-          targetLessonId: id,
-          progressByLesson,
-          settingsForLesson,
-        })
-    )
+      : [
+          ...orderedLessonIds.filter(
+            (id) =>
+              !isLessonUnlocked({
+                orderedLessonIds,
+                targetLessonId: id,
+                progressByLesson,
+                settingsForLesson,
+              })
+          ),
+          ...allLessons.filter((row) => !lessonIsPublished(row)).map((row) => row.id),
+        ]
   )
 
   const tryOpenLesson = (targetId: string) => {
+    const target = allLessons.find((row) => row.id === targetId)
+    if (target && !staffPreview && !lessonIsPublished(target)) {
+      alert('This lesson is not available yet.')
+      return
+    }
     if (lockedLessonIds.has(targetId)) {
       alert(
         'This lesson is locked. Complete the previous lesson (and activities if required) first.'
@@ -1442,6 +1443,11 @@ export default function LessonViewPage() {
   }
 
   const tryOpenActivity = (targetId: string, activityId: string) => {
+    const target = allLessons.find((row) => row.id === targetId)
+    if (target && !staffPreview && !lessonIsPublished(target)) {
+      alert('This lesson is not available yet.')
+      return
+    }
     if (lockedLessonIds.has(targetId)) {
       alert(
         'This lesson is locked. Complete the previous lesson (and activities if required) first.'
@@ -1497,9 +1503,7 @@ export default function LessonViewPage() {
 
   const courseAi = readCourseAiMetadata((course as any)?.metadata)
   const completedCount = allLessons.filter((l) => completedLessonIds.has(l.id)).length
-  const progressPercent =
-    enrollment?.progress_percentage ??
-    (allLessons.length > 0 ? Math.round((completedCount / allLessons.length) * 100) : 0)
+  const progressPercent = enrollment?.progress_percentage ?? 0
 
   const openQuiz = async (quizId: string) => {
     setShowQuiz(true)
@@ -1625,9 +1629,11 @@ export default function LessonViewPage() {
             onProgress={persistWatchProgress}
             onThresholdReached={handleThresholdReached}
             onEnded={handleVideoEnded}
-            canGoPrev={currentLessonIndex > 0}
+            canGoPrev={playableIndex > 0}
             canGoNext={
-              currentLessonIndex < allLessons.length - 1 && canProceedToNext
+              playableIndex >= 0 &&
+              playableIndex < playableLessons.length - 1 &&
+              canProceedToNext
             }
             onPrev={goToPreviousLesson}
             onNext={goToNextLesson}
@@ -1654,12 +1660,14 @@ export default function LessonViewPage() {
           {certificateSection}
           <div className="px-3 py-2 lg:hidden">
             <LessonNextBar
-              currentIndex={currentLessonIndex}
+              currentIndex={outlineIndex >= 0 ? outlineIndex : 0}
               total={allLessons.length}
-              currentTitle={allLessons[currentLessonIndex]?.title}
-              canGoPrev={currentLessonIndex > 0}
+              currentTitle={allLessons[outlineIndex]?.title}
+              canGoPrev={playableIndex > 0}
               canGoNext={
-                currentLessonIndex < allLessons.length - 1 && canProceedToNext
+                playableIndex >= 0 &&
+                playableIndex < playableLessons.length - 1 &&
+                canProceedToNext
               }
               onPrev={goToPreviousLesson}
               onNext={goToNextLesson}
