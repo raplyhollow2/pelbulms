@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Clock, LogOut, Loader2, FilePenLine } from 'lucide-react'
+import { LogOut, FilePenLine } from 'lucide-react'
+import { BrandCharacter, RigbuLoader } from '@/components/brand/brand-character'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/client'
@@ -92,7 +93,7 @@ export default function PendingApprovalPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <RigbuLoader size={64} />
       </div>
     )
   }
@@ -103,9 +104,7 @@ export default function PendingApprovalPage() {
     <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-3">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/20">
-            <Clock className="h-7 w-7 text-primary" />
-          </div>
+          <BrandCharacter pose="hello" alt="Rigbu saying hello" className="mx-auto" />
           <CardTitle className="text-2xl">
             {kycStatus === 'rejected' ? 'Identity not approved' : 'Waiting for KYC approval'}
           </CardTitle>

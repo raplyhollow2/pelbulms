@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { BrandLogo } from '@/components/brand/brand-logo'
+import { BrandCharacter } from '@/components/brand/brand-character'
 import { PageBadge } from '@/components/brand/page-badge'
 import {
   Loader2,
@@ -451,6 +452,7 @@ export default function RegisterPage() {
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-white px-4 py-6 pb-[calc(2rem+env(safe-area-inset-bottom))] dark:from-gray-900 dark:via-gray-900 dark:to-black">
       <div className="mx-auto w-full max-w-lg space-y-5">
         <div className="text-center">
+          <BrandCharacter pose="hello" alt="Rigbu saying hello" className="mx-auto mb-3" />
           <div className="mb-3">
             <BrandLogo
               href="/"

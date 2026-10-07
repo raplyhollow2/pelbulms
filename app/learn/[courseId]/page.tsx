@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { BrandCharacter } from '@/components/brand/brand-character'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { resolveCoursePlayerPath } from '@/lib/learn-entry'
 
@@ -34,6 +35,7 @@ export default async function LearnCourseEntryPage({
 
   return (
     <div className="mx-auto flex min-h-[50vh] max-w-lg flex-col items-center justify-center px-4 text-center">
+      <BrandCharacter pose="thinking" alt="" className="mb-4" />
       <h1 className="text-xl font-semibold">No lectures yet</h1>
       <p className="mt-2 text-sm text-muted-foreground">
         This course does not have published lectures. Check back after the instructor adds content.

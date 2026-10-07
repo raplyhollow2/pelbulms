@@ -52,7 +52,7 @@ export function HeroStory({
         }}
       />
       <div className="relative flex h-full flex-col items-center justify-start gap-4 px-5 pb-6 pt-8 sm:pt-10 md:flex-row md:items-center md:justify-center md:gap-12 md:px-[6%] md:pt-6">
-        <BrandCharacter pose="hero" className="shrink-0" />
+        <BrandCharacter pose="default" className="shrink-0" />
         <div key={`${index}-${slide.title}`} className="hero-slide-in w-full max-w-md md:w-[28rem]">
           {slide.kicker ? (
             <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#e8b423] sm:text-xs">

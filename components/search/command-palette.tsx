@@ -13,8 +13,8 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { useCapabilities } from '@/components/auth/capabilities-provider'
 import { MENU_LINKS } from '@/lib/capability-catalog'
+import { BrandCharacter, RigbuLoader } from '@/components/brand/brand-character'
 import { RigbuIcon } from '@/components/brand/RigbuIcon'
-import { Loader2 } from 'lucide-react'
 
 interface CourseHit {
   id: string
@@ -99,10 +99,13 @@ export function CommandPalette() {
               <CommandEmpty>
                 {loading ? (
                   <span className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Searching…
+                    <RigbuLoader size={64} /> Searching…
                   </span>
                 ) : (
-                  'No results found.'
+                  <span className="flex flex-col items-center gap-2 py-4 text-sm text-muted-foreground">
+                    <BrandCharacter pose="thinking" alt="" className="max-w-[120px]" />
+                    No results found.
+                  </span>
                 )}
               </CommandEmpty>
 

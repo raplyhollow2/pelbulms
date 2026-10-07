@@ -164,7 +164,15 @@ export function NotificationBell({
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
             ) : items.length === 0 ? (
-              <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+              <div className="flex flex-col items-center px-4 py-6 text-center text-sm text-muted-foreground">
+                <img
+                  src="/brand/mascot/rigbu-owl-sleepy.svg"
+                  alt=""
+                  width={120}
+                  height={120}
+                  loading="lazy"
+                  className="mb-3 h-auto w-[120px]"
+                />
                 No notifications yet.
               </div>
             ) : (

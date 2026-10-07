@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { ArrowLeft, BookOpen, Clock, Trophy, TrendingUp, Loader2, CheckCircle, Circle, Flame, Calendar } from 'lucide-react'
+import { BrandCharacter } from '@/components/brand/brand-character'
+import { ArrowLeft, BookOpen, Clock, Trophy, TrendingUp, Loader2, CheckCircle, Flame } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 
@@ -307,7 +308,8 @@ export default function ProgressPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {enrollments.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
+              <div className="flex flex-col items-center py-8 text-center text-muted-foreground">
+                <BrandCharacter pose="thinking" alt="" className="mb-3" />
                 No courses enrolled yet. Start your learning journey!
               </div>
             ) : (

@@ -1,10 +1,12 @@
 import { cn } from '@/lib/utils'
 
 const POSES = {
-  hero: '/brand/character/rigbu-character-on-dark-512.png',
-  hello: '/brand/character/rigbu-hello-512.png',
-  thinking: '/brand/character/rigbu-thinking-512.png',
-  celebrate: '/brand/character/rigbu-celebrate-512.png',
+  default: '/brand/mascot/rigbu-owl-default.svg',
+  hello: '/brand/mascot/rigbu-owl-hello.svg',
+  thinking: '/brand/mascot/rigbu-owl-thinking.svg',
+  celebrate: '/brand/mascot/rigbu-owl-celebrate.svg',
+  oops: '/brand/mascot/rigbu-owl-oops.svg',
+  sleepy: '/brand/mascot/rigbu-owl-sleepy.svg',
 } as const
 
 type BrandCharacterProps = {
@@ -22,7 +24,25 @@ export function BrandCharacter({ pose, alt = '', className }: BrandCharacterProp
       height={240}
       loading="lazy"
       decoding="async"
-      className={cn('block h-auto w-full max-h-[240px] max-w-[240px] object-contain', className)}
+      className={cn(
+        'block h-auto w-full max-h-[240px] max-w-[240px] object-contain',
+        pose === 'celebrate' && 'rigbu-celebrate-in',
+        className,
+      )}
+    />
+  )
+}
+
+export function RigbuLoader({ size = 80 }: { size?: number }) {
+  const clamped = Math.min(96, Math.max(64, size))
+  return (
+    <img
+      src="/rigbu-loader.svg"
+      alt=""
+      width={clamped}
+      height={clamped}
+      className="block shrink-0"
+      style={{ width: clamped, height: clamped }}
     />
   )
 }

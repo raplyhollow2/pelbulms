@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { BrandCharacter } from '@/components/brand/brand-character'
 
 export default function AppError({
   error,
@@ -21,7 +22,8 @@ export default function AppError({
   }, [error])
 
   return (
-    <main className="mx-auto flex min-h-[50vh] max-w-lg flex-col items-start justify-center gap-4 px-6 py-16">
+    <main className="mx-auto flex min-h-[50vh] max-w-lg flex-col items-center justify-center gap-4 px-6 py-16 text-center">
+      <BrandCharacter pose="oops" alt="Rigbu looking surprised" />
       <h1 className="text-2xl font-semibold">Something went wrong</h1>
       <p className="text-muted-foreground">
         This page could not be loaded. You can try again, or go back to the dashboard.

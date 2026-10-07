@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Search, BookOpen, Command } from 'lucide-react'
+import { BrandCharacter } from '@/components/brand/brand-character'
+import { Search, Command } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { CourseCard } from '@/components/courses/course-card'
 import { CourseGridSkeleton } from '@/components/courses/course-card-skeleton'
@@ -637,7 +638,7 @@ export default function CoursesPage() {
 
           {filteredCourses.length === 0 && (
             <div className="text-center py-12">
-              <BookOpen className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+              <BrandCharacter pose="thinking" alt="" className="mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">
                 {selectedInstitution !== 'All' &&
                 !searchTerm &&

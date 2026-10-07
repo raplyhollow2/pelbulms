@@ -80,7 +80,7 @@ export const DEFAULT_HERO_ROTATING_WORDS = [
 export const DEFAULT_HERO_CTA_PRIMARY = 'Create your account'
 
 /** Shared Rigbu character used when a surface has no custom mascot image. */
-export const DEFAULT_MASCOT_IMAGE_URL = '/brand/character/rigbu-character-on-light-512.png'
+export const DEFAULT_MASCOT_IMAGE_URL = '/brand/mascot/rigbu-owl-default-512.png'
 
 export type HeroSlideLayout = 'courses' | 'list' | 'steps' | 'card'
 

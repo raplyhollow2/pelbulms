@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
-import { BrandLogo } from '@/components/brand/brand-logo'
+import { BrandCharacter, RigbuLoader } from '@/components/brand/brand-character'
 import { ResponsiveLayout } from '@/components/layout/responsive-layout'
 import { PresenceTracker } from '@/components/presence/presence-tracker'
 import { createClient } from '@/lib/supabase/client'
@@ -118,7 +117,7 @@ export function AuthShell({
     return (
       <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-white dark:from-gray-900 dark:to-black flex items-center justify-center px-4">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
+          <RigbuLoader size={80} />
           <p className="text-sm text-muted-foreground">{loadingLabel}</p>
         </div>
       </div>
@@ -129,9 +128,7 @@ export function AuthShell({
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-6">
         <div className="max-w-md text-center">
-          <div className="mb-4 flex justify-center">
-            <BrandLogo src={logoUrl} height={32} markBelow400 />
-          </div>
+          <BrandCharacter pose="sleepy" alt="Rigbu resting" className="mx-auto mb-4" />
           <p className="text-sm font-semibold uppercase tracking-widest text-primary">
             {maintenance.siteName}
           </p>

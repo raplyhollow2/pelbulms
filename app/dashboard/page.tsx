@@ -389,7 +389,8 @@ export default function DashboardPage() {
                     )
                   })}
                   {pageItems.length === 0 && (
-                    <div className="col-span-full rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
+                    <div className="col-span-full flex flex-col items-center rounded-xl border border-dashed py-10 text-center text-sm text-muted-foreground">
+                      <BrandCharacter pose="thinking" alt="" className="mb-3" />
                       No courses match this filter.
                     </div>
                   )}
