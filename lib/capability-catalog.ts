@@ -110,7 +110,8 @@ export function defaultKeysForRole(role: UserRole | string | null | undefined): 
   }
 
   if (role === 'resource_person') {
-    add(LEARNER_MODULE_VIEW_CAPS)
+    add(TEACH_MENU_CAPS)
+    add(TEACHER_MODULE_CAPS)
     keys.add(CAP.APPROVALS_VIEW)
     keys.add(CAP.APPROVALS_EDIT)
     keys.add(CAP.MODULE_REGISTRATION_KYC_VIEW)

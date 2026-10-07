@@ -51,7 +51,7 @@ export type CapabilityCheck = RBACCheck & {
 type AdminDb = Awaited<ReturnType<typeof tryCreateServiceClient>> | null
 
 const CAPABILITY_CACHE_MS = 60_000
-const CAPABILITY_CACHE_VERSION = 3
+const CAPABILITY_CACHE_VERSION = 4
 const capabilityCache = new Map<string, { at: number; version: number; value: ResolvedCapabilities }>()
 
 export function invalidateCapabilityCache() {
@@ -214,11 +214,7 @@ function coarseFallback(userId: string, userRole: UserRole): ResolvedCapabilitie
     CAP.LEARN_SETTINGS_VIEW,
   ])
 
-  if (userRole === 'resource_person') {
-    keys.add(CAP.APPROVALS_VIEW)
-    keys.add(CAP.APPROVALS_EDIT)
-    keys.add(CAP.MODULE_REGISTRATION_KYC_VIEW)
-  } else if (userRole === 'instructor' || userRole === 'admin') {
+  if (userRole === 'resource_person' || userRole === 'instructor' || userRole === 'admin') {
     add([
       CAP.TEACH_DASHBOARD_VIEW,
       CAP.TEACH_CREATE_VIEW,
@@ -240,6 +236,12 @@ function coarseFallback(userId: string, userRole: UserRole): ResolvedCapabilitie
       CAP.MODULE_ANNOUNCEMENTS_VIEW,
       CAP.MODULE_ANNOUNCEMENTS_CONFIGURE,
     ])
+  }
+
+  if (userRole === 'resource_person') {
+    keys.add(CAP.APPROVALS_VIEW)
+    keys.add(CAP.APPROVALS_EDIT)
+    keys.add(CAP.MODULE_REGISTRATION_KYC_VIEW)
   }
 
   if (userRole === 'admin') {
