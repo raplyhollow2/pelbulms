@@ -48,7 +48,7 @@ export async function generateMetadata({
   const url = `${SITE_URL}/courses/${id}`
   const image =
     (await publicThumbnail(data.thumbnail_url)) ||
-    `${SITE_URL}/brand/rigbu-character-on-light-1024.png`
+    `${SITE_URL}/og-image-1200x630.png`
 
   return {
     metadataBase: new URL(SITE_URL),

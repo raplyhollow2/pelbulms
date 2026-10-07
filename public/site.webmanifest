@@ -50,7 +50,7 @@
     },
     {
       "name": "My certificates",
-      "url": "/certificates",
+      "url": "/profile#certificates",
       "icons": [
         {
           "src": "/icons/badges/png/certificates-96.png",

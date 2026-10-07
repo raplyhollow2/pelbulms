@@ -1,8 +1,8 @@
 // Service Worker for Rigbu LMS PWA
 // Bump this version whenever the SW logic changes so clients pick up the update
 // and old caches are purged.
-const CACHE_NAME = 'rigbu-lms-v4'
-const PRECACHE_URLS = ['/offline.html', '/manifest.json', '/favicon.svg']
+const CACHE_NAME = 'rigbu-lms-v5'
+const PRECACHE_URLS = ['/offline.html', '/site.webmanifest', '/favicon.svg', '/favicon.ico']
 
 // Install - precache core assets (best-effort so a single 404 can't break install)
 self.addEventListener('install', (event) => {
@@ -39,7 +39,7 @@ function isDocumentRequest(request, url) {
 function isStaticAsset(url) {
   if (url.pathname.startsWith('/_next/static/')) return true
   if (url.pathname.startsWith('/brand/')) return true
-  if (url.pathname === '/offline.html' || url.pathname === '/manifest.json' || url.pathname === '/favicon.svg') {
+  if (url.pathname === '/offline.html' || url.pathname === '/site.webmanifest' || url.pathname === '/favicon.svg' || url.pathname === '/favicon.ico') {
     return true
   }
   return /\.(?:png|jpe?g|webp|gif|svg|ico|woff2?)$/i.test(url.pathname)

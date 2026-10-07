@@ -7,11 +7,11 @@ import { CapabilitiesProvider } from "@/components/auth/capabilities-provider";
 import { PortraitShell } from "@/components/portrait-shell";
 import { StandaloneOrientationLock } from "@/components/standalone-orientation-lock";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
-import { Inter } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { getPlatformSettings } from "@/lib/platform-settings";
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'});
+const plusJakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-sans" });
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getPlatformSettings()
@@ -24,33 +24,39 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL("https://www.rigbu.app"),
     title: {
-      default: `${siteName} - Advanced Learning Platform`,
-      template: `%s · ${siteName}`,
+      default: "Rigbu — Learn anywhere. Light the way.",
+      template: "%s · Rigbu",
     },
     description,
     applicationName: siteName,
-    manifest: "/manifest.json",
-    icons: settings.logo_url
-      ? {
-          icon: [{ url: settings.logo_url }],
-          shortcut: [{ url: settings.logo_url }],
-          apple: [{ url: settings.logo_url }],
-        }
-      : {
-          icon: [
-            { url: "/favicon.svg", type: "image/svg+xml" },
-            { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-            { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-          ],
-          apple: "/apple-touch-icon.png",
-        },
+    manifest: "/site.webmanifest",
+    icons: {
+      icon: [
+        { url: "/favicon.ico" },
+        { url: "/favicon.svg", type: "image/svg+xml" },
+        { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+        { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      ],
+      apple: "/apple-touch-icon.png",
+    },
     openGraph: {
       images: [
         {
-          url: "/brand/rigbu-character-on-light-1024.png",
-          width: 1024,
-          height: 1024,
-          alt: "Rigbu",
+          url: "/og-image-1200x630.png",
+          width: 1200,
+          height: 630,
+          alt: "Rigbu — Learn anywhere. Light the way.",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      images: [
+        {
+          url: "/og-image-1200x630.png",
+          width: 1200,
+          height: 630,
+          alt: "Rigbu — Learn anywhere. Light the way.",
         },
       ],
     },
@@ -78,7 +84,7 @@ export default function RootLayout({
       lang="en"
       suppressHydrationWarning
       data-scroll-behavior="smooth"
-      className={cn("h-full antialiased font-sans", inter.variable)}
+      className={cn("h-full antialiased font-sans", plusJakarta.variable)}
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
