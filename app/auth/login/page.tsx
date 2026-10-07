@@ -222,7 +222,8 @@ function LoginPage() {
           <BrandLogo
             href="/"
             src={logoUrl}
-            size={36}
+            height={32}
+            markBelow400
             className="rounded-full border border-border bg-card px-6 py-3 shadow-sm transition-opacity hover:opacity-90"
           />
           <h1 className="text-3xl font-bold">Welcome to {siteName}</h1>

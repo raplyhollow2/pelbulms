@@ -86,7 +86,7 @@ export function LandingNav({
         style={{ backgroundColor: `color-mix(in oklch, var(--background) ${Math.round(veil * 100)}%, transparent)` }}
       />
       <div className="relative z-10 mx-auto flex w-full max-w-6xl items-center gap-2 overflow-visible px-4 py-2.5 sm:gap-3 sm:px-5">
-        <BrandLogo href="/" src={logoUrl} size={36} className="shrink-0" />
+        <BrandLogo href="/" src={logoUrl} height={32} markBelow400 className="shrink-0" />
 
         {categories.length > 0 && (
           <Button

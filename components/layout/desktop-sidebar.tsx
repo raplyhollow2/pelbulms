@@ -239,9 +239,9 @@ export function DesktopSidebar({ user, logoUrl = null, profile: profileHint = nu
         {/* Logo & Collapse Button */}
         <div className="flex h-16 shrink-0 items-center gap-3 border-b border-border/40 px-4">
           {!collapsed ? (
-            <BrandLogo href="/dashboard" src={logoUrl} size={32} className="min-w-0" />
+            <BrandLogo href="/dashboard" src={logoUrl} variant="horizontal" height={32} className="min-w-0" />
           ) : (
-            <BrandLogo href="/dashboard" src={logoUrl} variant="mark" size={32} className="mx-auto" />
+            <BrandLogo href="/dashboard" src={logoUrl} variant="mark" height={32} className="mx-auto" />
           )}
           <Button
             variant="ghost"

@@ -1,111 +1,137 @@
 import Link from 'next/link'
-import { Plus_Jakarta_Sans } from 'next/font/google'
 import { cn } from '@/lib/utils'
 
-const plusJakarta = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  weight: '800',
-  display: 'swap',
-})
-
-const MARK = {
-  light: '/brand/rigbu-mark-on-light.svg',
-  dark: '/brand/rigbu-mark-on-dark.svg',
+const RATIO = {
+  horizontal: 356 / 124,
+  stacked: 190 / 208,
+  mark: 1,
 } as const
 
+const SRC = {
+  horizontal: {
+    light: '/brand/logo/rigbu-logo-horizontal-light.svg',
+    dark: '/brand/logo/rigbu-logo-horizontal-dark.svg',
+  },
+  stacked: {
+    light: '/brand/logo/rigbu-logo-stacked-light.svg',
+    dark: '/brand/logo/rigbu-logo-stacked-dark.svg',
+  },
+  mark: {
+    light: '/brand/logo/rigbu-mark-light.svg',
+    dark: '/brand/logo/rigbu-mark-dark.svg',
+  },
+} as const
+
+type LogoVariant = keyof typeof SRC
+
 type BrandLogoProps = {
-  variant?: 'full' | 'mark'
+  variant?: LogoVariant
   theme?: 'light' | 'dark' | 'auto'
-  size?: number
+  height?: number
   href?: string
   className?: string
-  /** Uploaded LMS logo. When set, replaces the built-in mark. */
+  /** Uploaded LMS logo. When set, replaces the built-in lockup. */
   src?: string | null
+  /** On viewports under 400px, show the owl mark at the same height. */
+  markBelow400?: boolean
 }
 
-function MarkImage({
+function dimensions(variant: LogoVariant, height: number) {
+  const width = Math.round(height * RATIO[variant])
+  return { width, height }
+}
+
+function LogoImage({
   src,
-  size,
+  width,
+  height,
   className,
+  alt,
 }: {
   src: string
-  size: number
+  width: number
+  height: number
   className?: string
+  alt: string
 }) {
   return (
     <img
       src={src}
-      alt="Rigbu"
-      width={size}
-      height={size}
+      alt={alt}
+      width={width}
+      height={height}
       className={cn('block shrink-0', className)}
+      style={{ width, height }}
     />
   )
 }
 
-function Mark({ theme, size }: { theme: 'light' | 'dark' | 'auto'; size: number }) {
-  if (theme === 'light') return <MarkImage src={MARK.light} size={size} />
-  if (theme === 'dark') return <MarkImage src={MARK.dark} size={size} />
+function ThemedLogo({
+  variant,
+  theme,
+  height,
+}: {
+  variant: LogoVariant
+  theme: 'light' | 'dark' | 'auto'
+  height: number
+}) {
+  const { width, height: h } = dimensions(variant, height)
+  const files = SRC[variant]
+  if (theme === 'light') {
+    return <LogoImage src={files.light} width={width} height={h} alt="Rigbu" />
+  }
+  if (theme === 'dark') {
+    return <LogoImage src={files.dark} width={width} height={h} alt="Rigbu" />
+  }
   return (
     <>
-      <MarkImage src={MARK.light} size={size} className="dark:hidden" />
-      <MarkImage src={MARK.dark} size={size} className="hidden dark:block" />
+      <LogoImage src={files.light} width={width} height={h} alt="Rigbu" className="dark:hidden" />
+      <LogoImage src={files.dark} width={width} height={h} alt="" className="hidden dark:block" />
     </>
   )
 }
 
-function CustomMark({ src, size }: { src: string; size: number }) {
+function CustomLogo({ src, height }: { src: string; height: number }) {
   return (
     <img
       src={src}
       alt="Rigbu"
-      width={size}
-      height={size}
+      width={height}
+      height={height}
       className="block shrink-0 object-contain"
-      style={{ width: size, height: size }}
+      style={{ width: height, height }}
     />
   )
 }
 
 export function BrandLogo({
-  variant = 'full',
+  variant = 'horizontal',
   theme = 'auto',
-  size = 32,
+  height = 32,
   href,
   className,
   src,
+  markBelow400 = false,
 }: BrandLogoProps) {
-  const wordmarkColor = theme === 'dark' ? '#FAF7F2' : theme === 'light' ? '#1B2433' : undefined
   const customSrc = src?.trim() || ''
+  const showCompactMark = markBelow400 && variant !== 'mark' && !customSrc
 
   const logo = (
-    <span
-      className={cn('inline-flex items-center', className)}
-      style={{ gap: variant === 'full' ? size * 0.3 : undefined }}
-    >
+    <span className={cn('inline-flex items-center', className)}>
       {customSrc ? (
-        <CustomMark src={customSrc} size={size} />
+        <CustomLogo src={customSrc} height={height} />
       ) : (
-        <Mark theme={theme} size={size} />
+        <>
+          <span className={cn('inline-flex', showCompactMark && 'max-[399px]:hidden')}>
+            <ThemedLogo variant={variant} theme={theme} height={height} />
+          </span>
+          {showCompactMark ? (
+            <span className="hidden max-[399px]:inline-flex">
+              <ThemedLogo variant="mark" theme={theme} height={height} />
+            </span>
+          ) : null}
+        </>
       )}
-      {variant === 'full' ? (
-        <span
-          aria-hidden
-          className={cn(
-            plusJakarta.className,
-            'leading-none',
-            theme === 'auto' && 'text-[#1B2433] dark:text-[#FAF7F2]',
-          )}
-          style={{
-            fontSize: size * 0.9,
-            letterSpacing: '-0.045em',
-            fontWeight: 800,
-            color: wordmarkColor,
-          }}
-        >
-          Rigbu
-        </span>
-      ) : null}
     </span>
   )
 

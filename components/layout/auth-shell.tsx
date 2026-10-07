@@ -130,7 +130,7 @@ export function AuthShell({
       <div className="flex min-h-screen items-center justify-center bg-background px-6">
         <div className="max-w-md text-center">
           <div className="mb-4 flex justify-center">
-            <BrandLogo src={logoUrl} size={40} />
+            <BrandLogo src={logoUrl} height={32} markBelow400 />
           </div>
           <p className="text-sm font-semibold uppercase tracking-widest text-primary">
             {maintenance.siteName}

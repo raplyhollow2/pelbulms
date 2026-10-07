@@ -58,7 +58,7 @@ export default function VerifyCertificatePage() {
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
           <div className="mb-3 flex justify-center">
-            <BrandLogo href="/" src={logoUrl} size={40} />
+            <BrandLogo href="/" src={logoUrl} height={32} markBelow400 />
           </div>
           <CardTitle>Certificate Verification</CardTitle>
         </CardHeader>

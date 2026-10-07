@@ -105,7 +105,7 @@ function AdminSiteSettingsPage() {
           <Label>Logo</Label>
           <div className="flex items-center gap-3">
             <div className="flex h-16 items-center justify-center rounded-lg border border-border/60 bg-muted/40 px-3">
-              <BrandLogo src={form.logo_url || null} variant="full" size={40} />
+              <BrandLogo src={form.logo_url || null} variant="horizontal" height={40} />
             </div>
             <div className="flex flex-wrap gap-2">
               <label className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium">

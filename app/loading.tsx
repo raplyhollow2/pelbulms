@@ -6,7 +6,7 @@ export default async function Loading() {
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-background px-6">
-      <BrandLogo variant="mark" src={settings.logo_url} size={64} className="brand-mark-pulse" />
+      <BrandLogo variant="mark" src={settings.logo_url} height={64} className="brand-mark-pulse" />
       <p className="text-center text-sm text-muted-foreground">
         Getting your learning space ready…
       </p>
