@@ -194,7 +194,7 @@ export function DesktopSidebar({ user, logoUrl = null, profile: profileHint = nu
           {isActive && (
             <span
               className={cn(
-                'absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-primary',
+                'absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-[#F5B82E]',
                 collapsed && 'left-0'
               )}
             />
