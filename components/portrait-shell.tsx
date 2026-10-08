@@ -12,7 +12,7 @@ export function PortraitShell({ children }: { children: React.ReactNode }) {
   }, [])
 
   return (
-    <div ref={ref} className="portrait-shell flex min-h-full w-full flex-1 flex-col">
+    <div ref={ref} className="portrait-shell flex min-h-full w-full flex-1 flex-col pb-[var(--install-bar-offset,0px)]">
       {children}
     </div>
   )

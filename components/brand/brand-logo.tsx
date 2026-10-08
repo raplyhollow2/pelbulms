@@ -5,6 +5,7 @@ const RATIO = {
   horizontal: 356 / 124,
   stacked: 190 / 208,
   mark: 1,
+  wordmark: 214 / 102,
 } as const
 
 const SRC = {
@@ -19,6 +20,10 @@ const SRC = {
   mark: {
     light: '/brand/logo/rigbu-mark-light.svg',
     dark: '/brand/logo/rigbu-mark-dark.svg',
+  },
+  wordmark: {
+    light: '/brand/logo/rigbu-wordmark-ink.svg',
+    dark: '/brand/logo/rigbu-wordmark-white.svg',
   },
 } as const
 

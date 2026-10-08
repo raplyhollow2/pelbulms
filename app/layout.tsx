@@ -94,10 +94,10 @@ export default function RootLayout({
               {children}
               <CommandPalette />
               <Toaster richColors position="top-center" />
+              <ServiceWorkerRegistration />
             </PortraitShell>
           </CapabilitiesProvider>
         </ThemeProvider>
-        <ServiceWorkerRegistration />
       </body>
     </html>
   );

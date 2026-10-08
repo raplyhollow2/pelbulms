@@ -1,13 +1,12 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Loader2, AlertCircle, Fingerprint, Home, Mail } from 'lucide-react'
-import { BrandLogo } from '@/components/brand/brand-logo'
-import { BrandCharacter } from '@/components/brand/brand-character'
+import { Loader2, AlertCircle, Fingerprint, Mail } from 'lucide-react'
+import { AuthSplit } from '@/components/auth/auth-split'
+import { useAuthSite } from '@/components/auth/auth-site'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { SignedInPublicGuard } from '@/components/auth/signed-in-public-guard'
@@ -49,9 +48,8 @@ function LoginPage() {
   const [busy, setBusy] = useState<Busy>(null)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  const [siteName, setSiteName] = useState('Rigbu LMS')
-  const [logoUrl, setLogoUrl] = useState<string | null>(null)
   const [emailMode, setEmailMode] = useState<EmailMode>('signin')
+  const { siteName } = useAuthSite()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
@@ -67,23 +65,6 @@ function LoginPage() {
       setBusy(null)
       setError(message)
     })
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    fetch('/api/public/site')
-      .then((res) => res.json())
-      .then((data) => {
-        if (cancelled) return
-        if (typeof data.site_name === 'string' && data.site_name.trim()) {
-          setSiteName(data.site_name.trim())
-        }
-        setLogoUrl(typeof data.logo_url === 'string' && data.logo_url.trim() ? data.logo_url.trim() : null)
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
   }, [])
 
   const handleEmailAuth = async (event: React.FormEvent) => {
@@ -214,40 +195,22 @@ function LoginPage() {
   const disabled = busy !== null
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-yellow-50 via-orange-50 to-white p-4 dark:from-gray-900 dark:to-black">
+    <AuthSplit>
       <SignedInPublicGuard />
-      <div className="w-full max-w-md space-y-8">
-        <div className="space-y-4 text-center">
-          <BrandCharacter pose="hello" className="mx-auto" />
-          <BrandLogo
-            href="/"
-            src={logoUrl}
-            height={32}
-            markBelow400
-            className="rounded-full border border-border bg-card px-6 py-3 shadow-sm transition-opacity hover:opacity-90"
-          />
-          <h1 className="text-3xl font-bold">Welcome to {siteName}</h1>
-          <p className="text-muted-foreground">
-            Sign in with Google, or use your email and password
-          </p>
-        </div>
-
-        <Card className="bg-card border border-border shadow-sm">
-          <CardHeader>
-            <CardTitle>Sign in to continue</CardTitle>
-            <CardDescription>
-              Use Google, or type your email and password
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <Button
-                type="button"
-                onClick={() => handleOAuthSignIn('google')}
-                disabled={disabled}
-                variant="outline"
-                className="h-12 w-full border-border bg-white text-base font-medium text-foreground hover:bg-gray-50 dark:bg-background"
-              >
+      <Card size="sm">
+        <CardHeader>
+          <h1 className="text-xl font-semibold tracking-tight text-foreground">Welcome to {siteName}</h1>
+          <CardDescription>Use Google, or type your email and password</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <Button
+              type="button"
+              onClick={() => handleOAuthSignIn('google')}
+              disabled={disabled}
+              variant="outline"
+              className="w-full"
+            >
                 {busy === 'google' ? (
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 ) : (
@@ -261,7 +224,7 @@ function LoginPage() {
                   <span className="w-full border-t" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">Or</span>
+                  <span className="bg-card px-2 text-muted-foreground">Or</span>
                 </div>
               </div>
 
@@ -305,16 +268,8 @@ function LoginPage() {
                     </p>
                   ) : null}
                 </div>
-                <Button
-                  type="submit"
-                  disabled={disabled}
-                  className="h-12 w-full bg-primary text-base font-medium text-primary-foreground hover:bg-primary/90"
-                >
-                  {busy === 'email' ? (
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  ) : (
-                    <Mail className="mr-2 h-5 w-5" />
-                  )}
+                <Button type="submit" disabled={disabled} className="w-full">
+                  {busy === 'email' ? <Loader2 className="animate-spin" /> : <Mail />}
                   {emailMode === 'signup' ? 'Create account' : 'Sign in with email'}
                 </Button>
                 <p className="text-center text-sm text-muted-foreground">
@@ -342,13 +297,9 @@ function LoginPage() {
                 onClick={handlePasskeySignIn}
                 disabled={disabled}
                 variant="outline"
-                className="h-12 w-full text-base font-medium"
+                className="w-full"
               >
-                {busy === 'passkey' ? (
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                ) : (
-                  <Fingerprint className="mr-2 h-5 w-5" />
-                )}
+                {busy === 'passkey' ? <Loader2 className="animate-spin" /> : <Fingerprint />}
                 {busy === 'passkey' ? 'Waiting for passkey…' : 'Continue with a passkey'}
               </Button>
 
@@ -363,32 +314,14 @@ function LoginPage() {
               )}
             </div>
           </CardContent>
-        </Card>
-
-        <div className="space-y-2 text-center text-sm text-muted-foreground">
-          <p>Google opens your account picker. Email uses the address and password you type here.</p>
-          <div className="flex items-center justify-center gap-2 text-xs">
-            <span className="h-2 w-2 rounded-full bg-green-500"></span>
-            <span>Secure authentication powered by Supabase Auth</span>
-          </div>
-          <p className="pt-1">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-1.5 text-xs underline underline-offset-4 transition-colors hover:text-foreground"
-            >
-              <Home className="h-3.5 w-3.5" />
-              Back to homepage
-            </Link>
-          </p>
-        </div>
-      </div>
-    </div>
+      </Card>
+    </AuthSplit>
   )
 }
 
 function LoginPageWrapper() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+    <Suspense fallback={<div className="flex h-dvh items-center justify-center bg-background"><Loader2 className="size-8 animate-spin text-primary" /></div>}>
       <LoginPage />
     </Suspense>
   )
