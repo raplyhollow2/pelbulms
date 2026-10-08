@@ -43,7 +43,7 @@ interface NavItem {
 
 const STORAGE_KEY = 'rigbu:sidebar-collapsed'
 
-export function DesktopSidebar({ user, logoUrl = null, profile: profileHint = null }: DesktopSidebarProps) {
+export function DesktopSidebar({ user, profile: profileHint = null }: DesktopSidebarProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [collapsed, setCollapsed] = useState(false)
@@ -236,7 +236,11 @@ export function DesktopSidebar({ user, logoUrl = null, profile: profileHint = nu
       >
         <div className="flex shrink-0 flex-col gap-2 border-b border-border/40 p-2">
           <div className={cn('flex h-12 items-center gap-2 px-2', collapsed && 'justify-center px-0')}>
-            <BrandLogo href="/dashboard" src={logoUrl} variant="mark" height={32} />
+            {!collapsed ? (
+              <BrandLogo href="/dashboard" variant="horizontal" height={32} className="min-w-0" />
+            ) : (
+              <BrandLogo href="/dashboard" variant="mark" height={32} />
+            )}
             <Button
               variant="ghost"
               size="icon"

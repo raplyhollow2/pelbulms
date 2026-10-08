@@ -23,7 +23,7 @@ interface ResponsiveLayoutProps {
   } | null
 }
 
-export function ResponsiveLayout({ children, user, logoUrl = null, profile = null }: ResponsiveLayoutProps) {
+export function ResponsiveLayout({ children, user, profile = null }: ResponsiveLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const pathname = usePathname()
@@ -56,7 +56,7 @@ export function ResponsiveLayout({ children, user, logoUrl = null, profile = nul
   return (
     <div className="relative min-h-dvh overflow-x-clip bg-background">
       <div className="hidden md:block">
-        <DesktopSidebar user={user} logoUrl={logoUrl} profile={profile} />
+        <DesktopSidebar user={user} profile={profile} />
       </div>
 
       <main
@@ -77,7 +77,7 @@ export function ResponsiveLayout({ children, user, logoUrl = null, profile = nul
             >
               <Menu className="h-5 w-5" />
             </Button>
-            <BrandLogo href="/dashboard" src={logoUrl} height={32} markBelow400 className="rounded-lg px-1 py-1" />
+            <BrandLogo href="/dashboard" height={32} className="rounded-lg px-1 py-1" />
           </div>
 
           {/* Desktop page chrome (catalog toolbar, etc.) mounts here */}
