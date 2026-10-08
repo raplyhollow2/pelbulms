@@ -6,7 +6,7 @@ export function CourseDetailSkeleton() {
   return (
     <div className="mx-auto max-w-lg pb-24 md:max-w-2xl md:pb-10">
       <Skeleton className="aspect-video w-full rounded-none" />
-      <div className="space-y-3 bg-[#1c1d1f] px-4 py-5">
+      <div className="space-y-3 bg-gradient-to-b from-[#1B2433] to-[#34446A] px-4 py-5">
         <Skeleton className="h-3 w-28 bg-white/15" />
         <Skeleton className="h-7 w-4/5 bg-white/20" />
         <Skeleton className="h-4 w-full bg-white/10" />

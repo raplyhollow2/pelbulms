@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { checkRBAC } from '@/lib/rbac'
+import { isAnyAuthenticated } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
 import { cloudinaryClient, getCloudinaryAccount } from '@/lib/cloudinary'
 import { makeMediaRef } from '@/lib/media'
@@ -27,7 +27,7 @@ async function ensureBucket(supabase: Awaited<ReturnType<typeof createServiceCli
  * Admin and superadmin may set any user's avatar; other signed-in users only their own.
  */
 export async function POST(request: NextRequest) {
-  const rbac = await checkRBAC(request, ['student', 'instructor', 'admin'])
+  const rbac = await isAnyAuthenticated(request)
   if (!rbac.hasAccess) {
     return NextResponse.json(
       { error: rbac.error || 'Access denied' },

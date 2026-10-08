@@ -234,56 +234,61 @@ export function DesktopSidebar({ user, logoUrl = null, profile: profileHint = nu
           collapsed ? 'w-20' : 'w-64'
         )}
       >
-        {/* Logo & Collapse Button */}
-        <div className="flex h-16 shrink-0 items-center gap-3 border-b border-border/40 px-4">
-          {!collapsed ? (
-            <BrandLogo href="/dashboard" src={logoUrl} variant="horizontal" height={32} className="min-w-0" />
-          ) : (
-            <BrandLogo href="/dashboard" src={logoUrl} variant="mark" height={32} className="mx-auto" />
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleCollapse}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className={cn('h-8 w-8 shrink-0', collapsed && 'absolute -right-3 top-5 h-6 w-6 rounded-full border border-border/60 bg-background shadow-sm')}
-          >
-            {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-          </Button>
-        </div>
-
-        {/* Profile */}
-        <div className="shrink-0 border-b border-border/40 p-3">
-          <div
-            className={cn(
-              'flex items-center gap-2',
-              collapsed && 'flex-col'
-            )}
-          >
-            <Link
-              href="/profile"
+        <div className="flex shrink-0 flex-col gap-2 border-b border-border/40 p-2">
+          <div className={cn('flex h-12 items-center gap-2 px-2', collapsed && 'justify-center px-0')}>
+            <BrandLogo href="/dashboard" src={logoUrl} variant="mark" height={32} />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleCollapse}
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               className={cn(
-                'flex min-w-0 flex-1 items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted',
-                collapsed && 'justify-center'
+                'h-8 w-8 shrink-0',
+                collapsed
+                  ? 'absolute -right-3 top-5 h-6 w-6 rounded-full border border-border/60 bg-background shadow-sm'
+                  : 'ml-auto'
               )}
             >
-              <Avatar className="h-9 w-9 shrink-0">
-                <AvatarImage src={resolveMediaUrl(profile?.avatar_url) || undefined} alt={displayName} />
-                <AvatarFallback className="bg-primary font-semibold text-primary-foreground">
+              {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+            </Button>
+          </div>
+          {collapsed ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Link
+                    href="/profile"
+                    aria-label={displayName}
+                    className="mx-auto flex size-12 items-center justify-center rounded-md hover:bg-muted"
+                  >
+                    <Avatar>
+                      <AvatarImage src={resolveMediaUrl(profile?.avatar_url) || undefined} alt="" />
+                      <AvatarFallback className="bg-primary text-xs font-medium text-primary-foreground">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
+                }
+              />
+              <TooltipContent side="right">{displayName}</TooltipContent>
+            </Tooltip>
+          ) : (
+            <Link
+              href="/profile"
+              className="flex h-12 items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-muted"
+            >
+              <Avatar>
+                <AvatarImage src={resolveMediaUrl(profile?.avatar_url) || undefined} alt="" />
+                <AvatarFallback className="bg-primary text-xs font-medium text-primary-foreground">
                   {initials}
                 </AvatarFallback>
               </Avatar>
-              {!collapsed && (
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{displayName}</p>
-                  <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {accountLabel}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
-                </div>
-              )}
+              <span className="grid min-w-0 flex-1 leading-tight">
+                <span className="truncate font-medium">{displayName}</span>
+                <span className="truncate text-xs text-muted-foreground">{accountLabel}</span>
+              </span>
             </Link>
-          </div>
+          )}
         </div>
 
         {/* Navigation */}

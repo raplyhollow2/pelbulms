@@ -15,6 +15,7 @@ import { CourseShareButton } from '@/components/courses/course-share-dialog'
 import { CourseDescription } from '@/components/course/course-description'
 import { ReviewsDashboard } from '@/components/course/reviews-dashboard'
 import { courseDescriptionPlain } from '@/lib/course-description'
+import { resolveMediaUrl } from '@/lib/media'
 import { resumeLearnPath } from '@/lib/resume-path'
 import { postEnrollmentRequest } from '@/lib/request-enrollment'
 import { toast } from 'sonner'
@@ -526,7 +527,6 @@ export default function CourseDetailPage() {
         toast.message('Enroll to open this lesson. Free preview lessons stay open.')
       }}
       requirements={requirements}
-      lead={lead}
       description={course.description}
       category={course.category}
       moreInCategory={moreInCategory}
@@ -557,7 +557,7 @@ export default function CourseDetailPage() {
       <div className="mx-auto max-w-lg md:max-w-2xl">
         <CourseActionDeck {...deckProps} variant="media" />
 
-        <div className="bg-[#1c1d1f] px-4 py-5 text-white" data-hero-section>
+        <div className="bg-gradient-to-b from-[#1B2433] to-[#34446A] px-4 py-5 text-white" data-hero-section>
           <nav className="mb-3 flex flex-wrap items-center gap-1 text-xs text-white/70">
             <Link href="/courses" className="underline-offset-2 hover:underline">
               Courses
@@ -637,7 +637,7 @@ export default function CourseDetailPage() {
 
     <div className="relative mx-auto hidden max-w-6xl grid-cols-[minmax(0,1fr)_22rem] gap-8 px-8 pb-16 lg:grid">
       <div className="min-w-0">
-        <div className="relative -mx-8 bg-[#1c1d1f] px-8 py-8 text-white before:absolute before:inset-y-0 before:left-full before:w-[calc(22rem+2rem)] before:bg-[#1c1d1f] before:content-['']">
+        <div className="relative -mx-8 bg-gradient-to-b from-[#1B2433] to-[#34446A] px-8 py-8 text-white before:absolute before:inset-y-0 before:left-full before:w-[calc(22rem+2rem)] before:bg-gradient-to-b before:from-[#1B2433] before:to-[#34446A] before:content-['']">
           {course.is_featured && (
             <p className="mb-3 inline-flex rounded bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">
               Featured
@@ -670,7 +670,7 @@ export default function CourseDetailPage() {
               className="shrink-0 border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
             />
           </div>
-          {lead && <p className="mt-3 max-w-3xl text-base leading-relaxed text-white/85">{lead}</p>}
+          {lead && <p className="mt-3 line-clamp-4 max-w-3xl text-base leading-relaxed text-white/85">{lead}</p>}
           <div className="mt-4 space-y-1.5 text-sm text-white/80">
             {hasRating && (
               <p className="flex flex-wrap items-center gap-1.5">
@@ -727,6 +727,30 @@ type Facilitator = Pick<Profile, 'id' | 'full_name' | 'avatar_url' | 'bio'> & {
   social_links?: unknown
 }
 
+function CourseDescriptionSection({ text }: { text: string | null }) {
+  const [expanded, setExpanded] = useState(false)
+  const plain = courseDescriptionPlain(text)
+  const words = plain.split(/\s+/).filter(Boolean)
+  if (!plain) return null
+  const truncated = words.length > 120
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-xl font-bold">Description</h2>
+      {truncated && !expanded ? (
+        <p className="text-sm leading-relaxed">{words.slice(0, 120).join(' ')}…</p>
+      ) : (
+        <CourseDescription text={text} className="text-sm leading-relaxed" />
+      )}
+      {truncated ? (
+        <Button type="button" variant="link" className="h-auto px-0" onClick={() => setExpanded((open) => !open)}>
+          {expanded ? 'Show less' : 'Show more'}
+        </Button>
+      ) : null}
+    </section>
+  )
+}
+
 function CourseDetailBody({
   objectives,
   tags,
@@ -734,7 +758,6 @@ function CourseDetailBody({
   isEnrolled,
   onLessonClick,
   requirements,
-  lead,
   description,
   category,
   moreInCategory,
@@ -751,7 +774,6 @@ function CourseDetailBody({
   isEnrolled: boolean
   onLessonClick: (lessonId: string) => void
   requirements: string[]
-  lead: string
   description: string | null
   category: string | null
   moreInCategory: RelatedCourse[]
@@ -828,12 +850,7 @@ function CourseDetailBody({
         )}
       </section>
 
-      {lead && (
-        <section className="space-y-3">
-          <h2 className="text-xl font-bold">Description</h2>
-          <CourseDescription text={description} className="text-sm leading-relaxed" />
-        </section>
-      )}
+      <CourseDescriptionSection text={description} />
 
       {moreInCategory.length > 0 && category && (
         <section className="space-y-3">
@@ -853,16 +870,17 @@ function CourseDetailBody({
           <h2 className="text-xl font-bold">{facilitators.length > 1 ? 'Instructors' : 'Instructor'}</h2>
           {facilitators.map((person) => {
             const linkedin = linkedinFromProfile(person)
+            const avatarSrc = resolveMediaUrl(person.avatar_url)
             return (
               <div key={person.id} className="flex items-start gap-3">
                 <Link
                   href={`/instructors/${person.id}`}
                   className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/30"
                 >
-                  {person.avatar_url ? (
+                  {avatarSrc ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={person.avatar_url}
+                      src={avatarSrc}
                       alt={person.full_name || 'Instructor'}
                       className="h-full w-full object-cover"
                     />

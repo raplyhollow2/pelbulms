@@ -5,7 +5,9 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { RigbuIcon, type RigbuIconName } from '@/components/brand/RigbuIcon'
 import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { BrandLogo } from '@/components/brand/brand-logo'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { resolveMediaUrl } from '@/lib/media'
 import { createClient } from '@/lib/supabase/client'
 import { leavePresenceAndSignOut } from '@/components/presence/presence-tracker'
 import { cn, haptic, warning as hapticWarning } from '@/lib/utils'
@@ -15,7 +17,11 @@ import { coerceUserRole, ROLE_LABELS } from '@/lib/roles'
 
 interface MobileNavigationProps {
   user?: any
-  profile?: { role?: string | null } | null
+  profile?: {
+    role?: string | null
+    full_name?: string | null
+    avatar_url?: string | null
+  } | null
   menuOpen?: boolean
   onMenuOpenChange?: (open: boolean) => void
 }
@@ -193,21 +199,26 @@ export function MobileNavigation({
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-muted" />
 
-            <div className="mb-4 flex items-center gap-3 rounded-xl bg-muted/60 p-3">
-              <Avatar className="h-11 w-11 shrink-0 bg-primary">
-                <AvatarFallback className="bg-primary font-semibold text-primary-foreground">
-                  {user?.email?.[0]?.toUpperCase() || 'U'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold">
-                  {user?.user_metadata?.full_name || user?.email?.split('@')[0]}
-                </p>
-                <p className="truncate text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  {accountLabel}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
-              </div>
+            <div className="mb-4 flex flex-col gap-2">
+              <BrandLogo href="/dashboard" variant="mark" height={32} className="px-2" />
+              <Link
+                href="/profile"
+                onClick={() => setMenuOpen(false)}
+                className="flex h-12 items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-muted"
+              >
+                <Avatar>
+                  <AvatarImage src={resolveMediaUrl(profile?.avatar_url) || undefined} alt="" />
+                  <AvatarFallback className="bg-primary text-xs font-medium text-primary-foreground">
+                    {(profile?.full_name || user?.user_metadata?.full_name || user?.email || 'U').charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="grid min-w-0 flex-1 leading-tight">
+                  <span className="truncate font-medium">
+                    {profile?.full_name || user?.user_metadata?.full_name || user?.email?.split('@')[0]}
+                  </span>
+                  <span className="truncate text-xs text-muted-foreground">{accountLabel}</span>
+                </span>
+              </Link>
             </div>
 
             <button
