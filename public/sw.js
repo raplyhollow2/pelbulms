@@ -1,12 +1,15 @@
 // Service Worker for Rigbu LMS PWA
 // Bump this version whenever the SW logic changes so clients pick up the update
 // and old caches are purged.
-const CACHE_NAME = 'rigbu-lms-v5'
+const CACHE_NAME = 'rigbu-lms-v6'
+const IS_LOCAL_DEV =
+  self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1'
 const PRECACHE_URLS = ['/offline.html', '/site.webmanifest', '/favicon.svg', '/favicon.ico']
 
 // Install - precache core assets (best-effort so a single 404 can't break install)
 self.addEventListener('install', (event) => {
   self.skipWaiting()
+  if (IS_LOCAL_DEV) return
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
       Promise.allSettled(PRECACHE_URLS.map((url) => cache.add(url)))
@@ -19,6 +22,13 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
       const names = await caches.keys()
+      if (IS_LOCAL_DEV) {
+        await Promise.all(names.map((name) => caches.delete(name)))
+        await self.registration.unregister()
+        const windows = await self.clients.matchAll({ type: 'window' })
+        windows.forEach((client) => client.navigate(client.url))
+        return
+      }
       await Promise.all(
         names.filter((name) => name !== CACHE_NAME).map((name) => caches.delete(name))
       )
@@ -48,6 +58,7 @@ function isStaticAsset(url) {
 // Fetch - network for HTML so middleware can refresh the session cookie.
 // Cache-first only for static files.
 self.addEventListener('fetch', (event) => {
+  if (IS_LOCAL_DEV) return
   let url
   try {
     url = new URL(event.request.url)

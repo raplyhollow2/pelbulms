@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { courseIdByQuiz } from '@/lib/authoring'
 import { userCanManageCourse } from '@/lib/course-access'
+import { lessonIsOpenForLearner } from '@/lib/module-live'
 import { sanitizeQuestionForLearner } from '@/lib/quiz-grade'
 import { getRequestUser } from '@/lib/request-user'
 import { createServiceClient } from '@/lib/supabase/server'
@@ -51,7 +52,8 @@ export async function GET(
       ((lesson as { is_free?: boolean; is_preview?: boolean } | null)?.is_free === true ||
         (lesson as { is_preview?: boolean } | null)?.is_preview === true)
     const publishedQuiz = (quiz as { is_published?: boolean }).is_published !== false
-    if ((!enrolled && !freePreview) || !publishedQuiz) {
+    const lessonOpen = await lessonIsOpenForLearner(service, (quiz as { lesson_id: string }).lesson_id, user.id)
+    if ((!enrolled && !freePreview) || !publishedQuiz || !lessonOpen) {
       return NextResponse.json({ error: 'You do not have access to this quiz' }, { status: 403 })
     }
   }

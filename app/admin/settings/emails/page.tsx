@@ -4,6 +4,16 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
@@ -137,6 +147,7 @@ function EmailsSettingsPage() {
   const [status, setStatus] = useState<EmailHostList>({ hosts: [], envFallback: { configured: false, from: null } })
   const [draft, setDraft] = useState<Draft | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  const [removeHost, setRemoveHost] = useState<EmailHostStatus | null>(null)
 
   const load = async () => {
     const res = await fetch('/api/admin/settings/email-hosts')
@@ -355,15 +366,7 @@ function EmailsSettingsPage() {
                   type="button"
                   variant="outline"
                   disabled={busy !== null}
-                  onClick={() => {
-                    if (!window.confirm(`Remove ${host.name}?`)) return
-                    hostAction(
-                      `delete-${host.id}`,
-                      `/api/admin/settings/email-hosts?id=${encodeURIComponent(host.id)}`,
-                      { method: 'DELETE' },
-                      'Email host removed'
-                    )
-                  }}
+                  onClick={() => setRemoveHost(host)}
                 >
                   Remove
                 </Button>
@@ -560,6 +563,35 @@ function EmailsSettingsPage() {
           </div>
         </section>
       ) : null}
+
+      <AlertDialog open={Boolean(removeHost)} onOpenChange={(open) => !open && setRemoveHost(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this email host?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {removeHost ? `${removeHost.name} will stop sending mail.` : 'This host will stop sending mail.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!removeHost) return
+                const host = removeHost
+                setRemoveHost(null)
+                hostAction(
+                  `delete-${host.id}`,
+                  `/api/admin/settings/email-hosts?id=${encodeURIComponent(host.id)}`,
+                  { method: 'DELETE' },
+                  'Email host removed'
+                )
+              }}
+            >
+              Remove host
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

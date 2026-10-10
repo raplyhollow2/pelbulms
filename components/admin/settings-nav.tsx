@@ -22,6 +22,13 @@ const ITEMS: SettingsNavItem[] = [
   { href: '/admin/settings/institutions', label: 'Institutions', icon: Building2, cap: CAP.INSTITUTIONS_VIEW },
   { href: '/admin/settings/marketing', label: 'Marketing', icon: Megaphone, cap: CAP.SETTINGS_MARKETING_VIEW },
   { href: '/admin/settings/emails', label: 'Emails', icon: Mail, cap: CAP.SETTINGS_EMAILS_VIEW, superadmin: true },
+  {
+    href: '/admin/settings/email-templates',
+    label: 'Email templates',
+    icon: Mail,
+    cap: CAP.SETTINGS_EMAIL_TEMPLATES_VIEW,
+    superadmin: true,
+  },
   { href: '/admin/settings/cloudinary', label: 'Cloudinary', icon: Cloud, cap: CAP.SETTINGS_VIEW },
   { href: '/admin/permissions', label: 'Permissions', icon: Shield, cap: CAP.PERMISSIONS_VIEW },
 ]
@@ -30,9 +37,11 @@ export function AdminSettingsNav() {
   const pathname = usePathname()
   const { has, role } = useCapabilities()
 
+  const items = ITEMS.filter((item) => has(item.cap) || (item.superadmin && role === 'superadmin'))
+
   return (
-    <nav className="flex gap-1 overflow-x-auto pb-1 sm:flex-wrap">
-      {ITEMS.filter((item) => has(item.cap) || (item.superadmin && role === 'superadmin')).map((item) => {
+    <nav className="flex gap-1 overflow-x-auto pb-1 md:w-52 md:shrink-0 md:flex-col md:overflow-visible md:rounded-xl md:border md:border-sidebar-border md:bg-sidebar md:p-2">
+      {items.map((item) => {
         const active = item.exact
           ? pathname === item.href
           : pathname === item.href || pathname.startsWith(`${item.href}/`)
@@ -44,8 +53,8 @@ export function AdminSettingsNav() {
             className={cn(
               'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors',
               active
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                : 'text-muted-foreground hover:bg-sidebar-accent/70 hover:text-foreground'
             )}
           >
             <Icon className="h-3.5 w-3.5" />

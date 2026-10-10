@@ -2,15 +2,7 @@
  * Notify enrolled students about course events (announcements, etc.).
  */
 
-import { publicAppUrl, sendEmail } from '@/lib/email/send'
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
+import { sendTemplatedEmail } from '@/lib/email/templated'
 
 export async function notifyEnrolledStudents(
   service: any,
@@ -20,6 +12,7 @@ export async function notifyEnrolledStudents(
     message: string
     actionUrl?: string
     type?: string
+    emailTemplate?: string | null
   }
 ): Promise<number> {
   const { data: enrollments, error } = await service
@@ -48,6 +41,39 @@ export async function notifyEnrolledStudents(
     console.error('[notify-enrolled] insert failed:', insertError)
     return 0
   }
+
+  if (input.emailTemplate) {
+    const { data: profiles } = await service
+      .from('profiles')
+      .select('id, email, full_name')
+      .in(
+        'id',
+        enrollments.map((row: { user_id: string }) => row.user_id)
+      )
+    const { data: course } = await service.from('courses').select('title').eq('id', input.courseId).maybeSingle()
+    const courseTitle = (course as { title?: string } | null)?.title || 'your course'
+    for (const profile of profiles || []) {
+      const email = (profile as { email?: string | null }).email
+      const userId = (profile as { id?: string }).id
+      if (!email || !userId) continue
+      const result = await sendTemplatedEmail({
+        templateKey: input.emailTemplate,
+        to: email,
+        userId,
+        vars: {
+          learner_name: (profile as { full_name?: string | null }).full_name || 'there',
+          course_title: courseTitle,
+          title: input.title,
+          message: input.message,
+          action_url: input.actionUrl || `/learn/${input.courseId}`,
+        },
+      })
+      if (!result.sent && result.error) {
+        console.error('[notify-enrolled] templated email failed:', result.error)
+      }
+    }
+  }
+
   return rows.length
 }
 
@@ -85,20 +111,22 @@ export async function notifyStudentOfEnrollmentDecision(
 
   const { data: profile } = await service
     .from('profiles')
-    .select('email')
+    .select('email, full_name')
     .eq('id', input.studentId)
     .maybeSingle()
 
   const email = (profile as { email?: string | null } | null)?.email
   if (email) {
-    const link = `${publicAppUrl()}${actionUrl}`
-    const result = await sendEmail({
+    const result = await sendTemplatedEmail({
+      templateKey: approved ? 'enrollment.approved' : 'enrollment.rejected',
       to: email,
-      subject: approved
-        ? `Enrollment approved: ${input.courseTitle}`
-        : `Enrollment not approved: ${input.courseTitle}`,
-      text: `${message}\n\n${approved ? 'Open the course' : 'View the course'}: ${link}`,
-      html: `<p>${escapeHtml(message)}</p><p><a href="${link}">${approved ? 'Start learning' : 'View course'}</a></p>`,
+      userId: input.studentId,
+      respectCoursePreferences: false,
+      vars: {
+        learner_name: (profile as { full_name?: string | null } | null)?.full_name || 'there',
+        course_title: input.courseTitle,
+        action_url: actionUrl,
+      },
     })
     if (!result.sent && result.error) {
       console.error('[notify-enrolled] decision email failed:', result.error)

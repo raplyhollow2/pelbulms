@@ -4,6 +4,18 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { LessonOptionsFields, type LessonOptionsValue } from '@/components/teach/lesson-options-fields'
+import { toast } from 'sonner'
+import { formatMailCount, requestLessonStatusEmail } from '@/lib/email/request-lesson-status-email'
+import { Button } from '@/components/ui/button'
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { shouldSyncCourseDuration, syncCourseDuration } from '@/lib/video-duration'
 
 export function LessonOptionsPanel({
@@ -26,6 +38,8 @@ export function LessonOptionsPanel({
   const supabase = createClient()
   const [lesson, setLesson] = useState<LessonOptionsValue | null>(null)
   const [error, setError] = useState('')
+  const [mailNote, setMailNote] = useState('')
+  const [askEmail, setAskEmail] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -70,6 +84,27 @@ export function LessonOptionsPanel({
       })
     }
     if (shouldSyncCourseDuration(updates)) void syncCourseDuration(courseId)
+    const notify =
+      typeof updates.notify_on_status === 'boolean' ? updates.notify_on_status : lesson?.notify_on_status === true
+    if (typeof updates.is_published === 'boolean' && notify) {
+      const mail = await requestLessonStatusEmail(lessonId)
+      const note = formatMailCount(mail)
+      setMailNote(note)
+      if (note) {
+        if (mail && mail.sent > 0) toast.success(note)
+        else toast.message(note)
+      }
+    }
+  }
+
+  const publishLesson = async (email: boolean) => {
+    if (email) {
+      await commit({ is_published: true, notify_on_status: true })
+      setLesson((current) => (current ? { ...current, notify_on_status: true, is_published: true } : current))
+    } else {
+      await commit({ is_published: true, notify_on_status: false })
+    }
+    setAskEmail(false)
   }
 
   if (error && !lesson) return <p className="text-sm text-destructive">{error}</p>
@@ -90,8 +125,38 @@ export function LessonOptionsPanel({
         hideIdentity={hideIdentity}
         pageItems={pageItems}
         onChange={(updates) => setLesson((current) => (current ? { ...current, ...updates } : current))}
-        onCommit={commit}
+        onCommit={async (updates) => {
+          if (updates.is_published === true && lesson?.is_published !== true && lesson?.notify_on_status !== true) {
+            setAskEmail(true)
+            return
+          }
+          await commit(updates)
+        }}
       />
+      {mailNote ? <p className="text-sm text-muted-foreground">{mailNote}</p> : null}
+      <AlertDialog open={askEmail} onOpenChange={setAskEmail}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Email enrolled students?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This lesson is being published. Email every student enrolled in this course.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => setLesson((current) => (current ? { ...current, is_published: false } : current))}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <Button type="button" variant="outline" onClick={() => void publishLesson(false)}>
+              Publish without email
+            </Button>
+            <Button type="button" onClick={() => void publishLesson(true)}>
+              Email students
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

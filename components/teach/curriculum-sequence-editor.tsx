@@ -54,6 +54,17 @@ import {
   type LectureKind,
 } from '@/lib/lesson-kind'
 import { parseLessonActivities } from '@/lib/lesson-activities'
+import { toast } from 'sonner'
+import { formatMailCount, type MailCount } from '@/lib/email/request-lesson-status-email'
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import type { Database } from '@/types/database.types'
 
 type Lesson = Database['public']['Tables']['lessons']['Row']
@@ -62,7 +73,7 @@ type Props = {
   courseId: string
   lessons: Lesson[]
   onAdd: (kind: LectureKind) => Promise<void>
-  onUpdate: (id: string, updates: Partial<Lesson>) => Promise<void>
+  onUpdate: (id: string, updates: Partial<Lesson>) => Promise<MailCount | null | void>
   onDelete: (id: string) => Promise<void>
   onDragStart: (e: React.DragEvent, lessonId: string) => void
   onDragOver: (e: React.DragEvent) => void
@@ -81,6 +92,8 @@ export function CurriculumSequenceEditor({
 }: Props) {
   const router = useRouter()
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [mailNotes, setMailNotes] = useState<Record<string, string>>({})
+  const [askLessonId, setAskLessonId] = useState<string | null>(null)
   const [adding, setAdding] = useState<LectureKind | null>(null)
   const [uploadingId, setUploadingId] = useState<string | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -94,6 +107,20 @@ export function CurriculumSequenceEditor({
     }
     prevCount.current = lessons.length
   }, [lessons])
+
+  const publishLesson = async (lessonId: string, published: boolean, email: boolean) => {
+    setAskLessonId(null)
+    const updates = email
+      ? { is_published: published, notify_on_status: true }
+      : { is_published: published }
+    const mail = await onUpdate(lessonId, updates as any)
+    if (mail && typeof mail === 'object' && 'enrolled' in mail) {
+      const note = formatMailCount(mail)
+      setMailNotes((current) => ({ ...current, [lessonId]: note }))
+      if (mail.sent > 0) toast.success(note)
+      else toast.message(note)
+    }
+  }
 
   const add = async (kind: LectureKind) => {
     setAdding(kind)
@@ -225,7 +252,7 @@ export function CurriculumSequenceEditor({
                 onDragStart={(e) => onDragStart(e, lesson.id)}
                 onDragOver={onDragOver}
                 onDrop={(e) => onDrop(e, lesson.id)}
-                className="border-b last:border-b-0"
+                className={`border-b last:border-b-0 ${expanded ? 'lg:grid lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:items-start' : ''}`}
               >
                 <div className="flex items-center gap-2 px-3 py-2.5">
                   <GripVertical className="hidden h-4 w-4 shrink-0 cursor-move text-muted-foreground sm:block" />
@@ -265,7 +292,7 @@ export function CurriculumSequenceEditor({
                 </div>
 
                 {expanded ? (
-                  <div className="space-y-4 border-t bg-muted/20 px-3 py-4 sm:px-4">
+                  <div className="space-y-4 border-t bg-muted/20 px-3 py-4 sm:px-4 lg:sticky lg:top-24 lg:border-t-0 lg:border-l">
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="space-y-1.5">
                         <Label className="text-xs">Title</Label>
@@ -436,12 +463,28 @@ export function CurriculumSequenceEditor({
                         <label className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Switch
                             checked={Boolean((lesson as any).is_published)}
-                            onCheckedChange={(checked) =>
-                              void onUpdate(lesson.id, { is_published: checked } as any)
-                            }
+                            onCheckedChange={(checked) => {
+                              if (checked && !(lesson as any).notify_on_status) {
+                                setAskLessonId(lesson.id)
+                                return
+                              }
+                              void publishLesson(lesson.id, checked, Boolean((lesson as any).notify_on_status))
+                            }}
                           />
                           Published
                         </label>
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Switch
+                            checked={Boolean((lesson as any).notify_on_status)}
+                            onCheckedChange={(checked) =>
+                              void onUpdate(lesson.id, { notify_on_status: checked === true } as any)
+                            }
+                          />
+                          Email on publish
+                        </label>
+                        {mailNotes[lesson.id] ? (
+                          <span className="text-xs text-muted-foreground">{mailNotes[lesson.id]}</span>
+                        ) : null}
                         <label className="flex items-center gap-2 text-xs text-muted-foreground">
                           <Switch
                             checked={lessonIsFreePreview(lesson)}
@@ -482,6 +525,25 @@ export function CurriculumSequenceEditor({
           })}
         </ol>
       )}
+      <AlertDialog open={Boolean(askLessonId)} onOpenChange={(open) => !open && setAskLessonId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Email enrolled students?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This lesson is being published. Email every student enrolled in this course.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button type="button" variant="outline" onClick={() => askLessonId && void publishLesson(askLessonId, true, false)}>
+              Publish without email
+            </Button>
+            <Button type="button" onClick={() => askLessonId && void publishLesson(askLessonId, true, true)}>
+              Email students
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

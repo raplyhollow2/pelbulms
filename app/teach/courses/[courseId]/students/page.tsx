@@ -4,10 +4,9 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { ArrowLeft, Users, Search, TrendingUp, Clock, Loader2, Award, Check, X } from 'lucide-react'
+import { ArrowLeft, Loader2, Check, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { StudentRoster } from '@/components/teach/student-roster'
 import { EnrollmentInvitePanel } from '@/components/teach/enrollment-invite-panel'
 import { CourseStaffPanel } from '@/components/teach/course-staff-panel'
 import { StudentInterventionPanel } from '@/components/teach/student-intervention-panel'
@@ -40,7 +39,6 @@ export default function CourseStudentsPage() {
   const [course, setCourse] = useState<Course | null>(null)
   const [students, setStudents] = useState<StudentWithProgress[]>([])
   const [identities, setIdentities] = useState<Record<string, StudentIdentity>>({})
-  const [searchTerm, setSearchTerm] = useState('')
   const [decidingId, setDecidingId] = useState<string | null>(null)
 
   const supabase = createClient()
@@ -115,9 +113,8 @@ export default function CourseStudentsPage() {
     }
   }
 
-  const filteredStudents = students.filter((student: any) =>
-    student.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (student as any).email?.toLowerCase().includes(searchTerm.toLowerCase())
+  const rosterStudents = students.filter(
+    (student: any) => (student.enrollment as any).status !== 'pending'
   )
 
   const getProgressPercentage = (student: StudentWithProgress) => {
@@ -321,172 +318,13 @@ export default function CourseStudentsPage() {
           </Card>
         )}
 
-        {/* Students List */}
-        <Card className="bg-card border border-border shadow-sm">
-          <CardHeader className="px-4 sm:px-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <CardTitle>All Students</CardTitle>
-                <CardDescription>View individual student progress and performance</CardDescription>
-              </div>
-              <div className="relative w-full sm:w-64">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search students..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {filteredStudents.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                {searchTerm ? 'No students found matching your search.' : 'No students enrolled yet.'}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {filteredStudents.map((student) => {
-                  const progressPercentage = getProgressPercentage(student)
-                  const enrolledDate = new Date(student.enrollment.enrolled_at).toLocaleDateString()
-
-                  return (
-                    <div
-                      key={student.id}
-                      className="p-4 border rounded-lg hover:border-primary/50 transition-colors"
-                    >
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-3">
-                        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/20 flex items-center justify-center shrink-0">
-                            {student.avatar_url ? (
-                              <img
-                                src={student.avatar_url}
-                                alt={student.full_name || 'Student'}
-                                className="w-full h-full object-cover rounded-full"
-                              />
-                            ) : (
-                              <Users className="w-6 h-6 text-primary" />
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <h3 className="font-semibold truncate">{student.full_name || 'Anonymous'}</h3>
-                            {(student as any).email && (
-                              <p className="text-sm text-muted-foreground truncate">{(student as any).email}</p>
-                            )}
-                            <div className="flex items-center gap-2 mt-1 flex-wrap">
-                              <Badge variant="outline" className="text-xs">
-                                <Clock className="w-3 h-3 mr-1" />
-                                {(student.enrollment as any).status === 'pending'
-                                  ? 'Requested'
-                                  : `Enrolled ${enrolledDate}`}
-                              </Badge>
-                              <Badge
-                                variant={
-                                  (student.enrollment as any).status === 'completed'
-                                    ? 'default'
-                                    : (student.enrollment as any).status === 'pending'
-                                      ? 'outline'
-                                      : 'secondary'
-                                }
-                                className={`text-xs capitalize ${
-                                  (student.enrollment as any).status === 'pending'
-                                    ? 'border-amber-500 text-amber-700'
-                                    : ''
-                                }`}
-                              >
-                                {(student.enrollment as any).status || 'active'}
-                              </Badge>
-                              {student.has_certificate && (
-                                <Badge className="text-xs bg-green-600">
-                                  <Award className="w-3 h-3 mr-1" />
-                                  Certified
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        {(student.enrollment as any).status === 'pending' ? (
-                          <div className="flex gap-2 shrink-0">
-                            <Button
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700 text-white"
-                              disabled={decidingId === student.enrollment.id}
-                              onClick={() =>
-                                handleEnrollmentDecision(student.enrollment.id, 'approve')
-                              }
-                            >
-                              <Check className="w-4 h-4 mr-1" />
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={decidingId === student.enrollment.id}
-                              onClick={() =>
-                                handleEnrollmentDecision(student.enrollment.id, 'reject')
-                              }
-                            >
-                              <X className="w-4 h-4 mr-1" />
-                              Reject
-                            </Button>
-                          </div>
-                        ) : (
-                        <div className="text-left sm:text-right shrink-0">
-                          <div className="text-2xl font-bold text-primary">
-                            {progressPercentage}%
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {student.completed_lessons}/{student.total_lessons} lessons
-                          </p>
-                        </div>
-                        )}
-                      </div>
-
-                      {/* Progress Bar */}
-                      {(student.enrollment as any).status !== 'pending' && (
-                      <div className="space-y-2">
-                        <div className="w-full bg-secondary rounded-full h-2">
-                          <div
-                            className="bg-primary h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${progressPercentage}%` }}
-                          />
-                        </div>
-
-                        {/* Additional Stats */}
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <div className="flex items-center gap-4">
-                            <span className="flex items-center gap-1">
-                              <TrendingUp className="w-3 h-3" />
-                              Last active: {student.enrollment.last_accessed_at
-                                ? new Date(student.enrollment.last_accessed_at).toLocaleDateString()
-                                : 'Never'}
-                            </span>
-                            {student.enrollment.completed_at && (
-                              <span className="flex items-center gap-1">
-                                <Award className="w-3 h-3" />
-                                Completed: {new Date(student.enrollment.completed_at).toLocaleDateString()}
-                              </span>
-                            )}
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7"
-                            onClick={() => router.push(`/teach/courses/${courseId}/students/${student.id}`)}
-                          >
-                            View Details
-                          </Button>
-                        </div>
-                      </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold">All students</h2>
+            <p className="text-sm text-muted-foreground">View individual student progress and performance</p>
+          </div>
+          <StudentRoster courseId={courseId} students={rosterStudents} />
+        </section>
       </div>
     </div>
   )

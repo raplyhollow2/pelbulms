@@ -149,6 +149,22 @@ export async function processRegistrationReview(
       { onConflict: 'user_id,institution_id' }
     )
 
+    const applicantEmail = (reg as { email?: string | null }).email
+    if (applicantEmail) {
+      const { sendTemplatedEmail } = await import('@/lib/email/templated')
+      await sendTemplatedEmail({
+        templateKey: 'registration.rejected',
+        to: applicantEmail,
+        userId: reg.user_id,
+        respectCoursePreferences: false,
+        vars: {
+          learner_name: reg.full_name || 'there',
+          reason: rejectionReason || reviewNotes || '',
+          action_url: '/auth/register',
+        },
+      })
+    }
+
     return {
       success: true,
       message: alreadyActiveStudent && existingProfile?.account_status === 'active'
@@ -269,11 +285,16 @@ export async function processRegistrationReview(
 
     const applicantEmail = (reg as { email?: string | null }).email
     if (applicantEmail) {
-      const { sendEmail, publicAppUrl } = await import('@/lib/email/send')
-      await sendEmail({
+      const { sendTemplatedEmail } = await import('@/lib/email/templated')
+      await sendTemplatedEmail({
+        templateKey: 'registration.approved',
         to: applicantEmail,
-        subject: 'Your Rigbu LMS registration is approved',
-        text: `Hello ${reg.full_name || 'there'},\n\nYour registration is approved. Sign in to continue: ${publicAppUrl()}`,
+        userId: reg.user_id,
+        respectCoursePreferences: false,
+        vars: {
+          learner_name: reg.full_name || 'there',
+          action_url: '/',
+        },
       })
     }
 

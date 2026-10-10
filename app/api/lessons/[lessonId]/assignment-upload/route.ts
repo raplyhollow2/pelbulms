@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, tryCreateServiceClient } from '@/lib/supabase/server'
 import { courseIdByLesson, courseIsOpenToLearners, userCanManageCourse } from '@/lib/course-access'
+import { lessonIsOpenForLearner } from '@/lib/module-live'
 import { getRequestUser } from '@/lib/request-user'
 
 const BUCKET = 'assignment-submissions'
@@ -63,6 +64,9 @@ async function assertLessonLearnerAccess(
   }
   if (!(await courseIsOpenToLearners(db, courseId))) {
     return { ok: false as const, status: 403, error: 'This course is no longer available.' }
+  }
+  if (!(await lessonIsOpenForLearner(db, lessonId, userId))) {
+    return { ok: false as const, status: 403, error: 'This lesson is not available yet.' }
   }
   return { ok: true as const, courseId }
 }

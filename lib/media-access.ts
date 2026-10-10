@@ -1,4 +1,5 @@
 import { userCanManageCourse } from '@/lib/course-access'
+import { lessonIsOpenForLearner } from '@/lib/module-live'
 import type { UserRole } from '@/lib/roles'
 import { canAccessTeaching } from '@/lib/roles'
 import type { createServiceClient } from '@/lib/supabase/server'
@@ -61,7 +62,7 @@ export async function userCanStreamMedia(
 
   const { data: lessons } = await service
     .from('lessons')
-    .select('module_id, is_published, is_free, is_preview')
+    .select('id, module_id, is_published, is_free, is_preview')
     .ilike('video_url', `%${needle}%`)
     .limit(8)
 
@@ -72,9 +73,9 @@ export async function userCanStreamMedia(
     const courseId = (mod as { course_id?: string } | null)?.course_id
     if (!courseId) continue
     if (await userCanManageCourse(service, courseId, user.id, user.role || undefined)) return true
-    if (await enrolledOrPreview(service, courseId, user.id, lesson as { is_published?: boolean; is_free?: boolean; is_preview?: boolean })) {
-      return true
-    }
+    const lessonId = (lesson as { id?: string }).id
+    if (!lessonId) continue
+    if (await lessonIsOpenForLearner(service, lessonId, user.id)) return true
   }
 
   if (/course-media|lesson-blocks/.test(needle)) {
@@ -111,7 +112,7 @@ export async function userCanReadDriveFile(
 
   const { data: lessons } = await service
     .from('lessons')
-    .select('module_id, video_url, is_published, is_free, is_preview')
+    .select('id, module_id, video_url, is_published, is_free, is_preview')
     .ilike('video_url', `%${fileId}%`)
     .limit(12)
 
@@ -129,7 +130,8 @@ export async function userCanReadDriveFile(
     const courseId = (mod as { course_id?: string } | null)?.course_id
     if (!courseId) continue
     if (await userCanManageCourse(service, courseId, user.id, user.role || undefined)) return true
-    if (await enrolledOrPreview(service, courseId, user.id, row)) return true
+    const lessonId = (lesson as { id?: string }).id
+    if (lessonId && (await lessonIsOpenForLearner(service, lessonId, user.id))) return true
   }
 
   return false

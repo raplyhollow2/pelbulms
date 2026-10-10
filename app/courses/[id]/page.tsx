@@ -52,6 +52,7 @@ type OutlineModule = {
   title: string
   description?: string | null
   order_index: number
+  release_label?: string | null
   lessons?: OutlineLesson[]
 }
 

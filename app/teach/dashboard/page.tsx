@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
 import { resolveMediaUrl } from '@/lib/media'
 import { canAccessAdmin, canAccessTeaching } from '@/lib/roles'
 import { useCapabilities } from '@/components/auth/capabilities-provider'
@@ -65,6 +66,7 @@ export default function TeacherDashboard() {
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [courses, setCourses] = useState<Course[]>([])
+  const [studentsByCourse, setStudentsByCourse] = useState<Record<string, number>>({})
   const [totalEnrollments, setTotalEnrollments] = useState(0)
   const [avgProgress, setAvgProgress] = useState<number | null>(null)
   const [activeQuizzes, setActiveQuizzes] = useState<number | null>(null)
@@ -206,13 +208,40 @@ export default function TeacherDashboard() {
 
       const courseIds = enriched.map((m) => m.id)
       if (courseIds.length > 0) {
+        let liveCountsLoaded = false
+        try {
+          const counts: Record<string, number> = {}
+          for (let i = 0; i < courseIds.length; i += 200) {
+            const batch = courseIds.slice(i, i + 200)
+            const statsRes = await fetch('/api/courses/catalog-stats', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ courseIds: batch }),
+            })
+            if (!statsRes.ok) throw new Error('Course student counts failed')
+            const { stats } = (await statsRes.json()) as {
+              stats?: Record<string, { students?: number }>
+            }
+            for (const id of batch) {
+              const n = stats?.[id]?.students
+              counts[id] = typeof n === 'number' ? n : 0
+            }
+          }
+          setStudentsByCourse(counts)
+          setTotalEnrollments(Object.values(counts).reduce((sum, n) => sum + n, 0))
+          liveCountsLoaded = true
+        } catch (statsErr) {
+          console.warn('Course student counts failed:', statsErr)
+          setStudentsByCourse({})
+        }
+
         const { data: enrollRows, count } = await supabase
           .from('enrollments')
           .select('progress_percentage', { count: 'exact' })
           .in('course_id', courseIds)
           .in('status', ['active', 'completed'])
 
-        setTotalEnrollments(count || 0)
+        if (!liveCountsLoaded) setTotalEnrollments(count || 0)
 
         if (enrollRows && enrollRows.length > 0) {
           const sum = (enrollRows as any[]).reduce(
@@ -246,6 +275,8 @@ export default function TeacherDashboard() {
           setActiveQuizzes(0)
         }
       } else {
+        setStudentsByCourse({})
+        setTotalEnrollments(0)
         setAvgProgress(0)
         setActiveQuizzes(0)
       }
@@ -425,7 +456,7 @@ export default function TeacherDashboard() {
         return (a.title || '').localeCompare(b.title || '')
       }
       if (sortKey === 'students') {
-        return ((b as any).enrollment_count || 0) - ((a as any).enrollment_count || 0)
+        return (studentsByCourse[b.id] || 0) - (studentsByCourse[a.id] || 0)
       }
       return 0
     })
@@ -433,6 +464,7 @@ export default function TeacherDashboard() {
     return list
   }, [
     courses,
+    studentsByCourse,
     search,
     statusFilter,
     categoryFilter,
@@ -983,17 +1015,17 @@ export default function TeacherDashboard() {
                 )}
               </div>
               {filteredCourses.map((course) => {
-                const studentCount = Number(course.enrollment_count) || 0
+                const studentCount = studentsByCourse[course.id] || 0
                 const pending = pendingByCourse[course.id] || 0
                 const ungraded = gradeCounts[course.id] || 0
                 const meta = [
                   course.category,
                   course.is_published ? 'Published' : 'Draft',
                   isAdminView ? course.instructor_name : null,
-                  `${studentCount} ${studentCount === 1 ? 'student' : 'students'}`,
                 ]
                   .filter(Boolean)
                   .join(' · ')
+                const studentLabel = `${studentCount} ${studentCount === 1 ? 'student' : 'students'}`
                 return (
                   <div
                     key={course.id}
@@ -1019,14 +1051,39 @@ export default function TeacherDashboard() {
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <Link
-                        href={`/teach/courses/${course.id}/studio`}
-                        className="block truncate text-sm font-semibold hover:underline lg:text-base"
-                      >
-                        {course.title}
-                      </Link>
+                      <HoverCard>
+                        <HoverCardTrigger
+                          render={
+                            <Link
+                              href={`/teach/courses/${course.id}/studio`}
+                              className="block truncate text-sm font-semibold hover:underline lg:text-base"
+                            />
+                          }
+                        >
+                          {course.title}
+                        </HoverCardTrigger>
+                        <HoverCardContent className="w-64 space-y-1 p-3">
+                          <p className="text-sm font-medium">{course.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {course.is_published ? 'Published' : 'Draft'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{studentLabel}</p>
+                          {pending > 0 ? (
+                            <p className="text-xs text-muted-foreground">{pending} waiting for approval</p>
+                          ) : null}
+                          {ungraded > 0 ? (
+                            <p className="text-xs text-muted-foreground">{ungraded} to grade</p>
+                          ) : null}
+                        </HoverCardContent>
+                      </HoverCard>
                       <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 sm:flex-nowrap">
                         <p className="min-w-0 truncate text-xs text-muted-foreground">{meta}</p>
+                        <Link
+                          href={`/teach/courses/${course.id}/students`}
+                          className="shrink-0 text-xs text-muted-foreground hover:text-foreground hover:underline"
+                        >
+                          {studentLabel}
+                        </Link>
                         {pending > 0 && (
                           <Badge className="shrink-0 bg-amber-500 text-black hover:bg-amber-500">
                             {pending} {pending === 1 ? 'request' : 'requests'}

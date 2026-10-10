@@ -3,7 +3,7 @@
  */
 
 import { listCourseStaffIds } from '@/lib/course-access'
-import { publicAppUrl, sendEmail } from '@/lib/email/send'
+import { sendTemplatedEmail } from '@/lib/email/templated'
 
 async function insertNotification(
   service: any,
@@ -168,22 +168,20 @@ export async function notifyTeacherOfEnrollment(
     .select('id, email')
     .in('id', recipientIds)
 
-  const approveUrl = `${publicAppUrl()}${actionUrl}`
-  const text = [
-    `${studentName} requested to join “${courseTitle}”.`,
-    '',
-    `Review the request: ${approveUrl}`,
-  ].join('\n')
-  const html = `<p>${escapeHtml(studentName)} requested to join “${escapeHtml(courseTitle)}”.</p><p><a href="${approveUrl}">Review enrollment request</a></p>`
-
   for (const r of recipients || []) {
     const email = (r as any).email as string | null
+    const userId = (r as any).id as string | null
     if (!email) continue
-    const result = await sendEmail({
+    const result = await sendTemplatedEmail({
+      templateKey: 'enrollment.requested',
       to: email,
-      subject: `Enrollment request: ${courseTitle}`,
-      text,
-      html,
+      userId,
+      respectCoursePreferences: false,
+      vars: {
+        student_name: studentName,
+        course_title: courseTitle,
+        action_url: actionUrl,
+      },
     })
     if (!result.sent && result.error) {
       console.error('[notify-teachers] email failed:', result.error)
@@ -202,18 +200,44 @@ export async function notifyTeacherOfCompletion(
 
   const studentName = await resolveStudentName(service, input.studentId)
 
-  return insertNotification(service, {
+  const actionUrl = `/teach/courses/${input.courseId}/students/${input.studentId}`
+  const inserted = await insertNotification(service, {
     user_id: instructorId,
     type: 'student_completed',
     title: 'Student completed a course',
     message: `${studentName} completed “${courseTitle}”.`,
-    action_url: `/teach/courses/${input.courseId}/students/${input.studentId}`,
+    action_url: actionUrl,
     metadata: {
       course_id: input.courseId,
       student_id: input.studentId,
       event: 'completed',
     },
   })
+
+  const { data: instructor } = await service
+    .from('profiles')
+    .select('email')
+    .eq('id', instructorId)
+    .maybeSingle()
+  const email = (instructor as { email?: string | null } | null)?.email
+  if (email) {
+    const result = await sendTemplatedEmail({
+      templateKey: 'course.completed',
+      to: email,
+      userId: instructorId,
+      respectCoursePreferences: false,
+      vars: {
+        learner_name: studentName,
+        course_title: courseTitle,
+        action_url: actionUrl,
+      },
+    })
+    if (!result.sent && result.error) {
+      console.error('[notify-teachers] completion email failed:', result.error)
+    }
+  }
+
+  return inserted
 }
 
 /**
@@ -285,18 +309,23 @@ export async function notifyStaffOfSubmission(
     .select('id, email')
     .in('id', recipientIds)
 
-  const gradeUrl = `${publicAppUrl()}${actionUrl}`
-  const text = [message, '', `Grade it: ${gradeUrl}`].join('\n')
-  const html = `<p>${escapeHtml(message)}</p><p><a href="${gradeUrl}">Grade now</a></p>`
-
   for (const r of recipients || []) {
     const email = (r as any).email as string | null
+    const userId = (r as any).id as string | null
     if (!email) continue
-    const result = await sendEmail({
+    const result = await sendTemplatedEmail({
+      templateKey: 'submission.received',
       to: email,
-      subject: `${title}: ${activityTitle}`,
-      text,
-      html,
+      userId,
+      respectCoursePreferences: false,
+      vars: {
+        learner_name: studentName,
+        verb,
+        activity_title: activityTitle,
+        course_title: courseTitle,
+        title,
+        action_url: actionUrl,
+      },
     })
     if (!result.sent && result.error) {
       console.error('[notify-teachers] submission email failed:', result.error)
@@ -411,12 +440,4 @@ export async function dismissGradedSubmissionNotifications(
   if (updateError) {
     console.error('[notify-teachers] dismiss pending notices failed:', updateError)
   }
-}
-
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
 }

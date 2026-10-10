@@ -4,8 +4,9 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { ButtonGroup } from '@/components/ui/button-group'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { DescriptionEditor } from '@/components/course/description-editor'
 import { createClient } from '@/lib/supabase/client'
@@ -18,24 +19,47 @@ import { parseLessonBlocks, type LessonBlock } from '@/lib/lesson-blocks'
 import {
   Plus,
   Eye,
-  Loader2,
   Settings,
   MoreHorizontal,
   Trash2,
   ArrowLeft,
   ChevronDown,
-  ChevronLeft,
   ChevronRight,
   PanelLeft,
   Search,
   Sparkles,
+  CircleAlert,
 } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Separator } from '@/components/ui/separator'
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Kbd } from '@/components/ui/kbd'
+import { Spinner } from '@/components/ui/spinner'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
+import { Item, ItemContent, ItemMedia, ItemTitle } from '@/components/ui/item'
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Field, FieldDescription, FieldLabel } from '@/components/ui/field'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Sheet,
   SheetContent,
@@ -43,6 +67,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { toast } from 'sonner'
+import { formatMailCount, type MailCount } from '@/lib/email/request-lesson-status-email'
 import { LessonOptionsPanel } from '@/components/teach/lesson-options-panel'
 import { ModuleOptionsPanel } from '@/components/teach/module-options-panel'
 import {
@@ -127,16 +153,21 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   const [lessons, setLessons] = useState<LessonRow[]>([])
   const [lessonId, setLessonId] = useState<string | null>(null)
   const [blocks, setBlocks] = useState<LessonBlock[]>([])
-  const [mobileTab, setMobileTab] = useState<'outline' | 'page' | 'ai'>('page')
+  const [mobileTab, setMobileTab] = useState<'outline' | 'page' | 'add'>('page')
+  const [pendingDelete, setPendingDelete] = useState<
+    { kind: 'module'; id: string } | { kind: 'lesson'; moduleId: string; id: string } | null
+  >(null)
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [publishing, setPublishing] = useState(false)
   const [publishWarn, setPublishWarn] = useState(false)
   const [unpublishConfirm, setUnpublishConfirm] = useState(false)
+  const [publishMailNote, setPublishMailNote] = useState('')
   const [moduleOptionsId, setModuleOptionsId] = useState<string | null>(null)
   const [aiOpen, setAiOpen] = useState(false)
   const [lessonQuery, setLessonQuery] = useState('')
   const [foldedSections, setFoldedSections] = useState<Set<string>>(() => new Set())
   const [denied, setDenied] = useState(false)
+  const [wide, setWide] = useState<boolean | null>(null)
   const [outlineError, setOutlineError] = useState('')
   const detailToken = useRef(0)
   const blocksRef = useRef<LessonBlock[]>([])
@@ -229,13 +260,29 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   }, [courseId])
 
   useEffect(() => {
+    const query = window.matchMedia('(min-width: 1024px)')
+    const apply = () => setWide(query.matches)
+    apply()
+    query.addEventListener('change', apply)
+    return () => query.removeEventListener('change', apply)
+  }, [])
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
       if (e.key === '/') {
         e.preventDefault()
-        setMobileTab('page')
-        document.getElementById('lesson-activities')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        if (window.matchMedia('(min-width: 1024px)').matches) {
+          document.getElementById('studio-block-search')?.focus()
+        } else {
+          setMobileTab('add')
+          queueMicrotask(() => document.getElementById('studio-block-search-mobile')?.focus())
+        }
+      }
+      if (e.key === '[') {
+        e.preventDefault()
+        writeOutlineOpen(!readOutlineOpen())
       }
     }
     window.addEventListener('keydown', onKey)
@@ -252,7 +299,9 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   useEffect(() => {
     if (!lessonId) return
     const row = lessonRowRefs.current.get(lessonId)
-    const scroller = outlineScrollRef.current
+    const scroller = outlineScrollRef.current?.querySelector(
+      '[data-slot="scroll-area-viewport"]'
+    ) as HTMLElement | null
     if (!row || !scroller) return
     const rowRect = row.getBoundingClientRect()
     const scrollRect = scroller.getBoundingClientRect()
@@ -369,7 +418,6 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   }
 
   const deleteModule = async (moduleId: string) => {
-    if (!window.confirm('Delete this section and its lessons?')) return
     const { error: lessonError } = await (supabase as any).from('lessons').delete().eq('module_id', moduleId)
     if (lessonError) return
     void syncCourseDuration(courseId)
@@ -400,11 +448,23 @@ export function CourseStudio({ courseId }: { courseId: string }) {
     setUnpublishConfirm(false)
     setPublishing(true)
     setCourse((row: any) => (row ? { ...row, is_published: next } : row))
-    await (supabase as any)
+    const { error } = await (supabase as any)
       .from('courses')
       .update({ is_published: next, updated_at: new Date().toISOString() })
       .eq('id', courseId)
     setPublishing(false)
+    if (error || !next) return
+    setPublishMailNote('Sending email to enrolled students…')
+    try {
+      const res = await fetch(`/api/courses/${courseId}/publish-email`, { method: 'POST' })
+      const payload = await res.json().catch(() => ({}))
+      const note = res.ok ? formatMailCount(payload.mail as MailCount) : payload.error || 'No email was sent.'
+      setPublishMailNote(note || 'No email was sent.')
+      if (payload.mail?.sent > 0) toast.success(note)
+      else toast.message(note || 'No email was sent.')
+    } catch {
+      setPublishMailNote('No email was sent.')
+    }
   }
 
   const togglePublish = async () => {
@@ -501,7 +561,6 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   }
 
   const deleteLesson = async (moduleId: string, id: string) => {
-    if (!window.confirm('Delete this lesson?')) return
     const { error } = await (supabase as any).from('lessons').delete().eq('id', id)
     if (error) return
     const remaining = lessons.filter((row) => row.id !== id)
@@ -534,6 +593,14 @@ export function CourseStudio({ courseId }: { courseId: string }) {
     setLessonId(id)
     setMobileTab('page')
     const row = source.find((item) => item.id === id)
+    if (row) {
+      setFoldedSections((current) => {
+        if (!current.has(row.module_id)) return current
+        const next = new Set(current)
+        next.delete(row.module_id)
+        return next
+      })
+    }
     if (row && row.content !== undefined) {
       detailToken.current += 1
       const parsed = parseLessonBlocks(row.content)
@@ -558,8 +625,22 @@ export function CourseStudio({ courseId }: { courseId: string }) {
   }
 
   const openAskRigbu = () => {
-    if (window.matchMedia('(min-width: 1024px)').matches) setAiOpen(true)
-    else setMobileTab('ai')
+    setAiOpen(true)
+  }
+
+  const appendBlock = (block: LessonBlock) => {
+    const scroller = document.getElementById('studio-canvas')
+    const top = scroller?.scrollTop ?? 0
+    saveBlocks((currentBlocks) => [...currentBlocks, block])
+    const pin = () => {
+      if (scroller) scroller.scrollTop = top
+    }
+    queueMicrotask(pin)
+    requestAnimationFrame(() => {
+      pin()
+      requestAnimationFrame(pin)
+    })
+    setMobileTab('page')
   }
 
   const lessonsByModule = new Map<string, LessonRow[]>()
@@ -574,99 +655,161 @@ export function CourseStudio({ courseId }: { courseId: string }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      <div className="flex h-dvh flex-col bg-background">
+        <div className="flex items-center gap-3 border-b px-4 py-3">
+          <Skeleton className="size-9 rounded-md" />
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="ml-auto h-9 w-64" />
+        </div>
+        <div className="flex min-h-0 flex-1">
+          <div className="hidden w-80 space-y-3 border-r bg-sidebar p-4 lg:block">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-8 w-2/3" />
+            <Skeleton className="h-11 w-full" />
+            <Skeleton className="h-11 w-full" />
+            <Skeleton className="h-11 w-full" />
+          </div>
+          <div className="flex-1 space-y-4 bg-muted/40 p-6 md:p-8">
+            <Skeleton className="mx-auto h-12 w-full max-w-3xl" />
+            <Skeleton className="mx-auto h-28 w-full max-w-3xl" />
+            <Skeleton className="mx-auto h-64 w-full max-w-3xl" />
+          </div>
+          <div className="hidden w-80 border-l bg-sidebar p-4 lg:block">
+            <Skeleton className="mb-3 h-4 w-24" />
+            <Skeleton className="h-11 w-full" />
+            <Skeleton className="mt-3 h-11 w-full" />
+          </div>
+        </div>
       </div>
     )
   }
 
   if (denied) {
     return (
-      <div className="mx-auto max-w-lg px-6 py-16 text-sm text-muted-foreground">
-        This course is outside the organizations you manage.
+      <div className="flex h-dvh items-center justify-center bg-background p-6">
+        <Empty className="max-w-md">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <CircleAlert />
+            </EmptyMedia>
+            <EmptyTitle>Course unavailable</EmptyTitle>
+            <EmptyDescription>This course is outside the organizations you manage.</EmptyDescription>
+          </EmptyHeader>
+          <Alert>
+            <CircleAlert />
+            <AlertTitle>No organization access</AlertTitle>
+            <AlertDescription>Ask an administrator to link this course to your organization.</AlertDescription>
+          </Alert>
+        </Empty>
       </div>
     )
   }
 
   const lessonQueryText = lessonQuery.trim().toLowerCase()
+  const allFolded = modules.length > 0 && modules.every((mod) => foldedSections.has(mod.id))
 
-  const outline = (
+  const openPreview = () => {
+    if (!previewLessonId) return
+    window.location.assign(`/learn/${courseId}/lesson/${previewLessonId}?preview=1`)
+  }
+
+  const renderOutline = () => (
     <nav className="space-y-4">
-      <div className="flex items-center gap-1">
-        <p className="min-w-0 flex-1 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className="flex items-center gap-2">
+        <p className="min-w-0 flex-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Curriculum
         </p>
         <Button
           type="button"
           variant="ghost"
-          size="icon-sm"
-          className="hidden lg:inline-flex"
-          aria-label="Hide curriculum"
-          onClick={() => toggleOutline(false)}
+          size="sm"
+          disabled={modules.length === 0 || Boolean(lessonQueryText)}
+          onClick={() =>
+            setFoldedSections(allFolded ? new Set() : new Set(modules.map((mod) => mod.id)))
+          }
         >
-          <ChevronLeft />
+          {allFolded ? 'Expand all' : 'Collapse all'}
         </Button>
       </div>
-      <div className="relative">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
+      <InputGroup>
+        <InputGroupAddon>
+          <Search />
+        </InputGroupAddon>
+        <InputGroupInput
           value={lessonQuery}
           onChange={(e) => setLessonQuery(e.target.value)}
           placeholder="Find a lesson"
           aria-label="Find a lesson"
-          className="min-h-11 pl-8"
         />
-      </div>
-      {outlineError ? <p className="px-1 text-sm text-destructive">{outlineError}</p> : null}
-      {modules.length === 0 && (
-        <p className="px-1 text-sm text-muted-foreground">Add a section to start the outline.</p>
-      )}
+      </InputGroup>
+      {outlineError ? (
+        <Alert variant="destructive">
+          <CircleAlert />
+          <AlertTitle>Outline unavailable</AlertTitle>
+          <AlertDescription>{outlineError}</AlertDescription>
+        </Alert>
+      ) : null}
+      {modules.length === 0 ? (
+        <Empty className="border-0 px-2 py-8">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Plus />
+            </EmptyMedia>
+            <EmptyTitle>No sections yet</EmptyTitle>
+            <EmptyDescription>Add a section to start the outline.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : null}
       {modules.map((mod, index) => {
         const sectionLessons = lessonsByModule.get(mod.id) || []
         const visibleLessons = lessonQueryText
           ? sectionLessons.filter((les) => les.title.toLowerCase().includes(lessonQueryText))
           : sectionLessons
         if (lessonQueryText && visibleLessons.length === 0) return null
-        const containsSelection = sectionLessons.some((les) => les.id === lessonId)
-        const sectionOpen = Boolean(lessonQueryText) || containsSelection || !foldedSections.has(mod.id)
+        const sectionOpen = Boolean(lessonQueryText) || !foldedSections.has(mod.id)
         return (
-          <div key={mod.id}>
+          <Collapsible
+            key={mod.id}
+            open={sectionOpen}
+            onOpenChange={(open) => {
+              if (lessonQueryText) return
+              setFoldedSections((current) => {
+                const next = new Set(current)
+                if (open) next.delete(mod.id)
+                else next.add(mod.id)
+                return next
+              })
+            }}
+          >
             <div className="flex items-start gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="mt-0.5 shrink-0"
-                aria-expanded={sectionOpen}
-                aria-label={sectionOpen ? 'Fold section' : 'Unfold section'}
-                onClick={() => {
-                  if (containsSelection || lessonQueryText) return
-                  toggleSection(mod.id)
-                }}
-              >
-                {sectionOpen ? <ChevronDown /> : <ChevronRight />}
-              </Button>
-              <textarea
+              <CollapsibleTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="mt-0.5 shrink-0"
+                    aria-label={sectionOpen ? 'Fold section' : 'Unfold section'}
+                  >
+                    {sectionOpen ? <ChevronDown /> : <ChevronRight />}
+                  </Button>
+                }
+              />
+              <Textarea
                 value={mod.title}
                 aria-label="Section title"
                 rows={1}
-                ref={(node) => {
-                  if (!node) return
-                  node.style.height = 'auto'
-                  node.style.height = `${node.scrollHeight}px`
-                }}
-                className="min-h-8 min-w-0 flex-1 resize-none overflow-hidden rounded-md border border-transparent bg-transparent px-1 py-1 text-xs font-semibold leading-snug tracking-wide shadow-none outline-none focus-visible:border-input"
+                className="min-h-8 min-w-0 flex-1 resize-none border-transparent bg-transparent px-1 py-1 text-xs font-semibold leading-snug shadow-none focus-visible:border-input focus-visible:ring-0"
                 onChange={(e) => {
-                  const node = e.target
-                  node.style.height = 'auto'
-                  node.style.height = `${node.scrollHeight}px`
-                  setModules((rows) => rows.map((row) => (row.id === mod.id ? { ...row, title: node.value } : row)))
+                  const value = e.target.value
+                  setModules((rows) => rows.map((row) => (row.id === mod.id ? { ...row, title: value } : row)))
                 }}
                 onBlur={() => void commitModuleTitle(mod.id, mod.title)}
               />
+              <Badge variant="secondary">{sectionLessons.length}</Badge>
               <DropdownMenu>
-                <DropdownMenuTrigger className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md hover:bg-muted">
-                  <MoreHorizontal className="h-4 w-4" />
+                <DropdownMenuTrigger className="inline-flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-muted">
+                  <MoreHorizontal />
                   <span className="sr-only">Section actions</span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
@@ -677,90 +820,94 @@ export function CourseStudio({ courseId }: { courseId: string }) {
                     Move down
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setModuleOptionsId(mod.id)}>Section options</DropdownMenuItem>
-                  <DropdownMenuItem variant="destructive" onClick={() => void deleteModule(mod.id)}>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive" onClick={() => setPendingDelete({ kind: 'module', id: mod.id })}>
                     <Trash2 /> Delete section
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
-            {sectionOpen ? (
-            <div className="mt-1 space-y-1 pl-1">
-              {visibleLessons.map((les) => {
-                const lessonIndex = sectionLessons.findIndex((row) => row.id === les.id)
-                const hasContent = parseLessonBlocks(les.content).length > 0
-                return (
-                  <div
-                    key={les.id}
-                    ref={(node) => {
-                      if (node) lessonRowRefs.current.set(les.id, node)
-                      else lessonRowRefs.current.delete(les.id)
-                    }}
-                    className="flex items-start gap-1"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => selectLesson(les.id)}
-                      className={`flex min-h-11 flex-1 items-start gap-2 rounded-lg px-2 py-2 text-left text-sm ${
-                        les.id === lessonId ? 'bg-primary/20 font-medium' : 'hover:bg-muted'
-                      }`}
+            <CollapsibleContent>
+              <div className="mt-1 space-y-1 pl-1">
+                {visibleLessons.map((les) => {
+                  const lessonIndex = sectionLessons.findIndex((row) => row.id === les.id)
+                  const hasContent = parseLessonBlocks(les.content).length > 0
+                  const isPreview = les.is_free === true || (les as { is_preview?: boolean }).is_preview === true
+                  return (
+                    <div
+                      key={les.id}
+                      ref={(node) => {
+                        if (node) lessonRowRefs.current.set(les.id, node)
+                        else lessonRowRefs.current.delete(les.id)
+                      }}
+                      className="flex items-start gap-1"
                     >
-                      <span
-                        aria-hidden
-                        className={`mt-1.5 size-2 shrink-0 rounded-full ${
-                          hasContent ? 'bg-primary' : 'border border-muted-foreground/50'
-                        }`}
-                      />
-                      <span className="sr-only">{hasContent ? 'Has content' : 'Empty'}</span>
-                      <span className="min-w-0 flex-1 whitespace-normal break-words">
-                        {les.title}
-                        {les.is_published !== true ? (
-                          <span className="ml-1 text-xs font-normal text-muted-foreground">Draft</span>
-                        ) : null}
-                        {les.is_free === true || (les as { is_preview?: boolean }).is_preview === true ? (
-                          <span className="ml-1 text-xs font-normal text-muted-foreground">Preview</span>
-                        ) : null}
-                      </span>
-                    </button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md hover:bg-muted">
-                        <MoreHorizontal className="h-4 w-4" />
-                        <span className="sr-only">Lesson actions</span>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => renameLesson(les.id)}>Rename</DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={lessonIndex === 0}
-                          onClick={() => void moveLesson(mod.id, lessonIndex, -1)}
-                        >
-                          Move up
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={lessonIndex === sectionLessons.length - 1}
-                          onClick={() => void moveLesson(mod.id, lessonIndex, 1)}
-                        >
-                          Move down
-                        </DropdownMenuItem>
-                        <DropdownMenuItem variant="destructive" onClick={() => void deleteLesson(mod.id, les.id)}>
-                          <Trash2 /> Delete lesson
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                )
-              })}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="min-h-11 w-full justify-start"
-                onClick={() => void addPage(mod.id)}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add lesson
-              </Button>
-            </div>
-            ) : null}
-          </div>
+                      <Item
+                        render={<button type="button" />}
+                        variant={les.id === lessonId ? 'muted' : 'default'}
+                        size="sm"
+                        className="min-h-11 min-w-0 flex-1 text-left"
+                        onClick={() => selectLesson(les.id)}
+                      >
+                        <ItemMedia>
+                          <span
+                            aria-hidden
+                            className={`size-2 rounded-full ${
+                              hasContent ? 'bg-primary' : 'border border-muted-foreground/50'
+                            }`}
+                          />
+                          <span className="sr-only">{hasContent ? 'Has content' : 'Empty'}</span>
+                        </ItemMedia>
+                        <ItemContent>
+                          <ItemTitle className="line-clamp-none whitespace-normal">{les.title}</ItemTitle>
+                        </ItemContent>
+                        {les.is_published !== true ? <Badge variant="outline">Draft</Badge> : null}
+                        {isPreview ? <Badge variant="secondary">Preview</Badge> : null}
+                      </Item>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger className="inline-flex size-11 shrink-0 items-center justify-center rounded-md hover:bg-muted">
+                          <MoreHorizontal />
+                          <span className="sr-only">Lesson actions</span>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => renameLesson(les.id)}>Rename</DropdownMenuItem>
+                          <DropdownMenuItem
+                            disabled={lessonIndex === 0}
+                            onClick={() => void moveLesson(mod.id, lessonIndex, -1)}
+                          >
+                            Move up
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            disabled={lessonIndex === sectionLessons.length - 1}
+                            onClick={() => void moveLesson(mod.id, lessonIndex, 1)}
+                          >
+                            Move down
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => setPendingDelete({ kind: 'lesson', moduleId: mod.id, id: les.id })}
+                          >
+                            <Trash2 /> Delete lesson
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )
+                })}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="min-h-11 w-full justify-start"
+                  onClick={() => void addPage(mod.id)}
+                >
+                  <Plus />
+                  Add lesson
+                </Button>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         )
       })}
       {lessonQueryText &&
@@ -768,332 +915,425 @@ export function CourseStudio({ courseId }: { courseId: string }) {
         const sectionLessons = lessonsByModule.get(mod.id) || []
         return !sectionLessons.some((les) => les.title.toLowerCase().includes(lessonQueryText))
       }) ? (
-        <p className="px-1 text-sm text-muted-foreground">No lessons match.</p>
+        <Empty className="border-0 px-2 py-8">
+          <EmptyHeader>
+            <EmptyTitle>No lessons match</EmptyTitle>
+            <EmptyDescription>Try a different title.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
       ) : null}
       <Button type="button" variant="outline" className="min-h-11 w-full" onClick={() => void addModule()}>
-        <Plus className="mr-2 h-4 w-4" />
+        <Plus />
         Add section
       </Button>
     </nav>
   )
 
-  const canvas = (
-    <div className="mx-auto max-w-3xl space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        {current ? (
-          <Input
-            ref={titleRef}
-            value={current.title}
-            aria-label="Lesson title"
-            className="h-auto min-h-11 flex-1 border-transparent bg-transparent px-0 text-2xl font-semibold shadow-none focus-visible:border-input"
-            onChange={(e) =>
-              setLessons((rows) => rows.map((row) => (row.id === current.id ? { ...row, title: e.target.value } : row)))
-            }
-            onBlur={() => void commitLessonTitle(current.id, current.title)}
-          />
+  const renderCanvas = () => (
+    <div id="studio-canvas" className="h-full overflow-y-auto bg-muted/40 p-4 md:p-8">
+      <div className="mx-auto max-w-3xl">
+        {!current ? (
+          <Empty className="bg-card">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Plus />
+              </EmptyMedia>
+              <EmptyTitle>{modules.length ? 'Select a lesson' : 'Add a section to start'}</EmptyTitle>
+              <EmptyDescription>
+                {modules.length
+                  ? 'Choose a lesson from the outline, or add one to the first section.'
+                  : 'Sections hold the lessons learners move through.'}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              {modules.length ? (
+                <Button type="button" onClick={() => void addPage(modules[0].id)}>
+                  <Plus />
+                  Add lesson
+                </Button>
+              ) : (
+                <Button type="button" onClick={() => void addModule()}>
+                  <Plus />
+                  Add section
+                </Button>
+              )}
+            </EmptyContent>
+          </Empty>
+        ) : current.content === undefined ? (
+          <div className="space-y-4 rounded-xl bg-card p-6 shadow-xs ring-1 ring-foreground/10 md:p-8">
+            <Skeleton className="h-10 w-2/3" />
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-40 w-full" />
+          </div>
         ) : (
-          <h2 className="text-lg font-semibold">
-            {modules.length ? 'Select a lesson' : 'Add a section to start'}
-          </h2>
-        )}
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 pt-1">
-          {saveState !== 'idle' && (
-            <p className={`text-xs ${saveState === 'error' ? 'text-destructive' : 'text-muted-foreground'}`}>
-              {saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Could not save' : 'Saved'}
-            </p>
-          )}
-        </div>
-      </div>
-      {current && current.content === undefined ? (
-        <div className="flex min-h-40 items-center justify-center">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-        </div>
-      ) : current ? (
-        <div className="space-y-8">
-          <div>
-            <Label htmlFor={`studio-lesson-description-${current.id}`}>Lesson learning outcome</Label>
-            <p className="mb-2 text-sm text-muted-foreground">
-              Students read this as the lesson learning outcome on the Resources tab, under the module learning objectives.
-            </p>
-            <DescriptionEditor
-              key={current.id}
-              id={`studio-lesson-description-${current.id}`}
-              value={current.description || ''}
-              placeholder="What students should be able to do after this lesson"
-              ariaLabel="Lesson learning outcome"
-              onChange={(description) =>
-                setLessons((rows) =>
-                  rows.map((row) => (row.id === current.id ? { ...row, description } : row))
-                )
-              }
-              onCommit={(description) => void commitLessonDescription(current.id, description)}
-            />
-          </div>
-          <LessonBlocks
-            content={blocks}
-            lessonId={lessonId || undefined}
-            courseId={courseId}
-            editable
-            onChange={(next) => saveBlocks(next)}
-            onAskRigbu={openAskRigbu}
-            onOpenLessonOptions={() =>
-              document.getElementById('lesson-activities')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-            }
-          />
-          <div id="lesson-settings">
-            <LessonOptionsPanel
+          <div className="space-y-8 rounded-xl bg-card p-6 shadow-xs ring-1 ring-foreground/10 md:p-8">
+            <div className="flex items-start justify-between gap-3">
+              <Input
+                ref={titleRef}
+                value={current.title}
+                aria-label="Lesson title"
+                className="h-auto min-h-11 flex-1 border-transparent bg-transparent px-0 text-2xl font-semibold shadow-none focus-visible:border-input"
+                onChange={(e) =>
+                  setLessons((rows) =>
+                    rows.map((row) => (row.id === current.id ? { ...row, title: e.target.value } : row))
+                  )
+                }
+                onBlur={() => void commitLessonTitle(current.id, current.title)}
+              />
+            </div>
+            <Field>
+              <FieldLabel htmlFor={`studio-lesson-description-${current.id}`}>Lesson learning outcome</FieldLabel>
+              <FieldDescription>
+                Students read this as the lesson learning outcome on the Resources tab, under the module learning
+                objectives.
+              </FieldDescription>
+              <DescriptionEditor
+                key={current.id}
+                id={`studio-lesson-description-${current.id}`}
+                value={current.description || ''}
+                placeholder="What students should be able to do after this lesson"
+                ariaLabel="Lesson learning outcome"
+                onChange={(description) =>
+                  setLessons((rows) => rows.map((row) => (row.id === current.id ? { ...row, description } : row)))
+                }
+                onCommit={(description) => void commitLessonDescription(current.id, description)}
+              />
+            </Field>
+            <LessonBlocks
+              content={blocks}
+              lessonId={lessonId || undefined}
               courseId={courseId}
-              lessonId={current.id}
-              hideIdentity
-              pageItems={
-                <div className="space-y-6 rounded-lg border p-4">
-                  <BlockCatalog
-                    onPick={(block) => {
-                      const scroller = document.getElementById('studio-canvas')
-                      const top = scroller?.scrollTop ?? 0
-                      saveBlocks((current) => [...current, block])
-                      const pin = () => {
-                        if (scroller) scroller.scrollTop = top
-                      }
-                      queueMicrotask(pin)
-                      requestAnimationFrame(() => {
-                        pin()
-                        requestAnimationFrame(pin)
-                      })
-                    }}
-                  />
-                  <div className="border-t pt-4">
-                    <LessonResourcesEditor
-                      courseId={courseId}
-                      lessonId={current.id}
-                      resources={Array.isArray(current.resources) ? current.resources : []}
-                      onChange={(next) => void saveResources(next)}
-                    />
-                  </div>
-                </div>
-              }
-              onTitleChange={(title) =>
-                setLessons((rows) => rows.map((row) => (row.id === current.id ? { ...row, title } : row)))
-              }
-              onDescriptionChange={(description) =>
-                setLessons((rows) => rows.map((row) => (row.id === current.id ? { ...row, description } : row)))
-              }
-              onVisibilityChange={(patch) =>
-                setLessons((rows) =>
-                  rows.map((row) => (row.id === current.id ? { ...row, ...patch } : row))
-                )
+              editable
+              onChange={(next) => saveBlocks(next)}
+              onAskRigbu={openAskRigbu}
+              onOpenLessonOptions={() =>
+                document.getElementById('lesson-activities')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
               }
             />
+            <div id="lesson-settings">
+              <LessonOptionsPanel
+                courseId={courseId}
+                lessonId={current.id}
+                hideIdentity
+                pageItems={
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Resources</CardTitle>
+                      <CardDescription>Files learners can open from this lesson.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <LessonResourcesEditor
+                        courseId={courseId}
+                        lessonId={current.id}
+                        resources={Array.isArray(current.resources) ? current.resources : []}
+                        onChange={(next) => void saveResources(next)}
+                      />
+                    </CardContent>
+                  </Card>
+                }
+                onTitleChange={(title) =>
+                  setLessons((rows) => rows.map((row) => (row.id === current.id ? { ...row, title } : row)))
+                }
+                onDescriptionChange={(description) =>
+                  setLessons((rows) => rows.map((row) => (row.id === current.id ? { ...row, description } : row)))
+                }
+                onVisibilityChange={(patch) =>
+                  setLessons((rows) => rows.map((row) => (row.id === current.id ? { ...row, ...patch } : row)))
+                }
+              />
+            </div>
           </div>
-        </div>
-      ) : null}
+        )}
+      </div>
     </div>
   )
 
-  const renderRail = () => (
-    <AskRigbuRail
-      courseId={courseId}
-      lessonId={lessonId || undefined}
-      onApplied={(next) => {
-        if (Array.isArray(next)) void saveBlocks(next as LessonBlock[])
-      }}
-      onStructureApplied={() => void load()}
-    />
+  const renderCatalog = (searchInputId: string) => (
+    <div className="flex h-full min-h-0 flex-col bg-sidebar">
+      <div className="flex items-center gap-2 px-4 py-3">
+        <p className="text-sm font-medium">Add content</p>
+        <Kbd>/</Kbd>
+      </div>
+      <Separator />
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="p-3">
+          {current ? (
+            <BlockCatalog searchInputId={searchInputId} onPick={appendBlock} />
+          ) : (
+            <Empty className="border-0 px-2 py-8">
+              <EmptyHeader>
+                <EmptyTitle>Select a lesson</EmptyTitle>
+                <EmptyDescription>Add content after you open a lesson.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
   )
 
   return (
-    <div className="fixed inset-0 z-20 flex flex-col overflow-hidden bg-background">
-      <header className="flex flex-wrap items-center gap-2 border-b-2 border-foreground/25 px-4 py-3">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="min-h-11 min-w-11 shrink-0"
-            aria-label="Back to teacher dashboard"
-            render={<Link href="/teach/dashboard" />}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="hidden min-h-11 min-w-11 shrink-0 lg:inline-flex"
-            aria-label={outlineOpen ? 'Hide curriculum' : 'Show curriculum'}
-            aria-expanded={outlineOpen}
-            onClick={() => toggleOutline()}
-          >
-            <PanelLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex min-w-0 items-center gap-2">
-            <p className="truncate text-sm font-semibold">{course?.title}</p>
-            <Badge
-              variant="outline"
-              className={course?.is_published ? 'border-primary bg-primary/20' : undefined}
-            >
-              {course?.is_published ? 'Published' : 'Draft'}
-            </Badge>
-          </div>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-11"
-          render={<Link href={`/teach/courses/${courseId}/edit`} />}
-        >
-          <Settings className="mr-2 h-4 w-4" /> Settings
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="min-h-11 min-w-11"
-          aria-label="Ask Rigbu"
-          onClick={openAskRigbu}
-        >
-          <Sparkles className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-11"
-          disabled={!previewLessonId}
-          onClick={() => {
-            if (!previewLessonId) return
-            window.location.assign(
-              `/learn/${courseId}/lesson/${previewLessonId}?preview=1`
-            )
-          }}
-        >
-          <Eye className="mr-2 h-4 w-4" /> Preview
-        </Button>
-        <Button
-          type="button"
-          className="min-h-11 bg-primary text-primary-foreground hover:bg-primary/90"
-          disabled={publishing}
-          onClick={() => void togglePublish()}
-        >
-          {publishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-          {course?.is_published ? 'Unpublish' : 'Publish'}
-        </Button>
-      </header>
-
-      <div className="flex gap-2 border-b-2 border-foreground/25 px-4 py-2 lg:hidden">
-        {(
-          [
-            { id: 'outline', label: 'Outline' },
-            { id: 'page', label: 'Lesson' },
-            { id: 'ai', label: 'AI' },
-          ] as const
-        ).map((tab) => (
-          <Button
-            key={tab.id}
-            type="button"
-            variant={mobileTab === tab.id ? 'default' : 'outline'}
-            className="min-h-11"
-            onClick={() => setMobileTab(tab.id)}
-          >
-            {tab.label}
-          </Button>
-        ))}
-      </div>
-
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        <aside
-          className={`min-h-0 shrink-0 flex-col overflow-hidden border-r-2 border-foreground/25 transition-[width] duration-200 ${
-            mobileTab === 'outline' ? 'flex w-full' : 'hidden'
-          } lg:flex ${outlineOpen ? 'lg:w-80' : 'lg:w-0 lg:border-transparent'}`}
-        >
-          <div ref={outlineScrollRef} className="min-h-0 w-full flex-1 overflow-y-auto overscroll-contain p-3">
-            {outline}
-          </div>
-        </aside>
-        <main
-          id="studio-canvas"
-          className={`min-h-0 min-w-0 flex-1 overflow-y-auto p-4 [overflow-anchor:none] ${mobileTab === 'page' ? 'block' : 'hidden'} lg:block`}
-        >{canvas}</main>
-        {mobileTab === 'ai' ? (
-          <aside className="w-full overflow-y-auto border-l-2 border-foreground/25 p-3 lg:hidden">{renderRail()}</aside>
-        ) : null}
-      </div>
-
-      <Sheet open={!!moduleOptionsId} onOpenChange={(next) => !next && setModuleOptionsId(null)}>
-        <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-xl">
-          <SheetHeader>
-            <SheetTitle>Section options</SheetTitle>
-            <SheetDescription>Resources and progression gates.</SheetDescription>
-          </SheetHeader>
-          <div className="px-4 pb-6">
-            {moduleOptionsId && (
-              <ModuleOptionsPanel
-                courseId={courseId}
-                moduleId={moduleOptionsId}
-                onTitleChange={(title) =>
-                  setModules((rows) => rows.map((row) => (row.id === moduleOptionsId ? { ...row, title } : row)))
+    <TooltipProvider delay={300}>
+      <div className="fixed inset-0 z-20 flex flex-col overflow-hidden bg-background">
+        <header className="flex flex-wrap items-center gap-2 bg-background/85 px-3 py-2 backdrop-blur-xl">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Back to teacher dashboard"
+                    render={<Link href="/teach/dashboard" />}
+                  >
+                    <ArrowLeft />
+                  </Button>
                 }
               />
-            )}
+              <TooltipContent>Teacher dashboard</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="hidden lg:inline-flex"
+                    aria-label={outlineOpen ? 'Hide curriculum' : 'Show curriculum'}
+                    aria-expanded={outlineOpen}
+                    onClick={() => toggleOutline()}
+                  >
+                    <PanelLeft />
+                  </Button>
+                }
+              />
+              <TooltipContent>
+                Curriculum <Kbd>[</Kbd>
+              </TooltipContent>
+            </Tooltip>
+            <Breadcrumb className="min-w-0">
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink render={<Link href="/teach/dashboard" />}>Teach</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage className="max-w-[10rem] truncate font-medium sm:max-w-xs">
+                    {course?.title || 'Course'}
+                  </BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+            <Badge variant={course?.is_published ? 'default' : 'outline'}>
+              {course?.is_published ? 'Published' : 'Draft'}
+            </Badge>
+            {saveState === 'saving' ? (
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Spinner /> Saving
+              </span>
+            ) : null}
+            {saveState === 'saved' ? <span className="text-xs text-muted-foreground">Saved</span> : null}
+            {saveState === 'error' ? <span className="text-xs text-destructive">Could not save</span> : null}
           </div>
-        </SheetContent>
-      </Sheet>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <Button type="button" variant="outline" size="icon" aria-label="Ask Rigbu" onClick={openAskRigbu}>
+                    <Sparkles />
+                  </Button>
+                }
+              />
+              <TooltipContent>Ask Rigbu</TooltipContent>
+            </Tooltip>
+            <ButtonGroup>
+              <Button type="button" variant="outline" render={<Link href={`/teach/courses/${courseId}/edit`} />}>
+                <Settings />
+                <span className="hidden sm:inline">Settings</span>
+              </Button>
+              <Button type="button" variant="outline" disabled={!previewLessonId} onClick={openPreview}>
+                <Eye />
+                <span className="hidden sm:inline">Preview</span>
+              </Button>
+              <Button type="button" disabled={publishing} onClick={() => void togglePublish()}>
+                {publishing ? <Spinner /> : null}
+                {course?.is_published ? 'Unpublish' : 'Publish'}
+              </Button>
+            </ButtonGroup>
+          </div>
+        </header>
+        <Separator />
 
-      <Sheet open={aiOpen} onOpenChange={setAiOpen}>
-        <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-md">
-          <SheetHeader>
-            <SheetTitle>Ask Rigbu</SheetTitle>
-            <SheetDescription>Rewrite this lesson or adjust the course structure.</SheetDescription>
-          </SheetHeader>
-          <div className="px-4 pb-6">{aiOpen ? renderRail() : null}</div>
-        </SheetContent>
-      </Sheet>
+        <div className="px-3 py-2 lg:hidden">
+          <Tabs
+            value={mobileTab}
+            onValueChange={(value) => setMobileTab(value as 'outline' | 'page' | 'add')}
+          >
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="outline">Outline</TabsTrigger>
+              <TabsTrigger value="page">Lesson</TabsTrigger>
+              <TabsTrigger value="add">Add</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+
+        <div className="min-h-0 flex-1">
+          {wide === false ? (
+            <div className="h-full">
+              {mobileTab === 'outline' ? (
+                <ScrollArea ref={outlineScrollRef} className="h-full bg-sidebar">
+                  <div className="p-3">{renderOutline()}</div>
+                </ScrollArea>
+              ) : mobileTab === 'add' ? (
+                renderCatalog('studio-block-search')
+              ) : (
+                renderCanvas()
+              )}
+            </div>
+          ) : (
+            <ResizablePanelGroup orientation="horizontal" className="h-full">
+              {outlineOpen ? (
+                <>
+                  <ResizablePanel defaultSize={320} minSize={240} maxSize={480} className="bg-sidebar">
+                    <ScrollArea ref={outlineScrollRef} className="h-full">
+                      <div className="p-3">{renderOutline()}</div>
+                    </ScrollArea>
+                  </ResizablePanel>
+                  <ResizableHandle withHandle />
+                </>
+              ) : null}
+              <ResizablePanel minSize="30%" className="bg-muted/40">
+                {renderCanvas()}
+              </ResizablePanel>
+              <ResizableHandle withHandle />
+              <ResizablePanel defaultSize={320} minSize={260} maxSize={420} className="bg-sidebar">
+                {renderCatalog('studio-block-search')}
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          )}
+        </div>
+
+        <Sheet open={!!moduleOptionsId} onOpenChange={(next) => !next && setModuleOptionsId(null)}>
+          <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-xl">
+            <SheetHeader>
+              <SheetTitle>Section options</SheetTitle>
+              <SheetDescription>Resources and progression gates.</SheetDescription>
+            </SheetHeader>
+            <Separator />
+            <div className="px-4 pb-6">
+              {moduleOptionsId && (
+                <ModuleOptionsPanel
+                  courseId={courseId}
+                  moduleId={moduleOptionsId}
+                  onTitleChange={(title) =>
+                    setModules((rows) => rows.map((row) => (row.id === moduleOptionsId ? { ...row, title } : row)))
+                  }
+                />
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        <Sheet open={aiOpen} onOpenChange={setAiOpen}>
+          <SheetContent className="w-full overflow-y-auto data-[side=right]:sm:max-w-md">
+            <SheetHeader>
+              <SheetTitle>Ask Rigbu</SheetTitle>
+              <SheetDescription>Rewrite this lesson or adjust the course structure.</SheetDescription>
+            </SheetHeader>
+            <Separator />
+            <div className="px-4 pb-6">
+              {aiOpen ? (
+                <AskRigbuRail
+                  courseId={courseId}
+                  lessonId={lessonId || undefined}
+                  onApplied={(next) => {
+                    if (Array.isArray(next)) void saveBlocks(next as LessonBlock[])
+                  }}
+                  onStructureApplied={() => void load()}
+                />
+              ) : null}
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        <AlertDialog open={!!pendingDelete} onOpenChange={(open) => !open && setPendingDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {pendingDelete?.kind === 'module' ? 'Delete this section?' : 'Delete this lesson?'}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {pendingDelete?.kind === 'module'
+                  ? 'This removes the section and every lesson inside it.'
+                  : 'This lesson and its content will be removed.'}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                onClick={(event) => {
+                  event.preventDefault()
+                  const pending = pendingDelete
+                  setPendingDelete(null)
+                  if (!pending) return
+                  if (pending.kind === 'module') void deleteModule(pending.id)
+                  else void deleteLesson(pending.moduleId, pending.id)
+                }}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
       <AlertDialog open={unpublishConfirm} onOpenChange={setUnpublishConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Unpublish this course?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Enrolled learners will lose access until you publish it again. Their enrollment is kept.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-              onClick={(event) => {
-                event.preventDefault()
-                void commitPublish(false)
-              }}
-            >
-              Unpublish
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Unpublish this course?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Enrolled learners will lose access until you publish it again. Their enrollment is kept.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(event) => {
+                  event.preventDefault()
+                  void commitPublish(false)
+                }}
+              >
+                Unpublish
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-      <AlertDialog open={publishWarn} onOpenChange={setPublishWarn}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Publish without lesson content?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This course has no lesson content yet. Learners will see an empty course until you add blocks to a lesson.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-              onClick={(event) => {
-                event.preventDefault()
-                void commitPublish(true)
-              }}
-            >
-              Publish anyway
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-    </div>
+        <AlertDialog open={publishWarn} onOpenChange={setPublishWarn}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Publish without lesson content?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This course has no lesson content yet. Learners will see an empty course until you add blocks to a lesson.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(event) => {
+                  event.preventDefault()
+                  void commitPublish(true)
+                }}
+              >
+                Publish anyway
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </TooltipProvider>
   )
 }

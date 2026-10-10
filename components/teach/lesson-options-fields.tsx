@@ -36,6 +36,7 @@ export type LessonOptionsValue = {
   title: string
   description?: string | null
   is_published?: boolean | null
+  notify_on_status?: boolean | null
   is_free?: boolean | null
   is_preview?: boolean | null
   metadata?: unknown
@@ -192,6 +193,21 @@ export function LessonOptionsFields({
             <Label htmlFor={`lesson-published-${lesson.id}`} className="text-sm">
               Published
             </Label>
+          </div>
+          <div className="flex items-center space-x-2 sm:col-span-2">
+            <Switch
+              id={`lesson-notify-${lesson.id}`}
+              checked={lesson.notify_on_status === true}
+              onCheckedChange={(checked) => commit({ notify_on_status: checked === true })}
+            />
+            <div>
+              <Label htmlFor={`lesson-notify-${lesson.id}`} className="text-sm">
+                Email learners when this lesson is published or unpublished
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Sends only if an admin has the lesson email gate turned on.
+              </p>
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <Switch

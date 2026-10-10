@@ -10,14 +10,42 @@ import { createClient } from '@/lib/supabase/client'
 interface AuthShellProps {
   children: React.ReactNode
   loadingLabel?: string
+  /** Instructors, staff, and anyone with a teach menu capability. */
+  requireTeach?: boolean
 }
 
 /**
  * Shared authenticated shell: session gate + responsive sidebar/bottom nav.
  */
+async function canOpenTeach(role: string | undefined) {
+  let allowed =
+    role === 'instructor' ||
+    role === 'admin' ||
+    role === 'resource_person' ||
+    role === 'superadmin'
+
+  try {
+    const capRes = await fetch('/api/admin/capabilities/me')
+    if (capRes.ok) {
+      const capJson = await capRes.json()
+      const list: string[] = capJson.capabilities || []
+      const hasTeach =
+        list.includes('*') || list.some((key: string) => key.startsWith('menu.teach.'))
+      const authoritative = capJson.catalogResolved === true || list.length > 0
+      if (hasTeach) allowed = true
+      else if (authoritative) allowed = false
+    }
+  } catch {
+    // Keep the role check when capabilities cannot be loaded.
+  }
+
+  return allowed
+}
+
 export function AuthShell({
   children,
   loadingLabel = 'Loading...',
+  requireTeach = false,
 }: AuthShellProps) {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
@@ -47,6 +75,7 @@ export function AuthShell({
     let mounted = true
 
     const checkUser = async () => {
+      let holdLoader = false
       try {
         const supabase = createClient()
         const {
@@ -54,6 +83,7 @@ export function AuthShell({
         } = await supabase.auth.getSession()
 
         if (!session) {
+          holdLoader = true
           router.push('/auth/login')
           return
         }
@@ -80,6 +110,11 @@ export function AuthShell({
             ? (settings as any).logo_url.trim()
             : null
         const role = (profile as { role?: string } | null)?.role
+        if (requireTeach && !(await canOpenTeach(role))) {
+          holdLoader = true
+          router.push('/dashboard')
+          return
+        }
         const staff = role === 'admin' || role === 'superadmin'
         if ((settings as any)?.maintenance_mode && !staff) {
           if (mounted) {
@@ -99,9 +134,10 @@ export function AuthShell({
         }
       } catch (error) {
         console.error('Error checking user:', error)
+        holdLoader = true
         router.push('/auth/login')
       } finally {
-        if (mounted) setLoading(false)
+        if (mounted && !holdLoader) setLoading(false)
       }
     }
 
@@ -115,7 +151,7 @@ export function AuthShell({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-orange-50 to-white dark:from-gray-900 dark:to-black flex items-center justify-center px-4">
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="text-center">
           <RigbuLoader size={80} />
           <p className="text-sm text-muted-foreground">{loadingLabel}</p>

@@ -26,6 +26,7 @@ interface Module {
   order_index: number
   lessons?: Lesson[]
   is_locked?: boolean
+  release_label?: string | null
 }
 
 interface CurriculumTimelineProps {
@@ -123,7 +124,12 @@ export function CurriculumTimeline({
                     isExpanded ? 'rotate-0' : '-rotate-90'
                   )}
                 />
-                <span className="min-w-0 flex-1 text-sm font-semibold">{module.title}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold">{module.title}</span>
+                  {module.release_label ? (
+                    <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{module.release_label}</span>
+                  ) : null}
+                </span>
                 <span className="shrink-0 text-right text-xs text-muted-foreground">
                   {lessons.length} {lessons.length === 1 ? 'lecture' : 'lectures'}
                   {duration ? ` • ${duration}` : ''}

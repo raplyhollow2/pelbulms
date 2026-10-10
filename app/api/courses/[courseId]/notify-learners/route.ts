@@ -47,6 +47,7 @@ export async function POST(
       actionUrl: lessonId
         ? `/learn/${courseId}/lesson/${lessonId}`
         : `/learn/${courseId}`,
+      emailTemplate: 'activity.updated',
     })
 
     return NextResponse.json({ success: true, notified: count })

@@ -1,4 +1,4 @@
-import { sendEmail } from '@/lib/email/send'
+import { sendTemplatedEmail } from '@/lib/email/templated'
 
 export function generateEnrollmentCode(): string {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -21,10 +21,15 @@ export async function deliverInvite(opts: {
   let error: string | undefined
 
   if (opts.email) {
-    const result = await sendEmail({
+    const result = await sendTemplatedEmail({
+      templateKey: 'enrollment.invite',
       to: opts.email,
-      subject: `Your enrollment code for ${opts.courseTitle}`,
-      text: `Your unique enrollment code for “${opts.courseTitle}” is ${opts.code}. Enter it on the course page to join.`,
+      respectCoursePreferences: false,
+      vars: {
+        course_title: opts.courseTitle,
+        code: opts.code,
+        learner_name: opts.studentName || 'there',
+      },
     })
     emailSent = result.sent
     if (!result.sent && result.error && result.error !== 'RESEND_API_KEY is not configured') {

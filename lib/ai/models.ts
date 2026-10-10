@@ -17,6 +17,7 @@ export const AI_FEATURES = [
   'course-structure',
   'report',
   'report-followup',
+  'email-template',
 ] as const
 
 export type AiFeature = (typeof AI_FEATURES)[number]
@@ -40,6 +41,7 @@ export const FEATURE_LABELS: Record<AiFeature, string> = {
   'course-structure': 'Course structure',
   report: 'Report reading',
   'report-followup': 'Report follow-up',
+  'email-template': 'Email template draft',
 }
 
 /** Curated text models. Copilot uses the school's Azure deployment name instead. */
@@ -61,6 +63,7 @@ export const DEFAULT_FEATURE_ROUTES: AiFeatureRoutes = {
   'course-structure': 'chatgpt',
   report: 'claude',
   'report-followup': 'claude',
+  'email-template': 'gemini',
 }
 
 export function isLlmProvider(value: unknown): value is LlmProvider {

@@ -7,6 +7,7 @@ import {
   userCanSeeCourseAudience,
 } from '@/lib/course-institution-access'
 import { canAccessTeaching, type UserRole } from '@/lib/roles'
+import { formatModuleRelease, lessonOpenInModule, moduleIsLive, type ModuleLiveFields } from '@/lib/module-live'
 
 /**
  * GET /api/courses/[courseId]/outline
@@ -77,9 +78,9 @@ export async function GET(
       return NextResponse.json({ error: 'Course not found' }, { status: 404 })
     }
 
-    const { data: modules } = await service
+    const { data: modules } = await (service as any)
       .from('modules')
-      .select('id, title, description, order_index')
+      .select('id, title, description, order_index, availability, publish_at, release_lessons, is_published')
       .eq('course_id', courseId)
       .order('order_index', { ascending: true })
 
@@ -88,6 +89,10 @@ export async function GET(
       title: string
       description: string | null
       order_index: number
+      availability?: string | null
+      publish_at?: string | null
+      release_lessons?: boolean | null
+      is_published?: boolean | null
     }>
     const moduleIds = moduleRows.map((row) => row.id)
 
@@ -112,26 +117,33 @@ export async function GET(
     }
 
     return NextResponse.json({
-      modules: moduleRows.map((moduleRow) => ({
-        id: moduleRow.id,
-        title: moduleRow.title,
-        description: moduleRow.description,
-        order_index: moduleRow.order_index,
-        lessons: lessons
-          .filter((lesson) => lesson.module_id === moduleRow.id)
-          .map((lesson) => {
-            const published = lesson.is_published === true
-            return {
-              id: lesson.id,
-              title: lesson.title,
-              duration_minutes: lesson.duration_minutes,
-              order_index: lesson.order_index,
-              is_published: published,
-              is_free: published && lesson.is_free === true,
-              is_preview: published && (lesson.is_free === true || lesson.is_preview === true),
-            }
-          }),
-      })),
+      modules: moduleRows.map((moduleRow) => {
+        const live = moduleIsLive(moduleRow as ModuleLiveFields)
+        return {
+          id: moduleRow.id,
+          title: moduleRow.title,
+          description: live || canManage ? moduleRow.description : null,
+          order_index: moduleRow.order_index,
+          is_live: live,
+          release_label: canManage ? null : formatModuleRelease(moduleRow as ModuleLiveFields),
+          lessons: lessons
+            .filter((lesson) => lesson.module_id === moduleRow.id)
+            .map((lesson) => {
+              const open = canManage
+                ? lesson.is_published === true
+                : lessonOpenInModule(lesson, moduleRow as ModuleLiveFields)
+              return {
+                id: lesson.id,
+                title: lesson.title,
+                duration_minutes: lesson.duration_minutes,
+                order_index: lesson.order_index,
+                is_published: open,
+                is_free: open && lesson.is_free === true,
+                is_preview: open && (lesson.is_free === true || lesson.is_preview === true),
+              }
+            }),
+        }
+      }),
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to load course outline'

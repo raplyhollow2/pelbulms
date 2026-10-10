@@ -33,11 +33,27 @@ export function ServiceWorkerRegistration() {
   const [promptEvent, setPromptEvent] = useState<BeforeInstallPromptEvent | null>(null)
 
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch((error) => {
-        console.error('Service Worker registration failed:', error)
+    if (!('serviceWorker' in navigator)) return
+
+    if (process.env.NODE_ENV !== 'production') {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => {
+          void registration.unregister()
+        })
       })
+      if ('caches' in window) {
+        caches.keys().then((names) => {
+          names.forEach((name) => {
+            void caches.delete(name)
+          })
+        })
+      }
+      return
     }
+
+    navigator.serviceWorker.register('/sw.js').catch((error) => {
+      console.error('Service Worker registration failed:', error)
+    })
 
     const handleBeforeInstall = (event: Event) => {
       event.preventDefault()

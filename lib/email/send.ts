@@ -3,6 +3,7 @@ import {
   getDefaultEmailHost,
   type EmailHost,
 } from '@/lib/email/hosts'
+import { layoutEmailHtml } from '@/lib/email/template-render'
 
 const PLACEHOLDER_HOSTS = new Set([
   'your-vercel-app.vercel.app',
@@ -32,8 +33,24 @@ export function publicAppUrl(requestOrigin?: string | null): string {
     usableOrigin(requestOrigin) ||
     usableOrigin(process.env.VERCEL_PROJECT_PRODUCTION_URL) ||
     usableOrigin(process.env.VERCEL_URL) ||
-    'https://pelbulms.vercel.app'
+    'https://www.rigbu.app'
   )
+}
+
+function isLoopbackOrigin(origin: string) {
+  try {
+    const host = new URL(origin).hostname
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1'
+  } catch {
+    return false
+  }
+}
+
+/** Origin written into emails. Localhost links are useless in a recipient's inbox. */
+export function emailPublicUrl(): string {
+  const origin = publicAppUrl()
+  if (isLoopbackOrigin(origin)) return 'https://www.rigbu.app'
+  return origin
 }
 
 export type OutboundEmail = {
@@ -79,19 +96,8 @@ function smtpOptions(host: EmailHost) {
   }
 }
 
-const RIGBU_EMAIL_LOGO = 'https://www.rigbu.app/email-logo-400.png'
-
-function escapeEmailText(value: string) {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-}
-
 function withBrandLogo(html: string | undefined, text: string) {
-  const logo = `<p style="margin:0 0 16px"><img src="${RIGBU_EMAIL_LOGO}" width="200" height="70" alt="Rigbu" style="display:block;border:0;width:200px;height:auto" /></p>`
-  if (html?.trim()) return `${logo}${html}`
-  return `${logo}<p style="margin:0">${escapeEmailText(text).replace(/\n/g, '<br />')}</p>`
+  return layoutEmailHtml(html, text)
 }
 
 function brandOutboundEmail(opts: OutboundEmail): OutboundEmail {

@@ -104,6 +104,7 @@ export async function POST(request: NextRequest) {
         title: 'New quiz added',
         message: `A quiz “${title.trim()}” was added to your course.`,
         actionUrl: `/learn/${courseId}/lesson/${lessonId}`,
+        emailTemplate: 'activity.updated',
       }).catch(() => {})
     }
 

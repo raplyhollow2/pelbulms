@@ -86,6 +86,7 @@ export async function PATCH(
         actionUrl: lessonId
           ? `/learn/${courseId}/lesson/${lessonId}`
           : `/learn/${courseId}`,
+        emailTemplate: 'activity.updated',
       }).catch(() => {})
     }
 

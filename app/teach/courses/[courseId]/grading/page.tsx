@@ -326,8 +326,8 @@ export default function CourseGradingPage() {
         </p>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        <Card>
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr] lg:items-start">
+        <Card className="lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-hidden">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Activities</CardTitle>
             <CardDescription>Select an assignment or assessed activity</CardDescription>

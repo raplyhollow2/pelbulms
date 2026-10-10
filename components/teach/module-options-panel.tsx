@@ -7,6 +7,7 @@ import { Switch } from '@/components/ui/switch'
 import { DescriptionEditor } from '@/components/course/description-editor'
 import { createClient } from '@/lib/supabase/client'
 import { ModuleResourcesTab } from '@/components/teach/module-resources-tab'
+import { ModuleAvailabilityFields } from '@/components/teach/module-availability-fields'
 import { readGateSettings, withGateSettings } from '@/lib/progression-gates'
 
 type ModuleRow = {
@@ -14,6 +15,12 @@ type ModuleRow = {
   title: string
   description: string | null
   is_published: boolean | null
+  availability?: string | null
+  publish_at?: string | null
+  publish_timezone?: string | null
+  notify_on_publish?: boolean | null
+  notify_on_unpublish?: boolean | null
+  release_lessons?: boolean | null
   metadata: unknown
   resources: unknown
 }
@@ -121,16 +128,13 @@ export function ModuleOptionsPanel({
           />
         </div>
       </div>
-      <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
-        <Label htmlFor={`module-published-${moduleId}`} className="text-sm">
-          Published
-        </Label>
-        <Switch
-          id={`module-published-${moduleId}`}
-          checked={Boolean(moduleRow.is_published)}
-          onCheckedChange={(checked) => void save({ is_published: checked })}
-        />
-      </div>
+      <ModuleAvailabilityFields
+        key={moduleId}
+        courseId={courseId}
+        moduleId={moduleId}
+        value={moduleRow}
+        onUpdated={(next) => setModuleRow((row) => (row ? { ...row, ...next } : row))}
+      />
       <div className="space-y-3 rounded-lg border p-3">
         <p className="text-sm font-medium">Module gates</p>
         <div className="flex items-center justify-between gap-3">

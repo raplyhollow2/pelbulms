@@ -4,7 +4,7 @@
  * Writes always use the service role — notifications have no authenticated INSERT.
  */
 
-import { sendEmail, publicAppUrl } from '@/lib/email/send'
+import { sendTemplatedEmail } from '@/lib/email/templated'
 import { tryCreateServiceClient } from '@/lib/supabase/server'
 
 export type RegistrationNotifyInput = {
@@ -137,15 +137,24 @@ export async function notifyApproversOfRegistration(
       console.error('[notify] failed to insert registration notifications:', error)
     } else {
       notified = rows.length
-      const { data: recipients } = await service.from('profiles').select('email').in('id', targets)
-      const link = `${publicAppUrl()}/admin/users?tab=approvals`
+      const { data: recipients } = await service.from('profiles').select('id, email').in('id', targets)
       for (const recipient of recipients || []) {
         const email = (recipient as { email?: string | null }).email
+        const userId = (recipient as { id?: string }).id
         if (!email) continue
-        await sendEmail({
+        await sendTemplatedEmail({
+          templateKey: 'registration.submitted_approver',
           to: email,
-          subject: title,
-          text: `${message}\n\nReview it in Rigbu LMS: ${link}`,
+          userId,
+          respectCoursePreferences: false,
+          vars: {
+            headline: title,
+            applicant_name: input.applicantName,
+            applicant_email: input.applicantEmail || '',
+            registration_kind: teaching ? 'teaching' : 'student',
+            institution_name: institutionLabel,
+            action_url: '/admin/users?tab=approvals',
+          },
         })
       }
     }
@@ -171,10 +180,16 @@ export async function notifyApproversOfRegistration(
     console.error('[notify] failed to insert applicant notification:', applicantError)
   }
   if (input.applicantEmail) {
-    await sendEmail({
+    await sendTemplatedEmail({
+      templateKey: 'registration.submitted_applicant',
       to: input.applicantEmail,
-      subject: applicantTitle,
-      text: `${applicantMessage}\n\nYou can check the status in Rigbu LMS: ${publicAppUrl()}/auth/register`,
+      userId: input.registrationUserId,
+      respectCoursePreferences: false,
+      vars: {
+        registration_kind: teaching ? 'teaching' : 'student',
+        institution_name: institutionLabel,
+        action_url: '/auth/register',
+      },
     })
   }
 

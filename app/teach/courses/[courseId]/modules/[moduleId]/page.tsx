@@ -15,9 +15,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { createClient } from '@/lib/supabase/client'
 import { ModuleResourcesTab } from '@/components/teach/module-resources-tab'
+import { ModuleAvailabilityFields } from '@/components/teach/module-availability-fields'
 import { CurriculumSequenceEditor } from '@/components/teach/curriculum-sequence-editor'
 import { withGateSettings, readGateSettings } from '@/lib/progression-gates'
 import { withLectureKind, type LectureKind } from '@/lib/lesson-kind'
+import { requestLessonStatusEmail, type MailCount } from '@/lib/email/request-lesson-status-email'
 import { shouldSyncCourseDuration, syncCourseDuration } from '@/lib/video-duration'
 import type { Database } from '@/types/database.types'
 
@@ -220,7 +222,7 @@ export default function ModuleLessonsPage() {
     }
   }
 
-  const updateLesson = async (id: string, updates: Partial<Lesson>) => {
+  const updateLesson = async (id: string, updates: Partial<Lesson>): Promise<MailCount | null> => {
     // Optimistic update (functional setState avoids stale closures when
     // saving activities right after other lesson edits).
     setLessons((prev) =>
@@ -243,6 +245,15 @@ export default function ModuleLessonsPage() {
         throw error
       }
       if (shouldSyncCourseDuration(updates)) void syncCourseDuration(courseId)
+      const current = lessons.find((lesson) => lesson.id === id)
+      const notify =
+        typeof (updates as { notify_on_status?: boolean }).notify_on_status === 'boolean'
+          ? (updates as { notify_on_status?: boolean }).notify_on_status === true
+          : (current as { notify_on_status?: boolean } | undefined)?.notify_on_status === true
+      if (typeof (updates as { is_published?: boolean }).is_published === 'boolean' && notify) {
+        return await requestLessonStatusEmail(id)
+      }
+      return null
     } catch (error) {
       console.error('Error updating lesson:', error)
       // Revert on error
@@ -383,7 +394,6 @@ export default function ModuleLessonsPage() {
           .update({
             title: module.title,
             description: module.description,
-            is_published: (module as any).is_published,
             metadata: (module as any).metadata || {},
             resources: (module as any).resources ?? [],
             updated_at: new Date().toISOString()
@@ -584,22 +594,13 @@ export default function ModuleLessonsPage() {
                   />
                 </div>
 
-                <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
-                  <div className="min-w-0">
-                    <Label htmlFor="module-published" className="font-medium">Published</Label>
-                    <p className="text-xs text-muted-foreground">
-                      Make this module visible to enrolled students
-                    </p>
-                  </div>
-                  <Switch
-                    id="module-published"
-                    checked={(module as any).is_published || false}
-                    onCheckedChange={(checked) => {
-                      setModule({ ...module, is_published: checked } as any)
-                      setHasChanges(true)
-                    }}
-                  />
-                </div>
+                <ModuleAvailabilityFields
+                  key={moduleId}
+                  courseId={courseId}
+                  moduleId={moduleId}
+                  value={module as any}
+                  onUpdated={(next) => setModule({ ...module, ...next } as any)}
+                />
 
                 <div className="rounded-lg border p-4 space-y-3">
                   <div>

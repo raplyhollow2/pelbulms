@@ -25,27 +25,12 @@ import {
 } from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
-import {
   UserPlus,
-  Pencil,
-  Trash2,
   Loader2,
-  Search,
   Camera,
   ClipboardCheck,
   ShieldCheck,
   Users as UsersIcon,
-  MoreHorizontal,
   Ban,
   CircleCheck,
 } from 'lucide-react'
@@ -57,6 +42,9 @@ import { coerceUserRole } from '@/lib/roles'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { PendingApprovalsPanel } from '@/components/admin/pending-approvals-panel'
 import { ReviewersPanel } from '@/components/admin/reviewers-panel'
+import { UserDirectory } from '@/components/admin/user-directory'
+import { PageHeader } from '@/components/layout/page-header'
+import { TableSkeleton } from '@/components/data-table/table-skeleton'
 import { RoleBadge } from '@/components/auth/role-badge'
 import { DZONGKHAGS, normalizeDzongkhag } from '@/lib/dzongkhags'
 import { GENDER_OPTIONS } from '@/lib/profile-fields'
@@ -262,7 +250,6 @@ export default function AdminUsersPage() {
   const [pendingCount, setPendingCount] = useState(0)
 
   const [users, setUsers] = useState<Profile[]>([])
-  const [searchQuery, setSearchQuery] = useState('')
   const [institutions, setInstitutions] = useState<{ id: string; name: string; display_name?: string | null }[]>([])
   const [assignableRoles, setAssignableRoles] = useState<AssignableRole[]>([])
 
@@ -448,18 +435,6 @@ export default function AdminUsersPage() {
       setError(err.message || 'Failed to load users')
     }
   }
-
-  const filteredUsers = users.filter((user) => {
-    if (!searchQuery.trim()) return true
-    const q = searchQuery.toLowerCase()
-    return (
-      user.full_name?.toLowerCase().includes(q) ||
-      (user as any).email?.toLowerCase().includes(q) ||
-      fieldText(user, 'phone_number', 'phone_number').toLowerCase().includes(q) ||
-      (user.location || '').toLowerCase().includes(q) ||
-      user.id.toLowerCase().includes(q)
-    )
-  })
 
   const handleCreateUser = async () => {
     try {
@@ -691,9 +666,8 @@ export default function AdminUsersPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center px-4">
-        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-sm text-muted-foreground">Loading users…</span>
+      <div className="mx-auto w-full max-w-6xl px-4 py-8">
+        <TableSkeleton />
       </div>
     )
   }
@@ -710,31 +684,27 @@ export default function AdminUsersPage() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 py-5 sm:px-6 sm:py-8 md:pb-10">
       {/* Page header */}
-      <header className="flex flex-col gap-4 border-b border-border/50 pb-5 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0 space-y-1">
-          <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">
-            Administration
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
-          <p className="max-w-xl text-sm text-muted-foreground">
-            Manage accounts, review registrations, and assign institute reviewers.
-          </p>
-        </div>
-        {canManageUsers && canAddUsers && activeTab === 'users' && (
-          <Button
-            size="sm"
-            className="h-9 w-full shrink-0 gap-2 sm:w-auto"
-            onClick={() => {
-              setFormData({ ...EMPTY_FORM })
-              setError('')
-              setShowCreateForm((v) => !v)
-            }}
-          >
-            <UserPlus className="h-4 w-4" />
-            {showCreateForm ? 'Close form' : 'Add user'}
-          </Button>
-        )}
-      </header>
+      <PageHeader
+        eyebrow="Administration"
+        title="Users"
+        description="Manage accounts, review registrations, and assign institute reviewers."
+        actions={
+          canManageUsers && canAddUsers && activeTab === 'users' ? (
+            <Button
+              size="sm"
+              className="h-9 w-full shrink-0 gap-2 sm:w-auto"
+              onClick={() => {
+                setFormData({ ...EMPTY_FORM })
+                setError('')
+                setShowCreateForm(true)
+              }}
+            >
+              <UserPlus className="h-4 w-4" />
+              Add user
+            </Button>
+          ) : null
+        }
+      />
 
       <Tabs value={activeTab} onValueChange={setTab} className="w-full space-y-5">
         <TabsList
@@ -800,23 +770,6 @@ export default function AdminUsersPage() {
               ))}
             </div>
 
-            {/* Toolbar */}
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <div className="relative min-w-0 flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name, email, or phone…"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="h-10 pl-9"
-                  aria-label="Search users"
-                />
-              </div>
-              <p className="shrink-0 text-xs tabular-nums text-muted-foreground sm:text-right">
-                {filteredUsers.length} of {users.length}
-              </p>
-            </div>
-
             {error && (
               <div
                 role="alert"
@@ -826,15 +779,20 @@ export default function AdminUsersPage() {
               </div>
             )}
 
-            {/* Create user */}
-            {showCreateForm && (
-              <section className="rounded-xl border border-border/60 bg-card p-4 sm:p-5">
-                <div className="mb-4">
-                  <h2 className="text-sm font-semibold">Create user</h2>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
+            <Dialog open={showCreateForm} onOpenChange={(open) => {
+              setShowCreateForm(open)
+              if (!open) {
+                setFormData({ ...EMPTY_FORM })
+                setError('')
+              }
+            }}>
+              <DialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Create user</DialogTitle>
+                  <DialogDescription>
                     Invite a new account. They can sign in once created.
-                  </p>
-                </div>
+                  </DialogDescription>
+                </DialogHeader>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="email" className="text-xs font-medium">
@@ -954,20 +912,8 @@ export default function AdminUsersPage() {
                     />
                   </div>
                 </div>
-                <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9"
-                    onClick={() => {
-                      setShowCreateForm(false)
-                      setFormData({ ...EMPTY_FORM })
-                      setError('')
-                    }}
-                    disabled={formLoading}
-                  >
-                    Cancel
-                  </Button>
+
+                <DialogFooter className="mt-2 sm:justify-end">
                   <Button size="sm" className="h-9 gap-1.5" onClick={handleCreateUser} disabled={formLoading}>
                     {formLoading ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -976,178 +922,20 @@ export default function AdminUsersPage() {
                     )}
                     {formLoading ? 'Creating…' : 'Create user'}
                   </Button>
-                </div>
-              </section>
-            )}
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
-            {/* Directory */}
-            <section className="overflow-hidden rounded-xl border border-border/60 bg-card">
-              {/* Desktop column headers */}
-              <div className="hidden border-b border-border/50 bg-muted/30 px-4 py-2.5 text-[11px] font-medium uppercase tracking-wider text-muted-foreground md:grid md:grid-cols-[minmax(0,1.6fr)_9rem_minmax(11rem,auto)] md:gap-4 md:px-5">
-                <span>User</span>
-                <span>Role</span>
-                <span className="text-right">Actions</span>
-              </div>
-
-              <ul className="divide-y divide-border/50">
-                {filteredUsers.map((user) => {
-                  const email = (user as any).email || '—'
-                  const avatar = resolveMediaUrl(user.avatar_url) || undefined
-                  return (
-                    <li
-                      key={user.id}
-                      className="px-4 py-3.5 transition-colors hover:bg-muted/25 sm:px-5 md:grid md:grid-cols-[minmax(0,1.6fr)_9rem_minmax(11rem,auto)] md:items-center md:gap-4 md:py-3"
-                    >
-                      {/* Identity */}
-                      <div className="flex min-w-0 items-start gap-3">
-                        <Avatar className="h-10 w-10 shrink-0 ring-1 ring-border/60">
-                          <AvatarImage src={avatar} alt={user.full_name || 'User'} />
-                          <AvatarFallback className="bg-muted text-xs font-semibold text-muted-foreground">
-                            {getInitials(user.full_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="truncate text-sm font-medium leading-snug">
-                              {user.full_name || 'Unnamed user'}
-                            </p>
-                            <span className="md:hidden">
-                              <RoleBadge role={user.role || 'student'} size="sm" />
-                            </span>
-                          </div>
-                          <p className="mt-0.5 truncate text-xs text-muted-foreground">{email}</p>
-                          {(fieldText(user, 'phone_number', 'phone_number') || user.location) && (
-                            <p className="truncate text-xs text-muted-foreground">
-                              {[fieldText(user, 'phone_number', 'phone_number'), user.location]
-                                .filter(Boolean)
-                                .join(' · ')}
-                            </p>
-                          )}
-                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                            <span
-                              className={cn(
-                                'inline-flex h-5 items-center rounded-md border px-1.5 text-[10px] font-medium capitalize',
-                                statusBadgeClass((user as any).account_status)
-                              )}
-                            >
-                              {(user as any).account_status || 'active'}
-                            </span>
-                            {(user as any).institution_id && (
-                              <span className="truncate text-[11px] text-muted-foreground">
-                                {institutionLabel((user as any).institution_id)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Role (tablet+) */}
-                      <div className="hidden md:block">
-                        <RoleBadge role={user.role || 'student'} size="sm" />
-                      </div>
-
-                      {/* Actions */}
-                      <div className="mt-3 flex items-center gap-2 md:mt-0 md:justify-end">
-                        {canEditUsers && (
-                        <>
-                        <Select
-                          value={user.role}
-                          onValueChange={(value) => handleUpdateRole(user.id, value as Role)}
-                          disabled={
-                            (user.role === 'superadmin' && !isSuperAdmin) ||
-                            ((user.role === 'instructor' || user.role === 'resource_person') &&
-                              !isSuperAdmin)
-                          }
-                        >
-                          <SelectTrigger
-                            className="h-9 flex-1 text-xs md:w-[9.5rem] md:flex-none"
-                            aria-label={`Change role for ${user.full_name || email}`}
-                          >
-                            <SelectValue>
-                              {(v: string | null) => ROLE_LABELS[v || ''] || v || 'Role'}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="student">Student</SelectItem>
-                            {(isSuperAdmin || user.role === 'instructor') && (
-                              <SelectItem value="instructor">Instructor</SelectItem>
-                            )}
-                            {(isSuperAdmin || user.role === 'resource_person') && (
-                              <SelectItem value="resource_person">Resource person</SelectItem>
-                            )}
-                            <SelectItem value="admin">Admin</SelectItem>
-                            {(isSuperAdmin || user.role === 'superadmin') && (
-                              <SelectItem value="superadmin">Super admin</SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-9 w-9 shrink-0 p-0"
-                          onClick={() => openEdit(user)}
-                          aria-label={`Edit ${user.full_name || email}`}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        </>
-                        )}
-
-                        {isSuperAdmin && (
-                        <AlertDialog>
-                          <AlertDialogTrigger
-                            render={
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-9 w-9 shrink-0 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                disabled={user.id === currentUser?.id}
-                                aria-label={`Delete ${user.full_name || email}`}
-                              />
-                            }
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </AlertDialogTrigger>
-                          <AlertDialogContent className="max-w-[calc(100%-1.5rem)] sm:max-w-md">
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete this user?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Permanently remove{' '}
-                                <span className="font-medium text-foreground">
-                                  {user.full_name || email}
-                                </span>{' '}
-                                and their account. This cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter className="flex-col-reverse gap-2 sm:flex-row">
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteUser(user.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                Delete user
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                        )}
-                      </div>
-                    </li>
-                  )
-                })}
-
-                {filteredUsers.length === 0 && (
-                  <li className="flex flex-col items-center justify-center gap-2 px-4 py-14 text-center">
-                    <MoreHorizontal className="h-5 w-5 text-muted-foreground/50" />
-                    <p className="text-sm font-medium">No users match your search</p>
-                    <p className="text-xs text-muted-foreground">
-                      Try a different name or email, or clear the search field.
-                    </p>
-                  </li>
-                )}
-              </ul>
-            </section>
+            <UserDirectory
+              users={users}
+              canEdit={canEditUsers}
+              isSuperAdmin={isSuperAdmin}
+              currentUserId={currentUser?.id}
+              institutionLabel={institutionLabel}
+              onRoleChange={(userId, role) => handleUpdateRole(userId, role)}
+              onEdit={openEdit}
+              onDelete={handleDeleteUser}
+            />
           </TabsContent>
         )}
       </Tabs>

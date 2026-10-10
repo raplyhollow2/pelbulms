@@ -17,7 +17,8 @@ import { CourseLearningTabs } from '@/components/course/course-learning-tabs'
 import { loadCourseFacilitators, type CourseFacilitator } from '@/lib/course-facilitators'
 import { LessonContentStage } from '@/components/learning/lesson-content-stage'
 import { CourseCompletionDialog } from '@/components/learning/course-completion-dialog'
-import { lessonIsFreePreview, lessonIsPublished } from '@/lib/lesson-visibility'
+import { lessonIsFreePreview } from '@/lib/lesson-visibility'
+import { lessonOpenInModule } from '@/lib/module-live'
 import { type VideoProgressData } from '@/components/learning/tracked-video-player'
 import { parseLessonBlocks, readCourseAiMetadata } from '@/lib/lesson-blocks'
 import {
@@ -44,7 +45,7 @@ type Quiz = Database['public']['Tables']['quizzes']['Row']
 const LESSON_SIDEBAR_COLUMNS =
   'id, module_id, title, description, duration_minutes, order_index, is_published, is_free, is_preview, metadata, resources'
 const MODULE_COLUMNS =
-  'id, course_id, title, description, order_index, is_published, metadata, resources'
+  'id, course_id, title, description, order_index, is_published, availability, publish_at, release_lessons, metadata, resources'
 const COURSE_PLAYER_COLUMNS =
   'id, title, description, level, category, language, duration_minutes, updated_at, instructor_id, is_published, learning_objectives, requirements, metadata'
 const NOTE_COLUMNS =
@@ -222,7 +223,10 @@ export default function LessonViewPage() {
   // If sequential unlock is enabled and this lesson isn't open yet, bounce back (no alert spam)
   useEffect(() => {
     if (staffPreview || freePreview || loading || !lesson || allLessons.length === 0) return
-    const ordered = allLessons.filter((row) => lessonIsPublished(row)).map((l) => l.id)
+    const ordered = allLessons.filter((row) => {
+      const host = allModules.find((item) => item.id === (row as any).module_id) || module
+      return lessonOpenInModule(row, host as any)
+    }).map((l) => l.id)
     const settingsFor = (id: string) => {
       const les = allLessons.find((l) => l.id === id)
       const mod = allModules.find((m) => m.id === (les as any)?.module_id) || module
@@ -314,9 +318,8 @@ export default function LessonViewPage() {
         ])
 
       const { data: lessonData, error: lessonError } = lessonResult
-      if (lessonError) throw lessonError
-      if (!lessonData) {
-        router.push('/dashboard')
+      if (lessonError || !lessonData) {
+        router.push(`/courses/${courseId}`)
         return
       }
 
@@ -362,12 +365,16 @@ export default function LessonViewPage() {
       }
 
       const lessonRow = lessonData as Lesson
-      const publishedLesson = lessonIsPublished(lessonRow)
+      const hostModule = moduleList.find((row) => row.id === lessonRow.module_id)
+      const publishedLesson = lessonOpenInModule(lessonRow, hostModule as any)
       const freePreviewLesson = publishedLesson && lessonIsFreePreview(lessonRow)
       const guestPreview = !managing && !enrolled && freePreviewLesson
 
       if (!managing && !publishedLesson) {
-        const nextId = ((sidebarResult.data || []) as Lesson[]).find((row) => lessonIsPublished(row))?.id
+        const nextId = ((sidebarResult.data || []) as Lesson[]).find((row) => {
+          const host = moduleList.find((item) => item.id === row.module_id)
+          return lessonOpenInModule(row, host as any)
+        })?.id
         alert('This lesson is not published yet.')
         if (nextId && nextId !== lessonId) {
           router.replace(`/learn/${courseId}/lesson/${nextId}`)
@@ -433,7 +440,8 @@ export default function LessonViewPage() {
 
       const sidebarLessons = ((sidebarResult.data || []) as Lesson[]).filter((row) => {
         if (managing) return true
-        if (!lessonIsPublished(row)) return false
+        const host = moduleList.find((item) => item.id === row.module_id)
+        if (!lessonOpenInModule(row, host as any)) return false
         if (guestPreview) return lessonIsFreePreview(row)
         return true
       })
@@ -1141,7 +1149,10 @@ export default function LessonViewPage() {
   // Latest lesson runtime — video player callbacks stay stable via ref
   const playableLessons = staffPreview
     ? allLessons
-    : allLessons.filter((row) => lessonIsPublished(row))
+    : allLessons.filter((row) => {
+        const host = allModules.find((item) => item.id === (row as any).module_id) || module
+        return lessonOpenInModule(row, host as any)
+      })
   const playableIndex = playableLessons.findIndex((row) => row.id === lessonId)
   const outlineIndex = allLessons.findIndex((row) => row.id === lessonId)
 
@@ -1413,13 +1424,19 @@ export default function LessonViewPage() {
                 settingsForLesson,
               })
           ),
-          ...allLessons.filter((row) => !lessonIsPublished(row)).map((row) => row.id),
+          ...allLessons.filter((row) => {
+            const host = allModules.find((item) => item.id === row.module_id) || module
+            return !lessonOpenInModule(row, host as any)
+          }).map((row) => row.id),
         ]
   )
 
   const tryOpenLesson = (targetId: string) => {
     const target = allLessons.find((row) => row.id === targetId)
-    if (target && !staffPreview && !lessonIsPublished(target)) {
+    const targetHost = target
+      ? allModules.find((item) => item.id === (target as any).module_id) || module
+      : module
+    if (target && !staffPreview && !lessonOpenInModule(target, targetHost as any)) {
       alert('This lesson is not available yet.')
       return
     }
@@ -1445,7 +1462,10 @@ export default function LessonViewPage() {
 
   const tryOpenActivity = (targetId: string, activityId: string) => {
     const target = allLessons.find((row) => row.id === targetId)
-    if (target && !staffPreview && !lessonIsPublished(target)) {
+    const targetHost = target
+      ? allModules.find((item) => item.id === (target as any).module_id) || module
+      : module
+    if (target && !staffPreview && !lessonOpenInModule(target, targetHost as any)) {
       alert('This lesson is not available yet.')
       return
     }

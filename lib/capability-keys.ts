@@ -57,6 +57,8 @@ export const CAP = {
   SETTINGS_MARKETING_EDIT: 'admin.settings.marketing.edit',
   SETTINGS_EMAILS_VIEW: 'admin.settings.emails.view',
   SETTINGS_EMAILS_EDIT: 'admin.settings.emails.edit',
+  SETTINGS_EMAIL_TEMPLATES_VIEW: 'admin.settings.email_templates.view',
+  SETTINGS_EMAIL_TEMPLATES_EDIT: 'admin.settings.email_templates.edit',
   PERMISSIONS_VIEW: 'admin.permissions.view',
   PERMISSIONS_EDIT: 'admin.permissions.edit',
   AI_VIEW: 'admin.ai.view',

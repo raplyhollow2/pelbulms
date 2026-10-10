@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
       message,
       actionUrl: `/announcements`,
       type: 'announcement',
+      emailTemplate: 'announcement',
     })
 
     return NextResponse.json({ notified: count })
