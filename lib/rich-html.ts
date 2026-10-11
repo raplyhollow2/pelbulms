@@ -1,9 +1,9 @@
 import sanitizeHtml from 'sanitize-html'
 import { resolveMediaUrl } from '@/lib/media'
 
-/** Images, video, and audio in lesson text and course descriptions. */
+/** Images, video, audio, and links in lesson text and course descriptions. */
 export const richMediaClass =
-  '[&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_video]:my-2 [&_video]:h-auto [&_video]:w-full [&_video]:max-w-full [&_audio]:my-2 [&_audio]:w-full'
+  '[&_img]:my-2 [&_img]:h-auto [&_img]:max-w-full [&_video]:my-2 [&_video]:h-auto [&_video]:w-full [&_video]:max-w-full [&_audio]:my-2 [&_audio]:w-full [&_a]:font-medium [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2'
 
 const FONT_SIZE = /^(1[0-9]|[2-8][0-9]|9[0-6])px$/
 const TEXT_ALIGN = /^(left|center|right|justify)$/

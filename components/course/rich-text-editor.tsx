@@ -618,7 +618,7 @@ export function RichTextEditor({
         aria-multiline="true"
         aria-label={ariaLabel}
         data-placeholder={placeholder}
-        className={`${surfaceClassName} ${richMediaClass}`}
+        className={`${surfaceClassName} ${richMediaClass} [&_a]:font-medium [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2`}
         onFocus={() => {
           focused.current = true
         }}
