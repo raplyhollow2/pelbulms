@@ -63,7 +63,8 @@ export async function POST(request: NextRequest) {
   let eager: string | undefined
   let eagerAsync: boolean | undefined
 
-  if (resourceType === 'video') {
+  // Voice clips are audio files on the video resource. Skip the MP4 transcode for those.
+  if (resourceType === 'video' && body.skipEager !== true) {
     eager = (body.eager as string) || VIDEO_EAGER_TRANSFORM
     eagerAsync = body.eagerAsync !== false
     paramsToSign.eager = eager

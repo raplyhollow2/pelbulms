@@ -173,6 +173,7 @@ export function LessonOptionsFields({
               <div className="mt-1">
                 <DescriptionEditor
                   id={`lesson-description-${lesson.id}`}
+                  courseId={courseId}
                   value={lesson.description || ''}
                   placeholder="What students should be able to do after this lesson"
                   ariaLabel="Lesson learning outcome"

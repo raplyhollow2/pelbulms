@@ -7,6 +7,8 @@ import {
   MAX_VIDEO_UPLOAD_LABEL,
   MAX_IMAGE_UPLOAD_BYTES,
   MAX_IMAGE_UPLOAD_LABEL,
+  MAX_AUDIO_UPLOAD_BYTES,
+  MAX_AUDIO_UPLOAD_LABEL,
   VIDEO_EAGER_TRANSFORM,
 } from '@/lib/video-url'
 
@@ -27,6 +29,7 @@ export type DirectImageUploadResult = {
 
 const ALLOWED_VIDEO = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime']
 const ALLOWED_IMAGE = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/svg+xml']
+const ALLOWED_AUDIO = ['audio/webm', 'audio/mp4', 'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/x-wav']
 
 async function signAndUpload(
   file: File,
@@ -38,6 +41,8 @@ async function signAndUpload(
     onProgress?: DirectUploadProgress
     eager?: string
     eagerAsync?: boolean
+    /** Voice clips are stored on the video resource without an MP4 transcode. */
+    skipEager?: boolean
   }
 ): Promise<Record<string, unknown>> {
   const signRes = await fetch('/api/cloudinary/sign', {
@@ -47,6 +52,7 @@ async function signAndUpload(
       folder: opts.folder,
       resourceType: opts.resourceType,
       accessType: opts.accessType,
+      ...(opts.skipEager ? { skipEager: true } : {}),
       ...(opts.eager
         ? { eager: opts.eager, eagerAsync: opts.eagerAsync !== false }
         : {}),
@@ -167,4 +173,32 @@ export async function uploadImageDirectToCloudinary(
     throw new Error('Cloudinary did not return an image URL')
   }
   return { publicId, url: secureUrl }
+}
+
+/** Private voice clip. Cloudinary keeps audio on the video resource type. */
+export async function uploadAudioDirectToCloudinary(
+  file: File,
+  opts: {
+    folder: string
+    onProgress?: DirectUploadProgress
+  }
+): Promise<{ url: string; publicId: string }> {
+  const type = (file.type || '').split(';')[0].trim().toLowerCase()
+  if (!ALLOWED_AUDIO.includes(type)) {
+    throw new Error('Unsupported audio type. Use WEBM, MP4, MP3, WAV or OGG.')
+  }
+  if (file.size > MAX_AUDIO_UPLOAD_BYTES) {
+    throw new Error(`File too large. Maximum size is ${MAX_AUDIO_UPLOAD_LABEL}.`)
+  }
+
+  const result = await signAndUpload(file, {
+    folder: opts.folder,
+    resourceType: 'video',
+    accessType: 'authenticated',
+    onProgress: opts.onProgress,
+    skipEager: true,
+  })
+
+  const publicId = result.public_id as string
+  return { publicId, url: makeMediaRef('video', publicId) }
 }

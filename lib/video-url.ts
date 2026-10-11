@@ -9,6 +9,11 @@ export const MAX_VIDEO_UPLOAD_LABEL = '1GB'
 export const MAX_IMAGE_UPLOAD_BYTES = 25 * 1024 * 1024 // 25MB
 export const MAX_IMAGE_UPLOAD_LABEL = '25MB'
 
+/** Microphone clips inserted in course text. */
+export const MAX_AUDIO_UPLOAD_BYTES = 25 * 1024 * 1024 // 25MB
+export const MAX_AUDIO_UPLOAD_LABEL = '25MB'
+export const MAX_VOICE_RECORDING_MS = 10 * 60 * 1000
+
 /**
  * Upload-time derivative only. Do not request this URL for `<video>` playback:
  * `q_auto` on video is packaged as fragmented MP4 (`ftypiso6`), which the

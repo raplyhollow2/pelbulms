@@ -1,3 +1,4 @@
+import { sanitizeRichHtml } from '@/lib/rich-html'
 import { getYoutubeId } from '@/lib/video-url'
 
 export type LessonBlock =
@@ -47,11 +48,7 @@ export function newBlockId() {
 }
 
 export function sanitizeHtml(html: string) {
-  return String(html || '')
-    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, '')
-    .replace(/\son\w+="[^"]*"/gi, '')
-    .replace(/\son\w+='[^']*'/gi, '')
-    .replace(/\shref\s*=\s*(['"])\s*(?:javascript|data|vbscript):[^'"]*\1/gi, ' href="#"')
+  return sanitizeRichHtml(html)
 }
 
 export function parseLessonBlocks(raw: unknown): LessonBlock[] {

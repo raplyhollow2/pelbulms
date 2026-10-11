@@ -703,6 +703,7 @@ export function CourseSettingsForm({
           <Label htmlFor="settings-description">Description</Label>
           <DescriptionEditor
             id="settings-description"
+            courseId={courseId}
             value={courseData.description}
             placeholder="Write what this course is about"
             onChange={(description) => setCourseData({ ...courseData, description })}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -17,24 +17,21 @@ import {
   mergeLessonBlock,
   newBlockId,
   parseLessonBlocks,
-  sanitizeHtml,
   youtubeEmbedId,
   type LessonBlock,
 } from '@/lib/lesson-blocks'
-import { stepSelectionFontSize } from '@/lib/editor-font-size'
+import { presentRichHtml, richMediaClass } from '@/lib/rich-html'
+import { RichTextEditor } from '@/components/course/rich-text-editor'
 import { ScenarioPlayer } from '@/components/learning/scenario-player'
 import { YoutubeFrame } from '@/components/course/youtube-frame'
 import { resolveMediaUrl } from '@/lib/media'
 import { cn } from '@/lib/utils'
 import {
-  Bold,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
   Copy,
-  Italic,
-  List,
   Loader2,
   Plus,
   Sparkles,
@@ -288,8 +285,8 @@ function BlockView({
   if (block.type === 'text') {
     return (
       <div
-        className="prose prose-sm dark:prose-invert max-w-none"
-        dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.html) }}
+        className={`prose prose-sm dark:prose-invert max-w-none ${richMediaClass}`}
+        dangerouslySetInnerHTML={{ __html: presentRichHtml(block.html) }}
       />
     )
   }
@@ -375,7 +372,14 @@ function EditableBlock({
   onBlockChange: (block: LessonBlock) => void
 }) {
   if (block.type === 'text') {
-    return <RichTextEditor html={block.html} onChange={(html) => onBlockChange({ ...block, html })} />
+    return (
+      <RichTextEditor
+        value={block.html}
+        courseId={courseId}
+        ariaLabel="Lesson text"
+        onChange={(html) => onBlockChange({ ...block, html })}
+      />
+    )
   }
 
   if (block.type === 'image') {
@@ -421,7 +425,9 @@ function EditableBlock({
               }}
             />
             <RichTextEditor
-              html={item.html}
+              value={item.html}
+              courseId={courseId}
+              ariaLabel="Section text"
               onChange={(html) => {
                 const items = block.items.map((row, i) => (i === index ? { ...row, html } : row))
                 onBlockChange({ ...block, items })
@@ -519,7 +525,8 @@ function EditableBlock({
           <div key={index} className="space-y-2 rounded-lg border p-3">
             <p className="text-sm font-medium">Slide {index + 1}</p>
             <RichTextEditor
-              html={slide.html}
+              value={slide.html}
+              courseId={courseId}
               ariaLabel={`Slide ${index + 1}`}
               onChange={(html) => {
                 const slides = block.slides.map((row, i) => (i === index ? { ...row, html } : row))
@@ -1053,101 +1060,6 @@ function UnlinkedAssessment({
   )
 }
 
-function RichTextEditor({
-  html,
-  onChange,
-  ariaLabel = 'Lesson text',
-}: {
-  html: string
-  onChange: (html: string) => void
-  ariaLabel?: string
-}) {
-  const ref = useRef<HTMLDivElement>(null)
-  const focused = useRef(false)
-  const lastPublished = useRef<string | null>(null)
-
-  // Uncontrolled on purpose. React 19 assigns innerHTML again whenever
-  // dangerouslySetInnerHTML is a new object, which wiped each keystroke.
-  useLayoutEffect(() => {
-    const node = ref.current
-    if (!node) return
-    if (lastPublished.current === html) return
-    if (focused.current) return
-    node.innerHTML = sanitizeHtml(html || '<p></p>')
-    lastPublished.current = html
-  }, [html])
-
-  const publish = () => {
-    const next = sanitizeHtml(ref.current?.innerHTML || '')
-    lastPublished.current = next
-    onChange(next)
-    return next
-  }
-
-  const apply = (command: string) => {
-    const node = ref.current
-    if (!node) return
-    node.focus()
-    focused.current = true
-    document.execCommand(command)
-    publish()
-  }
-
-  const changeFontSize = (direction: 1 | -1) => {
-    const node = ref.current
-    if (!node) return
-    focused.current = true
-    if (!stepSelectionFontSize(node, direction)) return
-    publish()
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-1">
-        <Button type="button" variant="outline" size="icon-sm" aria-label="Bold" onMouseDown={(e) => e.preventDefault()} onClick={() => apply('bold')}>
-          <Bold />
-        </Button>
-        <Button type="button" variant="outline" size="icon-sm" aria-label="Italic" onMouseDown={(e) => e.preventDefault()} onClick={() => apply('italic')}>
-          <Italic />
-        </Button>
-        <Button type="button" variant="outline" size="icon-sm" aria-label="Decrease font size" title="Decrease font size" onMouseDown={(e) => e.preventDefault()} onClick={() => changeFontSize(-1)}>
-          <span className="text-[11px] font-semibold leading-none">A−</span>
-        </Button>
-        <Button type="button" variant="outline" size="icon-sm" aria-label="Increase font size" title="Increase font size" onMouseDown={(e) => e.preventDefault()} onClick={() => changeFontSize(1)}>
-          <span className="text-sm font-semibold leading-none">A+</span>
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          aria-label="Bulleted list"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => apply('insertUnorderedList')}
-        >
-          <List />
-        </Button>
-      </div>
-      <div
-        ref={ref}
-        contentEditable
-        suppressContentEditableWarning
-        role="textbox"
-        aria-multiline="true"
-        aria-label={ariaLabel}
-        className="prose prose-sm dark:prose-invert min-h-32 w-full max-w-none rounded-md border bg-background p-3 text-sm focus:outline-none"
-        onFocus={() => {
-          focused.current = true
-        }}
-        onInput={publish}
-        onBlur={() => {
-          focused.current = false
-          publish()
-        }}
-      />
-    </div>
-  )
-}
-
 function YouTubeEmbed({ id }: { id: string }) {
   return (
     <div className="relative aspect-video w-full overflow-hidden rounded-xl bg-black">
@@ -1194,7 +1106,10 @@ function AccordionPreview({ items }: { items: { title: string; html: string }[] 
         <AccordionItem key={`${item.title}-${i}`} value={`a-${i}`}>
           <AccordionTrigger>{item.title}</AccordionTrigger>
           <AccordionContent>
-            <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(item.html) }} />
+            <div
+              className={richMediaClass}
+              dangerouslySetInnerHTML={{ __html: presentRichHtml(item.html) }}
+            />
           </AccordionContent>
         </AccordionItem>
       ))}
@@ -1233,8 +1148,8 @@ function HotspotImage({
         <div className="rounded-xl border p-3 text-sm">
           <p className="font-medium">{active.label}</p>
           <div
-            className="prose prose-sm dark:prose-invert mt-1 max-w-none"
-            dangerouslySetInnerHTML={{ __html: sanitizeHtml(active.html) }}
+            className={`prose prose-sm dark:prose-invert mt-1 max-w-none ${richMediaClass}`}
+            dangerouslySetInnerHTML={{ __html: presentRichHtml(active.html) }}
           />
         </div>
       )}
@@ -1398,8 +1313,8 @@ function Carousel({ slides }: { slides: { html: string; imageUrl?: string }[] })
         ) : null}
         {slide.html?.replace(/<[^>]+>/g, '').trim() ? (
           <div
-            className="px-4 py-3 text-sm leading-relaxed [&_p]:m-0"
-            dangerouslySetInnerHTML={{ __html: sanitizeHtml(slide.html) }}
+            className={`px-4 py-3 text-sm leading-relaxed [&_p]:m-0 ${richMediaClass}`}
+            dangerouslySetInnerHTML={{ __html: presentRichHtml(slide.html) }}
           />
         ) : null}
       </div>

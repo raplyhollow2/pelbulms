@@ -991,6 +991,7 @@ export function CourseStudio({ courseId }: { courseId: string }) {
               <DescriptionEditor
                 key={current.id}
                 id={`studio-lesson-description-${current.id}`}
+                courseId={courseId}
                 value={current.description || ''}
                 placeholder="What students should be able to do after this lesson"
                 ariaLabel="Lesson learning outcome"

@@ -584,6 +584,7 @@ export default function ModuleLessonsPage() {
                   </p>
                   <DescriptionEditor
                     id="module-description"
+                    courseId={courseId}
                     value={module.description || ''}
                     placeholder="What students should learn across this module"
                     ariaLabel="Module learning objectives"

@@ -26,6 +26,17 @@ function isPlayableVideo(response: Response) {
   return type.startsWith('video/') || type.includes('octet-stream') || type.includes('mp4')
 }
 
+function isPlayableAudio(response: Response) {
+  if (response.status !== 200 && response.status !== 206) return false
+  if (response.headers.get('x-cld-error')) return false
+  const type = (response.headers.get('content-type') || '').toLowerCase()
+  return type.startsWith('audio/')
+}
+
+function isPlayableMedia(response: Response) {
+  return isPlayableAudio(response) || isPlayableVideo(response)
+}
+
 async function discard(response: Response | null) {
   if (!response?.body) return
   try {
@@ -104,15 +115,19 @@ export async function GET(
 
   // .mp4 on the original is a remux. If that file is missing or fragmented,
   // try the uploaded container unchanged.
-  if (resourceType === 'video' && (!upstream || !isPlayableVideo(upstream))) {
+  if (resourceType === 'video' && (!upstream || !isPlayableMedia(upstream))) {
     await discard(upstream)
     const original = signedUrl(id, account, {
       resourceType: 'video',
       raw: true,
       format: false,
     })
+    // Do not force MP4 here. A voice clip is audio/webm or audio/mp4, and
+    // Accept: video/mp4 makes Cloudinary return something the player cannot use.
+    const fallbackHeaders: Record<string, string> = {}
+    if (range) fallbackHeaders['Range'] = range
     try {
-      upstream = await fetch(original, { headers: forwardHeaders })
+      upstream = await fetch(original, { headers: fallbackHeaders })
     } catch {
       upstream = null
     }
@@ -122,7 +137,7 @@ export async function GET(
     return NextResponse.json({ error: 'Failed to fetch media' }, { status: 502 })
   }
 
-  if (resourceType === 'video' && !isPlayableVideo(upstream)) {
+  if (resourceType === 'video' && !isPlayableMedia(upstream)) {
     await discard(upstream)
     return NextResponse.json({ error: 'Media not available' }, { status: 502 })
   }

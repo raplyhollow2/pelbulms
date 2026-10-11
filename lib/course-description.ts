@@ -1,8 +1,8 @@
-import { sanitizeHtml } from '@/lib/lesson-blocks'
+import { presentRichHtml, richMediaClass } from '@/lib/rich-html'
 
 /** Shared list and paragraph spacing for the editor and the public description. */
 export const courseDescriptionRichClass =
-  '[&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:my-0.5 [&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_h1]:mb-2 [&_h1]:mt-3 [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:text-base [&_h2]:font-semibold [&_h3]:mb-1 [&_h3]:mt-3 [&_h3]:text-sm [&_h3]:font-semibold [&_a]:font-medium [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2'
+  `[&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:my-0.5 [&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_h1]:mb-2 [&_h1]:mt-3 [&_h1]:text-lg [&_h1]:font-semibold [&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:text-base [&_h2]:font-semibold [&_h3]:mb-1 [&_h3]:mt-3 [&_h3]:text-sm [&_h3]:font-semibold [&_a]:font-medium [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-2 ${richMediaClass}`
 
 function looksLikeHtml(value: string) {
   return /<[a-z][\s\S]*>/i.test(value)
@@ -55,19 +55,7 @@ function unwrapEscapedMarkup(value: string) {
 
 /** Drop Google Docs presentation so a description reads as headings, lists, and paragraphs. */
 function cleanDescriptionHtml(html: string) {
-  return sanitizeHtml(html)
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<\/?(?:html|head|body|meta|link|title|o:p)[^>]*>/gi, '')
-    .replace(/\s(?:style|class|id|dir|role|lang|aria-[\w-]+)="[^"]*"/gi, '')
-    .replace(/\s(?:style|class|id|dir|role|lang|aria-[\w-]+)='[^']*'/gi, '')
-    .replace(/<span\b[^>]*>/gi, '')
-    .replace(/<\/span>/gi, '')
-    .replace(/<font\b[^>]*>/gi, '')
-    .replace(/<\/font>/gi, '')
-    .replace(/<b\b[^>]*>/gi, '<strong>')
-    .replace(/<\/b>/gi, '</strong>')
-    .replace(/<i\b[^>]*>/gi, '<em>')
-    .replace(/<\/i>/gi, '</em>')
+  return presentRichHtml(html)
     .replace(/<(p|div|h[1-6]|li)(\s[^>]*)?>\s*<\/\1>/gi, '')
     .trim()
 }

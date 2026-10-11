@@ -118,6 +118,7 @@ export function ModuleOptionsPanel({
           <DescriptionEditor
             key={moduleId}
             id={`module-desc-${moduleId}`}
+            courseId={courseId}
             value={moduleRow.description || ''}
             placeholder="What students should learn across this module"
             ariaLabel="Module learning objectives"
