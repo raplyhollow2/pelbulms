@@ -985,8 +985,8 @@ export function CourseStudio({ courseId }: { courseId: string }) {
             <Field>
               <FieldLabel htmlFor={`studio-lesson-description-${current.id}`}>Lesson learning outcome</FieldLabel>
               <FieldDescription>
-                Students read this as the lesson learning outcome on the Resources tab, under the module learning
-                objectives.
+                Students read this under the tabs on the Resources tab. On the first lesson of a module, it sits
+                under the module learning objectives.
               </FieldDescription>
               <DescriptionEditor
                 key={current.id}

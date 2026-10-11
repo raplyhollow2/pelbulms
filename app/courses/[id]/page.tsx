@@ -611,7 +611,7 @@ export default function CourseDetailPage() {
             {leadInstructor?.full_name && (
               <p>
                 Created by{' '}
-                <Link href={`/instructors/${leadInstructor.id}`} className="font-semibold text-primary">
+                <Link href={`/instructors/${leadInstructor.id}`} className="font-semibold text-white underline-offset-2 hover:underline">
                   {leadInstructor.full_name}
                 </Link>
               </p>
@@ -696,7 +696,7 @@ export default function CourseDetailPage() {
             {leadInstructor?.full_name && (
               <p>
                 Created by{' '}
-                <Link href={`/instructors/${leadInstructor.id}`} className="font-semibold text-primary">
+                <Link href={`/instructors/${leadInstructor.id}`} className="font-semibold text-white underline-offset-2 hover:underline">
                   {leadInstructor.full_name}
                 </Link>
               </p>

@@ -168,7 +168,7 @@ export function LessonOptionsFields({
                 Lesson learning outcome
               </Label>
               <p className="mt-1 text-xs text-muted-foreground">
-                Shown under the module learning objectives on the lesson Resources tab.
+                Shown under the tabs on the lesson Resources tab. On the first lesson of a module, it sits under the module learning objectives.
               </p>
               <div className="mt-1">
                 <DescriptionEditor

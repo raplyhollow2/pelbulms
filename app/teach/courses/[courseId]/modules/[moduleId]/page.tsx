@@ -580,7 +580,7 @@ export default function ModuleLessonsPage() {
                 <div className="space-y-1.5">
                   <Label htmlFor="module-description" className="text-sm">Module learning objectives</Label>
                   <p className="text-xs text-muted-foreground">
-                    Shown on every lesson in this section, on the Resources tab.
+                    Shown once, on the first lesson of this module, on the Resources tab.
                   </p>
                   <DescriptionEditor
                     id="module-description"

@@ -112,7 +112,7 @@ export function ModuleOptionsPanel({
           Module learning objectives
         </Label>
         <p className="mt-1 text-xs text-muted-foreground">
-          Shown on every lesson in this section, on the Resources tab.
+          Shown once, on the first lesson of this module, on the Resources tab.
         </p>
         <div className="mt-2">
           <DescriptionEditor

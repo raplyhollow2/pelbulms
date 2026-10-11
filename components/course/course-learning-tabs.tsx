@@ -70,7 +70,7 @@ interface CourseLearningTabsProps {
 export function CourseLearningTabs({
   course,
   modules: _modules,
-  lessons: _lessons,
+  lessons,
   currentLessonId,
   currentLesson,
   currentModule,
@@ -103,6 +103,11 @@ export function CourseLearningTabs({
   const hasResourceItems =
     parseLessonActivities((currentLesson as { resources?: unknown } | null | undefined)?.resources)
       .length > 0 || parseLessonActivities(moduleResources).length > 0
+  const moduleId = currentModule?.id ?? currentLesson?.module_id
+  const isModuleStart = Boolean(
+    moduleId && lessons.find((row) => row.module_id === moduleId)?.id === currentLessonId
+  )
+  const showModuleObjectives = isModuleStart && Boolean(currentModule?.description?.trim())
 
   useEffect(() => {
     if (focusTab) setActiveTab(focusTab)
@@ -169,20 +174,11 @@ export function CourseLearningTabs({
       </TabsContent>
 
       <TabsContent value="resources" className="mt-3 space-y-3">
-        {hasLessonContent ? (
-          <LessonBlocks
-            content={lessonContent}
-            lessonId={currentLessonId}
-            courseId={course.id}
-            onTakeQuiz={onTakeQuiz}
-            highlightItemKey={highlightActivityId}
-          />
-        ) : null}
-        {currentModule?.description?.trim() ? (
+        {showModuleObjectives ? (
           <div className="rounded-xl border bg-card px-3 py-3 sm:px-4 sm:py-4">
             <h2 className="mb-2 text-lg font-bold leading-snug sm:text-xl">Module learning objectives</h2>
             <CourseDescription
-              text={currentModule.description}
+              text={currentModule?.description || ''}
               className="lesson-copy text-sm leading-relaxed"
             />
           </div>
@@ -195,6 +191,15 @@ export function CourseLearningTabs({
               className="lesson-copy text-sm leading-relaxed"
             />
           </div>
+        ) : null}
+        {hasLessonContent ? (
+          <LessonBlocks
+            content={lessonContent}
+            lessonId={currentLessonId}
+            courseId={course.id}
+            onTakeQuiz={onTakeQuiz}
+            highlightItemKey={highlightActivityId}
+          />
         ) : null}
         {resourcesLocked ? (
           <LockedPanel title="Activities" />
