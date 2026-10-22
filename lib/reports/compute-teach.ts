@@ -45,14 +45,41 @@ async function courseIdsOwnedOrStaff(db: Db, userId: string): Promise<string[]> 
 export async function courseIdsForTeacher(
   db: Db,
   userId: string,
-  opts?: { allCourses?: boolean; instructorId?: string | null }
-): Promise<string[]> {
-  if (opts?.instructorId) return courseIdsOwnedOrStaff(db, opts.instructorId)
-  if (opts?.allCourses) {
-    const { data } = await db.from('courses').select('id')
-    return ((data || []) as any[]).map((c) => c.id)
+  opts?: {
+    allCourses?: boolean
+    instructorId?: string | null
+    courseId?: string | null
+    institutionId?: string | null
   }
-  return courseIdsOwnedOrStaff(db, userId)
+): Promise<string[]> {
+  let ids: string[]
+  if (opts?.instructorId) ids = await courseIdsOwnedOrStaff(db, opts.instructorId)
+  else if (opts?.allCourses) {
+    const { data } = await db.from('courses').select('id')
+    ids = ((data || []) as any[]).map((c) => c.id)
+  } else {
+    ids = await courseIdsOwnedOrStaff(db, userId)
+  }
+
+  if (opts?.institutionId && ids.length) {
+    const { data } = await db
+      .from('course_institutions')
+      .select('course_id')
+      .eq('institution_id', opts.institutionId)
+      .in('course_id', ids)
+    const linked = new Set(
+      ((data || []) as { course_id?: string | null }[])
+        .map((r) => r.course_id)
+        .filter((id): id is string => Boolean(id))
+    )
+    ids = ids.filter((id) => linked.has(id))
+  }
+
+  if (opts?.courseId) {
+    ids = ids.includes(opts.courseId) ? [opts.courseId] : []
+  }
+
+  return ids
 }
 
 function pickFrictionType(signals: {
@@ -100,7 +127,14 @@ const EMPTY_FRICTION: FrictionMapPayload = {
 export async function computeTeachReports(
   db: Db,
   userId: string,
-  opts?: { range?: ReportRange; allCourses?: boolean; instructorId?: string | null }
+  opts?: {
+    range?: ReportRange
+    allCourses?: boolean
+    instructorId?: string | null
+    courseId?: string | null
+    institutionId?: string | null
+    enrollmentStatus?: string | null
+  }
 ): Promise<TeachReportsResult> {
   const courseIds = await courseIdsForTeacher(db, userId, opts)
   if (courseIds.length === 0) {
@@ -153,7 +187,10 @@ export async function computeTeachReports(
   ])
 
   const courseList = (courses || []) as any[]
-  const enrollmentList = (enrollments || []) as any[]
+  let enrollmentList = (enrollments || []) as any[]
+  if (opts?.enrollmentStatus) {
+    enrollmentList = enrollmentList.filter((e) => e.status === opts.enrollmentStatus)
+  }
   const progressListAll = (lessonProgress || []) as any[]
   const moduleList = (modules || []) as any[]
   const moduleIds = new Set(moduleList.map((m) => m.id))
@@ -583,6 +620,8 @@ export async function computeTeachReports(
           lastAccess: e.last_accessed_at
             ? new Date(e.last_accessed_at).toLocaleDateString()
             : 'Never',
+          studentId: e.user_id,
+          courseId: e.course_id,
         },
       })),
       emptyMessage: 'No at-risk learners detected.',

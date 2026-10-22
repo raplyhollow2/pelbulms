@@ -24,11 +24,23 @@ export function AiBriefingPanel({
   range,
   audience,
   focus,
+  courseId,
+  institutionId,
+  enrollmentStatus,
 }: {
   range: ReportRange
   audience?: SnapshotAudience
   focus?: Focus
+  courseId?: string | null
+  institutionId?: string | null
+  enrollmentStatus?: string | null
 }) {
+  const scopeBody = () => ({
+    courseId: courseId || undefined,
+    institutionId: institutionId || undefined,
+    enrollmentStatus:
+      enrollmentStatus && enrollmentStatus !== 'all' ? enrollmentStatus : undefined,
+  })
   const [brief, setBrief] = useState<AiBriefPayload | null>(null)
   const [loading, setLoading] = useState(false)
   const [asking, setAsking] = useState(false)
@@ -91,7 +103,7 @@ export function AiBriefingPanel({
       const res = await fetch('/api/reports/ai-brief', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ range, force, audience }),
+        body: JSON.stringify({ range, force, audience, ...scopeBody() }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Briefing failed')

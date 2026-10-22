@@ -11,6 +11,9 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
+import { useCapabilities } from '@/components/auth/capabilities-provider'
+import { CAP } from '@/lib/capability-keys'
+import { StudentFollowUpPanel } from '@/components/teach/student-follow-up-panel'
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Module = Database['public']['Tables']['modules']['Row']
@@ -31,6 +34,9 @@ export default function StudentDetailPage() {
   const params = useParams()
   const courseId = params.courseId as string
   const studentId = params.studentId as string
+  const { has } = useCapabilities()
+  const canFollowUp =
+    has(CAP.MODULE_INTERVENTIONS_CONFIGURE) || has(CAP.MODULE_INTERVENTIONS_VIEW)
 
   const [loading, setLoading] = useState(true)
   const [course, setCourse] = useState<Course | null>(null)
@@ -147,56 +153,38 @@ export default function StudentDetailPage() {
         lessonsData = data || []
       }
 
-      // Student progress for this course
-      const { data: progressData } = await supabase
-        .from('lesson_progress')
-        .select('*')
-        .eq('user_id', studentId)
-        .eq('course_id', courseId)
-
-      const progressByLesson = new Map<string, any>()
-      ;(progressData || []).forEach((p: any) => progressByLesson.set(p.lesson_id, p))
-
-      // Quiz attempts (best per quiz) keyed by lesson
-      const lessonIds = lessonsData.map((l) => l.id)
-      const quizByLesson = new Map<string, string>()
-      const attemptByLesson = new Map<string, { score: number; passed: boolean }>()
-      if (lessonIds.length > 0) {
-        const { data: quizzes } = await supabase
-          .from('quizzes')
-          .select('id, lesson_id')
-          .in('lesson_id', lessonIds)
-
-        const quizIds = (quizzes || []).map((q: any) => {
-          quizByLesson.set(q.lesson_id, q.id)
-          return q.id
-        })
-
-        if (quizIds.length > 0) {
-          const { data: attempts } = await supabase
-            .from('quiz_attempts')
-            .select('quiz_id, score, passed')
-            .eq('user_id', studentId)
-            .in('quiz_id', quizIds)
-
-          const quizToLesson = new Map<string, string>()
-          quizByLesson.forEach((qid, lid) => quizToLesson.set(qid, lid))
-          ;(attempts || []).forEach((a: any) => {
-            const lid = quizToLesson.get(a.quiz_id)
-            if (!lid) return
-            const prev = attemptByLesson.get(lid)
-            if (!prev || a.score > prev.score) {
-              attemptByLesson.set(lid, { score: a.score, passed: a.passed })
-            }
-          })
-        }
+      // Progress via service-role API so admins/superadmins match the course owner
+      // (browser RLS historically only allowed courses.instructor_id).
+      const progressRes = await fetch(
+        `/api/teach/courses/${courseId}/students/${studentId}/progress`
+      )
+      const progressJson = await progressRes.json().catch(() => ({}))
+      if (!progressRes.ok) {
+        throw new Error(progressJson?.error || 'Failed to load student progress')
       }
 
-      // Build grouped rows
+      const progressByLesson = new Map<string, any>()
+      ;(progressJson.progress || []).forEach((p: any) => progressByLesson.set(p.lesson_id, p))
+      const attemptByLesson = new Map<string, { score: number; passed: boolean }>(
+        Object.entries(progressJson.attemptByLesson || {}) as [
+          string,
+          { score: number; passed: boolean },
+        ][]
+      )
+
+      // Prefer published lessons from the page query; fall back to API list.
+      const lessonsForRows =
+        lessonsData.length > 0
+          ? lessonsData
+          : (progressJson.lessons || []).map((l: any) => ({
+              ...l,
+              is_published: true,
+            }))
+
       const grouped: Record<string, LessonRow[]> = {}
       let done = 0
       let timeSpentTotal = 0
-      lessonsData.forEach((lesson) => {
+      lessonsForRows.forEach((lesson: any) => {
         const p = progressByLesson.get(lesson.id)
         const attempt = attemptByLesson.get(lesson.id)
         const row: LessonRow = {
@@ -215,7 +203,8 @@ export default function StudentDetailPage() {
       })
 
       setLessonRows(grouped)
-      setTotals({ total: lessonsData.length, done, timeSpent: timeSpentTotal })
+      setTotals({ total: lessonsForRows.length, done, timeSpent: timeSpentTotal })
+      if (progressJson.certificate) setCertificate(progressJson.certificate)
 
       // Assessed activity submissions for this student
       try {
@@ -251,15 +240,6 @@ export default function StudentDetailPage() {
       } catch (e) {
         console.log('Submissions fetch error:', e)
       }
-
-      // Certificate (instructor can read for own course)
-      const { data: certData } = await supabase
-        .from('certificates')
-        .select('*')
-        .eq('user_id', studentId)
-        .eq('course_id', courseId)
-        .maybeSingle()
-      if (certData) setCertificate(certData)
     } catch (error) {
       console.error('Error loading student detail:', error)
     } finally {
@@ -364,6 +344,17 @@ export default function StudentDetailPage() {
             </CardContent>
           </Card>
         </div>
+
+        {canFollowUp && (
+          <StudentFollowUpPanel
+            courseId={courseId}
+            studentId={studentId}
+            studentName={student?.full_name || student?.email || 'Learner'}
+            courseTitle={course?.title || ''}
+            progressPct={progressPct}
+            lastAccessedAt={enrollment?.last_accessed_at}
+          />
+        )}
 
         {/* Certificate status */}
         <Card>

@@ -5,6 +5,7 @@ import { generateExecutiveBrief } from '@/lib/reports/ai-brief'
 import { isFeatureConfigured } from '@/lib/ai/dispatch'
 import type { AiBriefPayload } from '@/lib/reports/types'
 import { resolveSnapshotForUser } from '@/lib/reports/resolve-snapshot'
+import { authorizeReportScope } from '@/lib/reports/scope'
 import { audienceAllowsAiBrief } from '@/lib/reports/types'
 import type { ReportRange, SnapshotAudience } from '@/lib/reports/types'
 import { getRequestUser } from '@/lib/request-user'
@@ -103,12 +104,27 @@ export async function POST(request: NextRequest) {
     const force = Boolean(body.force)
     const prefer = parsePrefer(body.audience)
 
+    const auth = await authorizeReportScope(service as any, {
+      userId: user.id,
+      role,
+      profileInstitutionId: (profile as any).institution_id,
+      courseId: typeof body.courseId === 'string' ? body.courseId : null,
+      institutionId: typeof body.institutionId === 'string' ? body.institutionId : null,
+      enrollmentStatus:
+        typeof body.enrollmentStatus === 'string' ? body.enrollmentStatus : null,
+    })
+    if (auth.ok === false) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status })
+    }
+
     const snapshot = await resolveSnapshotForUser(service as any, {
       userId: user.id,
       role,
       range,
       prefer,
       institutionId: (profile as any).institution_id,
+      filters: auth.filters,
+      institutionIds: auth.institutionIds,
     })
 
     if (!audienceAllowsAiBrief(snapshot.audience)) {

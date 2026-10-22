@@ -14,6 +14,10 @@ import {
 import { AiBriefingPanel } from '@/components/reports/ai-briefing-panel'
 import { ExportPackBar } from '@/components/reports/export-pack-bar'
 import { FrictionMapPanel } from '@/components/reports/friction-map-panel'
+import {
+  NextActionsPanel,
+  type InterveneLearnerOption,
+} from '@/components/reports/next-actions-panel'
 import { ReportBlockCard, ReportHubHeader, ReportSectionTabs } from '@/components/reports/report-ui'
 import {
   audienceAllowsAiBrief,
@@ -23,7 +27,7 @@ import {
 } from '@/lib/reports/types'
 import { LiveUsersPanel } from '@/components/admin/live-users-panel'
 import { cn } from '@/lib/utils'
-import { AlertTriangle, ArrowRight, CheckCircle2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2 } from 'lucide-react'
 
 const DESCRIPTIONS: Record<SnapshotAudience, string> = {
   superadmin:
@@ -48,6 +52,8 @@ export function RoleReportDashboard({
   onDeepDiveChange,
   headerExtra,
   focusBlockId,
+  scopeFilters,
+  onInterveneDone,
 }: {
   snapshot: ReportSnapshot
   range: ReportRange
@@ -59,10 +65,31 @@ export function RoleReportDashboard({
   headerExtra?: React.ReactNode
   /** Scroll/highlight a detailed-report block (e.g. lesson-friction). */
   focusBlockId?: string | null
+  scopeFilters?: {
+    courseId?: string
+    institutionId?: string
+    enrollmentStatus?: string
+  }
+  onInterveneDone?: () => void
 }) {
   const audience = snapshot.audience
   const showAi = audienceAllowsAiBrief(audience)
   const [focus, setFocus] = useState<{ label: string; detail?: string } | null>(null)
+
+  const interveneLearners: InterveneLearnerOption[] = (
+    snapshot.tables.find((t) => t.key === 'at-risk')?.rows || []
+  )
+    .map((row) => {
+      const studentId = String(row.cells.studentId || '')
+      const courseId = String(row.cells.courseId || '')
+      if (!studentId || !courseId) return null
+      return {
+        studentId,
+        courseId,
+        label: `${row.cells.student || studentId.slice(0, 8)} · ${row.cells.course || courseId}`,
+      }
+    })
+    .filter(Boolean) as InterveneLearnerOption[]
 
   const explain = (label: string, detail?: string) => {
     setFocus({ label, detail })
@@ -118,6 +145,15 @@ export function RoleReportDashboard({
             range={range}
             audience={audience}
             includeAiBrief={showAi}
+            courseId={scopeFilters?.courseId || snapshot.scope?.courseId || undefined}
+            institutionId={
+              scopeFilters?.institutionId || snapshot.scope?.institutionId || undefined
+            }
+            enrollmentStatus={
+              scopeFilters?.enrollmentStatus ||
+              snapshot.scope?.enrollmentStatus ||
+              undefined
+            }
           />
           {headerExtra}
         </div>
@@ -214,34 +250,11 @@ export function RoleReportDashboard({
           />
         ) : null}
 
-        <Card className="bg-card/80 border border-border">
-          <CardHeader>
-            <CardTitle className="text-base">Action queue</CardTitle>
-            <CardDescription>Priorities from live thresholds</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {snapshot.actions.map((a) => (
-              <div
-                key={a.id}
-                className="flex items-start justify-between gap-3 rounded-lg border border-border/50 p-3"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium">
-                    <span className="mr-2 text-primary">{a.priority}.</span>
-                    {a.title}
-                  </p>
-                  <p className="text-sm text-muted-foreground">{a.reason}</p>
-                </div>
-                <Link
-                  href={a.href}
-                  className="inline-flex shrink-0 items-center text-sm text-primary hover:underline"
-                >
-                  Open <ArrowRight className="ml-1 h-3.5 w-3.5" />
-                </Link>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        <NextActionsPanel
+          actions={snapshot.actions}
+          learners={interveneLearners}
+          onInterveneDone={onInterveneDone}
+        />
       </div>
 
       <Card className="bg-card/80 border border-border">
@@ -292,7 +305,16 @@ export function RoleReportDashboard({
       </Card>
 
       {showAi ? (
-        <AiBriefingPanel range={range} audience={audience} focus={focus} />
+        <AiBriefingPanel
+          range={range}
+          audience={audience}
+          focus={focus}
+          courseId={scopeFilters?.courseId || snapshot.scope?.courseId}
+          institutionId={scopeFilters?.institutionId || snapshot.scope?.institutionId}
+          enrollmentStatus={
+            scopeFilters?.enrollmentStatus || snapshot.scope?.enrollmentStatus
+          }
+        />
       ) : null}
 
       {showDeepDive && snapshot.sections.length > 0 && onDeepDiveChange ? (

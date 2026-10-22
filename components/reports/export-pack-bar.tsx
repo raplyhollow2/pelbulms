@@ -10,10 +10,16 @@ export function ExportPackBar({
   range,
   includeAiBrief = true,
   audience,
+  courseId,
+  institutionId,
+  enrollmentStatus,
 }: {
   range: ReportRange
   includeAiBrief?: boolean
   audience?: SnapshotAudience
+  courseId?: string | null
+  institutionId?: string | null
+  enrollmentStatus?: string | null
 }) {
   const [busy, setBusy] = useState<string | null>(null)
 
@@ -28,6 +34,10 @@ export function ExportPackBar({
           range,
           includeAiBrief: includeAiBrief && audience !== 'student',
           audience,
+          courseId: courseId || undefined,
+          institutionId: institutionId || undefined,
+          enrollmentStatus:
+            enrollmentStatus && enrollmentStatus !== 'all' ? enrollmentStatus : undefined,
         }),
       })
       if (!res.ok) {

@@ -32,6 +32,18 @@ export async function computeApprovalsReports(
   db: Db,
   options?: { institutionIds?: string[] | null }
 ): Promise<ReportBlock[]> {
+  // Explicit empty list = no orgs in scope (do not fall through to platform-wide).
+  if (Array.isArray(options?.institutionIds) && options!.institutionIds!.length === 0) {
+    return [
+      {
+        id: 'approval-queue-aging',
+        title: 'Approval queue aging',
+        emptyMessage: 'No institutions in your report scope.',
+        metrics: [{ key: 'pending', label: 'Pending', value: 0 }],
+      },
+    ]
+  }
+
   let regQuery = db
     .from('student_registrations')
     .select(
@@ -335,6 +347,18 @@ export async function computeAdminOpsReports(
   let ciList = (courseInstitutions || []) as any[]
   let accessList = ((institutionAccess || []) as any[]).filter((a) => a.is_active)
   let regList = (registrations || []) as any[]
+  // Empty array means scoped-to-nothing; null/undefined means platform-wide.
+  if (Array.isArray(options?.institutionIds) && options!.institutionIds!.length === 0) {
+    profileList = []
+    courseList = []
+    enrollmentList = []
+    instList = []
+    moduleList = []
+    lessonList = []
+    ciList = []
+    accessList = []
+    regList = []
+  }
   const orgIds = (options?.institutionIds || []).filter(Boolean)
   if (orgIds.length) {
     const allowed = new Set(orgIds)

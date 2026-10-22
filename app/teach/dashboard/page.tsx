@@ -24,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Plus, BookOpen, Users, Loader2, Award, HardDrive, Check, X, ClipboardCheck, Trash2, MoreVertical, ListFilter, Share2 } from 'lucide-react'
+import { Plus, BookOpen, Users, Loader2, Award, HardDrive, Check, X, ClipboardCheck, Trash2, MoreVertical, ListFilter, Share2, BarChart3 } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1112,6 +1112,12 @@ export default function TeacherDashboard() {
                           <ClipboardCheck />
                           Grade
                         </DropdownMenuItem>
+                        {has(CAP.TEACH_REPORTS_VIEW) && (
+                          <DropdownMenuItem onClick={() => router.push(`/teach/reports?courseId=${course.id}`)}>
+                            <BarChart3 />
+                            Report
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => router.push(`/teach/courses/${course.id}/certificate`)}>
                           <Award />
                           Certificate

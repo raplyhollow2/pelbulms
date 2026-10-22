@@ -164,12 +164,26 @@ export interface ReportAlert {
   href?: string
 }
 
+export type ReportActionKind = 'deep_link' | 'intervene'
+export type InterventionSuggestedKind = 'note' | 'nudge' | 'question' | 'at_risk'
+
 export interface ReportAction {
   id: string
   priority: number
   title: string
   reason: string
   href: string
+  /** Default deep_link when omitted. */
+  kind?: ReportActionKind
+  target?: { courseId: string; studentId?: string }
+  suggestedKind?: InterventionSuggestedKind
+}
+
+/** Active filters applied when the snapshot was built (included in hash). */
+export interface ReportSnapshotScope {
+  courseId?: string | null
+  institutionId?: string | null
+  enrollmentStatus?: string | null
 }
 
 export interface FunnelStep {
@@ -271,6 +285,8 @@ export interface ReportSnapshot {
   range: ReportRange
   audience: SnapshotAudience
   title: string
+  /** Course / org / enrollment filters for this snapshot. */
+  scope?: ReportSnapshotScope
   kpis: ReportMetric[]
   series: ReportSeries[]
   funnel: FunnelStep[]

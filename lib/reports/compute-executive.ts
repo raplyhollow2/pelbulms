@@ -72,6 +72,7 @@ function hashSnapshot(payload: Omit<ReportSnapshot, 'hash'>): string {
   const raw = JSON.stringify({
     range: payload.range,
     audience: payload.audience,
+    scope: payload.scope || null,
     kpis: payload.kpis,
     funnel: payload.funnel,
     alerts: payload.alerts.map((a) => a.id),
@@ -87,11 +88,18 @@ export async function buildReportSnapshot(
     audience: 'admin' | 'superadmin'
     range: ReportRange
     institutionIds?: string[] | null
+    courseId?: string | null
+    institutionId?: string | null
   }
 ): Promise<ReportSnapshot> {
   const days = rangeToDays(opts.range)
   const since = daysAgoIso(days)
   const since14 = daysAgoIso(14)
+  // null = platform-wide; [] = empty scope (no orgs)
+  const scopedInstitutions =
+    opts.institutionIds === undefined || opts.institutionIds === null
+      ? null
+      : opts.institutionIds
 
   const [
     approvalsBlocks,
@@ -101,9 +109,11 @@ export async function buildReportSnapshot(
     demographics,
   ] = await Promise.all([
     computeApprovalsReports(db, {
-      institutionIds: opts.institutionIds?.length ? opts.institutionIds : null,
+      institutionIds: scopedInstitutions,
     }),
-    computeAdminOpsReports(db),
+    computeAdminOpsReports(db, {
+      institutionIds: scopedInstitutions,
+    }),
     opts.audience === 'superadmin'
       ? computePlatformCommandReports(db)
       : Promise.resolve([]),
@@ -164,11 +174,40 @@ export async function buildReportSnapshot(
     db.from('courses').select('id, title, is_published, created_at'),
   ])
 
-  const enrollmentList = (enrollments || []) as any[]
-  const regList = (registrations || []) as any[]
-  const profileList = (profiles || []) as any[]
-  const instList = ((institutions || []) as any[]).filter((i) => i.is_active !== false)
-  const courseList = (courses || []) as any[]
+  let enrollmentList = (enrollments || []) as any[]
+  let regList = (registrations || []) as any[]
+  let profileList = (profiles || []) as any[]
+  let instList = ((institutions || []) as any[]).filter((i) => i.is_active !== false)
+  let courseList = (courses || []) as any[]
+
+  if (Array.isArray(scopedInstitutions) && scopedInstitutions.length === 0) {
+    enrollmentList = []
+    regList = []
+    profileList = []
+    instList = []
+    courseList = []
+  } else if (scopedInstitutions?.length) {
+    const allowed = new Set(scopedInstitutions)
+    instList = instList.filter((i) => allowed.has(i.id))
+    profileList = profileList.filter((p) => p.institution_id && allowed.has(p.institution_id))
+    regList = regList.filter((r) => r.institution_id && allowed.has(r.institution_id))
+    const { data: ciRows } = await db
+      .from('course_institutions')
+      .select('course_id')
+      .in('institution_id', scopedInstitutions)
+    const courseAllowed = new Set(
+      ((ciRows || []) as { course_id?: string | null }[])
+        .map((r) => r.course_id)
+        .filter((id): id is string => Boolean(id))
+    )
+    courseList = courseList.filter((c) => courseAllowed.has(c.id))
+    enrollmentList = enrollmentList.filter((e) => courseAllowed.has(e.course_id))
+  }
+
+  if (opts.courseId) {
+    courseList = courseList.filter((c) => c.id === opts.courseId)
+    enrollmentList = enrollmentList.filter((e) => e.course_id === opts.courseId)
+  }
 
   const profileInst = new Map(profileList.map((p) => [p.id, p.institution_id as string | null]))
 
@@ -373,6 +412,7 @@ export async function buildReportSnapshot(
       title: 'Clear KYC backlog over 72 hours',
       reason: `${slaBreaches} registrations exceed SLA`,
       href: APPROVALS_HREF,
+      kind: 'deep_link',
     })
   }
   if (Number(p95) > 72 || (typeof p95 === 'number' && p95 > 72)) {
@@ -382,6 +422,7 @@ export async function buildReportSnapshot(
       title: 'Investigate KYC P95 latency',
       reason: `Decision P95 is ${p95} hours`,
       href: APPROVALS_HREF,
+      kind: 'deep_link',
     })
   }
   if (darkCount > 0) {
@@ -391,6 +432,7 @@ export async function buildReportSnapshot(
       title: 'Review dark-catalog courses',
       reason: `${darkCount} published courses with near-zero enrollments`,
       href: darkHref,
+      kind: 'deep_link',
     })
   }
   if (misfitCount > 0) {
@@ -400,6 +442,7 @@ export async function buildReportSnapshot(
       title: 'Fix audience locks with zero enrollments',
       reason: `${misfitCount} restricted courses have eligible students but no enrollments`,
       href: misfitHref,
+      kind: 'deep_link',
     })
   }
   if (quietCount > 0) {
@@ -409,6 +452,7 @@ export async function buildReportSnapshot(
       title: 'Check quiet courses',
       reason: `${quietCount} published courses have enrollments but no recent activity`,
       href: quietHref,
+      kind: 'deep_link',
     })
   }
   if (leakCount > 0) {
@@ -418,6 +462,7 @@ export async function buildReportSnapshot(
       title: 'Audit tenancy leaks',
       reason: `${leakCount} enrollments may violate course institution audience rules`,
       href: leakHref,
+      kind: 'deep_link',
     })
   }
   if (actions.length === 0) {
@@ -427,6 +472,7 @@ export async function buildReportSnapshot(
       title: 'No critical actions',
       reason: 'Key SLAs and catalog risks look healthy in this window.',
       href: '/admin/reports',
+      kind: 'deep_link',
     })
   }
   actions.push({
@@ -434,7 +480,10 @@ export async function buildReportSnapshot(
     priority: prio++,
     title: 'Open course insights',
     reason: 'Grading queues and course health for every teacher.',
-    href: '/teach/reports',
+    href: opts.courseId
+      ? `/teach/reports?courseId=${encodeURIComponent(opts.courseId)}`
+      : '/teach/reports',
+    kind: 'deep_link',
   })
 
   const tables = [
@@ -490,6 +539,11 @@ export async function buildReportSnapshot(
     generatedAt: new Date().toISOString(),
     range: opts.range,
     audience: opts.audience,
+    scope: {
+      courseId: opts.courseId || null,
+      institutionId: opts.institutionId || null,
+      enrollmentStatus: null,
+    },
     title:
       opts.audience === 'superadmin'
         ? 'Executive Command Center'

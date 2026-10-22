@@ -6,6 +6,12 @@ import { Loader2 } from 'lucide-react'
 import { RoleReportDashboard } from '@/components/reports/role-report-dashboard'
 import { GradingAlertBanner } from '@/components/teach/grading-alert-banner'
 import { ReportBlockCard, ReportHubHeader, ReportSectionTabs } from '@/components/reports/report-ui'
+import {
+  ReportScopeBar,
+  scopeFromSearchParams,
+  scopeQueryString,
+  type ReportScopeSelection,
+} from '@/components/reports/report-scope-bar'
 import type { ReportRange, ReportSectionPayload, ReportSnapshot } from '@/lib/reports/types'
 import { canAccessAdmin } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/client'
@@ -21,10 +27,31 @@ export default function AdminReportsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [role, setRole] = useState<string>('admin')
-  const [range, setRange] = useState<ReportRange>('30d')
+  const [range, setRange] = useState<ReportRange>(
+    () => (searchParams.get('range') as ReportRange) || '30d'
+  )
+  const [scope, setScope] = useState<ReportScopeSelection>(() =>
+    scopeFromSearchParams(searchParams)
+  )
   const [snapshot, setSnapshot] = useState<ReportSnapshot | null>(null)
   const [deepDive, setDeepDive] = useState('')
   const [legacySections, setLegacySections] = useState<ReportSectionPayload[]>([])
+
+  const syncUrl = useCallback(
+    (nextRange: ReportRange, nextScope: ReportScopeSelection, focus?: string | null) => {
+      const params = new URLSearchParams()
+      params.set('range', nextRange)
+      if (nextScope.courseId) params.set('courseId', nextScope.courseId)
+      if (nextScope.institutionId) params.set('institutionId', nextScope.institutionId)
+      if (nextScope.enrollmentStatus && nextScope.enrollmentStatus !== 'all') {
+        params.set('enrollmentStatus', nextScope.enrollmentStatus)
+      }
+      if (focus) params.set('focus', focus)
+      const qs = params.toString()
+      router.replace(qs ? `/admin/reports?${qs}` : '/admin/reports', { scroll: false })
+    },
+    [router]
+  )
 
   const load = useCallback(async () => {
     try {
@@ -73,8 +100,16 @@ export default function AdminReportsPage() {
             ? 'resource_person'
             : 'admin'
 
-      const res = await fetch(`/api/reports/snapshot?range=${range}&audience=${audience}`)
+      const qs = scopeQueryString(
+        { ...scope, enrollmentStatus: 'all' },
+        { range, audience }
+      )
+      const res = await fetch(`/api/reports/snapshot${qs}`)
       const json = await res.json()
+      if (res.status === 403) {
+        setScope({ courseId: '', institutionId: '', enrollmentStatus: 'all' })
+        throw new Error(json.error || 'Filter not allowed — cleared scope')
+      }
       if (!res.ok) throw new Error(json.error || 'Failed to load snapshot')
       setSnapshot(json.snapshot)
       setLegacySections([])
@@ -86,7 +121,7 @@ export default function AdminReportsPage() {
     } finally {
       setLoading(false)
     }
-  }, [range, router])
+  }, [range, router, scope])
 
   useEffect(() => {
     load()
@@ -97,6 +132,16 @@ export default function AdminReportsPage() {
     const section = sectionForBlock(snapshot, focusBlockId)
     if (section) setDeepDive(section)
   }, [focusBlockId, snapshot])
+
+  const onRangeChange = (r: ReportRange) => {
+    setRange(r)
+    syncUrl(r, scope, focusBlockId)
+  }
+
+  const onScopeChange = (next: ReportScopeSelection) => {
+    setScope(next)
+    syncUrl(range, next, focusBlockId)
+  }
 
   if (loading) {
     return (
@@ -109,8 +154,18 @@ export default function AdminReportsPage() {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto space-y-4 px-4 py-8">
         <p className="text-destructive">{error}</p>
+        <button
+          type="button"
+          className="text-sm text-primary underline"
+          onClick={() => {
+            setError(null)
+            void load()
+          }}
+        >
+          Retry
+        </button>
       </div>
     )
   }
@@ -147,10 +202,15 @@ export default function AdminReportsPage() {
   return (
     <div className="container mx-auto space-y-6 px-4 py-8">
       <GradingAlertBanner />
+      <ReportScopeBar
+        value={scope}
+        onChange={onScopeChange}
+        showEnrollmentStatus={false}
+      />
       <RoleReportDashboard
         snapshot={snapshot}
         range={range}
-        onRangeChange={setRange}
+        onRangeChange={onRangeChange}
         badge={
           role === 'superadmin'
             ? 'Superadmin'
@@ -162,6 +222,11 @@ export default function AdminReportsPage() {
         deepDiveSection={deepDive}
         onDeepDiveChange={setDeepDive}
         focusBlockId={focusBlockId}
+        scopeFilters={{
+          courseId: scope.courseId || undefined,
+          institutionId: scope.institutionId || undefined,
+        }}
+        onInterveneDone={() => void load()}
       />
     </div>
   )

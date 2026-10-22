@@ -24,6 +24,9 @@ const LEARNER_PREF_KEYS = new Set([
   'activity.updated',
 ])
 
+/** Academic outreach: only skip when global email_notifications is false. */
+const GLOBAL_EMAIL_ONLY_KEYS = new Set(['teacher.intervention'])
+
 function asVariables(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   return value.filter((item): item is string => typeof item === 'string')
@@ -88,7 +91,10 @@ function withAbsoluteAction(vars: Record<string, string>): Record<string, string
   return next
 }
 
-async function learnerOptedOut(userId: string): Promise<boolean> {
+async function learnerOptedOut(
+  userId: string,
+  mode: 'course' | 'global'
+): Promise<boolean> {
   const service = await tryCreateServiceClient()
   if (!service) return false
   const { data } = await (service as any)
@@ -98,7 +104,9 @@ async function learnerOptedOut(userId: string): Promise<boolean> {
     .maybeSingle()
   if (!data) return false
   const row = data as { email_notifications?: boolean | null; course_updates?: boolean | null }
-  return row.email_notifications === false || row.course_updates === false
+  if (row.email_notifications === false) return true
+  if (mode === 'course' && row.course_updates === false) return true
+  return false
 }
 
 export async function sendTemplatedEmail(input: {
@@ -111,9 +119,19 @@ export async function sendTemplatedEmail(input: {
   const template = await getEmailTemplate(input.templateKey)
   if (!template || !template.enabled) return { sent: false, skipped: true }
 
-  const respect = input.respectCoursePreferences ?? LEARNER_PREF_KEYS.has(input.templateKey)
-  if (respect && input.userId && (await learnerOptedOut(input.userId))) {
-    return { sent: false, skipped: true }
+  const globalOnly = GLOBAL_EMAIL_ONLY_KEYS.has(input.templateKey)
+  const respectCourse =
+    input.respectCoursePreferences ??
+    (!globalOnly && LEARNER_PREF_KEYS.has(input.templateKey))
+
+  if (input.userId) {
+    if (globalOnly || respectCourse) {
+      const optedOut = await learnerOptedOut(
+        input.userId,
+        globalOnly ? 'global' : 'course'
+      )
+      if (optedOut) return { sent: false, skipped: true }
+    }
   }
 
   const vars = withAbsoluteAction(input.vars)

@@ -56,6 +56,7 @@ function hashSnapshot(payload: Omit<ReportSnapshot, 'hash'>): string {
   const raw = JSON.stringify({
     range: payload.range,
     audience: payload.audience,
+    scope: payload.scope || null,
     kpis: payload.kpis,
     funnel: payload.funnel,
     alerts: payload.alerts.map((a) => a.id),
@@ -66,12 +67,26 @@ function hashSnapshot(payload: Omit<ReportSnapshot, 'hash'>): string {
 
 export async function buildTeachSnapshot(
   db: Db,
-  opts: { userId: string; range: ReportRange; allCourses?: boolean; instructorId?: string | null }
+  opts: {
+    userId: string
+    range: ReportRange
+    allCourses?: boolean
+    instructorId?: string | null
+    courseId?: string | null
+    institutionId?: string | null
+    enrollmentStatus?: string | null
+  }
 ): Promise<ReportSnapshot> {
   const days = rangeToDays(opts.range)
   const since = daysAgoIso(days)
   const since14 = daysAgoIso(14)
-  const scope = { allCourses: opts.allCourses, instructorId: opts.instructorId }
+  const scope = {
+    allCourses: opts.allCourses,
+    instructorId: opts.instructorId,
+    courseId: opts.courseId,
+    institutionId: opts.institutionId,
+    enrollmentStatus: opts.enrollmentStatus,
+  }
   const { blocks, frictionMap } = await computeTeachReports(db, opts.userId, {
     range: opts.range,
     ...scope,
@@ -100,7 +115,16 @@ export async function buildTeachSnapshot(
       db.from('courses').select('id, title, is_published').in('id', courseIds),
     ])
     enrollmentList = (ens || []) as any[]
+    if (opts.enrollmentStatus) {
+      enrollmentList = enrollmentList.filter((e) => e.status === opts.enrollmentStatus)
+    }
     courseList = (courses || []) as any[]
+  }
+
+  const snapshotScope = {
+    courseId: opts.courseId || null,
+    institutionId: opts.institutionId || null,
+    enrollmentStatus: opts.enrollmentStatus || null,
   }
 
   const engagement = blocks.find((b) => b.id === 'engagement')
@@ -215,6 +239,7 @@ export async function buildTeachSnapshot(
     : '/teach/reports?focus=lesson-friction'
   const atRiskFocusHref = atRiskHref
 
+  const topAtRiskStudent = atRiskEnrollments[0]
   if (atRiskCount > 0) {
     alerts.push({
       id: 'at-risk',
@@ -227,8 +252,15 @@ export async function buildTeachSnapshot(
       id: 'act-risk',
       priority: prio++,
       title: 'Reach out to at-risk learners',
-      reason: `${atRiskCount} students need intervention`,
+      reason: `${atRiskCount} students need intervention — email them from reports`,
       href: atRiskHref,
+      kind: 'intervene',
+      suggestedKind: 'at_risk',
+      target: topAtRiskStudent
+        ? { courseId: topAtRiskStudent.course_id, studentId: topAtRiskStudent.user_id }
+        : topAtRiskCourseId
+          ? { courseId: topAtRiskCourseId }
+          : undefined,
     })
   }
   if (frictionCount > 0) {
@@ -248,6 +280,10 @@ export async function buildTeachSnapshot(
           ? `${topDropOff} lessons with ≥20% drop-off — fix top 3 first`
           : `${frictionCount} hotspots (stuck/dwell/assessment) need review`,
       href: frictionHref,
+      kind: 'deep_link',
+      target: topHotspot
+        ? { courseId: topHotspot.courseId }
+        : undefined,
     })
   }
   const gradingBlock = blocks.find((b) => b.id === 'grading-queue')
@@ -274,12 +310,37 @@ export async function buildTeachSnapshot(
       title: `Grade ${topGrade.cells.course}`,
       reason: `${pendingGrades} submissions waiting in the largest queue`,
       href: gradeHref,
+      kind: 'deep_link',
+      target: topGrade.id ? { courseId: String(topGrade.id) } : undefined,
     })
     const pendingKpi = kpis.find((k) => k.key === 'pendingGrades')
     if (pendingKpi) pendingKpi.href = gradeHref
   }
   const atRiskKpi = kpis.find((k) => k.key === 'atRisk')
   if (atRiskKpi && atRiskCount > 0) atRiskKpi.href = atRiskHref
+
+  const rosterBlock = blocks.find((b) => b.id === 'roster-ops')
+  const pendingRoster = Number(
+    rosterBlock?.metrics?.find((m) => m.key === 'pending' || m.key === 'invites')?.value || 0
+  )
+  const pendingRosterRows = (rosterBlock?.rows || []).filter(
+    (r) => Number(r.cells.pending || r.cells.invites || 0) > 0
+  )
+  if (pendingRoster > 0 || pendingRosterRows.length > 0) {
+    const rosterCourseId = pendingRosterRows[0]?.id || topAtRiskCourseId || courseIds[0]
+    const rosterHref = rosterCourseId
+      ? `/teach/courses/${rosterCourseId}/students`
+      : '/teach/dashboard'
+    actions.push({
+      id: 'act-roster',
+      priority: prio++,
+      title: 'Review pending roster',
+      reason: 'Pending enrollments or invites need follow-up',
+      href: rosterHref,
+      kind: 'deep_link',
+    })
+  }
+
   if (actions.length === 0) {
     actions.push({
       id: 'act-ok',
@@ -287,6 +348,7 @@ export async function buildTeachSnapshot(
       title: 'Courses look healthy',
       reason: 'No critical at-risk or friction signals in this window.',
       href: '/teach/dashboard',
+      kind: 'deep_link',
     })
   }
 
@@ -324,6 +386,7 @@ export async function buildTeachSnapshot(
     range: opts.range,
     audience: 'instructor',
     title: 'Course Insights',
+    scope: snapshotScope,
     kpis,
     series,
     funnel,
@@ -486,12 +549,18 @@ export async function buildStudentSnapshot(
 
 export async function buildApprovalsSnapshot(
   db: Db,
-  opts: { range: ReportRange; institutionIds?: string[] | null }
+  opts: {
+    range: ReportRange
+    institutionIds?: string[] | null
+    institutionId?: string | null
+    courseId?: string | null
+  }
 ): Promise<ReportSnapshot> {
   const days = rangeToDays(opts.range)
   const since = daysAgoIso(days)
+  // Empty array = no orgs in scope (show empty), null = platform-wide
   const blocks = await computeApprovalsReports(db, {
-    institutionIds: opts.institutionIds?.length ? opts.institutionIds : null,
+    institutionIds: opts.institutionIds === undefined ? null : opts.institutionIds,
   })
 
   const sections: ReportSectionPayload[] = [
@@ -519,11 +588,16 @@ export async function buildApprovalsSnapshot(
     .from('student_registrations')
     .select('submitted_at, reviewed_at, registration_status')
     .limit(2000)
-  if (opts.institutionIds?.length) {
-    regQuery = regQuery.in('institution_id', opts.institutionIds)
+  let regList: any[] = []
+  if (opts.institutionIds && opts.institutionIds.length === 0) {
+    regList = []
+  } else {
+    if (opts.institutionIds?.length) {
+      regQuery = regQuery.in('institution_id', opts.institutionIds)
+    }
+    const { data: regs } = await regQuery
+    regList = (regs || []) as any[]
   }
-  const { data: regs } = await regQuery
-  const regList = (regs || []) as any[]
 
   const series: ReportSeries[] = [
     {
@@ -595,6 +669,7 @@ export async function buildApprovalsSnapshot(
       title: 'Clear aged approval queue',
       reason: `${pending} pending · P95 ${p95}h`,
       href: '/admin/users?tab=approvals',
+      kind: 'deep_link',
     })
   } else if (pending > 0) {
     alerts.push({
@@ -610,14 +685,33 @@ export async function buildApprovalsSnapshot(
       title: 'Review pending registrations',
       reason: `${pending} in backlog`,
       href: '/admin/users?tab=approvals',
+      kind: 'deep_link',
     })
-  } else {
+  }
+
+  const neverActivated = Number(
+    activation?.metrics?.find((m) => m.key === 'never_enrolled' || m.key === 'neverEnrolled')
+      ?.value || 0
+  )
+  if (neverActivated > 0) {
+    actions.push({
+      id: 'act-activate',
+      priority: prio++,
+      title: 'Follow up post-approval activation',
+      reason: `${neverActivated} approved learners have not started`,
+      href: '/admin/users?tab=approvals',
+      kind: 'deep_link',
+    })
+  }
+
+  if (actions.length === 0) {
     actions.push({
       id: 'act-ok',
       priority: 1,
       title: 'Approvals queue is clear',
       reason: 'No pending KYC backlog in scope.',
       href: '/admin/users?tab=approvals',
+      kind: 'deep_link',
     })
   }
 
@@ -654,6 +748,11 @@ export async function buildApprovalsSnapshot(
     range: opts.range,
     audience: 'resource_person',
     title: 'Approvals & Institution Quality',
+    scope: {
+      courseId: opts.courseId || null,
+      institutionId: opts.institutionId || null,
+      enrollmentStatus: null,
+    },
     kpis: kpis.length ? kpis : [{ key: 'pending', label: 'Pending', value: pending }],
     series,
     funnel,

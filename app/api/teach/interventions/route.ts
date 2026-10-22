@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { enforceCapability, CAP } from '@/lib/rbac'
 import { createServiceClient } from '@/lib/supabase/server'
 import { userCanManageCourse } from '@/lib/course-access'
+import { sendTemplatedEmail } from '@/lib/email/templated'
 
 const TEACHER_ROLES = ['instructor', 'admin', 'resource_person', 'superadmin'] as const
 
@@ -137,5 +138,36 @@ export async function POST(request: NextRequest) {
     metadata: { course_id: courseId, kind },
   })
 
-  return NextResponse.json({ intervention: data })
+  let emailResult: { sent: boolean; skipped?: boolean; error?: string } = {
+    sent: false,
+    skipped: true,
+  }
+  try {
+    const [{ data: student }, { data: teacher }, { data: course }] = await Promise.all([
+      service.from('profiles').select('id, email, full_name').eq('id', studentId).maybeSingle(),
+      service.from('profiles').select('id, full_name').eq('id', rbac.userId).maybeSingle(),
+      service.from('courses').select('id, title').eq('id', courseId).maybeSingle(),
+    ])
+    const to = (student as any)?.email
+    if (to) {
+      emailResult = await sendTemplatedEmail({
+        templateKey: 'teacher.intervention',
+        to: String(to),
+        userId: studentId,
+        vars: {
+          learner_name: (student as any)?.full_name || 'Learner',
+          teacher_name: (teacher as any)?.full_name || 'Your teacher',
+          course_title: (course as any)?.title || 'your course',
+          message: String(message).trim(),
+          action_url: `/learn/${courseId}`,
+        },
+      })
+    } else {
+      emailResult = { sent: false, skipped: true, error: 'Learner has no email on file' }
+    }
+  } catch (e: any) {
+    emailResult = { sent: false, error: e?.message || 'Email failed' }
+  }
+
+  return NextResponse.json({ intervention: data, email: emailResult })
 }

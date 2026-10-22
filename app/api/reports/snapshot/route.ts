@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient, createServiceClient } from '@/lib/supabase/server'
 import { resolveEffectiveRole } from '@/lib/approvals-access'
 import { resolveSnapshotForUser, roleToSnapshotAudience } from '@/lib/reports/resolve-snapshot'
+import { authorizeReportScope } from '@/lib/reports/scope'
 import type { ReportRange, SnapshotAudience } from '@/lib/reports/types'
 import { getRequestUser } from '@/lib/request-user'
 
@@ -23,10 +24,10 @@ function parsePrefer(raw: string | null): SnapshotAudience | undefined {
   return undefined
 }
 
-/** GET /api/reports/snapshot?range=30d&audience=instructor */
+/** GET /api/reports/snapshot?range=30d&audience=instructor&courseId=&institutionId=&enrollmentStatus= */
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createSupabaseServerClient()
+    await createSupabaseServerClient()
     const user = await getRequestUser(request)
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -44,13 +45,26 @@ export async function GET(request: NextRequest) {
     }
 
     const role = resolveEffectiveRole((profile as any).role, user)
-    if (!roleToSnapshotAudience(role) && role !== 'instructor') {
-      // all platform roles map; still allow any authenticated
-    }
+    void roleToSnapshotAudience(role)
 
     const range = parseRange(request.nextUrl.searchParams.get('range'))
     const prefer = parsePrefer(request.nextUrl.searchParams.get('audience'))
     const instructorId = request.nextUrl.searchParams.get('instructorId')
+    const courseId = request.nextUrl.searchParams.get('courseId')
+    const institutionId = request.nextUrl.searchParams.get('institutionId')
+    const enrollmentStatus = request.nextUrl.searchParams.get('enrollmentStatus')
+
+    const auth = await authorizeReportScope(service as any, {
+      userId: user.id,
+      role,
+      profileInstitutionId: (profile as any).institution_id,
+      courseId,
+      institutionId,
+      enrollmentStatus,
+    })
+    if (auth.ok === false) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status })
+    }
 
     const snapshot = await resolveSnapshotForUser(service as any, {
       userId: user.id,
@@ -59,6 +73,8 @@ export async function GET(request: NextRequest) {
       prefer,
       institutionId: (profile as any).institution_id,
       instructorId: role === 'superadmin' ? instructorId : null,
+      filters: auth.filters,
+      institutionIds: auth.institutionIds,
     })
 
     return NextResponse.json(

@@ -4,6 +4,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { RoleReportDashboard } from '@/components/reports/role-report-dashboard'
+import {
+  ReportScopeBar,
+  scopeFromSearchParams,
+  scopeQueryString,
+  type ReportScopeSelection,
+} from '@/components/reports/report-scope-bar'
 import type { ReportRange, ReportSnapshot } from '@/lib/reports/types'
 import { canAccessTeaching } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/client'
@@ -19,13 +25,33 @@ export default function TeachReportsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [role, setRole] = useState('instructor')
-  const [range, setRange] = useState<ReportRange>('30d')
+  const [range, setRange] = useState<ReportRange>(
+    () => (searchParams.get('range') as ReportRange) || '30d'
+  )
+  const [scope, setScope] = useState<ReportScopeSelection>(() =>
+    scopeFromSearchParams(searchParams)
+  )
   const [snapshot, setSnapshot] = useState<ReportSnapshot | null>(null)
   const [approvalsSnap, setApprovalsSnap] = useState<ReportSnapshot | null>(null)
   const [mode, setMode] = useState<'courses' | 'approvals'>('courses')
   const [deepDive, setDeepDive] = useState('')
   const [instructorFilter, setInstructorFilter] = useState('all')
   const [instructors, setInstructors] = useState<{ id: string; name: string }[]>([])
+
+  const syncUrl = useCallback(
+    (nextRange: ReportRange, nextScope: ReportScopeSelection, focus?: string | null) => {
+      const q = scopeQueryString(nextScope, {
+        range: nextRange,
+        audience: 'instructor',
+        instructorId: instructorFilter,
+      })
+      const params = new URLSearchParams(q.startsWith('?') ? q.slice(1) : q)
+      if (focus) params.set('focus', focus)
+      const qs = params.toString()
+      router.replace(qs ? `/teach/reports?${qs}` : '/teach/reports', { scroll: false })
+    },
+    [instructorFilter, router]
+  )
 
   const load = useCallback(async () => {
     try {
@@ -65,23 +91,28 @@ export default function TeachReportsPage() {
         )
       }
 
-      const instructorQuery =
-        userRole === 'superadmin' && instructorFilter !== 'all'
-          ? `&instructorId=${encodeURIComponent(instructorFilter)}`
-          : ''
-      const teachRes = await fetch(
-        `/api/reports/snapshot?range=${range}&audience=instructor${instructorQuery}`
-      )
+      const teachQs = scopeQueryString(scope, {
+        range,
+        audience: 'instructor',
+        instructorId: userRole === 'superadmin' ? instructorFilter : undefined,
+      })
+      const teachRes = await fetch(`/api/reports/snapshot${teachQs}`)
       const teachJson = await teachRes.json()
+      if (teachRes.status === 403) {
+        setScope({ courseId: '', institutionId: '', enrollmentStatus: 'all' })
+        throw new Error(teachJson.error || 'Filter not allowed — cleared scope')
+      }
       if (!teachRes.ok) throw new Error(teachJson.error || 'Failed to load reports')
       const teachSnap = teachJson.snapshot as ReportSnapshot
       setSnapshot(teachSnap)
       setDeepDive((prev) => prev || teachSnap?.sections?.[0]?.section || '')
 
       if (userRole === 'resource_person') {
-        const apRes = await fetch(
-          `/api/reports/snapshot?range=${range}&audience=resource_person`
+        const apQs = scopeQueryString(
+          { ...scope, enrollmentStatus: 'all' },
+          { range, audience: 'resource_person' }
         )
+        const apRes = await fetch(`/api/reports/snapshot${apQs}`)
         const apJson = await apRes.json()
         if (apRes.ok) setApprovalsSnap(apJson.snapshot)
       } else {
@@ -92,7 +123,7 @@ export default function TeachReportsPage() {
     } finally {
       setLoading(false)
     }
-  }, [range, router, instructorFilter])
+  }, [range, router, instructorFilter, scope])
 
   useEffect(() => {
     load()
@@ -107,6 +138,16 @@ export default function TeachReportsPage() {
     }
   }, [focusBlockId, snapshot])
 
+  const onRangeChange = (r: ReportRange) => {
+    setRange(r)
+    syncUrl(r, scope, focusBlockId)
+  }
+
+  const onScopeChange = (next: ReportScopeSelection) => {
+    setScope(next)
+    syncUrl(range, next, focusBlockId)
+  }
+
   if (loading) {
     return (
       <div className="container mx-auto flex items-center gap-2 px-4 py-16 text-muted-foreground">
@@ -118,8 +159,18 @@ export default function TeachReportsPage() {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto space-y-4 px-4 py-8">
         <p className="text-destructive">{error}</p>
+        <button
+          type="button"
+          className="text-sm text-primary underline"
+          onClick={() => {
+            setError(null)
+            void load()
+          }}
+        >
+          Retry
+        </button>
       </div>
     )
   }
@@ -133,9 +184,14 @@ export default function TeachReportsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto space-y-4 px-4 py-8">
+      <ReportScopeBar
+        value={scope}
+        onChange={onScopeChange}
+        showEnrollmentStatus={mode === 'courses'}
+      />
       {role === 'superadmin' && mode === 'courses' ? (
-        <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <label className="text-sm text-muted-foreground" htmlFor="instructor-filter">
             Instructor
           </label>
@@ -155,7 +211,7 @@ export default function TeachReportsPage() {
         </div>
       ) : null}
       {approvalsSnap ? (
-        <div className="mb-4 flex gap-2">
+        <div className="flex gap-2">
           <button
             type="button"
             onClick={() => setMode('courses')}
@@ -183,7 +239,7 @@ export default function TeachReportsPage() {
       <RoleReportDashboard
         snapshot={activeSnap}
         range={range}
-        onRangeChange={setRange}
+        onRangeChange={onRangeChange}
         badge={
           mode === 'approvals'
             ? 'Resource person'
@@ -195,6 +251,13 @@ export default function TeachReportsPage() {
         deepDiveSection={deepDive}
         onDeepDiveChange={setDeepDive}
         focusBlockId={mode === 'courses' ? focusBlockId : null}
+        scopeFilters={{
+          courseId: scope.courseId || undefined,
+          institutionId: scope.institutionId || undefined,
+          enrollmentStatus:
+            scope.enrollmentStatus !== 'all' ? scope.enrollmentStatus : undefined,
+        }}
+        onInterveneDone={() => void load()}
       />
     </div>
   )
