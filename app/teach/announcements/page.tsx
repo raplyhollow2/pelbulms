@@ -14,6 +14,15 @@ import { Switch } from '@/components/ui/switch'
 import { ArrowLeft, Plus, Trash2, Loader2, Save, Megaphone, Bell, Calendar } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
+import { ANNOUNCEMENT_EMAIL_VARS, GLOBAL_COURSE_VALUE, isGlobalCourse } from '@/lib/announcements'
+import { canAccessAdmin } from '@/lib/roles'
+
+type EmailTemplateOption = {
+  key: string
+  label: string
+  description: string
+  variables: string[]
+}
 
 type Course = Database['public']['Tables']['courses']['Row']
 type Announcement = Database['public']['Tables']['announcements']['Row'] & {
@@ -27,14 +36,21 @@ export default function TeacherAnnouncementsPage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [templates, setTemplates] = useState<EmailTemplateOption[]>([])
+  const [canEmailAllStudents, setCanEmailAllStudents] = useState(false)
+  const [brief, setBrief] = useState('')
+  const [tone, setTone] = useState('professional')
+  const [drafting, setDrafting] = useState(false)
+  const [draftNote, setDraftNote] = useState('')
 
   const [formData, setFormData] = useState({
-    course_id: '',
+    course_id: GLOBAL_COURSE_VALUE,
     title: '',
     content: '',
     priority: 'normal',
     is_published: false,
-    expires_at: ''
+    expires_at: '',
+    email_template: '',
   })
 
   const [saving, setSaving] = useState(false)
@@ -55,23 +71,53 @@ export default function TeacherAnnouncementsPage() {
         return
       }
 
-      // Fetch instructor's courses
-      const { data: coursesData } = await supabase
-        .from('courses')
-        .select('*')
-        .eq('instructor_id', user.id)
-        .order('title', { ascending: true })
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
+      const role = (profileData as { role?: string } | null)?.role
 
-      if (coursesData) {
-        setCourses(coursesData)
+      let courseQuery = supabase.from('courses').select('*')
+      const seesAllCourses = role === 'superadmin' || role === 'resource_person' || canAccessAdmin(role)
+      if (!seesAllCourses) {
+        courseQuery = courseQuery.eq('instructor_id', user.id)
+      }
+      const { data: coursesData } = await courseQuery.order('title', { ascending: true })
+      let visibleCourses = (coursesData || []) as Course[]
+
+      if (role === 'admin') {
+        const capsRes = await fetch('/api/admin/capabilities/me')
+        const caps = await capsRes.json().catch(() => ({}))
+        if (capsRes.ok && caps.allInstitutions === false) {
+          const orgIds = Array.isArray(caps.institutionIds) ? caps.institutionIds : []
+          if (!orgIds.length) {
+            visibleCourses = []
+          } else {
+            const { data: links } = await supabase
+              .from('course_institutions')
+              .select('course_id')
+              .in('institution_id', orgIds)
+            const allowed = new Set((links || []).map((row: { course_id?: string }) => row.course_id))
+            visibleCourses = visibleCourses.filter((course) => allowed.has(course.id))
+          }
+        }
       }
 
-      // Fetch announcements
+      setCourses(visibleCourses)
+
       const { data: announcementsData } = await supabase
         .from('announcements')
         .select('*, courses(title)')
-        .in('course_id', (coursesData as any)?.map((c: any) => c.id) || [])
+        .eq('author_id', user.id)
         .order('created_at', { ascending: false })
+
+      const optionsRes = await fetch('/api/announcements/options')
+      if (optionsRes.ok) {
+        const options = await optionsRes.json().catch(() => ({}))
+        setTemplates(Array.isArray(options.templates) ? options.templates : [])
+        setCanEmailAllStudents(options.canEmailAllStudents === true)
+      }
 
       if (announcementsData) {
         setAnnouncements(announcementsData as Announcement[])
@@ -85,6 +131,47 @@ export default function TeacherAnnouncementsPage() {
     }
   }
 
+  const emptyForm = () => ({
+    course_id: GLOBAL_COURSE_VALUE,
+    title: '',
+    content: '',
+    priority: 'normal',
+    is_published: false,
+    expires_at: '',
+    email_template: '',
+  })
+
+  const draftWithAi = async () => {
+    if (!brief.trim()) return
+    setDrafting(true)
+    setDraftNote('')
+    try {
+      const res = await fetch('/api/announcements/draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brief,
+          tone,
+          courseId: isGlobalCourse(formData.course_id) ? '' : formData.course_id,
+          emailTemplate: formData.email_template,
+        }),
+      })
+      const payload = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setDraftNote(payload.error || 'Could not draft this announcement')
+        return
+      }
+      setFormData((current) => ({
+        ...current,
+        title: payload.title || current.title,
+        content: payload.content || current.content,
+      }))
+      setDraftNote('Draft inserted. Nothing is saved or sent until you create the announcement.')
+    } finally {
+      setDrafting(false)
+    }
+  }
+
   const handleCreateAnnouncement = async () => {
     if (!formData.title.trim() || !formData.content.trim()) {
       alert('Please enter both title and content')
@@ -95,12 +182,14 @@ export default function TeacherAnnouncementsPage() {
       setSaving(true)
 
       const { data: { user } } = await supabase.auth.getUser()
+      const global = isGlobalCourse(formData.course_id)
 
       const supabaseInsert = supabase as any
       const insertPayload: any = {
         author_id: user?.id,
         created_by: user?.id,
-        course_id: formData.course_id || null,
+        course_id: global ? null : formData.course_id,
+        is_global: global,
         title: formData.title,
         content: formData.content,
         priority: formData.priority,
@@ -113,33 +202,40 @@ export default function TeacherAnnouncementsPage() {
 
       if (error) throw error
 
-      // Notify enrolled students when publishing to a course
-      if ((formData as any).is_published && formData.course_id) {
+      const published = Boolean((formData as any).is_published)
+      const templateKey = formData.email_template
+      const shouldNotify = published && (!global || (canEmailAllStudents && Boolean(templateKey)))
+      let notice = 'Announcement created successfully!'
+      if (shouldNotify) {
         try {
-          await fetch('/api/announcements/notify', {
+          const res = await fetch('/api/announcements/notify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              courseId: formData.course_id,
+              courseId: global ? '' : formData.course_id,
               title: formData.title,
-              message: formData.content.slice(0, 200),
+              message: formData.content,
+              emailTemplate: templateKey,
             }),
           })
+          if (!res.ok) {
+            const payload = await res.json().catch(() => ({}))
+            notice = payload.error
+              ? `Announcement saved. Notification failed: ${payload.error}`
+              : 'Announcement saved, but notifications could not be sent.'
+          }
         } catch (notifyErr) {
           console.warn('Announcement notify failed:', notifyErr)
+          notice = 'Announcement saved, but notifications could not be sent.'
         }
       }
 
-      alert('Announcement created successfully!')
+      alert(notice)
       setShowCreateForm(false)
-      setFormData({
-        course_id: '',
-        title: '',
-        content: '',
-        priority: 'normal',
-        is_published: false,
-        expires_at: ''
-      } as any)
+      setFormData(emptyForm() as any)
+      setBrief('')
+      setTone('professional')
+      setDraftNote('')
       fetchAnnouncementsData()
 
     } catch (error) {
@@ -179,6 +275,19 @@ export default function TeacherAnnouncementsPage() {
       default: return 'text-gray-600 bg-gray-100'
     }
   }
+
+  const selectedTemplate = templates.find((item) => item.key === formData.email_template) || null
+  const extraTemplateFields = (selectedTemplate?.variables || []).filter(
+    (item) => !ANNOUNCEMENT_EMAIL_VARS.includes(item as (typeof ANNOUNCEMENT_EMAIL_VARS)[number])
+  )
+  const globalAnnouncement = isGlobalCourse(formData.course_id)
+  const emailHelp = !formData.email_template
+    ? 'No email will be sent. Turn a template on under Settings → Email templates if it is missing from this list.'
+    : globalAnnouncement && !canEmailAllStudents
+      ? 'A global announcement stays in the app. Pick a course to email enrolled learners with this template.'
+      : globalAnnouncement
+        ? 'When Publish immediately is on, this emails every student with this template.'
+        : 'When Publish immediately is on, this emails learners enrolled in this course.'
 
   if (loading) {
     return (
@@ -229,11 +338,16 @@ export default function TeacherAnnouncementsPage() {
                   value={formData.course_id}
                   onValueChange={(value) => setFormData({ ...formData, course_id: value } as any)}
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="All courses (global announcement)" />
+                  <SelectTrigger className="w-full">
+                    <SelectValue>
+                      {isGlobalCourse(formData.course_id)
+                        ? 'All courses (global announcement)'
+                        : courses.find((course) => course.id === formData.course_id)?.title ||
+                          'All courses (global announcement)'}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All courses (global announcement)</SelectItem>
+                    <SelectItem value={GLOBAL_COURSE_VALUE}>All courses (global announcement)</SelectItem>
                     {courses.map((course) => (
                       <SelectItem key={course.id} value={course.id}>
                         {course.title}
@@ -264,6 +378,71 @@ export default function TeacherAnnouncementsPage() {
                   rows={5}
                   className="mt-1 resize-none"
                 />
+              </div>
+
+              <div>
+                <Label htmlFor="email-template">System email template</Label>
+                <Select
+                  value={formData.email_template || 'none'}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, email_template: value === 'none' ? '' : value } as any)
+                  }
+                >
+                  <SelectTrigger id="email-template" className="w-full">
+                    <SelectValue>
+                      {selectedTemplate ? selectedTemplate.label : "Don't send email"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Don't send email</SelectItem>
+                    {templates.map((template) => (
+                      <SelectItem key={template.key} value={template.key}>
+                        {template.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-xs text-muted-foreground">{emailHelp}</p>
+                {selectedTemplate ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {selectedTemplate.description ? `${selectedTemplate.description} ` : ''}
+                    Fields: {selectedTemplate.variables.map((item) => `{{${item}}}`).join(', ') || 'none'}.
+                    This send fills {ANNOUNCEMENT_EMAIL_VARS.map((item) => `{{${item}}}`).join(', ')}.
+                    {extraTemplateFields.length
+                      ? ` ${extraTemplateFields.map((item) => `{{${item}}}`).join(', ')} will be blank.`
+                      : ''}
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="space-y-2 rounded-lg border p-3">
+                <p className="text-sm font-medium">Draft with AI</p>
+                <p className="text-xs text-muted-foreground">
+                  Fills the title and content above. Nothing is saved or sent until you create the announcement.
+                </p>
+                <Textarea
+                  rows={3}
+                  value={brief}
+                  placeholder="What should this announcement say?"
+                  onChange={(event) => setBrief(event.target.value.slice(0, 2000))}
+                />
+                <Input
+                  value={tone}
+                  aria-label="Tone"
+                  placeholder="Tone"
+                  onChange={(event) => setTone(event.target.value.slice(0, 40))}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={saving || drafting || !brief.trim()}
+                  onClick={() => void draftWithAi()}
+                >
+                  {drafting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Draft with AI
+                </Button>
+                {draftNote ? <p className="text-sm text-muted-foreground">{draftNote}</p> : null}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -365,15 +544,13 @@ export default function TeacherAnnouncementsPage() {
                           >
                             {announcement.priority}
                           </Badge>
-                          {!(announcement as any).is_global && (
+                          {!(announcement as any).is_published && (
                             <Badge variant="secondary" className="text-xs">Draft</Badge>
                           )}
                         </div>
-                        {announcement.courses && (
-                          <p className="text-xs text-muted-foreground mb-2">
-                            Course: {announcement.courses.title}
-                          </p>
-                        )}
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Course: {announcement.courses?.title || 'All courses'}
+                        </p>
                         <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
                           {announcement.content}
                         </p>
