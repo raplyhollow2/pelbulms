@@ -64,6 +64,20 @@ function lessonPlayerPath(
   return `/learn/${courseId}/lesson/${targetLessonId}${query}${fragment}`
 }
 
+function sendLessonProgress(body: Record<string, unknown>) {
+  try {
+    void fetch('/api/learn/lesson-progress', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      keepalive: true,
+      body: JSON.stringify(body),
+    })
+  } catch {
+    // The regular progress write still runs while the page stays open.
+  }
+}
+
 async function userCanPreviewCourse(courseId: string) {
   try {
     const res = await fetch(`/api/teach/courses/${courseId}/preview-access`)
@@ -818,6 +832,15 @@ export default function LessonViewPage() {
   const persistWatchProgress = async (data: VideoProgressData) => {
     if (skipProgressRef.current) return
     if (!currentUser || !lesson) return
+    if (data.flush) {
+      sendLessonProgress({
+        lessonId,
+        courseId,
+        percent: data.percent,
+        positionSeconds: data.positionSeconds,
+        leaving: true,
+      })
+    }
     if (data.percent >= VIDEO_COMPLETE_PERCENT && activeLessonIdRef.current === lessonId) {
       setVideoWatchSatisfied(true)
     }
@@ -939,6 +962,9 @@ export default function LessonViewPage() {
         if (wasBelowComplete && nowComplete) {
           celebrateCourseCompletion()
         }
+      }
+      if (completed) {
+        sendLessonProgress({ lessonId, courseId, finished: true })
       }
       return true
     } catch (error: any) {

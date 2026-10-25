@@ -370,6 +370,11 @@ function CertificateDocument(data: CertificateData) {
               )
             }
             if (layer.type === 'signature') {
+              const name =
+                resolve(layer.text, data) ||
+                (layer.id === 'signature' ? layout.signatureName || data.instructorName : '')
+              const title =
+                layer.subtitle || (layer.id === 'signature' ? layout.signatureTitle || '' : '')
               return (
                 <View
                   key={layer.id}
@@ -383,12 +388,10 @@ function CertificateDocument(data: CertificateData) {
                     justifyContent: 'flex-end',
                   }}
                 >
-                  <Text style={{ fontSize: 10, textAlign: 'center' }}>
-                    {layout.signatureName || data.instructorName || resolve(layer.text, data)}
-                  </Text>
-                  <Text style={{ fontSize: 8, color: '#6b7280', textAlign: 'center' }}>
-                    {layout.signatureTitle}
-                  </Text>
+                  <Text style={{ fontSize: 10, textAlign: 'center' }}>{name}</Text>
+                  {title ? (
+                    <Text style={{ fontSize: 8, color: '#6b7280', textAlign: 'center' }}>{title}</Text>
+                  ) : null}
                 </View>
               )
             }

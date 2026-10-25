@@ -3,6 +3,7 @@ import {
   defaultCertificateLayout,
   MOLHR_ORNAMENTAL_BORDER,
   newLayerId,
+  retainResourcePersons,
   type CertificateLayer,
   type CertificateLayout,
   type CertShapeKind,
@@ -33,14 +34,17 @@ export const CERT_TEMPLATES: CertTemplateAsset[] = [
     description: 'Centered title with signature block',
     previewAccent: '#E9B308',
     apply: (current) => {
-      const { layers: _omit, backgroundImage: _bg, ...rest } = current
-      return defaultCertificateLayout({
-        ...rest,
-        template: 'classic',
-        borderStyle: 'double',
-        backgroundImage: undefined,
-        tagline: current.tagline || 'This is proudly presented to',
-      })
+      const { layers: _layers, ...rest } = current
+      return retainResourcePersons(
+        defaultCertificateLayout({
+          ...rest,
+          template: 'classic',
+          borderStyle: 'double',
+          backgroundImage: undefined,
+          tagline: current.tagline || 'This is proudly presented to',
+        }),
+        current
+      )
     },
   },
   {
@@ -49,7 +53,7 @@ export const CERT_TEMPLATES: CertTemplateAsset[] = [
     description: 'Clean sans layout, single border',
     previewAccent: '#0f766e',
     apply: (current) => {
-      const { layers: _omit, backgroundImage: _bg, ...rest } = current
+      const { layers: _layers, backgroundImage: _bg, ...rest } = current
       const base = defaultCertificateLayout({
         ...rest,
         template: 'modern',
@@ -58,13 +62,16 @@ export const CERT_TEMPLATES: CertTemplateAsset[] = [
         accentColor: current.accentColor || '#0f766e',
         backgroundColor: '#f8fafc',
       })
-      return {
-        ...base,
-        layers: base.layers.map((l) => ({
-          ...l,
-          fontFamily: l.type === 'title' || l.type === 'recipient' ? 'sans' : l.fontFamily,
-        })),
-      }
+      return retainResourcePersons(
+        {
+          ...base,
+          layers: base.layers.map((l) => ({
+            ...l,
+            fontFamily: l.type === 'title' || l.type === 'recipient' ? 'sans' : l.fontFamily,
+          })),
+        },
+        current
+      )
     },
   },
   {
@@ -73,7 +80,7 @@ export const CERT_TEMPLATES: CertTemplateAsset[] = [
     description: 'Decorative border and gold accents',
     previewAccent: '#b45309',
     apply: (current) => {
-      const { layers: _omit, backgroundImage: _bg, ...rest } = current
+      const { layers: _layers, backgroundImage: _bg, ...rest } = current
       const base = defaultCertificateLayout({
         ...rest,
         template: 'ornate',
@@ -82,16 +89,19 @@ export const CERT_TEMPLATES: CertTemplateAsset[] = [
         accentColor: current.accentColor || '#b45309',
       })
       const accent = base.accentColor
-      return {
-        ...base,
-        layers: [
-          ...base.layers,
-          corner('ornate-tl', 28, 28, accent, 0),
-          corner('ornate-tr', 1023, 28, accent, 90),
-          corner('ornate-bl', 28, 694, accent, 270),
-          corner('ornate-br', 1023, 694, accent, 180),
-        ],
-      }
+      return retainResourcePersons(
+        {
+          ...base,
+          layers: [
+            ...base.layers,
+            corner('ornate-tl', 28, 28, accent, 0),
+            corner('ornate-tr', 1023, 28, accent, 90),
+            corner('ornate-bl', 28, 694, accent, 270),
+            corner('ornate-br', 1023, 694, accent, 180),
+          ],
+        },
+        current
+      )
     },
   },
   {
@@ -100,22 +110,25 @@ export const CERT_TEMPLATES: CertTemplateAsset[] = [
     description: 'MoLHR-style completion certificate',
     previewAccent: '#C5A028',
     apply: (current) => {
-      const { layers: _omit, backgroundImage: _bg, ...rest } = current
-      return defaultCertificateLayout({
-        ...rest,
-        template: 'bhutan',
-        borderStyle: 'none',
-        backgroundImage: undefined,
-        accentColor: current.accentColor || '#C5A028',
-        backgroundColor: '#fffef8',
-        tagline: 'Awarded to',
-        layers: bhutanCertificateLayers({
-          titleLine: current.titleLine,
-          signatureName: current.signatureName,
-          signatureTitle: current.signatureTitle,
+      const { layers: _layers, backgroundImage: _bg, ...rest } = current
+      return retainResourcePersons(
+        defaultCertificateLayout({
+          ...rest,
+          template: 'bhutan',
+          borderStyle: 'none',
+          backgroundImage: undefined,
           accentColor: current.accentColor || '#C5A028',
+          backgroundColor: '#fffef8',
+          tagline: 'Awarded to',
+          layers: bhutanCertificateLayers({
+            titleLine: current.titleLine,
+            signatureName: current.signatureName,
+            signatureTitle: current.signatureTitle,
+            accentColor: current.accentColor || '#C5A028',
+          }),
         }),
-      })
+        current
+      )
     },
   },
   {
@@ -135,10 +148,10 @@ export const CERT_TEMPLATES: CertTemplateAsset[] = [
         tagline: current.tagline || 'Awarded to',
       })
       // Keep content inside the ornamental frame margins
-      return {
+      const placed = {
         ...base,
         backgroundImage: MOLHR_ORNAMENTAL_BORDER,
-        borderStyle: 'none',
+        borderStyle: 'none' as const,
         layers: base.layers.map((l) => {
           if (l.id === 'title') return { ...l, y: 150, fontFamily: 'serif' as const }
           if (l.id === 'tagline') return { ...l, y: 230 }
@@ -150,10 +163,10 @@ export const CERT_TEMPLATES: CertTemplateAsset[] = [
           if (l.id === 'verify') return { ...l, x: 720, y: 600 }
           return l
         }),
-        // Preserve uploaded logos; never clear them into the signature block
         logos: current.logos,
         signatureUrl: undefined,
       }
+      return retainResourcePersons(placed, current)
     },
   },
 ]

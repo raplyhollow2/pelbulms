@@ -44,6 +44,7 @@ async function emailRecipients(
       templateKey: input.emailTemplate,
       to: email,
       userId: profile.id,
+      writtenAnnouncement: true,
       vars: {
         learner_name: profile.full_name || 'there',
         course_title: input.courseTitle,

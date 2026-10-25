@@ -43,8 +43,10 @@ export default function ProgressPage() {
   const [recentActivity, setRecentActivity] = useState<Array<{
     type: 'lesson' | 'course'
     title: string
+    courseTitle: string
+    status: 'Completed' | 'In progress'
     completedAt: string
-    progress?: number
+    progress: number
   }>>([])
 
   const supabase = createClient()
@@ -118,14 +120,38 @@ export default function ProgressPage() {
           totalTimeSpent
         }))
 
-        // Create recent activity from lesson progress
-        const recentActivityData = (lessonProgressData as LessonProgress[]).slice(0, 10).map(lp => ({
-          type: 'lesson' as const,
-          title: `Lesson completed`,
-          completedAt: lp.completed_at || lp.last_accessed_at,
-          progress: lp.completed ? 100 : 0
-        }))
-        setRecentActivity(recentActivityData)
+        const latestLessons = (lessonProgressData as LessonProgress[]).slice(0, 10)
+        const lessonIds = [...new Set(latestLessons.map((lp) => lp.lesson_id).filter(Boolean))]
+        const lessonTitles = new Map<string, string>()
+        if (lessonIds.length > 0) {
+          const { data: lessonRows } = await supabase
+            .from('lessons')
+            .select('id, title')
+            .in('id', lessonIds)
+          for (const row of lessonRows || []) {
+            if (row.title) lessonTitles.set(row.id, row.title)
+          }
+        }
+        const courseTitles = new Map<string, string>()
+        for (const enrollment of (enrollmentsData || []) as Array<{
+          course_id?: string
+          courses?: { title?: string | null } | null
+        }>) {
+          if (enrollment.course_id && enrollment.courses?.title) {
+            courseTitles.set(enrollment.course_id, enrollment.courses.title)
+          }
+        }
+
+        setRecentActivity(
+          latestLessons.map((lp) => ({
+            type: 'lesson' as const,
+            title: lessonTitles.get(lp.lesson_id) || 'Lesson',
+            courseTitle: (lp.course_id && courseTitles.get(lp.course_id)) || '',
+            status: lp.completed ? 'Completed' : 'In progress',
+            completedAt: lp.completed_at || lp.last_accessed_at,
+            progress: lp.completed ? 100 : Math.max(0, Math.min(100, Math.round(lp.progress_percentage || 0))),
+          }))
+        )
       }
 
       // Fetch all modules and lessons for detailed progress
@@ -385,14 +411,20 @@ export default function ProgressPage() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{activity.title}</p>
-                      <p className="text-xs text-muted-foreground">{formatDate(activity.completedAt)}</p>
+                      <p className="text-sm font-medium truncate">{activity.title}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {[activity.courseTitle, activity.status, formatDate(activity.completedAt)]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                      <div className="mt-2 max-w-xs space-y-1">
+                        <Progress value={activity.progress} className="h-1.5" />
+                        <p className="text-xs text-muted-foreground">{activity.progress}% complete</p>
+                      </div>
                     </div>
-                    {activity.progress !== undefined && (
-                      <Badge variant="secondary" className="text-xs">
-                        {activity.progress}%
-                      </Badge>
-                    )}
+                    <Badge variant="secondary" className="text-xs">
+                      {activity.progress}%
+                    </Badge>
                   </div>
                 ))}
               </div>

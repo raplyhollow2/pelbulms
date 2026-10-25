@@ -33,6 +33,8 @@ export interface VideoProgressData {
   watchedSeconds: number
   /** Total video duration in seconds (0 if unknown) */
   duration: number
+  /** True when the learner paused, left the lesson, or closed the tab. */
+  flush?: boolean
 }
 
 interface TrackedVideoPlayerProps {
@@ -184,6 +186,7 @@ export function TrackedVideoPlayer({
             positionSeconds: Math.round(positionSeconds),
             watchedSeconds: Math.round(watchedSecondsRef.current),
             duration: Math.round(dur),
+            flush: force,
           })
         }
       }
@@ -604,15 +607,19 @@ export function TrackedVideoPlayer({
     fireEnded()
   }
 
-  // Flush on unmount
+  // Flush the furthest percent when the learner leaves or closes the tab.
   useEffect(() => {
-    return () => {
-      resumeTimersRef.current.forEach((id) => window.clearTimeout(id))
+    const flush = () => {
       const el = videoElRef.current
       const t = el?.currentTime ?? playerRef.current?.getCurrentTime?.() ?? memoryRef.current.seconds
-      emit(t, true)
+      emitRef.current(t, true)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    window.addEventListener('pagehide', flush)
+    return () => {
+      resumeTimersRef.current.forEach((id) => window.clearTimeout(id))
+      window.removeEventListener('pagehide', flush)
+      flush()
+    }
   }, [])
 
   useLayoutEffect(() => {

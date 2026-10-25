@@ -12,6 +12,7 @@ import {
   SendToBack,
   Trash2,
   Type,
+  Eye,
   Unlock,
   ZoomIn,
   ZoomOut,
@@ -45,6 +46,9 @@ type Props = {
   sampleCourse?: string
   onUploadAsset?: (file: File) => Promise<string>
   uploading?: boolean
+  /** Finished certificate, without selection handles. */
+  readOnly?: boolean
+  onPreview?: () => void
 }
 
 type Sel =
@@ -76,6 +80,8 @@ export function CertificateEditor({
   sampleCourse = 'Course title',
   onUploadAsset,
   uploading,
+  readOnly = false,
+  onPreview,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const surfaceRef = useRef<HTMLDivElement>(null)
@@ -284,9 +290,9 @@ export function CertificateEditor({
   )
 
   return (
-    <div className="flex min-h-[640px] flex-col overflow-hidden rounded-xl border bg-[#1e1e1e] text-white lg:flex-row">
+    <div className={cn('flex min-h-[640px] flex-col overflow-hidden rounded-xl border bg-[#1e1e1e] text-white lg:flex-row', readOnly && 'min-h-0')}>
       {/* Left asset library */}
-      <aside className="flex w-full shrink-0 flex-col border-b border-white/10 bg-[#252525] lg:w-64 lg:border-b-0 lg:border-r">
+      {!readOnly && <aside className="flex w-full shrink-0 flex-col border-b border-white/10 bg-[#252525] lg:w-64 lg:border-b-0 lg:border-r">
         <div className="grid grid-cols-5 gap-0.5 border-b border-white/10 p-1.5 text-[10px] font-medium uppercase tracking-wide">
           {(
             [
@@ -467,7 +473,7 @@ export function CertificateEditor({
             </div>
           )}
         </div>
-      </aside>
+      </aside>}
 
       {/* Canvas stage */}
       <div className="flex min-w-0 flex-1 flex-col">
@@ -491,6 +497,8 @@ export function CertificateEditor({
           >
             <ZoomIn className="h-4 w-4" />
           </Button>
+          {!readOnly && (
+            <>
           <div className="mx-2 h-4 w-px bg-white/15" />
           <Button
             type="button"
@@ -544,11 +552,28 @@ export function CertificateEditor({
           >
             <Trash2 className="h-4 w-4" />
           </Button>
+            </>
+          )}
+          {onPreview && !readOnly ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="ml-auto text-white hover:bg-white/10"
+              onClick={onPreview}
+            >
+              <Eye className="mr-1.5 h-4 w-4" />
+              Design preview
+            </Button>
+          ) : null}
         </div>
 
         <div
           ref={wrapRef}
-          className="flex flex-1 items-center justify-center overflow-auto bg-[radial-gradient(circle_at_1px_1px,#3a3a3a_1px,transparent_0)] [background-size:16px_16px] p-4"
+          className={cn(
+            'flex items-center justify-center overflow-auto bg-[radial-gradient(circle_at_1px_1px,#3a3a3a_1px,transparent_0)] [background-size:16px_16px] p-4',
+            readOnly ? 'flex-none' : 'flex-1'
+          )}
         >
           <div
             className="relative shrink-0"
@@ -559,7 +584,11 @@ export function CertificateEditor({
           >
             <div
               ref={surfaceRef}
-              className={cn('absolute left-0 top-0 origin-top-left overflow-hidden shadow-2xl', borderClass)}
+              className={cn(
+                'absolute left-0 top-0 origin-top-left overflow-hidden shadow-2xl',
+                borderClass,
+                readOnly && 'pointer-events-none'
+              )}
               style={{
                 width: CERT_CANVAS.width,
                 height: CERT_CANVAS.height,
@@ -650,13 +679,14 @@ export function CertificateEditor({
           </div>
         </div>
         <p className="border-t border-white/10 px-3 py-2 text-xs text-white/45">
-          Drag anything on the canvas. Use corner handles to resize. Tokens: {'{{recipient}}'},{' '}
-          {'{{course}}'}, {'{{date}}'}, {'{{code}}'}, {'{{cid}}'}.
+          {readOnly
+            ? `Preview for ${sampleName}. Issued certificates use the learner’s own name, date, and code.`
+            : "Drag anything on the canvas. Use corner handles to resize. Tokens: {{recipient}}, {{course}}, {{date}}, {{code}}, {{cid}}."}
         </p>
       </div>
 
       {/* Right properties */}
-      <aside className="w-full shrink-0 border-t border-white/10 bg-[#252525] p-3 lg:w-72 lg:border-l lg:border-t-0">
+      {!readOnly && <aside className="w-full shrink-0 border-t border-white/10 bg-[#252525] p-3 lg:w-72 lg:border-l lg:border-t-0">
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/50">
           Properties
         </h3>
@@ -741,6 +771,16 @@ export function CertificateEditor({
                     onChange={(e) => updateLayer(selectedLayer.id, { text: e.target.value })}
                   />
                 </div>
+                {selectedLayer.type === 'signature' ? (
+                  <div>
+                    <Label className="text-white/70">Title</Label>
+                    <Input
+                      className="mt-1 min-h-11 border-white/15 bg-[#1e1e1e] text-white"
+                      value={selectedLayer.subtitle || ''}
+                      onChange={(e) => updateLayer(selectedLayer.id, { subtitle: e.target.value })}
+                    />
+                  </div>
+                ) : null}
                 <div>
                   <Label className="text-white/70">Font size</Label>
                   <Input
@@ -862,7 +902,7 @@ export function CertificateEditor({
             </div>
           </div>
         )}
-      </aside>
+      </aside>}
     </div>
   )
 }
@@ -942,10 +982,12 @@ function LayerVisual({
           className="w-full text-sm font-semibold leading-tight"
           style={{ fontSize: layer.fontSize || 14 }}
         >
-          {layout.signatureName || text || 'Instructor'}
+          {text || (layer.id === 'signature' ? layout.signatureName : '') || 'Resource person'}
         </div>
-        {layout.signatureTitle ? (
-          <div className="w-full text-[11px] leading-tight text-gray-500">{layout.signatureTitle}</div>
+        {(layer.subtitle || (layer.id === 'signature' ? layout.signatureTitle : '')) ? (
+          <div className="w-full text-[11px] leading-tight text-gray-500">
+            {layer.subtitle || layout.signatureTitle}
+          </div>
         ) : null}
       </div>
     )

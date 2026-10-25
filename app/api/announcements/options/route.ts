@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { enforceCapability, CAP } from '@/lib/rbac'
+import { announcementTemplateUsesCopy } from '@/lib/announcements'
 import { listEmailTemplates } from '@/lib/email/templated'
 
 const TEACHER_ROLES = ['instructor', 'admin', 'resource_person', 'superadmin'] as const
@@ -29,6 +30,7 @@ export async function GET(request: NextRequest) {
         label: item.label,
         description: item.description,
         variables: item.variables,
+        usesAnnouncementCopy: announcementTemplateUsesCopy(item),
       })),
   })
 }

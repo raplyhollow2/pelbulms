@@ -67,7 +67,8 @@ export function sanitizeEmailHtml(html: string): string {
 export function renderTemplate(body: string, vars: Record<string, string>, html: boolean): string {
   return body.replace(TOKEN_RE, (_match, key: string) => {
     const value = vars[key.toLowerCase()] ?? vars[key] ?? ''
-    return html ? escapeHtml(value) : value
+    if (!html) return value
+    return escapeHtml(value).replace(/\r\n|\r|\n/g, '<br>')
   })
 }
 

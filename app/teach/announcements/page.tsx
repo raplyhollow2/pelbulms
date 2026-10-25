@@ -22,6 +22,7 @@ type EmailTemplateOption = {
   label: string
   description: string
   variables: string[]
+  usesAnnouncementCopy?: boolean
 }
 
 type Course = Database['public']['Tables']['courses']['Row']
@@ -285,9 +286,11 @@ export default function TeacherAnnouncementsPage() {
     ? 'No email will be sent. Turn a template on under Settings → Email templates if it is missing from this list.'
     : globalAnnouncement && !canEmailAllStudents
       ? 'A global announcement stays in the app. Pick a course to email enrolled learners with this template.'
-      : globalAnnouncement
-        ? 'When Publish immediately is on, this emails every student with this template.'
-        : 'When Publish immediately is on, this emails learners enrolled in this course.'
+      : selectedTemplate && selectedTemplate.usesAnnouncementCopy === false
+        ? 'This template leaves out the announcement, so the email uses the title and content above.'
+        : globalAnnouncement
+          ? 'When Publish immediately is on, this emails every student the title and content above.'
+          : 'When Publish immediately is on, the email uses this title and content.'
 
   if (loading) {
     return (

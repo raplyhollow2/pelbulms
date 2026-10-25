@@ -39,7 +39,19 @@ export type CertificateLayer = {
   opacity?: number
   locked?: boolean
   letterSpacing?: number
+  /** Role line under a signature name. */
+  subtitle?: string
 }
+
+export type CertificateSigner = {
+  id: string
+  name: string
+  title: string
+  imageUrl?: string
+  userId?: string
+}
+
+export const PRIMARY_SIGNER_ID = 'primary'
 
 export type CertificateTemplateId = 'classic' | 'modern' | 'ornate' | 'bhutan' | 'ornamental'
 
@@ -55,6 +67,8 @@ export type CertificateLayout = {
   tagline: string
   signatureName: string
   signatureTitle: string
+  /** Resource persons printed on the certificate. The first person mirrors signatureName. */
+  signers?: CertificateSigner[]
   /** @deprecated Prefer an independent logo/image on the canvas — do not bind to name text */
   signatureUrl?: string
   logos: Array<{ id: string; src: string; x: number; y: number; w: number; h: number }>
@@ -570,9 +584,10 @@ export function layoutFromLegacySettings(
 ): CertificateLayout {
   const s = stored || {}
   if (s.layout && typeof s.layout === 'object') {
-    return defaultCertificateLayout(s.layout as Partial<CertificateLayout>)
+    const layout = defaultCertificateLayout(s.layout as Partial<CertificateLayout>)
+    return layoutWithSigners(layout, signersFromLayout(layout))
   }
-  return defaultCertificateLayout({
+  const layout = defaultCertificateLayout({
     brandName: typeof s.brandName === 'string' ? s.brandName : undefined,
     titleLine: typeof s.titleLine === 'string' ? s.titleLine : undefined,
     accentColor: typeof s.accentColor === 'string' ? s.accentColor : undefined,
@@ -583,10 +598,158 @@ export function layoutFromLegacySettings(
         ? [{ id: 'logo-1', src: s.logoUrl as string, x: 80, y: 40, w: 120, h: 60 }]
         : [],
   })
+  return layoutWithSigners(layout, signersFromLayout(layout))
 }
 
 export function newLayerId(prefix = 'el') {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+}
+
+export function signatureLayerId(signerId: string) {
+  return signerId === PRIMARY_SIGNER_ID ? 'signature' : `signature-${signerId}`
+}
+
+export function signatureImageId(signerId: string) {
+  return `sig-image-${signerId}`
+}
+
+export function signersFromLayout(layout: CertificateLayout): CertificateSigner[] {
+  if (Array.isArray(layout.signers)) return layout.signers
+  const layer =
+    layout.layers.find((item) => item.id === 'signature' && item.type === 'signature') ||
+    layout.layers.find((item) => item.type === 'signature')
+  const image = layout.logos.find((item) => item.id.startsWith('sig-image'))
+  return [
+    {
+      id: PRIMARY_SIGNER_ID,
+      name: layout.signatureName || layer?.text || '',
+      title: layout.signatureTitle || layer?.subtitle || 'Instructor',
+      imageUrl: image?.src,
+    },
+  ]
+}
+
+function signerFrame(index: number, count: number) {
+  const margin = 64
+  const usable = CERT_CANVAS.width - margin * 2
+  const column = usable / Math.max(count, 1)
+  const w = Math.min(220, Math.max(140, column - 16))
+  const x = margin + index * column + (column - w) / 2
+  const y = 560
+  return {
+    x,
+    y,
+    w,
+    h: 96,
+    imageX: x + (w - 150) / 2,
+    imageY: Math.max(40, y - 62),
+    imageW: 150,
+    imageH: 52,
+  }
+}
+
+/** Write each resource person onto their own signature block. */
+export function layoutWithSigners(
+  layout: CertificateLayout,
+  signers: CertificateSigner[],
+  options?: { relayout?: boolean }
+): CertificateLayout {
+  const people = signers
+  const relayout = options?.relayout === true
+  const layerIds = new Set(people.map((person) => signatureLayerId(person.id)))
+  let layers = layout.layers.filter((layer) => {
+    if (layer.id === 'signature-2' && layer.type === 'text') return false
+    if (layer.type === 'signature' && !layerIds.has(layer.id)) return false
+    return true
+  })
+
+  people.forEach((person, index) => {
+    const id = signatureLayerId(person.id)
+    const frame = signerFrame(index, people.length)
+    const existing = layers.find((layer) => layer.id === id)
+    const keepBox = existing && (!relayout || people.length === 1)
+    const next: CertificateLayer = {
+      ...(existing || {}),
+      id,
+      type: 'signature',
+      x: keepBox ? existing.x : frame.x,
+      y: keepBox ? existing.y : frame.y,
+      w: keepBox ? existing.w : frame.w,
+      h: keepBox ? existing.h : frame.h,
+      text: person.name,
+      subtitle: person.title,
+      fontSize: existing?.fontSize || 14,
+      fontFamily: existing?.fontFamily || 'sans',
+      align: 'center',
+      color: existing?.color || '#111827',
+      zIndex: existing?.zIndex ?? 10,
+    }
+    layers = existing ? layers.map((layer) => (layer.id === id ? next : layer)) : [...layers, next]
+  })
+
+  const logos = layout.logos.filter((logo) => !logo.id.startsWith('sig-image'))
+  people.forEach((person, index) => {
+    if (!person.imageUrl) return
+    const frame = signerFrame(index, people.length)
+    const id = signatureImageId(person.id)
+    const existing =
+      layout.logos.find((logo) => logo.id === id) ||
+      (person.id === PRIMARY_SIGNER_ID
+        ? layout.logos.find((logo) => logo.id.startsWith('sig-image'))
+        : undefined)
+    const signatureLayer = layers.find((layer) => layer.id === signatureLayerId(person.id))
+    const keepBox = existing && (!relayout || people.length === 1)
+    const imageW = keepBox ? existing.w : frame.imageW
+    const imageH = keepBox ? existing.h : frame.imageH
+    logos.push({
+      id,
+      src: person.imageUrl,
+      x: keepBox ? existing.x : signatureLayer ? signatureLayer.x + (signatureLayer.w - imageW) / 2 : frame.imageX,
+      y: keepBox ? existing.y : signatureLayer ? Math.max(40, signatureLayer.y - imageH - 8) : frame.imageY,
+      w: imageW,
+      h: imageH,
+    })
+  })
+
+  const first = people[0]
+  return {
+    ...layout,
+    signers: people,
+    signatureName: first?.name || '',
+    signatureTitle: first?.title || '',
+    signatureUrl: undefined,
+    layers,
+    logos,
+  }
+}
+
+/** After a template change, keep every resource person and place their blocks again. */
+export function retainResourcePersons(built: CertificateLayout, current: CertificateLayout) {
+  return layoutWithSigners(
+    { ...built, logos: current.logos.length ? current.logos : built.logos },
+    signersFromLayout(current),
+    { relayout: true }
+  )
+}
+
+export function syncSignersFromLayers(layout: CertificateLayout): CertificateLayout {
+  if (!Array.isArray(layout.signers)) return layoutWithSigners(layout, signersFromLayout(layout))
+  const signers = layout.signers.map((signer) => {
+    const layer = layout.layers.find((item) => item.id === signatureLayerId(signer.id))
+    if (!layer) return signer
+    return {
+      ...signer,
+      name: layer.text ?? signer.name,
+      title: layer.subtitle ?? signer.title,
+    }
+  })
+  const first = signers[0]
+  return {
+    ...layout,
+    signers,
+    signatureName: first?.name || '',
+    signatureTitle: first?.title || layout.signatureTitle,
+  }
 }
 
 export function resolveCertificateText(

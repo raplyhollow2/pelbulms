@@ -1,3 +1,4 @@
+import { announcementTemplateUsesCopy } from '@/lib/announcements'
 import { emailPublicUrl, sendEmail } from '@/lib/email/send'
 import { renderTemplate, safeActionUrl, sanitizeEmailHtml } from '@/lib/email/template-render'
 import { tryCreateServiceClient } from '@/lib/supabase/server'
@@ -25,7 +26,7 @@ const LEARNER_PREF_KEYS = new Set([
 ])
 
 /** Academic outreach: only skip when global email_notifications is false. */
-const GLOBAL_EMAIL_ONLY_KEYS = new Set(['teacher.intervention'])
+const GLOBAL_EMAIL_ONLY_KEYS = new Set(['teacher.intervention', 'lesson.incomplete'])
 
 function asVariables(value: unknown): string[] {
   if (!Array.isArray(value)) return []
@@ -109,15 +110,33 @@ async function learnerOptedOut(
   return false
 }
 
+/** Use the written announcement when a template leaves the title or message out. */
+export function withWrittenAnnouncement(template: EmailTemplateRow): EmailTemplateRow {
+  if (announcementTemplateUsesCopy(template)) return template
+  const bodyHasMessage = /\{\{\s*message\s*\}\}/i.test(`${template.text_body}\n${template.html_body}`)
+  const subjectHasTitle = /\{\{\s*title\s*\}\}/i.test(template.subject)
+  return {
+    ...template,
+    subject: subjectHasTitle ? template.subject : '{{title}}',
+    text_body: bodyHasMessage ? template.text_body : '{{message}}\n\n{{action_url}}',
+    html_body: bodyHasMessage
+      ? template.html_body
+      : '<p>{{message}}</p><p><a href="{{action_url}}">Open announcement</a></p>',
+  }
+}
+
 export async function sendTemplatedEmail(input: {
   templateKey: string
   to: string
   userId?: string | null
   vars: Record<string, string>
   respectCoursePreferences?: boolean
+  /** Announcement sends must carry the title and content shown in the LMS. */
+  writtenAnnouncement?: boolean
 }): Promise<{ sent: boolean; skipped?: boolean; error?: string }> {
-  const template = await getEmailTemplate(input.templateKey)
-  if (!template || !template.enabled) return { sent: false, skipped: true }
+  const loaded = await getEmailTemplate(input.templateKey)
+  if (!loaded || !loaded.enabled) return { sent: false, skipped: true }
+  const template = input.writtenAnnouncement ? withWrittenAnnouncement(loaded) : loaded
 
   const globalOnly = GLOBAL_EMAIL_ONLY_KEYS.has(input.templateKey)
   const respectCourse =

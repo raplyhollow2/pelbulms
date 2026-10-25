@@ -7,14 +7,26 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { ArrowLeft, Loader2, Save, Camera } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, Camera, Plus, Trash2, Eye } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { uploadImageDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
 import { CertificateEditor } from '@/components/teach/certificate-editor'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   defaultCertificateLayout,
   layoutFromLegacySettings,
+  layoutWithSigners,
+  newLayerId,
+  signersFromLayout,
+  syncSignersFromLayers,
   type CertificateLayout,
+  type CertificateSigner,
 } from '@/lib/certificate-layout'
 
 type CertSettings = {
@@ -24,6 +36,12 @@ type CertSettings = {
   signatureName: string
   signatureTitle: string
   logoUrl: string
+}
+
+type CourseResourcePerson = {
+  id: string
+  full_name?: string | null
+  email?: string | null
 }
 
 const DEFAULTS: CertSettings = {
@@ -49,7 +67,10 @@ export default function CertificateDesignPage() {
   const [layout, setLayout] = useState<CertificateLayout>(defaultCertificateLayout())
   const [message, setMessage] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [coursePeople, setCoursePeople] = useState<CourseResourcePerson[]>([])
+  const [previewOpen, setPreviewOpen] = useState(false)
   const signatureInputRef = useRef<HTMLInputElement>(null)
+  const signatureTargetRef = useRef<string | null>(null)
 
   useEffect(() => {
     load()
@@ -103,6 +124,42 @@ export default function CertificateDesignPage() {
           signatureName: stored.signatureName || (profile as any)?.full_name || '',
         } as any)
       )
+
+      try {
+        const staffRes = await fetch(`/api/teach/staff?courseId=${encodeURIComponent(courseId)}`)
+        if (staffRes.ok) {
+          const payload = await staffRes.json()
+          const onCourse = new Set<string>()
+          for (const row of (payload.staff || []) as Array<{ user_id?: string }>) {
+            if (row.user_id) onCourse.add(row.user_id)
+          }
+          if (payload.ownerId) onCourse.add(payload.ownerId)
+          const listed = (
+            (payload.teachers || []) as Array<{
+              id: string
+              full_name?: string | null
+              email?: string | null
+              role?: string
+            }>
+          )
+            .filter((teacher) => teacher.role === 'resource_person' && onCourse.has(teacher.id))
+            .map(({ id, full_name, email }) => ({ id, full_name, email }))
+          if (
+            role === 'resource_person' &&
+            onCourse.has(user.id) &&
+            !listed.some((person) => person.id === user.id)
+          ) {
+            listed.unshift({
+              id: user.id,
+              full_name: (profile as any)?.full_name,
+              email: user.email,
+            })
+          }
+          setCoursePeople(listed)
+        }
+      } catch {
+        setCoursePeople([])
+      }
     } catch (e: any) {
       alert(e?.message || 'Failed to load')
       router.push('/teach/dashboard')
@@ -145,39 +202,57 @@ export default function CertificateDesignPage() {
   }
 
   const uploadSignature = async (file: File) => {
+    const signerId = signatureTargetRef.current
+    if (!signerId) return
     setUploading(true)
     try {
       const transparent = await stripNearWhiteBackground(file)
       const { url } = await uploadImageDirectToCloudinary(transparent, {
         folder: `course-media/images/${courseId}/signature`,
       })
-      // Place as a free-floating image — never bind into the instructor-name layer
       setLayout((prev) => {
-        const sig = prev.layers.find((l) => l.type === 'signature')
-        const withoutOld = prev.logos.filter((l) => !l.id.startsWith('sig-image'))
-        return {
-          ...prev,
-          signatureUrl: undefined,
-          logos: [
-            ...withoutOld,
-            {
-              id: `sig-image-${Date.now()}`,
-              src: url,
-              x: sig ? sig.x + Math.max(0, (sig.w - 180) / 2) : 470,
-              y: sig ? Math.max(40, sig.y - 70) : 520,
-              w: 180,
-              h: 64,
-            },
-          ],
-        }
+        const people = signersFromLayout(prev).map((person) =>
+          person.id === signerId ? { ...person, imageUrl: url } : person
+        )
+        return layoutWithSigners(prev, people, { relayout: false })
       })
-      setMessage('Signature image added separately from the instructor name. Drag to place, then save.')
+      setMessage('Signature image added. Drag it on the canvas, then save.')
     } catch (e: any) {
       setMessage(e?.message || 'Failed to upload signature')
     } finally {
       setUploading(false)
+      if (signatureInputRef.current) signatureInputRef.current.value = ''
     }
   }
+
+  const commitSigners = (
+    build: (current: CertificateSigner[]) => CertificateSigner[],
+    relayout: boolean
+  ) => {
+    setLayout((prev) => {
+      const nextPeople = build(signersFromLayout(prev))
+      const next = layoutWithSigners(prev, nextPeople, { relayout })
+      const first = nextPeople[0]
+      queueMicrotask(() => {
+        setSettings((current) => ({
+          ...current,
+          signatureName: first?.name || '',
+          signatureTitle: first?.title || '',
+        }))
+      })
+      return next
+    })
+  }
+
+  const studioLayout = {
+    ...layout,
+    brandName: settings.brandName,
+    titleLine: layout.titleLine || settings.titleLine,
+    accentColor: layout.accentColor || settings.accentColor,
+    signatureName: layout.signatureName || settings.signatureName,
+    signatureTitle: layout.signatureTitle || settings.signatureTitle,
+  }
+  const resourcePersons = signersFromLayout(studioLayout)
 
   const save = async () => {
     setSaving(true)
@@ -192,17 +267,17 @@ export default function CertificateDesignPage() {
             brandName: settings.brandName,
             titleLine: layout.titleLine || settings.titleLine,
             accentColor: layout.accentColor || settings.accentColor,
-            signatureName: settings.signatureName,
-            signatureTitle: settings.signatureTitle,
-            logoUrl: settings.logoUrl || layout.logos[0]?.src || '',
+            signatureName: resourcePersons[0]?.name || '',
+            signatureTitle: resourcePersons[0]?.title || '',
+            logoUrl: settings.logoUrl || layout.logos.find((logo) => !logo.id.startsWith('sig-image'))?.src || '',
             layout: {
               ...layout,
               brandName: settings.brandName,
               titleLine: layout.titleLine || settings.titleLine,
               accentColor: layout.accentColor,
-              signatureName: settings.signatureName,
-              signatureTitle: settings.signatureTitle,
-              // Never persist a bound signature image on the name layer
+              signers: resourcePersons,
+              signatureName: resourcePersons[0]?.name || '',
+              signatureTitle: resourcePersons[0]?.title || '',
               signatureUrl: undefined,
             },
           },
@@ -232,18 +307,24 @@ export default function CertificateDesignPage() {
         <Button variant="ghost" onClick={() => router.push(`/teach/courses/${courseId}/edit`)}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to course
         </Button>
-        <Button
-          onClick={save}
-          disabled={saving}
-          className="bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          {saving ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="mr-2 h-4 w-4" />
-          )}
-          Save design
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setPreviewOpen(true)}>
+            <Eye className="mr-2 h-4 w-4" />
+            Design preview
+          </Button>
+          <Button
+            onClick={save}
+            disabled={saving}
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            {saving ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            Save design
+          </Button>
+        </div>
       </div>
 
       <div>
@@ -255,23 +336,20 @@ export default function CertificateDesignPage() {
       </div>
 
       <CertificateEditor
-        layout={{
-          ...layout,
-          brandName: settings.brandName,
-          titleLine: layout.titleLine || settings.titleLine,
-          accentColor: layout.accentColor || settings.accentColor,
-          signatureName: settings.signatureName,
-          signatureTitle: settings.signatureTitle,
-        }}
+        layout={studioLayout}
         onChange={(next) => {
           setLayout((prev) => {
-            const resolved = typeof next === 'function' ? next(prev) : next
+            const resolved = syncSignersFromLayers(typeof next === 'function' ? next(prev) : next)
             queueMicrotask(() => {
-              setSettings((s) => ({
-                ...s,
-                titleLine: resolved.titleLine || s.titleLine,
-                accentColor: resolved.accentColor || s.accentColor,
-                logoUrl: resolved.logos[0]?.src || s.logoUrl,
+              setSettings((current) => ({
+                ...current,
+                titleLine: resolved.titleLine || current.titleLine,
+                accentColor: resolved.accentColor || current.accentColor,
+                logoUrl:
+                  resolved.logos.find((logo) => !logo.id.startsWith('sig-image'))?.src ||
+                  current.logoUrl,
+                signatureName: resolved.signatureName || '',
+                signatureTitle: resolved.signatureTitle || '',
               }))
             })
             return resolved
@@ -281,12 +359,36 @@ export default function CertificateDesignPage() {
         sampleCourse={courseTitle || 'Small Business Management'}
         onUploadAsset={uploadAsset}
         uploading={uploading}
+        onPreview={() => setPreviewOpen(true)}
       />
+
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="flex max-h-[92vh] w-full max-w-[min(1180px,calc(100%-1.5rem))] flex-col gap-3 overflow-hidden sm:max-w-[min(1180px,calc(100%-1.5rem))]">
+          <DialogHeader>
+            <DialogTitle>Design preview</DialogTitle>
+            <DialogDescription>
+              Sample certificate for {courseTitle || 'this course'}. Resource persons appear as they
+              will on the issued PDF.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-auto">
+            <CertificateEditor
+              readOnly
+              layout={studioLayout}
+              onChange={() => {}}
+              sampleName="Tshering Pelden"
+              sampleCourse={courseTitle || 'Small Business Management'}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader>
           <CardTitle>Issuance settings</CardTitle>
-          <CardDescription>Enable certificates and set signer details for issued PDFs.</CardDescription>
+          <CardDescription>
+            Enable certificates and add the resource persons who sign the issued PDF.
+          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="flex items-center justify-between rounded-lg border p-3 sm:col-span-2">
@@ -304,32 +406,66 @@ export default function CertificateDesignPage() {
               onChange={(e) => setSettings({ ...settings, brandName: e.target.value })}
             />
           </div>
-          <div>
-            <Label>Signature name</Label>
-            <Input
-              className="mt-1 min-h-11"
-              value={settings.signatureName}
-              onChange={(e) => {
-                const signatureName = e.target.value
-                setSettings({ ...settings, signatureName })
-                setLayout((prev) => ({ ...prev, signatureName }))
-              }}
-            />
-          </div>
-          <div>
-            <Label>Signature title</Label>
-            <Input
-              className="mt-1 min-h-11"
-              value={settings.signatureTitle}
-              onChange={(e) => {
-                const signatureTitle = e.target.value
-                setSettings({ ...settings, signatureTitle })
-                setLayout((prev) => ({ ...prev, signatureTitle }))
-              }}
-            />
-          </div>
-          <div>
-            <Label>Signature image (camera / file)</Label>
+          <div className="space-y-3 sm:col-span-2">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <Label>Resource persons</Label>
+                <p className="text-xs text-muted-foreground">
+                  Each person is printed on their own signature block. The first person stays the
+                  primary signer.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {coursePeople.length > 0 ? (
+                  <select
+                    className="min-h-11 rounded-md border bg-background px-3 text-sm"
+                    defaultValue=""
+                    aria-label="Add a course resource person"
+                    onChange={(e) => {
+                      const picked = coursePeople.find((person) => person.id === e.target.value)
+                      e.target.value = ''
+                      if (!picked) return
+                      commitSigners((current) => {
+                        if (current.some((person) => person.userId === picked.id)) return current
+                        return [
+                          ...current,
+                          {
+                            id: newLayerId('signer'),
+                            name: picked.full_name || picked.email || '',
+                            title: 'Resource person',
+                            userId: picked.id,
+                          },
+                        ]
+                      }, true)
+                    }}
+                  >
+                    <option value="">Add from course…</option>
+                    {coursePeople.map((person) => (
+                      <option key={person.id} value={person.id}>
+                        {person.full_name || person.email}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-11"
+                  onClick={() =>
+                    commitSigners(
+                      (current) => [
+                        ...current,
+                        { id: newLayerId('signer'), name: '', title: 'Resource person' },
+                      ],
+                      true
+                    )
+                  }
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add resource person
+                </Button>
+              </div>
+            </div>
             <input
               ref={signatureInputRef}
               type="file"
@@ -341,15 +477,77 @@ export default function CertificateDesignPage() {
                 if (file) void uploadSignature(file)
               }}
             />
-            <Button
-              type="button"
-              variant="outline"
-              className="mt-1 min-h-11 w-full"
-              onClick={() => signatureInputRef.current?.click()}
-            >
-              <Camera className="mr-2 h-4 w-4" />
-              Upload / camera
-            </Button>
+            {resourcePersons.length === 0 ? (
+              <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                No resource persons yet. Add one to place a signature block on the certificate.
+              </p>
+            ) : (
+              resourcePersons.map((person, index) => (
+                <div key={person.id} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2">
+                  <div>
+                    <Label>{index === 0 ? 'Name (primary signer)' : `Name ${index + 1}`}</Label>
+                    <Input
+                      className="mt-1 min-h-11"
+                      value={person.name}
+                      onChange={(e) => {
+                        const name = e.target.value
+                        commitSigners(
+                          (current) =>
+                            current.map((item) => (item.id === person.id ? { ...item, name } : item)),
+                          false
+                        )
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label>Title</Label>
+                    <Input
+                      className="mt-1 min-h-11"
+                      value={person.title}
+                      onChange={(e) => {
+                        const title = e.target.value
+                        commitSigners(
+                          (current) =>
+                            current.map((item) =>
+                              item.id === person.id ? { ...item, title } : item
+                            ),
+                          false
+                        )
+                      }}
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2 sm:col-span-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-11"
+                      disabled={uploading}
+                      onClick={() => {
+                        signatureTargetRef.current = person.id
+                        signatureInputRef.current?.click()
+                      }}
+                    >
+                      <Camera className="mr-2 h-4 w-4" />
+                      {person.imageUrl ? 'Replace signature image' : 'Signature image'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-11 text-destructive hover:text-destructive"
+                      onClick={() =>
+                        commitSigners(
+                          (current) => current.filter((item) => item.id !== person.id),
+                          true
+                        )
+                      }
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
           {message && (
             <p className="text-sm text-muted-foreground sm:col-span-2">{message}</p>
