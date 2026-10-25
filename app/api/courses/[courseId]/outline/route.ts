@@ -8,6 +8,7 @@ import {
 } from '@/lib/course-institution-access'
 import { canAccessTeaching, type UserRole } from '@/lib/roles'
 import { formatModuleRelease, lessonOpenInModule, moduleIsLive, type ModuleLiveFields } from '@/lib/module-live'
+import { countLessonContent } from '@/lib/lesson-content-stats'
 
 /**
  * GET /api/courses/[courseId]/outline
@@ -105,15 +106,34 @@ export async function GET(
       is_published: boolean | null
       is_free: boolean | null
       is_preview: boolean | null
+      resources?: unknown
+      content?: unknown
     }> = []
 
     if (moduleIds.length > 0) {
       const { data } = await service
         .from('lessons')
-        .select('id, module_id, title, duration_minutes, order_index, is_published, is_free, is_preview')
+        .select(
+          'id, module_id, title, duration_minutes, order_index, is_published, is_free, is_preview, resources, content'
+        )
         .in('module_id', moduleIds)
         .order('order_index', { ascending: true })
       lessons = (data || []) as typeof lessons
+    }
+
+    const quizIdsByLesson = new Map<string, string[]>()
+    const lessonIds = lessons.map((lesson) => lesson.id)
+    if (lessonIds.length > 0) {
+      const { data: quizRows } = await service
+        .from('quizzes')
+        .select('id, lesson_id')
+        .in('lesson_id', lessonIds)
+      for (const row of (quizRows || []) as { id?: string | null; lesson_id?: string | null }[]) {
+        if (!row.lesson_id || !row.id) continue
+        const list = quizIdsByLesson.get(row.lesson_id) || []
+        list.push(row.id)
+        quizIdsByLesson.set(row.lesson_id, list)
+      }
     }
 
     return NextResponse.json({
@@ -132,6 +152,7 @@ export async function GET(
               const open = canManage
                 ? lesson.is_published === true
                 : lessonOpenInModule(lesson, moduleRow as ModuleLiveFields)
+              const counts = countLessonContent(lesson, quizIdsByLesson.get(lesson.id) || [])
               return {
                 id: lesson.id,
                 title: lesson.title,
@@ -140,6 +161,9 @@ export async function GET(
                 is_published: open,
                 is_free: open && lesson.is_free === true,
                 is_preview: open && (lesson.is_free === true || lesson.is_preview === true),
+                assignment_count: counts.assignment_count,
+                activity_count: counts.activity_count,
+                quiz_count: counts.quiz_count,
               }
             }),
         }

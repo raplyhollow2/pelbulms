@@ -24,6 +24,7 @@ import {
   type LectureKind,
 } from '@/lib/lesson-kind'
 import { getActivityDef, parseLessonActivities } from '@/lib/lesson-activities'
+import { moduleDisplayTitle } from '@/lib/module-display-title'
 import { parseLessonBlocks, type LessonBlock } from '@/lib/lesson-blocks'
 
 export type CurriculumLesson = {
@@ -69,7 +70,7 @@ function KindIcon({ kind }: { kind: LectureKind }) {
 }
 
 /**
- * Udemy-style course content rail — sections, numbered lectures, type + duration.
+ * Course content rail — numbered modules, lectures, type, and duration.
  */
 export function CurriculumRail({
   lessons,
@@ -110,7 +111,7 @@ export function CurriculumRail({
 
     return orderedModules.map((mod) => ({
       id: mod.id,
-      title: mod.title || 'Section',
+      title: mod.title || 'Module',
       lessons: byModule.get(mod.id) || [],
     }))
   }, [lessons, modules])
@@ -208,7 +209,7 @@ export function CurriculumRail({
               >
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold leading-snug">
-                    Section {sectionIndex + 1}: {section.title}
+                    {moduleDisplayTitle(sectionIndex, section.title)}
                   </span>
                   <span className="mt-0.5 block text-[11px] text-muted-foreground">
                     {sectionDone}/{section.lessons.length}

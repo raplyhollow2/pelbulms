@@ -45,6 +45,9 @@ type OutlineLesson = {
   is_free: boolean
   is_preview: boolean
   is_upcoming: boolean
+  assignment_count?: number
+  activity_count?: number
+  quiz_count?: number
 }
 
 type OutlineModule = {
@@ -64,6 +67,9 @@ function toOutlineLesson(lesson: {
   is_published?: boolean | null
   is_free?: boolean | null
   is_preview?: boolean | null
+  assignment_count?: number | null
+  activity_count?: number | null
+  quiz_count?: number | null
 }): OutlineLesson {
   const published = lesson.is_published === true
   const free = published && lesson.is_free === true
@@ -76,6 +82,9 @@ function toOutlineLesson(lesson: {
     is_free: free,
     is_preview: published && (free || lesson.is_preview === true),
     is_upcoming: !published,
+    assignment_count: lesson.assignment_count || 0,
+    activity_count: lesson.activity_count || 0,
+    quiz_count: lesson.quiz_count || 0,
   }
 }
 

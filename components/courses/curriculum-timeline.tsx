@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress'
 import { ChevronDown, Play, Lock, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatLectureDuration } from '@/lib/lesson-kind'
+import { moduleDisplayTitle } from '@/lib/module-display-title'
 
 interface Lesson {
   id: string
@@ -17,6 +18,9 @@ interface Lesson {
   is_locked?: boolean
   is_preview?: boolean
   is_upcoming?: boolean
+  assignment_count?: number
+  activity_count?: number
+  quiz_count?: number
 }
 
 interface Module {
@@ -41,6 +45,10 @@ function moduleSeconds(module: Module) {
   return (module.lessons || []).reduce((sum, lesson) => sum + (lesson.duration_minutes || 0), 0)
 }
 
+function countLabel(count: number, singular: string, plural: string) {
+  return `${count} ${count === 1 ? singular : plural}`
+}
+
 export function CurriculumTimeline({
   modules,
   currentLessonId,
@@ -52,7 +60,11 @@ export function CurriculumTimeline({
     new Set(modules.slice(0, 1).map((moduleRow) => moduleRow.id))
   )
 
-  const lectureCount = modules.reduce((sum, moduleRow) => sum + (moduleRow.lessons?.length || 0), 0)
+  const lessons = modules.flatMap((moduleRow) => moduleRow.lessons || [])
+  const lectureCount = lessons.length
+  const assignmentCount = lessons.reduce((sum, lesson) => sum + (lesson.assignment_count || 0), 0)
+  const activityCount = lessons.reduce((sum, lesson) => sum + (lesson.activity_count || 0), 0)
+  const quizCount = lessons.reduce((sum, lesson) => sum + (lesson.quiz_count || 0), 0)
   const totalLabel = formatLectureDuration(
     modules.reduce((sum, moduleRow) => sum + moduleSeconds(moduleRow), 0)
   )
@@ -72,9 +84,12 @@ export function CurriculumTimeline({
   }
 
   const summary = [
-    `${modules.length} ${modules.length === 1 ? 'section' : 'sections'}`,
-    `${lectureCount} ${lectureCount === 1 ? 'lecture' : 'lectures'}`,
+    countLabel(modules.length, 'module', 'modules'),
+    countLabel(lectureCount, 'lecture', 'lectures'),
     totalLabel,
+    assignmentCount > 0 ? countLabel(assignmentCount, 'assignment', 'assignments') : null,
+    activityCount > 0 ? countLabel(activityCount, 'activity', 'activities') : null,
+    quizCount > 0 ? countLabel(quizCount, 'quiz', 'quizzes') : null,
   ]
     .filter(Boolean)
     .join(' • ')
@@ -125,7 +140,9 @@ export function CurriculumTimeline({
                   )}
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold">{module.title}</span>
+                  <span className="block text-sm font-semibold">
+                    {moduleDisplayTitle(moduleIndex, module.title)}
+                  </span>
                   {module.release_label ? (
                     <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{module.release_label}</span>
                   ) : null}
