@@ -138,9 +138,11 @@ export async function POST(request: Request) {
   // Gewog and village stay optional under every registration policy, including CID and identity photo.
   const optionalGewog = typeof gewog === 'string' ? gewog.trim() : ''
   const optionalVillage = typeof village === 'string' ? village.trim() : ''
-  if (policy.require_cid) {
-    if (!cid_number?.trim()) missing.push('cid_number')
-    if (!cid_photo_url?.trim()) missing.push('cid_photo_url')
+  if (policy.require_cid && !cid_number?.trim()) {
+    missing.push('cid_number')
+  }
+  if (policy.require_cid_photo && !cid_photo_url?.trim()) {
+    missing.push('cid_photo_url')
   }
   if (policy.require_identity_photo && !passport_photo_url?.trim()) {
     missing.push('passport_photo_url')
@@ -201,7 +203,8 @@ export async function POST(request: Request) {
 
   const role = REQUESTABLE_ROLES.includes(requested_role) ? requested_role : 'student'
   const teachingRequest = isTeachingRequestRole(role)
-  const identityRequired = policy.require_cid || policy.require_identity_photo
+  const identityRequired =
+    policy.require_cid || policy.require_cid_photo || policy.require_identity_photo
   const autoActivate = !identityRequired
   const now = new Date().toISOString()
 

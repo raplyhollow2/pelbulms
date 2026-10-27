@@ -90,8 +90,23 @@ export async function GET(request: NextRequest) {
       totalLessons = lessonIds.size
     }
 
-    const { data: certs } = await service.from('certificates').select('user_id').eq('course_id', courseId)
-    const certifiedIds = new Set((certs || []).map((c: any) => c.user_id))
+    const { data: certs } = await service
+      .from('certificates')
+      .select('user_id, certificate_url, verification_code, issued_at')
+      .eq('course_id', courseId)
+    const certByUser = new Map<
+      string,
+      { certificate_url: string | null; verification_code: string | null; issued_at: string | null }
+    >()
+    for (const row of certs || []) {
+      const uid = (row as { user_id?: string }).user_id
+      if (!uid) continue
+      certByUser.set(uid, {
+        certificate_url: (row as { certificate_url?: string | null }).certificate_url || null,
+        verification_code: (row as { verification_code?: string | null }).verification_code || null,
+        issued_at: (row as { issued_at?: string | null }).issued_at || null,
+      })
+    }
 
     const { data: progressRows } = await service
       .from('lesson_progress')
@@ -108,13 +123,20 @@ export async function GET(request: NextRequest) {
       completedByUser.set(uid, (completedByUser.get(uid) || 0) + 1)
     }
 
-    const students = (enrollments || []).map((enrollment: any) => ({
-      ...(enrollment.profiles || {}),
-      enrollment,
-      completed_lessons: completedByUser.get(enrollment.user_id) || 0,
-      total_lessons: totalLessons,
-      has_certificate: certifiedIds.has(enrollment.user_id),
-    }))
+    const students = (enrollments || []).map((enrollment: any) => {
+      const cert = certByUser.get(enrollment.user_id)
+      const certificateUrl = cert?.certificate_url || null
+      return {
+        ...(enrollment.profiles || {}),
+        enrollment,
+        completed_lessons: completedByUser.get(enrollment.user_id) || 0,
+        total_lessons: totalLessons,
+        has_certificate: Boolean(certificateUrl),
+        certificate_url: certificateUrl,
+        verification_code: certificateUrl ? cert?.verification_code || null : null,
+        issued_at: certificateUrl ? cert?.issued_at || null : null,
+      }
+    })
 
     const { data: regs } = await service
       .from('student_registrations')

@@ -2,6 +2,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
+import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -1292,6 +1293,13 @@ export default function LessonViewPage() {
       if (!res.ok || json.completionPending) {
         const message =
           json.error || 'Course completion is waiting on a passing grade.'
+        if (json.code === 'cid_required') {
+          setCompletionHold(
+            'Course complete. Add your 11-digit CID on your profile before claiming your certificate.'
+          )
+          setShowCompletionDialog(false)
+          return { url: null, pending: true, error: message }
+        }
         if (json.code === 'grading_required' || json.completionPending) {
           setCompletionHold(message)
           setShowCompletionDialog(false)
@@ -1694,6 +1702,14 @@ export default function LessonViewPage() {
           {completionHold ? (
             <div className="border-b border-amber-600/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-900 dark:text-amber-200">
               {completionHold}
+              {completionHold.includes('CID') ? (
+                <>
+                  {' '}
+                  <Link href="/profile#profile_cid" className="font-medium underline underline-offset-2">
+                    Open profile
+                  </Link>
+                </>
+              ) : null}
             </div>
           ) : null}
           {autoAdvanceNotice ? (

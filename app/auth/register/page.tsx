@@ -54,6 +54,7 @@ const HEAR_ABOUT = [
 const DEFAULT_POLICY: RegistrationPolicy = {
   require_identity_documents: false,
   require_cid: false,
+  require_cid_photo: false,
   require_identity_photo: false,
   require_qualification: false,
   require_student_id: false,
@@ -69,7 +70,7 @@ function buildSteps(policy: RegistrationPolicy) {
   const steps: { id: StepId; title: string; icon: typeof UserRound }[] = [
     { id: 'personal', title: 'Personal', icon: UserRound },
   ]
-  if (policy.require_cid || policy.require_identity_photo) {
+  if (policy.require_cid || policy.require_cid_photo || policy.require_identity_photo) {
     steps.push({ id: 'identity', title: 'Identity', icon: IdCard })
   }
   steps.push({ id: 'institution', title: 'Institution', icon: Building2 })
@@ -275,9 +276,11 @@ export default function RegisterPage() {
       return null
     }
     if (id === 'identity') {
-      if (policy.require_cid) {
-        if (!/^[0-9]{11}$/.test(form.cid_number)) return 'CID number must be exactly 11 digits.'
-        if (!cid?.path) return 'Please upload a photo of your CID.'
+      if (policy.require_cid && !/^[0-9]{11}$/.test(form.cid_number)) {
+        return 'CID number must be exactly 11 digits.'
+      }
+      if (policy.require_cid_photo && !cid?.path) {
+        return 'Please upload a photo of your CID.'
       }
       if (policy.require_identity_photo && !passport?.path) {
         return 'Please upload your identity photo.'
@@ -613,34 +616,37 @@ export default function RegisterPage() {
                 <IdCard className="h-5 w-5" /> Identity verification
               </CardTitle>
               <CardDescription>
-                {policy.require_cid && policy.require_identity_photo
-                  ? 'CID number, a photo of the card, and a passport-size identity photo.'
-                  : policy.require_cid
-                    ? 'CID number and a photo of the card.'
-                    : 'A passport-size identity photo.'}
+                {[
+                  policy.require_cid ? 'CID number' : null,
+                  policy.require_cid_photo ? 'a photo of the card' : null,
+                  policy.require_identity_photo ? 'a passport-size identity photo' : null,
+                ]
+                  .filter(Boolean)
+                  .join(', ')
+                  .replace(/, ([^,]*)$/, ', and $1') + '.'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {policy.require_cid && (
-                <>
-                  <div className="space-y-2">
-                    <Label>CID number (11 digits)</Label>
-                    <Input
-                      value={form.cid_number}
-                      inputMode="numeric"
-                      maxLength={11}
-                      onChange={(e) => set('cid_number', e.target.value.replace(/\D/g, ''))}
-                      placeholder="10101000000"
-                    />
-                  </div>
-                  <PhotoUpload
-                    label="CID photo"
-                    hint="Tap to upload a photo of your CID"
-                    field="cid"
-                    value={cid}
-                    onUploaded={setCid}
+                <div className="space-y-2">
+                  <Label>CID number (11 digits)</Label>
+                  <Input
+                    value={form.cid_number}
+                    inputMode="numeric"
+                    maxLength={11}
+                    onChange={(e) => set('cid_number', e.target.value.replace(/\D/g, ''))}
+                    placeholder="10101000000"
                   />
-                </>
+                </div>
+              )}
+              {policy.require_cid_photo && (
+                <PhotoUpload
+                  label="CID photo"
+                  hint="Tap to upload a photo of your CID"
+                  field="cid"
+                  value={cid}
+                  onUploaded={setCid}
+                />
               )}
               {policy.require_identity_photo && (
                 <PhotoUpload

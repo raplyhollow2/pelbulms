@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { createClient } from '@/lib/supabase/client'
 import { BrandCharacter } from '@/components/brand/brand-character'
+import { certificateNeedsCidUpdate, isValidCid } from '@/lib/profile-fields'
 
 type CertificateRow = {
   id: string
@@ -21,6 +22,7 @@ type CertificateRow = {
   verification_code: string | null
   issued_at: string | null
   course_id: string
+  metadata?: { cid?: string | null; course_title?: string | null } | null
 }
 
 export default function CertificateClaimPage() {
@@ -31,6 +33,8 @@ export default function CertificateClaimPage() {
   const [loading, setLoading] = useState(true)
   const [issuing, setIssuing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [cidRequired, setCidRequired] = useState(false)
+  const [needsCidUpdate, setNeedsCidUpdate] = useState(false)
   const [designFrozen, setDesignFrozen] = useState(false)
   const [awarded, setAwarded] = useState(false)
   const [courseTitle, setCourseTitle] = useState<string | null>(null)
@@ -41,6 +45,8 @@ export default function CertificateClaimPage() {
     try {
       setLoading(true)
       setError(null)
+      setCidRequired(false)
+      setNeedsCidUpdate(false)
       setDesignFrozen(false)
       setCertificate(null)
       setAwarded(false)
@@ -60,28 +66,45 @@ export default function CertificateClaimPage() {
         .maybeSingle()
       setCourseTitle((course as any)?.title || null)
 
-      const { data: enrollment } = await supabase
-        .from('enrollments')
-        .select('progress_percentage, status')
-        .eq('user_id', user.id)
-        .eq('course_id', courseId)
-        .maybeSingle()
+      const [{ data: enrollment }, { data: profile }] = await Promise.all([
+        supabase
+          .from('enrollments')
+          .select('progress_percentage, status')
+          .eq('user_id', user.id)
+          .eq('course_id', courseId)
+          .maybeSingle(),
+        supabase.from('profiles').select('cid_number').eq('id', user.id).maybeSingle(),
+      ])
 
       const pct = Number((enrollment as any)?.progress_percentage) || 0
       setProgress(pct)
+      const profileCid = isValidCid((profile as { cid_number?: string | null } | null)?.cid_number)
 
       const { data: existing } = await (supabase as any)
         .from('certificates')
-        .select('id, certificate_url, verification_code, issued_at, course_id')
+        .select('id, certificate_url, verification_code, issued_at, course_id, metadata')
         .eq('user_id', user.id)
         .eq('course_id', courseId)
         .maybeSingle()
 
-      const awarded = Boolean(existing?.certificate_url)
-      setAwarded(awarded)
-      const ready = pct >= 100 || (enrollment as any)?.status === 'completed' || awarded
-      if (!awarded && !ready) {
+      const existingCert = (existing as CertificateRow | null) || null
+      const hasAward = Boolean(existingCert?.certificate_url)
+      setAwarded(hasAward)
+      const ready = pct >= 100 || (enrollment as any)?.status === 'completed' || hasAward
+      if (!hasAward && !ready) {
         setCertificate(null)
+        return
+      }
+
+      const existingNeedsUpdate = hasAward && certificateNeedsCidUpdate(existingCert?.metadata)
+      if (existingNeedsUpdate && !profileCid) {
+        setCertificate(existingCert)
+        setNeedsCidUpdate(true)
+        setCidRequired(true)
+        return
+      }
+      if (hasAward && !existingNeedsUpdate) {
+        setCertificate(existingCert)
         return
       }
 
@@ -90,12 +113,27 @@ export default function CertificateClaimPage() {
       const res = await fetch('/api/certificates/issue', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courseId, refresh: awarded }),
+        body: JSON.stringify({
+          courseId,
+          refresh: existingNeedsUpdate,
+        }),
       })
       const json = await res.json().catch(() => ({}))
       if (json.designFrozen && json.certificate?.certificate_url) {
         setDesignFrozen(true)
         setCertificate(json.certificate as CertificateRow)
+        return
+      }
+      if (json.code === 'cid_required') {
+        setCidRequired(true)
+        setNeedsCidUpdate(Boolean(json.certificate?.certificate_url))
+        if (json.certificate?.certificate_url) {
+          setCertificate(json.certificate as CertificateRow)
+          setAwarded(true)
+        } else {
+          setCertificate(null)
+        }
+        setError(null)
         return
       }
       if (!res.ok || json.completionPending || !json.certificate?.certificate_url) {
@@ -105,6 +143,8 @@ export default function CertificateClaimPage() {
       }
       setDesignFrozen(false)
       setCertificate(json.certificate as CertificateRow)
+      setAwarded(true)
+      setNeedsCidUpdate(certificateNeedsCidUpdate(json.certificate.metadata))
     } catch (e: any) {
       setError(e?.message || 'Failed to load certificate')
     } finally {
@@ -152,16 +192,35 @@ export default function CertificateClaimPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {complete ? (
+          {complete && !cidRequired ? (
             <div className="flex items-center justify-center gap-2 rounded-lg border border-green-600/30 bg-green-600/10 px-4 py-3 text-sm font-medium text-green-700 dark:text-green-400">
               <CheckCircle2 className="h-4 w-4 shrink-0" />
               Course completed — certificate ready
+            </div>
+          ) : complete && cidRequired ? (
+            <div className="rounded-lg border border-amber-600/30 bg-amber-500/10 px-4 py-3 text-center text-sm text-amber-900 dark:text-amber-200">
+              Course complete. Add your 11-digit CID on your profile
+              {needsCidUpdate ? ' to get a revised certificate' : ' before claiming your certificate'}.
             </div>
           ) : (
             <div className="rounded-lg border bg-muted/40 px-4 py-3 text-center text-sm text-muted-foreground">
               Finish all lectures to unlock your certificate ({progress}% complete).
             </div>
           )}
+
+          {cidRequired ? (
+            <div className="space-y-3 text-center">
+              <Button
+                className="min-h-11 w-full"
+                onClick={() => router.push('/profile#profile_cid')}
+              >
+                Update CID on profile
+              </Button>
+              <Button variant="outline" className="min-h-11 w-full" onClick={() => void load()}>
+                I updated my CID — try again
+              </Button>
+            </div>
+          ) : null}
 
           {error ? (
             <div className="space-y-3 text-center">
@@ -187,6 +246,11 @@ export default function CertificateClaimPage() {
 
           {certificate?.certificate_url && !issuing ? (
             <div className="space-y-3">
+              {needsCidUpdate ? (
+                <p className="text-center text-sm text-muted-foreground">
+                  This is your current certificate. Update your CID to receive a revised PDF.
+                </p>
+              ) : null}
               <iframe
                 key={certificate.certificate_url}
                 title="Certificate"
@@ -221,7 +285,7 @@ export default function CertificateClaimPage() {
                 </Button>
               ) : null}
             </div>
-          ) : complete && !issuing && !error ? (
+          ) : complete && !issuing && !error && !cidRequired ? (
             <Button
               className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={() => void load()}

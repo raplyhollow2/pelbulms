@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
   ArrowLeft, Loader2, CheckCircle, Circle, Clock, Award, BookOpen,
-  Calendar, TrendingUp, ShieldCheck,
+  Calendar, TrendingUp, ShieldCheck, Download,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
@@ -359,33 +359,100 @@ export default function StudentDetailPage() {
         {/* Certificate status */}
         <Card>
           <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4">
-            <div className="flex items-center gap-3">
-              <div className={`flex h-10 w-10 items-center justify-center rounded-full ${certificate ? 'bg-green-100 dark:bg-green-950' : 'bg-muted'}`}>
-                <Award className={`h-5 w-5 ${certificate ? 'text-green-600' : 'text-muted-foreground'}`} />
-              </div>
-              <div>
-                <p className="text-sm font-medium">
-                  {certificate ? 'Certificate issued' : 'No certificate yet'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {certificate
-                    ? `Issued ${new Date(certificate.issued_at).toLocaleDateString()} · ${certificate.verification_code}`
-                    : 'Awarded automatically at 100% completion'}
-                </p>
-              </div>
-            </div>
-            {certificate && (
-              <div className="flex items-center gap-2">
-                {certificate.certificate_url && (
-                  <Button variant="outline" size="sm" onClick={() => window.open(certificate.certificate_url, '_blank')}>
-                    <Award className="mr-1 h-3.5 w-3.5" /> View
-                  </Button>
-                )}
-                <Button variant="ghost" size="sm" onClick={() => window.open(`/verify/${certificate.verification_code}`, '_blank')}>
-                  <ShieldCheck className="mr-1 h-3.5 w-3.5" /> Verify
-                </Button>
-              </div>
-            )}
+            {(() => {
+              const certificateUrl = certificate?.certificate_url as string | undefined
+              const courseComplete =
+                progressPct >= 100 ||
+                enrollment?.status === 'completed' ||
+                Boolean(enrollment?.completed_at) ||
+                Number(enrollment?.progress_percentage) >= 100
+              const issued = Boolean(certificateUrl)
+              const title = issued
+                ? 'Certificate issued'
+                : courseComplete
+                  ? 'Completed — certificate not claimed'
+                  : 'No certificate yet'
+              const detail = issued
+                ? `Issued ${
+                    certificate.issued_at
+                      ? new Date(certificate.issued_at).toLocaleDateString()
+                      : '—'
+                  }${certificate.verification_code ? ` · ${certificate.verification_code}` : ''}`
+                : courseComplete
+                  ? 'Learner finished the course but has not claimed a certificate yet (CID may still be required).'
+                  : 'Certificate becomes available after the learner completes the course and claims it.'
+              return (
+                <>
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`flex h-10 w-10 items-center justify-center rounded-full ${
+                        issued
+                          ? 'bg-green-100 dark:bg-green-950'
+                          : courseComplete
+                            ? 'bg-amber-100 dark:bg-amber-950'
+                            : 'bg-muted'
+                      }`}
+                    >
+                      <Award
+                        className={`h-5 w-5 ${
+                          issued
+                            ? 'text-green-600'
+                            : courseComplete
+                              ? 'text-amber-700 dark:text-amber-300'
+                              : 'text-muted-foreground'
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">{title}</p>
+                      <p className="text-xs text-muted-foreground">{detail}</p>
+                    </div>
+                  </div>
+                  {issued ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(certificateUrl, '_blank', 'noopener,noreferrer')}
+                      >
+                        <Award className="mr-1 h-3.5 w-3.5" /> View
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const link = document.createElement('a')
+                          link.href = certificateUrl!
+                          link.download = `${(student?.full_name || 'certificate').replace(/[^\w\-]+/g, '_')}.pdf`
+                          link.target = '_blank'
+                          link.rel = 'noopener noreferrer'
+                          document.body.appendChild(link)
+                          link.click()
+                          link.remove()
+                        }}
+                      >
+                        <Download className="mr-1 h-3.5 w-3.5" /> Download
+                      </Button>
+                      {certificate.verification_code ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            window.open(
+                              `/verify/${certificate.verification_code}`,
+                              '_blank',
+                              'noopener,noreferrer'
+                            )
+                          }
+                        >
+                          <ShieldCheck className="mr-1 h-3.5 w-3.5" /> Verify
+                        </Button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </>
+              )
+            })()}
           </CardContent>
         </Card>
 

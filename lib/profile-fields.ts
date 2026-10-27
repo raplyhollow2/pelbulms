@@ -3,6 +3,21 @@ import { normalizeDzongkhag } from '@/lib/dzongkhags'
 export const PHONE_RE = /^\+975[0-9]{8}$/
 export const CID_RE = /^[0-9]{11}$/
 
+/** Trimmed 11-digit CID, or null when missing/invalid. */
+export function isValidCid(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return CID_RE.test(trimmed) ? trimmed : null
+}
+
+/** Historical certificates never stored metadata.cid. */
+export function certificateNeedsCidUpdate(
+  metadata: { cid?: string | null } | null | undefined
+): boolean {
+  if (!metadata || typeof metadata !== 'object') return true
+  return !isValidCid(metadata.cid)
+}
+
 export const GENDER_OPTIONS = [
   { value: 'male', label: 'Male' },
   { value: 'female', label: 'Female' },

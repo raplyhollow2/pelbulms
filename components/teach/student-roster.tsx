@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { ColumnDef } from '@tanstack/react-table'
+import { Award, Download, ShieldCheck } from 'lucide-react'
 import { DataTable } from '@/components/data-table/data-table'
 import { PersonHoverCard } from '@/components/people/person-hover-card'
 import { Badge } from '@/components/ui/badge'
@@ -25,8 +26,12 @@ type RosterStudent = {
   completed_lessons: number
   total_lessons: number
   has_certificate: boolean
+  certificate_url?: string | null
+  verification_code?: string | null
+  issued_at?: string | null
   enrollment: {
     status?: string | null
+    progress_percentage?: number | null
     enrolled_at?: string | null
     last_accessed_at?: string | null
     completed_at?: string | null
@@ -34,8 +39,26 @@ type RosterStudent = {
 }
 
 function progressOf(student: RosterStudent) {
+  const enrollmentPct = Number(student.enrollment.progress_percentage)
+  if (Number.isFinite(enrollmentPct) && enrollmentPct > 0) {
+    return Math.min(100, Math.round(enrollmentPct))
+  }
   if (!student.total_lessons) return 0
   return Math.round((student.completed_lessons / student.total_lessons) * 100)
+}
+
+function isCourseComplete(student: RosterStudent) {
+  return (
+    progressOf(student) >= 100 ||
+    student.enrollment.status === 'completed' ||
+    Boolean(student.enrollment.completed_at)
+  )
+}
+
+function certificateLabel(student: RosterStudent) {
+  if (student.certificate_url || student.has_certificate) return 'Issued'
+  if (isCourseComplete(student)) return 'Completed — not claimed'
+  return '—'
 }
 
 function formatDate(value?: string | null) {
@@ -43,6 +66,21 @@ function formatDate(value?: string | null) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
   return date.toLocaleDateString()
+}
+
+function openCertificate(url: string) {
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
+function downloadCertificate(url: string, name?: string | null) {
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${(name || 'certificate').replace(/[^\w\-]+/g, '_')}.pdf`
+  link.target = '_blank'
+  link.rel = 'noopener noreferrer'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
 }
 
 export function StudentRoster({
@@ -98,6 +136,52 @@ export function StudentRoster({
       },
     },
     {
+      id: 'certificate',
+      accessorFn: (student) => certificateLabel(student),
+      header: 'Certificate',
+      cell: ({ row }) => {
+        const student = row.original
+        const label = certificateLabel(student)
+        if (label === 'Issued' && student.certificate_url) {
+          return (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge variant="outline" className="bg-green-600/10 text-green-700 dark:text-green-400">
+                Issued
+              </Badge>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2"
+                onClick={() => openCertificate(student.certificate_url!)}
+              >
+                <Award className="mr-1 h-3.5 w-3.5" />
+                View
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2"
+                onClick={() => downloadCertificate(student.certificate_url!, student.full_name)}
+              >
+                <Download className="mr-1 h-3.5 w-3.5" />
+                Download
+              </Button>
+            </div>
+          )
+        }
+        if (label === 'Completed — not claimed') {
+          return (
+            <span className="text-xs text-amber-700 dark:text-amber-300">
+              Completed — not claimed
+            </span>
+          )
+        }
+        return <span className="text-sm text-muted-foreground">—</span>
+      },
+    },
+    {
       id: 'enrolled',
       accessorFn: (student) => student.enrollment.enrolled_at || '',
       header: 'Enrolled',
@@ -125,6 +209,7 @@ export function StudentRoster({
   ]
 
   const detailProgress = detail ? progressOf(detail) : 0
+  const detailCertLabel = detail ? certificateLabel(detail) : '—'
 
   return (
     <>
@@ -163,10 +248,43 @@ export function StudentRoster({
                 <dt className="text-muted-foreground">Last active</dt>
                 <dd>{formatDate(detail.enrollment.last_accessed_at)}</dd>
               </div>
-              {detail.has_certificate ? (
-                <div className="flex justify-between gap-3">
-                  <dt className="text-muted-foreground">Certificate</dt>
-                  <dd>Issued</dd>
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">Certificate</dt>
+                <dd>{detailCertLabel}</dd>
+              </div>
+              {detail.certificate_url ? (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openCertificate(detail.certificate_url!)}
+                  >
+                    <Award className="mr-1 h-3.5 w-3.5" />
+                    View
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => downloadCertificate(detail.certificate_url!, detail.full_name)}
+                  >
+                    <Download className="mr-1 h-3.5 w-3.5" />
+                    Download
+                  </Button>
+                  {detail.verification_code ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        window.open(`/verify/${detail.verification_code}`, '_blank', 'noopener,noreferrer')
+                      }
+                    >
+                      <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+                      Verify
+                    </Button>
+                  ) : null}
                 </div>
               ) : null}
             </dl>

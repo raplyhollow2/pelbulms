@@ -44,9 +44,10 @@ export type PlatformSettings = {
   public_catalog: boolean
   featured_course_ids: string[]
   maintenance_mode: boolean
-  /** Derived: CID or identity photo is required. */
+  /** Derived: CID number, CID photo, or identity photo is required. */
   require_identity_documents: boolean
   require_cid: boolean
+  require_cid_photo: boolean
   require_identity_photo: boolean
   require_qualification: boolean
   require_student_id: boolean
@@ -86,9 +87,10 @@ export type PlatformSettings = {
 }
 
 export type RegistrationPolicy = {
-  /** True when CID or an identity photo is required. Students then wait for review. */
+  /** True when CID number, CID photo, or identity photo is required. Students then wait for review. */
   require_identity_documents: boolean
   require_cid: boolean
+  require_cid_photo: boolean
   require_identity_photo: boolean
   require_qualification: boolean
   require_student_id: boolean
@@ -110,6 +112,7 @@ export const DEFAULT_PLATFORM_SETTINGS: PlatformSettings = {
   maintenance_mode: false,
   require_identity_documents: false,
   require_cid: false,
+  require_cid_photo: false,
   require_identity_photo: false,
   require_qualification: false,
   require_student_id: false,
@@ -218,13 +221,17 @@ function parseGlassOpacity(raw: unknown): number {
 function parseIdentityFlags(row: Record<string, unknown>) {
   const legacy = row.require_identity_documents !== false
   const hasCid = typeof row.require_cid === 'boolean'
+  const hasCidPhoto = typeof row.require_cid_photo === 'boolean'
   const hasPhoto = typeof row.require_identity_photo === 'boolean'
   const require_cid = hasCid ? row.require_cid === true : legacy
+  // Missing column: keep today's bundled behavior (photo follows CID).
+  const require_cid_photo = hasCidPhoto ? row.require_cid_photo === true : require_cid
   const require_identity_photo = hasPhoto ? row.require_identity_photo === true : legacy
   return {
     require_cid,
+    require_cid_photo,
     require_identity_photo,
-    require_identity_documents: require_cid || require_identity_photo,
+    require_identity_documents: require_cid || require_cid_photo || require_identity_photo,
   }
 }
 
@@ -244,8 +251,10 @@ function parseOptionalPositiveInt(value: unknown): number | null {
 
 export function toRegistrationPolicy(settings: PlatformSettings): RegistrationPolicy {
   return {
-    require_identity_documents: settings.require_cid || settings.require_identity_photo,
+    require_identity_documents:
+      settings.require_cid || settings.require_cid_photo || settings.require_identity_photo,
     require_cid: settings.require_cid,
+    require_cid_photo: settings.require_cid_photo,
     require_identity_photo: settings.require_identity_photo,
     require_qualification: settings.require_qualification,
     require_student_id: settings.require_student_id,
@@ -266,7 +275,8 @@ export function toPublicSite(settings: PlatformSettings) {
     public_catalog: settings.public_catalog,
     featured_course_ids: settings.featured_course_ids,
     maintenance_mode: settings.maintenance_mode,
-    require_identity_documents: settings.require_cid || settings.require_identity_photo,
+    require_identity_documents:
+      settings.require_cid || settings.require_cid_photo || settings.require_identity_photo,
     hero_video_url: settings.hero_video_url,
     hero_video_start_seconds: settings.hero_video_start_seconds,
     hero_video_end_seconds: settings.hero_video_end_seconds,

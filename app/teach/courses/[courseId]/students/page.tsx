@@ -21,6 +21,9 @@ type StudentWithProgress = Profile & {
   completed_lessons: number
   total_lessons: number
   has_certificate: boolean
+  certificate_url?: string | null
+  verification_code?: string | null
+  issued_at?: string | null
 }
 
 type StudentIdentity = {
@@ -84,7 +87,8 @@ export default function CourseStudentsPage() {
         .eq('user_id', user.id)
         .maybeSingle()
       const isOwner = (courseData as any).instructor_id === user.id
-      const isStaff = role === 'admin' || role === 'superadmin'
+      const isStaff =
+        role === 'admin' || role === 'superadmin' || role === 'resource_person'
       const isCoTeacher = Boolean(staffRow)
       if (!isOwner && !isStaff && !isCoTeacher) {
         alert('Access denied. You can only view students for your own courses.')

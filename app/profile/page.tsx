@@ -23,7 +23,11 @@ import { Separator } from '@/components/ui/separator'
 import { canAccessTeaching } from '@/lib/roles'
 import { linkedinFromProfile, mergeSocialLinks, normalizeLinkedInUrl } from '@/lib/social-links'
 import { DZONGKHAGS, normalizeDzongkhag } from '@/lib/dzongkhags'
-import { GENDER_OPTIONS } from '@/lib/profile-fields'
+import {
+  certificateNeedsCidUpdate,
+  GENDER_OPTIONS,
+  isValidCid,
+} from '@/lib/profile-fields'
 import {
   User,
   Calendar,
@@ -307,6 +311,50 @@ export default function ProfilePage() {
         setFormData((prev) => ({ ...prev, linkedin: saved }))
       }
 
+      const savedCid = isValidCid(formData.cid_number)
+      if (savedCid) {
+        const pending = certificates.filter((cert: any) =>
+          certificateNeedsCidUpdate(cert?.metadata)
+        )
+        if (pending.length) {
+          const results = await Promise.allSettled(
+            pending.map((cert: any) =>
+              fetch('/api/certificates/issue', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ courseId: cert.course_id, refresh: true }),
+              }).then(async (issueRes) => {
+                const issueJson = await issueRes.json().catch(() => ({}))
+                if (!issueRes.ok) {
+                  throw new Error(issueJson.error || 'Certificate refresh failed')
+                }
+                return issueJson.certificate
+              })
+            )
+          )
+          const refreshed = results
+            .filter((result): result is PromiseFulfilledResult<any> => result.status === 'fulfilled')
+            .map((result) => result.value)
+            .filter(Boolean)
+          if (refreshed.length) {
+            setCertificates((prev) =>
+              prev.map((cert: any) => {
+                const next = refreshed.find(
+                  (item: any) => item?.id === cert.id || item?.course_id === cert.course_id
+                )
+                return next ? { ...cert, ...next } : cert
+              })
+            )
+          }
+          const failed = results.filter((result) => result.status === 'rejected').length
+          if (failed > 0) {
+            setError(
+              `Profile saved, but ${failed} certificate${failed === 1 ? '' : 's'} could not be updated. Open each certificate page to retry.`
+            )
+          }
+        }
+      }
+
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
     } catch (err: any) {
@@ -532,6 +580,11 @@ export default function ProfilePage() {
                       setFormData({ ...formData, cid_number: e.target.value.replace(/\D/g, '') })
                     }
                   />
+                  {certificates.some((cert: any) => certificateNeedsCidUpdate(cert?.metadata)) ? (
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      Save a valid 11-digit CID to refresh certificates issued without one.
+                    </p>
+                  ) : null}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="profile_staff_id">Student / staff ID</Label>
@@ -837,7 +890,8 @@ export default function ProfilePage() {
               Certificates
             </CardTitle>
             <CardDescription>
-              Certificates earned from completed courses
+              Certificates earned from completed courses. Update your CID above to refresh any
+              certificate issued without one.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -851,7 +905,9 @@ export default function ProfilePage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {certificates.map((cert: any) => (
+                {certificates.map((cert: any) => {
+                  const needsCid = certificateNeedsCidUpdate(cert?.metadata)
+                  return (
                   <div
                     key={cert.id}
                     className="flex flex-col gap-3 rounded-lg border p-3"
@@ -870,10 +926,15 @@ export default function ProfilePage() {
                             ? ` · ${new Date(cert.issued_at).toLocaleDateString()}`
                             : ''}
                         </p>
+                        {needsCid ? (
+                          <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                            Update your CID to receive a revised certificate.
+                          </p>
+                        ) : null}
                       </div>
-                      <Badge className="shrink-0 bg-green-600">
+                      <Badge className={`shrink-0 ${needsCid ? 'bg-amber-600' : 'bg-green-600'}`}>
                         <CheckCircle className="mr-1 h-3 w-3" />
-                        Earned
+                        {needsCid ? 'CID needed' : 'Earned'}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2">
@@ -903,7 +964,8 @@ export default function ProfilePage() {
                       )}
                     </div>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </CardContent>

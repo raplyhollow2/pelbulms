@@ -5,6 +5,7 @@ import { describeCompletionBlockers } from '@/lib/activity-responses'
 import { reconcileCourseCompletion } from '@/lib/lesson-completion-sync'
 import { getRequestUser } from '@/lib/request-user'
 import { publicAppUrl } from '@/lib/email/send'
+import { isValidCid } from '@/lib/profile-fields'
 import type { CertificateLayout } from '@/lib/certificate-layout'
 
 export const runtime = 'nodejs'
@@ -99,7 +100,11 @@ export async function POST(request: NextRequest) {
       issued_at?: string | null
       created_at?: string | null
       enrollment_id?: string | null
-      metadata?: { recipient_name?: string | null; course_title?: string | null } | null
+      metadata?: {
+        recipient_name?: string | null
+        course_title?: string | null
+        cid?: string | null
+      } | null
     } | null
     const hasCertificate = Boolean(existingRow?.certificate_url)
     const refresh = Boolean(body?.refresh) && hasCertificate
@@ -161,9 +166,22 @@ export async function POST(request: NextRequest) {
 
     const { data: profile } = await service
       .from('profiles')
-      .select('full_name')
+      .select('full_name, cid_number')
       .eq('id', user.id)
       .single()
+
+    const cid = isValidCid((profile as { cid_number?: string | null } | null)?.cid_number)
+    if (!cid) {
+      return NextResponse.json(
+        {
+          error:
+            'Add your 11-digit CID on your profile before claiming your certificate.',
+          code: 'cid_required',
+          certificate: hasCertificate ? existing : undefined,
+        },
+        { status: 400 }
+      )
+    }
 
     const { data: course } = await service
       .from('courses')
@@ -247,6 +265,7 @@ export async function POST(request: NextRequest) {
       verificationCode,
       verifyUrl: `${appUrl}/verify/${verificationCode}`,
       instructorName,
+      cid,
       design: {
         brandName: design.brandName || layout.brandName,
         titleLine: design.titleLine || layout.titleLine,
@@ -285,6 +304,7 @@ export async function POST(request: NextRequest) {
       ...previousMeta,
       course_title: courseRow.title,
       recipient_name: recipientName,
+      cid,
     }
 
     if (hasCertificate && existingRow?.id) {

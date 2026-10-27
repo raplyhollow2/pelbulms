@@ -13,6 +13,7 @@ import type { PlatformSettings } from '@/lib/platform-settings'
 
 type FormState = {
   require_cid: boolean
+  require_cid_photo: boolean
   require_identity_photo: boolean
   require_qualification: boolean
   require_student_id: boolean
@@ -50,6 +51,7 @@ export default function AdminRegistrationSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState<FormState>({
     require_cid: false,
+    require_cid_photo: false,
     require_identity_photo: false,
     require_qualification: false,
     require_student_id: false,
@@ -67,6 +69,7 @@ export default function AdminRegistrationSettingsPage() {
         const s = data.settings as PlatformSettings
         setForm({
           require_cid: s.require_cid,
+          require_cid_photo: s.require_cid_photo,
           require_identity_photo: s.require_identity_photo,
           require_qualification: s.require_qualification,
           require_student_id: s.require_student_id,
@@ -84,13 +87,13 @@ export default function AdminRegistrationSettingsPage() {
 
   const previewSteps = useMemo(() => {
     const steps = [{ id: 'personal', title: 'Personal', icon: UserRound }]
-    if (form.require_cid || form.require_identity_photo) {
+    if (form.require_cid || form.require_cid_photo || form.require_identity_photo) {
       steps.push({ id: 'identity', title: 'Identity', icon: IdCard })
     }
     steps.push({ id: 'institution', title: 'Institution', icon: Building2 })
     if (form.require_qualification) steps.push({ id: 'academic', title: 'Academic', icon: GraduationCap })
     return steps
-  }, [form.require_cid, form.require_identity_photo, form.require_qualification])
+  }, [form.require_cid, form.require_cid_photo, form.require_identity_photo, form.require_qualification])
 
   const save = async () => {
     setSaving(true)
@@ -124,16 +127,23 @@ export default function AdminRegistrationSettingsPage() {
         <section className="rounded-xl border border-border/60 bg-card p-5">
           <h2 className="text-sm font-semibold">Optional verification</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Global for every institution. CID and the identity photo are separate. Both stay off
-            until you turn them on. Home dzongkhag is always collected. Students are activated
-            immediately when both toggles are off. Teaching roles still need superadmin review.
+            Global for every institution. CID number, CID photo, and identity photo are separate.
+            Each stays off until you turn it on. Home dzongkhag is always collected. Students are
+            activated immediately when all three toggles are off. Teaching roles still need
+            superadmin review.
           </p>
           <div className="mt-4">
             <ToggleRow
               title="CID"
-              description="Require an 11-digit CID number and a photo of the card."
+              description="Require an 11-digit CID number."
               checked={form.require_cid}
               onCheckedChange={(v) => setForm((f) => ({ ...f, require_cid: v }))}
+            />
+            <ToggleRow
+              title="CID photo"
+              description="Require a photo of the CID card."
+              checked={form.require_cid_photo}
+              onCheckedChange={(v) => setForm((f) => ({ ...f, require_cid_photo: v }))}
             />
             <ToggleRow
               title="Identity photo"
@@ -194,7 +204,7 @@ export default function AdminRegistrationSettingsPage() {
           Sign-up preview
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          {form.require_cid || form.require_identity_photo
+          {form.require_cid || form.require_cid_photo || form.require_identity_photo
             ? 'Students wait in the approval queue after submit.'
             : 'Students get catalog access immediately after submit. Dzongkhag is always asked.'}
         </p>

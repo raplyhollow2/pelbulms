@@ -45,6 +45,7 @@ const SITE_FIELDS = ['site_name', 'tagline', 'support_email', 'maintenance_mode'
 const REGISTRATION_FIELDS = [
   'require_identity_documents',
   'require_cid',
+  'require_cid_photo',
   'require_identity_photo',
   'require_qualification',
   'require_student_id',
@@ -118,6 +119,7 @@ const BOOLEAN_KEYS = [
   'maintenance_mode',
   'require_identity_documents',
   'require_cid',
+  'require_cid_photo',
   'require_identity_photo',
   'require_qualification',
   'require_student_id',
@@ -433,33 +435,44 @@ export async function PATCH(request: NextRequest) {
 
   if (
     typeof updates.require_cid === 'boolean' ||
+    typeof updates.require_cid_photo === 'boolean' ||
     typeof updates.require_identity_photo === 'boolean' ||
     typeof updates.require_identity_documents === 'boolean'
   ) {
     const legacyOnly =
       typeof updates.require_identity_documents === 'boolean' &&
       updates.require_cid === undefined &&
+      updates.require_cid_photo === undefined &&
       updates.require_identity_photo === undefined
     if (legacyOnly) {
       updates.require_cid = updates.require_identity_documents
+      updates.require_cid_photo = updates.require_identity_documents
       updates.require_identity_photo = updates.require_identity_documents
     } else {
       const { data: currentFlags } = await service
         .from('platform_settings')
-        .select('require_cid, require_identity_photo')
+        .select('require_cid, require_cid_photo, require_identity_photo')
         .eq('id', 'default')
         .maybeSingle()
+      const flags = currentFlags as {
+        require_cid?: boolean
+        require_cid_photo?: boolean
+        require_identity_photo?: boolean
+      } | null
       const cid =
-        typeof updates.require_cid === 'boolean'
-          ? updates.require_cid
-          : (currentFlags as { require_cid?: boolean } | null)?.require_cid === true
+        typeof updates.require_cid === 'boolean' ? updates.require_cid : flags?.require_cid === true
+      const cidPhoto =
+        typeof updates.require_cid_photo === 'boolean'
+          ? updates.require_cid_photo
+          : flags?.require_cid_photo === true
       const photo =
         typeof updates.require_identity_photo === 'boolean'
           ? updates.require_identity_photo
-          : (currentFlags as { require_identity_photo?: boolean } | null)?.require_identity_photo === true
+          : flags?.require_identity_photo === true
       updates.require_cid = cid
+      updates.require_cid_photo = cidPhoto
       updates.require_identity_photo = photo
-      updates.require_identity_documents = cid || photo
+      updates.require_identity_documents = cid || cidPhoto || photo
     }
   }
 
