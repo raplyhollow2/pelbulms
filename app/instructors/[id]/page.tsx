@@ -34,6 +34,7 @@ export default function InstructorProfilePage() {
   const [instructor, setInstructor] = useState<InstructorShowcaseData | null>(null)
   const [courses, setCourses] = useState<any[]>([])
   const [earnedCerts, setEarnedCerts] = useState<any[]>([])
+  const [viewerId, setViewerId] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -83,9 +84,12 @@ export default function InstructorProfilePage() {
         certificatesIssuedToStudents = certCount || 0
       }
 
+      const { data: session } = await supabase.auth.getUser()
+      setViewerId(session.user?.id ?? null)
+
       const { data: earned } = await supabase
         .from('certificates')
-        .select('id, issued_at, certificate_url, verification_code, courses(title)')
+        .select('id, course_id, issued_at, certificate_url, verification_code, courses(title)')
         .eq('user_id', instructorId)
         .order('issued_at', { ascending: false })
 
@@ -263,11 +267,17 @@ export default function InstructorProfilePage() {
                     {cert.verification_code ? ` · ${cert.verification_code}` : ''}
                   </p>
                 </div>
-                {cert.certificate_url && (
+                {(cert.certificate_url || (viewerId === instructorId && cert.course_id)) && (
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => window.open(cert.certificate_url, '_blank')}
+                    onClick={() => {
+                      if (viewerId === instructorId && cert.course_id) {
+                        router.push(`/certificates/${cert.course_id}`)
+                        return
+                      }
+                      if (cert.certificate_url) window.open(cert.certificate_url, '_blank')
+                    }}
                   >
                     <ExternalLink className="w-3.5 h-3.5 mr-1" /> View
                   </Button>

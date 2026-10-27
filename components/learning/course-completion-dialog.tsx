@@ -1,6 +1,6 @@
 'use client'
 
-import { Award, Download, ExternalLink, Loader2 } from 'lucide-react'
+import { Award, ExternalLink, Loader2 } from 'lucide-react'
 import { BrandCharacter } from '@/components/brand/brand-character'
 import {
   Dialog,
@@ -29,7 +29,6 @@ export function CourseCompletionDialog({
   open,
   onOpenChange,
   courseTitle,
-  certificateUrl,
   issuing = false,
   claimHref,
   onDownload,
@@ -56,7 +55,7 @@ export function CourseCompletionDialog({
 
         <div className="rounded-lg border bg-muted/40 px-4 py-3 text-center text-sm text-muted-foreground">
           <Award className="mx-auto mb-2 h-5 w-5 text-primary" />
-          Download your PDF certificate, or open the claim page to verify and save it anytime.
+          Open your certificate to view and download the current design.
         </div>
 
         <DialogFooter className="gap-2 sm:flex-col sm:space-x-0">
@@ -72,8 +71,8 @@ export function CourseCompletionDialog({
               </>
             ) : (
               <>
-                <Download className="mr-2 h-4 w-4" />
-                {certificateUrl ? 'Download certificate' : 'Get certificate'}
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Open certificate
               </>
             )}
           </Button>

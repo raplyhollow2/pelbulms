@@ -31,6 +31,8 @@ import {
 import {
   CERT_CANVAS,
   CERT_FONTS,
+  clearSignerAsset,
+  isSignerAssetLogo,
   newLayerId,
   resolveCertificateText,
   type CertificateLayout,
@@ -147,7 +149,11 @@ export function CertificateEditor({
     if (!selected) return
     if (selected.kind === 'logo') {
       const id = selected.id
-      onChange((prev) => ({ ...prev, logos: prev.logos.filter((l) => l.id !== id) }))
+      onChange((prev) => ({
+        ...prev,
+        logos: prev.logos.filter((logo) => logo.id !== id),
+        signers: isSignerAssetLogo(id) ? clearSignerAsset(prev.signers, id) : prev.signers,
+      }))
     } else {
       const id = selected.id
       onChange((prev) => ({ ...prev, layers: prev.layers.filter((l) => l.id !== id) }))

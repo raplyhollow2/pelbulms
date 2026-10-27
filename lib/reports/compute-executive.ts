@@ -101,13 +101,7 @@ export async function buildReportSnapshot(
       ? null
       : opts.institutionIds
 
-  const [
-    approvalsBlocks,
-    opsBlocks,
-    platformBlocks,
-    systemBlocks,
-    demographics,
-  ] = await Promise.all([
+  const [approvalsBlocks, opsBlocks, platformBlocks, systemBlocks] = await Promise.all([
     computeApprovalsReports(db, {
       institutionIds: scopedInstitutions,
     }),
@@ -118,9 +112,6 @@ export async function buildReportSnapshot(
       ? computePlatformCommandReports(db)
       : Promise.resolve([]),
     opts.audience === 'superadmin' ? computeSystemPulseReports(db) : Promise.resolve([]),
-    opts.audience === 'superadmin'
-      ? computeLearnerDemographics(db, { mode: 'platform' })
-      : Promise.resolve(null),
   ])
 
   const sections: ReportSectionPayload[] = [
@@ -150,7 +141,6 @@ export async function buildReportSnapshot(
       description: REPORT_SECTIONS['system-pulse'].description,
       blocks: systemBlocks,
     })
-    if (demographics) sections.push(demographics.section)
   }
 
   const [
@@ -208,6 +198,13 @@ export async function buildReportSnapshot(
     courseList = courseList.filter((c) => c.id === opts.courseId)
     enrollmentList = enrollmentList.filter((e) => e.course_id === opts.courseId)
   }
+
+  const learnerIds = [...new Set(enrollmentList.map((e) => e.user_id).filter(Boolean))]
+  const demographics = await computeLearnerDemographics(db, {
+    mode: 'enrolled',
+    userIds: learnerIds,
+  })
+  sections.push(demographics.section)
 
   const profileInst = new Map(profileList.map((p) => [p.id, p.institution_id as string | null]))
 

@@ -10,6 +10,7 @@ export type ReportScopeSelection = {
 }
 
 type Option = { id: string; name: string }
+type CourseOption = Option & { institutionIds: string[] }
 
 const ENROLLMENT_OPTIONS = [
   { value: 'all', label: 'All statuses' },
@@ -31,7 +32,7 @@ export function ReportScopeBar({
   className?: string
 }) {
   const [institutions, setInstitutions] = useState<Option[]>([])
-  const [courses, setCourses] = useState<Option[]>([])
+  const [courses, setCourses] = useState<CourseOption[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -44,7 +45,13 @@ export function ReportScopeBar({
         if (!res.ok) throw new Error(json.error || 'Failed to load filters')
         if (cancelled) return
         setInstitutions(json.institutions || [])
-        setCourses(json.courses || [])
+        setCourses(
+          (json.courses || []).map((course: { id: string; name: string; institutionIds?: string[] }) => ({
+            id: course.id,
+            name: course.name,
+            institutionIds: Array.isArray(course.institutionIds) ? course.institutionIds : [],
+          }))
+        )
       } catch {
         if (!cancelled) {
           setInstitutions([])
@@ -61,9 +68,7 @@ export function ReportScopeBar({
 
   const filteredCourses = useMemo(() => {
     if (!value.institutionId) return courses
-    // Client cannot know course↔org links without another fetch; keep all courses.
-    // Selecting an invalid combo is rejected by the snapshot API (403 → clear).
-    return courses
+    return courses.filter((course) => course.institutionIds.includes(value.institutionId))
   }, [courses, value.institutionId])
 
   if (loading && institutions.length === 0 && courses.length === 0) {

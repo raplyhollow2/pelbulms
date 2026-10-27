@@ -31,6 +31,8 @@ export default function CertificateClaimPage() {
   const [loading, setLoading] = useState(true)
   const [issuing, setIssuing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [designFrozen, setDesignFrozen] = useState(false)
+  const [awarded, setAwarded] = useState(false)
   const [courseTitle, setCourseTitle] = useState<string | null>(null)
   const [certificate, setCertificate] = useState<CertificateRow | null>(null)
   const [progress, setProgress] = useState<number>(0)
@@ -39,6 +41,9 @@ export default function CertificateClaimPage() {
     try {
       setLoading(true)
       setError(null)
+      setDesignFrozen(false)
+      setCertificate(null)
+      setAwarded(false)
       const supabase = createClient()
       const {
         data: { user },
@@ -72,40 +77,34 @@ export default function CertificateClaimPage() {
         .eq('course_id', courseId)
         .maybeSingle()
 
-      if (existing?.certificate_url) {
-        setCertificate(existing as CertificateRow)
-        // Still refresh PDF with latest course design (idempotent upsert)
-        if (pct >= 100 || (enrollment as any)?.status === 'completed') {
-          setIssuing(true)
-          const res = await fetch('/api/certificates/issue', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ courseId, force: true }),
-          })
-          const json = await res.json().catch(() => ({}))
-          if (!res.ok || json.completionPending) {
-            setError(json.error || 'Course completion is waiting on a passing grade.')
-          } else if (json.certificate) {
-            setCertificate(json.certificate as CertificateRow)
-          }
-        }
+      const awarded = Boolean(existing?.certificate_url)
+      setAwarded(awarded)
+      const ready = pct >= 100 || (enrollment as any)?.status === 'completed' || awarded
+      if (!awarded && !ready) {
+        setCertificate(null)
         return
       }
 
-      if (pct >= 100 || (enrollment as any)?.status === 'completed') {
-        setIssuing(true)
-        const res = await fetch('/api/certificates/issue', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ courseId, force: true }),
-        })
-        const json = await res.json().catch(() => ({}))
-        if (!res.ok || json.completionPending) {
-          setError(json.error || 'Could not issue certificate yet.')
-        } else if (json.certificate) {
-          setCertificate(json.certificate as CertificateRow)
-        }
+      setLoading(false)
+      setIssuing(true)
+      const res = await fetch('/api/certificates/issue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId, refresh: awarded }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (json.designFrozen && json.certificate?.certificate_url) {
+        setDesignFrozen(true)
+        setCertificate(json.certificate as CertificateRow)
+        return
       }
+      if (!res.ok || json.completionPending || !json.certificate?.certificate_url) {
+        setCertificate(null)
+        setError(json.error || 'Could not prepare the certificate.')
+        return
+      }
+      setDesignFrozen(false)
+      setCertificate(json.certificate as CertificateRow)
     } catch (e: any) {
       setError(e?.message || 'Failed to load certificate')
     } finally {
@@ -119,12 +118,8 @@ export default function CertificateClaimPage() {
   }, [load])
 
   const download = () => {
-    if (certificate?.certificate_url) {
-      const url = certificate.certificate_url.includes('?')
-        ? `${certificate.certificate_url}&t=${Date.now()}`
-        : `${certificate.certificate_url}?t=${Date.now()}`
-      window.open(url, '_blank')
-    }
+    if (!certificate?.certificate_url) return
+    window.open(certificate.certificate_url, '_blank')
   }
 
   if (loading) {
@@ -135,7 +130,7 @@ export default function CertificateClaimPage() {
     )
   }
 
-  const complete = progress >= 100 || Boolean(certificate)
+  const complete = progress >= 100 || awarded || Boolean(certificate)
 
   return (
     <div className="container mx-auto max-w-2xl px-4 py-8">
@@ -169,7 +164,12 @@ export default function CertificateClaimPage() {
           )}
 
           {error ? (
-            <p className="text-center text-sm text-destructive">{error}</p>
+            <div className="space-y-3 text-center">
+              <p className="text-sm text-destructive">{error}</p>
+              <Button variant="outline" className="min-h-11" onClick={() => void load()}>
+                Try again
+              </Button>
+            </div>
           ) : null}
 
           {issuing ? (
@@ -179,8 +179,20 @@ export default function CertificateClaimPage() {
             </div>
           ) : null}
 
-          {certificate?.certificate_url ? (
+          {designFrozen && certificate?.certificate_url ? (
+            <p className="text-center text-sm text-muted-foreground">
+              This course is no longer updating certificates. You can still download the last issued file.
+            </p>
+          ) : null}
+
+          {certificate?.certificate_url && !issuing ? (
             <div className="space-y-3">
+              <iframe
+                key={certificate.certificate_url}
+                title="Certificate"
+                src={certificate.certificate_url}
+                className="h-[420px] w-full rounded-md border bg-white"
+              />
               {certificate.issued_at ? (
                 <p className="text-center text-xs text-muted-foreground">
                   Issued {new Date(certificate.issued_at).toLocaleDateString()}
@@ -209,7 +221,7 @@ export default function CertificateClaimPage() {
                 </Button>
               ) : null}
             </div>
-          ) : complete && !issuing ? (
+          ) : complete && !issuing && !error ? (
             <Button
               className="min-h-11 w-full bg-primary text-primary-foreground hover:bg-primary/90"
               onClick={() => void load()}

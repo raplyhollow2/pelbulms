@@ -18,7 +18,7 @@ export type ReportScopeFilters = {
   enrollmentStatus?: string | null
 }
 
-export type ScopeOption = { id: string; name: string }
+export type ScopeOption = { id: string; name: string; institutionIds?: string[] }
 
 export type ReportScopeOptions = {
   institutions: ScopeOption[]
@@ -175,22 +175,52 @@ export async function listReportScopeOptions(
     }))
   }
 
-  let courses: ScopeOption[] = []
+  let courseRows: Array<{ id: string; title: string | null }> = []
   if (courseIds === null) {
-    const { data } = await db.from('courses').select('id, title').order('title').limit(500)
-    courses = ((data || []) as any[]).map((c) => ({
-      id: c.id,
-      name: c.title || 'Course',
-    }))
+    const { data, error } = await db.from('courses').select('id, title').order('title').limit(500)
+    if (error) throw new Error(error.message)
+    courseRows = (data || []) as Array<{ id: string; title: string | null }>
   } else if (courseIds.length) {
-    const { data } = await db.from('courses').select('id, title').in('id', courseIds).order('title')
-    courses = ((data || []) as any[]).map((c) => ({
-      id: c.id,
-      name: c.title || 'Course',
-    }))
+    const { data, error } = await db
+      .from('courses')
+      .select('id, title')
+      .in('id', courseIds)
+      .order('title')
+    if (error) throw new Error(error.message)
+    courseRows = (data || []) as Array<{ id: string; title: string | null }>
   }
 
+  const links = await institutionIdsByCourse(
+    db,
+    courseRows.map((course) => course.id)
+  )
+  const courses: ScopeOption[] = courseRows.map((course) => ({
+    id: course.id,
+    name: course.title || 'Course',
+    institutionIds: links.get(course.id) || [],
+  }))
+
   return { institutions, courses, defaultInstitutionIds }
+}
+
+async function institutionIdsByCourse(db: Db, courseIds: string[]): Promise<Map<string, string[]>> {
+  const map = new Map<string, string[]>()
+  const unique = [...new Set(courseIds.filter(Boolean))]
+  for (let i = 0; i < unique.length; i += 100) {
+    const slice = unique.slice(i, i + 100)
+    const { data, error } = await db
+      .from('course_institutions')
+      .select('course_id, institution_id')
+      .in('course_id', slice)
+    if (error) throw new Error(error.message)
+    for (const row of (data || []) as Array<{ course_id?: string | null; institution_id?: string | null }>) {
+      if (!row.course_id || !row.institution_id) continue
+      const list = map.get(row.course_id) || []
+      if (!list.includes(row.institution_id)) list.push(row.institution_id)
+      map.set(row.course_id, list)
+    }
+  }
+  return map
 }
 
 export type ScopeAuthResult =

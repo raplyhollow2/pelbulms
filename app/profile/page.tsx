@@ -877,17 +877,19 @@ export default function ProfilePage() {
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2">
-                      {cert.certificate_url && (
+                      {cert.course_id ? (
                         <Button
                           variant="outline"
                           size="sm"
                           className="flex-1"
-                          onClick={() => window.open(cert.certificate_url, '_blank')}
+                          onClick={() => {
+                            window.location.href = `/certificates/${cert.course_id}`
+                          }}
                         >
                           <Download className="mr-1 h-3.5 w-3.5" />
                           Download
                         </Button>
-                      )}
+                      ) : null}
                       {cert.verification_code && (
                         <Button
                           variant="ghost"

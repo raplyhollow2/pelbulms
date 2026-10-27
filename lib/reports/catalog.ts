@@ -17,7 +17,7 @@ export const REPORT_SECTIONS: Record<
   'learner-demographics': {
     title: 'Learner profile',
     description: 'Qualification, gender, dzongkhag, age, and related profile fields.',
-    audiences: ['instructor', 'superadmin'],
+    audiences: ['instructor', 'admin', 'superadmin'],
   },
   'approvals-health': {
     title: 'Approvals & Institution Quality',
@@ -143,7 +143,7 @@ export const REPORT_CATALOG: ReportDefinition[] = [
     section: 'learner-demographics',
     title: 'Qualification',
     description: 'Academic background recorded on learner profiles.',
-    audiences: ['instructor', 'superadmin'],
+    audiences: ['instructor', 'admin', 'superadmin'],
     phase: 'P0',
   },
   {
@@ -151,7 +151,7 @@ export const REPORT_CATALOG: ReportDefinition[] = [
     section: 'learner-demographics',
     title: 'Gender',
     description: 'Gender mix of learners in scope.',
-    audiences: ['instructor', 'superadmin'],
+    audiences: ['instructor', 'admin', 'superadmin'],
     phase: 'P0',
   },
   {
@@ -159,7 +159,7 @@ export const REPORT_CATALOG: ReportDefinition[] = [
     section: 'learner-demographics',
     title: 'Dzongkhag',
     description: 'Home dzongkhag, including dzongkhags with no learners.',
-    audiences: ['instructor', 'superadmin'],
+    audiences: ['instructor', 'admin', 'superadmin'],
     phase: 'P0',
   },
   {
@@ -167,7 +167,7 @@ export const REPORT_CATALOG: ReportDefinition[] = [
     section: 'learner-demographics',
     title: 'Age group',
     description: 'Age bands calculated from date of birth.',
-    audiences: ['instructor', 'superadmin'],
+    audiences: ['instructor', 'admin', 'superadmin'],
     phase: 'P0',
   },
   {
@@ -175,7 +175,7 @@ export const REPORT_CATALOG: ReportDefinition[] = [
     section: 'learner-demographics',
     title: 'Class / grade',
     description: 'Class or grade recorded at registration.',
-    audiences: ['instructor', 'superadmin'],
+    audiences: ['instructor', 'admin', 'superadmin'],
     phase: 'P0',
   },
   {
@@ -183,7 +183,7 @@ export const REPORT_CATALOG: ReportDefinition[] = [
     section: 'learner-demographics',
     title: 'Gewog',
     description: 'Most common gewogs among learners in scope.',
-    audiences: ['instructor', 'superadmin'],
+    audiences: ['instructor', 'admin', 'superadmin'],
     phase: 'P0',
   },
   {
@@ -199,7 +199,7 @@ export const REPORT_CATALOG: ReportDefinition[] = [
     section: 'learner-demographics',
     title: 'Account status',
     description: 'Active, pending, suspended, and rejected learner accounts.',
-    audiences: ['instructor', 'superadmin'],
+    audiences: ['instructor', 'admin', 'superadmin'],
     phase: 'P0',
   },
   {
@@ -207,7 +207,7 @@ export const REPORT_CATALOG: ReportDefinition[] = [
     section: 'learner-demographics',
     title: 'Profile completeness',
     description: 'Learners missing gender, date of birth, qualification, or dzongkhag.',
-    audiences: ['instructor', 'superadmin'],
+    audiences: ['instructor', 'admin', 'superadmin'],
     phase: 'P0',
   },
   {

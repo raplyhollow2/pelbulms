@@ -347,7 +347,7 @@ export async function computeLearnerDemographics(
   const scopeHint =
     opts.mode === 'platform'
       ? 'Every student account. Each person is counted once.'
-      : 'Unique learners enrolled in your courses. Each person is counted once.'
+      : 'Unique learners enrolled in the selected organization. Each person is counted once.'
 
   const genderCounts = countMap(
     GENDER_ORDER.map((g) => ({

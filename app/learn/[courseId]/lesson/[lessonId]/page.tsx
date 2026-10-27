@@ -1352,13 +1352,8 @@ export default function LessonViewPage() {
     }, 4000)
   }
 
-  const handleGetCertificate = async () => {
-    const result = await issueCertificate(true)
-    const url = result.url || certificateUrl
-    if (url && !result.pending) {
-      const bust = url.includes('?') ? `${url}&t=${Date.now()}` : `${url}?t=${Date.now()}`
-      window.open(bust, '_blank')
-    }
+  const handleGetCertificate = () => {
+    router.push(`/certificates/${courseId}`)
   }
 
   const goToNextLesson = () => {

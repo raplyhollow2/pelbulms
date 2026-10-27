@@ -303,7 +303,7 @@ export interface ReportSnapshot {
   sections: ReportSectionPayload[]
   /** Instructor behavioral friction map (omit for other audiences). */
   frictionMap?: FrictionMapPayload
-  /** Aggregate learner-profile charts (instructor and superadmin). */
+  /** Aggregate learner-profile charts (admin, instructor, and superadmin). */
   breakdowns?: ReportBreakdown[]
   hash: string
 }

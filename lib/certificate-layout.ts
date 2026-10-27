@@ -43,11 +43,18 @@ export type CertificateLayer = {
   subtitle?: string
 }
 
+export type SignerImageMode = 'signature' | 'portrait'
+
 export type CertificateSigner = {
   id: string
   name: string
   title: string
+  /** Signature scan. Shown only when imageMode is signature. */
   imageUrl?: string
+  /** Public profile photo. Shown only when imageMode is portrait. */
+  portraitUrl?: string
+  /** Missing or unrecognized values mean signature, so existing certificates keep their scan. */
+  imageMode?: SignerImageMode
   userId?: string
 }
 
@@ -613,20 +620,91 @@ export function signatureImageId(signerId: string) {
   return `sig-image-${signerId}`
 }
 
+export function portraitImageId(signerId: string) {
+  return `portrait-${signerId}`
+}
+
+/** Signature scans and profile photos are not the brand logo. */
+export function isSignerAssetLogo(id: string) {
+  return id.startsWith('sig-image') || id.startsWith('portrait-')
+}
+
+export function brandLogoSrc(logos: CertificateLayout['logos']) {
+  return logos.find((logo) => logo.src && !isSignerAssetLogo(logo.id))?.src || ''
+}
+
+export function signerImageMode(signer: { imageMode?: string | null }): SignerImageMode {
+  return signer.imageMode === 'portrait' ? 'portrait' : 'signature'
+}
+
+function propertyMissing(record: object, key: string) {
+  return !Object.prototype.hasOwnProperty.call(record, key)
+}
+
+function hydrateSigner(signer: CertificateSigner, logos: CertificateLayout['logos']): CertificateSigner {
+  const imageMode = signerImageMode(signer)
+  const next: CertificateSigner = { ...signer, imageMode }
+  if (imageMode === 'signature' && propertyMissing(signer, 'imageUrl')) {
+    const logo =
+      logos.find((item) => item.id === signatureImageId(signer.id)) ||
+      (signer.id === PRIMARY_SIGNER_ID
+        ? logos.find((item) => item.id.startsWith('sig-image'))
+        : undefined)
+    if (logo?.src) next.imageUrl = logo.src
+  }
+  if (imageMode === 'portrait' && propertyMissing(signer, 'portraitUrl')) {
+    const logo = logos.find((item) => item.id === portraitImageId(signer.id))
+    if (logo?.src) next.portraitUrl = logo.src
+  }
+  if (!next.imageUrl?.trim()) delete next.imageUrl
+  if (!next.portraitUrl?.trim()) delete next.portraitUrl
+  return next
+}
+
 export function signersFromLayout(layout: CertificateLayout): CertificateSigner[] {
-  if (Array.isArray(layout.signers)) return layout.signers
+  if (Array.isArray(layout.signers)) {
+    return layout.signers.map((signer) => hydrateSigner(signer, layout.logos))
+  }
   const layer =
     layout.layers.find((item) => item.id === 'signature' && item.type === 'signature') ||
     layout.layers.find((item) => item.type === 'signature')
   const image = layout.logos.find((item) => item.id.startsWith('sig-image'))
   return [
-    {
-      id: PRIMARY_SIGNER_ID,
-      name: layout.signatureName || layer?.text || '',
-      title: layout.signatureTitle || layer?.subtitle || 'Instructor',
-      imageUrl: image?.src,
-    },
+    hydrateSigner(
+      {
+        id: PRIMARY_SIGNER_ID,
+        name: layout.signatureName || layer?.text || '',
+        title: layout.signatureTitle || layer?.subtitle || 'Instructor',
+        imageMode: 'signature',
+        ...(image?.src ? { imageUrl: image.src } : {}),
+      },
+      layout.logos
+    ),
   ]
+}
+
+/** Drop the stored URL for a signature or portrait logo deleted from the canvas. */
+export function clearSignerAsset(
+  signers: CertificateSigner[] | undefined,
+  logoId: string
+): CertificateSigner[] | undefined {
+  if (!signers) return signers
+  return signers.map((signer) => {
+    if (logoId === portraitImageId(signer.id)) {
+      const { portraitUrl: _portrait, ...rest } = signer
+      return rest
+    }
+    const exactSignature = logoId === signatureImageId(signer.id)
+    const legacyPrimary =
+      signer.id === PRIMARY_SIGNER_ID &&
+      logoId.startsWith('sig-image') &&
+      !signers.some((item) => signatureImageId(item.id) === logoId)
+    if (exactSignature || legacyPrimary) {
+      const { imageUrl: _image, ...rest } = signer
+      return rest
+    }
+    return signer
+  })
 }
 
 function signerFrame(index: number, count: number) {
@@ -687,25 +765,33 @@ export function layoutWithSigners(
     layers = existing ? layers.map((layer) => (layer.id === id ? next : layer)) : [...layers, next]
   })
 
-  const logos = layout.logos.filter((logo) => !logo.id.startsWith('sig-image'))
+  const logos = layout.logos.filter((logo) => !isSignerAssetLogo(logo.id))
   people.forEach((person, index) => {
-    if (!person.imageUrl) return
+    const mode = signerImageMode(person)
+    const src = (mode === 'portrait' ? person.portraitUrl : person.imageUrl)?.trim()
+    if (!src) return
     const frame = signerFrame(index, people.length)
-    const id = signatureImageId(person.id)
+    const id = mode === 'portrait' ? portraitImageId(person.id) : signatureImageId(person.id)
     const existing =
       layout.logos.find((logo) => logo.id === id) ||
-      (person.id === PRIMARY_SIGNER_ID
+      (mode === 'signature' && person.id === PRIMARY_SIGNER_ID
         ? layout.logos.find((logo) => logo.id.startsWith('sig-image'))
         : undefined)
     const signatureLayer = layers.find((layer) => layer.id === signatureLayerId(person.id))
     const keepBox = existing && (!relayout || people.length === 1)
-    const imageW = keepBox ? existing.w : frame.imageW
-    const imageH = keepBox ? existing.h : frame.imageH
+    const imageW = keepBox ? existing.w : mode === 'portrait' ? 64 : frame.imageW
+    const imageH = keepBox ? existing.h : mode === 'portrait' ? 64 : frame.imageH
+    const fallbackX = signatureLayer
+      ? signatureLayer.x + (signatureLayer.w - imageW) / 2
+      : frame.imageX
+    const fallbackY = signatureLayer
+      ? Math.max(40, signatureLayer.y - imageH - 8)
+      : frame.imageY
     logos.push({
       id,
-      src: person.imageUrl,
-      x: keepBox ? existing.x : signatureLayer ? signatureLayer.x + (signatureLayer.w - imageW) / 2 : frame.imageX,
-      y: keepBox ? existing.y : signatureLayer ? Math.max(40, signatureLayer.y - imageH - 8) : frame.imageY,
+      src,
+      x: keepBox ? existing.x : fallbackX,
+      y: keepBox ? existing.y : fallbackY,
       w: imageW,
       h: imageH,
     })
@@ -714,7 +800,7 @@ export function layoutWithSigners(
   const first = people[0]
   return {
     ...layout,
-    signers: people,
+    signers: people.map((person) => hydrateSigner(person, logos)),
     signatureName: first?.name || '',
     signatureTitle: first?.title || '',
     signatureUrl: undefined,
@@ -739,6 +825,7 @@ export function syncSignersFromLayers(layout: CertificateLayout): CertificateLay
     if (!layer) return signer
     return {
       ...signer,
+      imageMode: signerImageMode(signer),
       name: layer.text ?? signer.name,
       title: layer.subtitle ?? signer.title,
     }

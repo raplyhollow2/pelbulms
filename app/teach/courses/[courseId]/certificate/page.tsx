@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { ArrowLeft, Loader2, Save, Camera, Plus, Trash2, Eye } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, Camera, Plus, Trash2, Eye, UserRound } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { uploadImageDirectToCloudinary } from '@/lib/cloudinary-direct-upload'
 import { CertificateEditor } from '@/components/teach/certificate-editor'
@@ -20,13 +20,16 @@ import {
 } from '@/components/ui/dialog'
 import {
   defaultCertificateLayout,
+  brandLogoSrc,
   layoutFromLegacySettings,
   layoutWithSigners,
   newLayerId,
+  signerImageMode,
   signersFromLayout,
   syncSignersFromLayers,
   type CertificateLayout,
   type CertificateSigner,
+  type SignerImageMode,
 } from '@/lib/certificate-layout'
 
 type CertSettings = {
@@ -69,8 +72,7 @@ export default function CertificateDesignPage() {
   const [uploading, setUploading] = useState(false)
   const [coursePeople, setCoursePeople] = useState<CourseResourcePerson[]>([])
   const [previewOpen, setPreviewOpen] = useState(false)
-  const signatureInputRef = useRef<HTMLInputElement>(null)
-  const signatureTargetRef = useRef<string | null>(null)
+  const fileInputs = useRef<Record<string, HTMLInputElement | null>>({})
 
   useEffect(() => {
     load()
@@ -201,9 +203,7 @@ export default function CertificateDesignPage() {
     }
   }
 
-  const uploadSignature = async (file: File) => {
-    const signerId = signatureTargetRef.current
-    if (!signerId) return
+  const uploadSignature = async (signerId: string, file: File) => {
     setUploading(true)
     try {
       const transparent = await stripNearWhiteBackground(file)
@@ -221,7 +221,69 @@ export default function CertificateDesignPage() {
       setMessage(e?.message || 'Failed to upload signature')
     } finally {
       setUploading(false)
-      if (signatureInputRef.current) signatureInputRef.current.value = ''
+      const input = fileInputs.current[signerId]
+      if (input) input.value = ''
+    }
+  }
+
+  const uploadPortrait = async (signerId: string, file: File) => {
+    setUploading(true)
+    try {
+      const cropped = await cropPortraitCircle(file)
+      const { url } = await uploadImageDirectToCloudinary(cropped, {
+        folder: `course-media/images/${courseId}/certificate-portraits`,
+      })
+      if (!url) throw new Error('Cloudinary did not return an image URL')
+      setLayout((prev) => {
+        const current = signersFromLayout(prev).find((person) => person.id === signerId)
+        const people = signersFromLayout(prev).map((person) =>
+          person.id === signerId ? { ...person, portraitUrl: url } : person
+        )
+        const showing = signerImageMode(current || {}) === 'portrait'
+        queueMicrotask(() =>
+          setMessage(
+            showing
+              ? 'Profile photo added. Drag it on the canvas, then save.'
+              : 'Profile photo saved. Choose Profile photo to show it.'
+          )
+        )
+        return layoutWithSigners(prev, people, { relayout: false })
+      })
+    } catch (e: any) {
+      setMessage(e?.message || 'Failed to upload profile photo')
+    } finally {
+      setUploading(false)
+      const input = fileInputs.current[signerId]
+      if (input) input.value = ''
+    }
+  }
+
+  const useAccountPhoto = async (person: CertificateSigner) => {
+    if (!person.userId) return
+    setUploading(true)
+    setMessage('')
+    try {
+      const res = await fetch('/api/teach/certificate-portrait', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId, userId: person.userId }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || typeof json.url !== 'string' || !json.url) {
+        throw new Error(json.error || 'The account photo was not copied.')
+      }
+      const url = json.url as string
+      setLayout((prev) => {
+        const people = signersFromLayout(prev).map((item) =>
+          item.id === person.id ? { ...item, portraitUrl: url } : item
+        )
+        return layoutWithSigners(prev, people, { relayout: false })
+      })
+      setMessage('Account photo copied. Drag it on the canvas, then save.')
+    } catch (e: any) {
+      setMessage(e?.message || 'The account photo was not copied.')
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -269,7 +331,7 @@ export default function CertificateDesignPage() {
             accentColor: layout.accentColor || settings.accentColor,
             signatureName: resourcePersons[0]?.name || '',
             signatureTitle: resourcePersons[0]?.title || '',
-            logoUrl: settings.logoUrl || layout.logos.find((logo) => !logo.id.startsWith('sig-image'))?.src || '',
+            logoUrl: settings.logoUrl || brandLogoSrc(layout.logos) || '',
             layout: {
               ...layout,
               brandName: settings.brandName,
@@ -345,9 +407,7 @@ export default function CertificateDesignPage() {
                 ...current,
                 titleLine: resolved.titleLine || current.titleLine,
                 accentColor: resolved.accentColor || current.accentColor,
-                logoUrl:
-                  resolved.logos.find((logo) => !logo.id.startsWith('sig-image'))?.src ||
-                  current.logoUrl,
+                logoUrl: brandLogoSrc(resolved.logos) || current.logoUrl,
                 signatureName: resolved.signatureName || '',
                 signatureTitle: resolved.signatureTitle || '',
               }))
@@ -411,8 +471,7 @@ export default function CertificateDesignPage() {
               <div>
                 <Label>Resource persons</Label>
                 <p className="text-xs text-muted-foreground">
-                  Each person is printed on their own signature block. The first person stays the
-                  primary signer.
+                  Each person shows either a signature or a profile photo with their name.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -425,18 +484,24 @@ export default function CertificateDesignPage() {
                       const picked = coursePeople.find((person) => person.id === e.target.value)
                       e.target.value = ''
                       if (!picked) return
-                      commitSigners((current) => {
-                        if (current.some((person) => person.userId === picked.id)) return current
-                        return [
+                      const already = resourcePersons.some((person) => person.userId === picked.id)
+                      if (already) {
+                        setMessage('That person is already on the certificate.')
+                        return
+                      }
+                      commitSigners(
+                        (current) => [
                           ...current,
                           {
                             id: newLayerId('signer'),
                             name: picked.full_name || picked.email || '',
                             title: 'Resource person',
+                            imageMode: 'signature',
                             userId: picked.id,
                           },
-                        ]
-                      }, true)
+                        ],
+                        true
+                      )
                     }}
                   >
                     <option value="">Add from course…</option>
@@ -455,7 +520,7 @@ export default function CertificateDesignPage() {
                     commitSigners(
                       (current) => [
                         ...current,
-                        { id: newLayerId('signer'), name: '', title: 'Resource person' },
+                        { id: newLayerId('signer'), name: '', title: 'Resource person', imageMode: 'signature' },
                       ],
                       true
                     )
@@ -466,87 +531,181 @@ export default function CertificateDesignPage() {
                 </Button>
               </div>
             </div>
-            <input
-              ref={signatureInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) void uploadSignature(file)
-              }}
-            />
             {resourcePersons.length === 0 ? (
               <p className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
-                No resource persons yet. Add one to place a signature block on the certificate.
+                No resource persons yet. Add one to place a name on the certificate.
               </p>
             ) : (
-              resourcePersons.map((person, index) => (
-                <div key={person.id} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2">
-                  <div>
-                    <Label>{index === 0 ? 'Name (primary signer)' : `Name ${index + 1}`}</Label>
-                    <Input
-                      className="mt-1 min-h-11"
-                      value={person.name}
-                      onChange={(e) => {
-                        const name = e.target.value
-                        commitSigners(
-                          (current) =>
-                            current.map((item) => (item.id === person.id ? { ...item, name } : item)),
-                          false
-                        )
-                      }}
-                    />
+              resourcePersons.map((person, index) => {
+                const mode = signerImageMode(person)
+                return (
+                  <div key={person.id} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-2">
+                    <div>
+                      <Label>{index === 0 ? 'Name (primary signer)' : `Name ${index + 1}`}</Label>
+                      <Input
+                        className="mt-1 min-h-11"
+                        value={person.name}
+                        onChange={(e) => {
+                          const name = e.target.value
+                          commitSigners(
+                            (current) =>
+                              current.map((item) => (item.id === person.id ? { ...item, name } : item)),
+                            false
+                          )
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label>Title</Label>
+                      <Input
+                        className="mt-1 min-h-11"
+                        value={person.title}
+                        onChange={(e) => {
+                          const title = e.target.value
+                          commitSigners(
+                            (current) =>
+                              current.map((item) =>
+                                item.id === person.id ? { ...item, title } : item
+                              ),
+                            false
+                          )
+                        }}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <Label>Image on the certificate</Label>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {(['signature', 'portrait'] as SignerImageMode[]).map((choice) => (
+                          <Button
+                            key={choice}
+                            type="button"
+                            variant={mode === choice ? 'default' : 'outline'}
+                            className="min-h-11"
+                            onClick={() =>
+                              commitSigners(
+                                (current) =>
+                                  current.map((item) =>
+                                    item.id === person.id ? { ...item, imageMode: choice } : item
+                                  ),
+                                false
+                              )
+                            }
+                          >
+                            {choice === 'signature' ? 'Signature' : 'Profile photo'}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
+                      {mode === 'signature' ? (
+                        <>
+                          <input
+                            ref={(node) => {
+                              fileInputs.current[person.id] = node
+                            }}
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) void uploadSignature(person.id, file)
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="min-h-11"
+                            disabled={uploading}
+                            onClick={() => fileInputs.current[person.id]?.click()}
+                          >
+                            <Camera className="mr-2 h-4 w-4" />
+                            {person.imageUrl ? 'Replace signature image' : 'Signature image'}
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          {person.portraitUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={person.portraitUrl}
+                              alt=""
+                              className="h-12 w-12 rounded-full object-cover"
+                            />
+                          ) : null}
+                          <input
+                            ref={(node) => {
+                              fileInputs.current[person.id] = node
+                            }}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              if (file) void uploadPortrait(person.id, file)
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="min-h-11"
+                            disabled={uploading}
+                            onClick={() => fileInputs.current[person.id]?.click()}
+                          >
+                            <UserRound className="mr-2 h-4 w-4" />
+                            {person.portraitUrl ? 'Replace profile photo' : 'Profile photo'}
+                          </Button>
+                          {person.userId && !person.portraitUrl ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="min-h-11"
+                              disabled={uploading}
+                              onClick={() => void useAccountPhoto(person)}
+                            >
+                              Use account photo
+                            </Button>
+                          ) : null}
+                          {person.portraitUrl ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="min-h-11"
+                              onClick={() =>
+                                commitSigners(
+                                  (current) =>
+                                    current.map((item) => {
+                                      if (item.id !== person.id) return item
+                                      const { portraitUrl: _photo, ...rest } = item
+                                      return rest
+                                    }),
+                                  false
+                                )
+                              }
+                            >
+                              Remove photo
+                            </Button>
+                          ) : null}
+                        </>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="min-h-11 text-destructive hover:text-destructive"
+                        onClick={() =>
+                          commitSigners(
+                            (current) => current.filter((item) => item.id !== person.id),
+                            true
+                          )
+                        }
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Remove
+                      </Button>
+                    </div>
                   </div>
-                  <div>
-                    <Label>Title</Label>
-                    <Input
-                      className="mt-1 min-h-11"
-                      value={person.title}
-                      onChange={(e) => {
-                        const title = e.target.value
-                        commitSigners(
-                          (current) =>
-                            current.map((item) =>
-                              item.id === person.id ? { ...item, title } : item
-                            ),
-                          false
-                        )
-                      }}
-                    />
-                  </div>
-                  <div className="flex flex-wrap gap-2 sm:col-span-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="min-h-11"
-                      disabled={uploading}
-                      onClick={() => {
-                        signatureTargetRef.current = person.id
-                        signatureInputRef.current?.click()
-                      }}
-                    >
-                      <Camera className="mr-2 h-4 w-4" />
-                      {person.imageUrl ? 'Replace signature image' : 'Signature image'}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="min-h-11 text-destructive hover:text-destructive"
-                      onClick={() =>
-                        commitSigners(
-                          (current) => current.filter((item) => item.id !== person.id),
-                          true
-                        )
-                      }
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Remove
-                    </Button>
-                  </div>
-                </div>
-              ))
+                )
+              })
             )}
           </div>
           {message && (
@@ -556,6 +715,32 @@ export default function CertificateDesignPage() {
       </Card>
     </div>
   )
+}
+
+async function cropPortraitCircle(file: File): Promise<File> {
+  const type = (file.type || '').split(';')[0].trim().toLowerCase()
+  if (type !== 'image/jpeg' && type !== 'image/png' && type !== 'image/webp') {
+    throw new Error('Use a JPG, PNG, or WEBP photo.')
+  }
+  const bitmap = await createImageBitmap(file)
+  const size = 512
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Could not prepare the photo')
+  const scale = Math.max(size / bitmap.width, size / bitmap.height)
+  const dw = bitmap.width * scale
+  const dh = bitmap.height * scale
+  ctx.beginPath()
+  ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+  ctx.closePath()
+  ctx.clip()
+  ctx.drawImage(bitmap, (size - dw) / 2, (size - dh) / 2, dw, dh)
+  const blob: Blob = await new Promise((resolve, reject) =>
+    canvas.toBlob((next) => (next ? resolve(next) : reject(new Error('Could not prepare the photo'))), 'image/png')
+  )
+  return new File([blob], 'portrait.png', { type: 'image/png' })
 }
 
 async function stripNearWhiteBackground(file: File): Promise<File> {
