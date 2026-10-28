@@ -8,6 +8,12 @@ import { adminOrganizationIds } from '@/lib/admin-org-scope'
 import { getApprovalScope } from '@/lib/approvals-access'
 import { userCanManageCourse } from '@/lib/course-access'
 import { courseIdsForTeacher } from '@/lib/reports/compute-teach'
+import {
+  teachCourseIds,
+  teachInstitutionIds,
+  teachInstitutionIdsByCourse,
+} from '@/lib/reports/teach-org-scope'
+import type { SnapshotAudience } from '@/lib/reports/types'
 import type { UserRole } from '@/lib/rbac'
 
 type Db = SupabaseClient<any>
@@ -27,6 +33,8 @@ export type ReportScopeOptions = {
   defaultInstitutionIds: string[] | null
 }
 
+export type ReportScopeAudience = SnapshotAudience | 'default'
+
 const ENROLLMENT_STATUSES = new Set([
   'active',
   'pending',
@@ -41,13 +49,23 @@ export function parseEnrollmentStatus(raw: string | null | undefined): string | 
   return ENROLLMENT_STATUSES.has(raw) ? raw : null
 }
 
+function isTeachAudience(audience?: ReportScopeAudience | null): boolean {
+  return audience === 'instructor'
+}
+
 /** Institutions the user may select in the scope bar. Null = all (superadmin / platform admin). */
 export async function allowedInstitutionIds(
   db: Db,
   userId: string,
   role: string,
-  profileInstitutionId?: string | null
+  profileInstitutionId?: string | null,
+  audience?: ReportScopeAudience | null
 ): Promise<string[] | null> {
+  if (isTeachAudience(audience)) {
+    if (role === 'superadmin') return null
+    return teachInstitutionIds(db, userId)
+  }
+
   if (role === 'superadmin') return null
 
   if (role === 'admin') {
@@ -61,7 +79,7 @@ export async function allowedInstitutionIds(
     return scope.institutionIds
   }
 
-  // Instructors: orgs linked to courses they teach
+  // Instructors (non-teach audience / legacy): orgs linked to courses they teach
   const courseIds = await courseIdsForTeacher(db, userId)
   if (!courseIds.length) return []
   const { data } = await db
@@ -100,8 +118,19 @@ export async function allowedCourseIds(
   db: Db,
   userId: string,
   role: string,
-  institutionId?: string | null
+  institutionId?: string | null,
+  audience?: ReportScopeAudience | null
 ): Promise<string[] | null> {
+  if (isTeachAudience(audience)) {
+    if (role === 'superadmin') {
+      if (institutionId) return coursesForInstitutionIds(db, [institutionId])
+      return null
+    }
+    // Course Insights: owned/staff courses only (never platform-wide for RPs).
+    // Org filter is applied via learner home org on enrollments, not by dropping courses here.
+    return teachCourseIds(db, userId)
+  }
+
   if (role === 'superadmin') {
     if (institutionId) return coursesForInstitutionIds(db, [institutionId])
     return null
@@ -142,15 +171,18 @@ export async function listReportScopeOptions(
   db: Db,
   userId: string,
   role: string,
-  profileInstitutionId?: string | null
+  profileInstitutionId?: string | null,
+  audience?: ReportScopeAudience | null
 ): Promise<ReportScopeOptions> {
+  const teach = isTeachAudience(audience)
   const defaultInstitutionIds = await allowedInstitutionIds(
     db,
     userId,
     role,
-    profileInstitutionId
+    profileInstitutionId,
+    audience
   )
-  const courseIds = await allowedCourseIds(db, userId, role, null)
+  const courseIds = await allowedCourseIds(db, userId, role, null, audience)
 
   let institutions: ScopeOption[] = []
   if (defaultInstitutionIds === null) {
@@ -190,10 +222,10 @@ export async function listReportScopeOptions(
     courseRows = (data || []) as Array<{ id: string; title: string | null }>
   }
 
-  const links = await institutionIdsByCourse(
-    db,
-    courseRows.map((course) => course.id)
-  )
+  const courseIdList = courseRows.map((course) => course.id)
+  const links = teach
+    ? await teachInstitutionIdsByCourse(db, courseIdList)
+    : await institutionIdsByCourse(db, courseIdList)
   const courses: ScopeOption[] = courseRows.map((course) => ({
     id: course.id,
     name: course.title || 'Course',
@@ -240,18 +272,23 @@ export async function authorizeReportScope(
     courseId?: string | null
     institutionId?: string | null
     enrollmentStatus?: string | null
+    /** When instructor, org list/filter uses teach learner-home semantics. */
+    audience?: ReportScopeAudience | null
   }
 ): Promise<ScopeAuthResult> {
   const courseId = opts.courseId?.trim() || null
   const institutionId = opts.institutionId?.trim() || null
   const enrollmentStatus = parseEnrollmentStatus(opts.enrollmentStatus)
+  const audience = opts.audience || null
+  const teach = isTeachAudience(audience)
 
   if (institutionId) {
     const allowed = await allowedInstitutionIds(
       db,
       opts.userId,
       opts.role,
-      opts.profileInstitutionId
+      opts.profileInstitutionId,
+      audience
     )
     if (allowed !== null && !allowed.includes(institutionId)) {
       return { ok: false, status: 403, error: 'Institution not in your report scope' }
@@ -268,7 +305,8 @@ export async function authorizeReportScope(
     if (!can) {
       return { ok: false, status: 403, error: 'Course not in your report scope' }
     }
-    if (institutionId) {
+    // Teach audience filters enrollments by learner home org — do not require course_institutions.
+    if (institutionId && !teach) {
       const linked = await coursesForInstitutionIds(db, [institutionId])
       if (!linked.includes(courseId)) {
         return {
@@ -286,7 +324,8 @@ export async function authorizeReportScope(
     db,
     opts.userId,
     opts.role,
-    opts.profileInstitutionId
+    opts.profileInstitutionId,
+    audience
   )
 
   if (institutionId) {

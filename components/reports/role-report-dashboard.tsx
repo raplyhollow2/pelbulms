@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,6 +21,8 @@ import {
 import { ReportBlockCard, ReportHubHeader, ReportSectionTabs } from '@/components/reports/report-ui'
 import {
   audienceAllowsAiBrief,
+  type FunnelStep,
+  type ReportBreakdown,
   type ReportRange,
   type ReportSnapshot,
   type SnapshotAudience,
@@ -28,6 +30,85 @@ import {
 import { LiveUsersPanel } from '@/components/admin/live-users-panel'
 import { cn } from '@/lib/utils'
 import { AlertTriangle, CheckCircle2 } from 'lucide-react'
+
+function sumSeriesSteps(series: { steps: FunnelStep[] }[]): FunnelStep[] {
+  if (series.length === 0) return []
+  const totals = new Map<string, FunnelStep>()
+  for (const item of series) {
+    for (const step of item.steps) {
+      const existing = totals.get(step.key)
+      if (existing) {
+        existing.count += step.count
+      } else {
+        totals.set(step.key, { ...step })
+      }
+    }
+  }
+  return series[0].steps.map((step) => totals.get(step.key) || { ...step, count: 0 })
+}
+
+function GenderBreakdownChart({
+  breakdown,
+  pageInstitutionId,
+  snapshotHash,
+  onExplain,
+}: {
+  breakdown: ReportBreakdown
+  pageInstitutionId?: string | null
+  snapshotHash: string
+  onExplain?: () => void
+}) {
+  const institutionSeries = breakdown.institutionSeries || []
+  const orgDefault =
+    pageInstitutionId &&
+    institutionSeries.some((org) => org.institutionId === pageInstitutionId)
+      ? pageInstitutionId
+      : ''
+  const [selectedInstitutionId, setSelectedInstitutionId] = useState(orgDefault)
+
+  useEffect(() => {
+    setSelectedInstitutionId(orgDefault)
+  }, [snapshotHash, orgDefault])
+
+  const steps = useMemo(() => {
+    if (selectedInstitutionId && institutionSeries.length) {
+      return (
+        institutionSeries.find((org) => org.institutionId === selectedInstitutionId)?.steps ||
+        breakdown.steps
+      )
+    }
+    if (institutionSeries.length) return sumSeriesSteps(institutionSeries)
+    return breakdown.steps
+  }, [breakdown.steps, institutionSeries, selectedInstitutionId])
+
+  return (
+    <FunnelChart
+      steps={steps}
+      title={breakdown.title}
+      description={breakdown.description}
+      onExplain={onExplain}
+      filter={
+        institutionSeries.length > 0 ? (
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-muted-foreground">Organization</span>
+            <select
+              value={selectedInstitutionId}
+              onChange={(e) => setSelectedInstitutionId(e.target.value)}
+              className="h-9 max-w-full rounded-md border border-border bg-background px-2"
+            >
+              <option value="">All organizations</option>
+              {institutionSeries.map((org) => (
+                <option key={org.institutionId} value={org.institutionId}>
+                  {org.institutionName}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : undefined
+      }
+    />
+  )
+}
 
 const DESCRIPTIONS: Record<SnapshotAudience, string> = {
   superadmin:
@@ -186,27 +267,51 @@ export function RoleReportDashboard({
           <div>
             <h2 className="text-xl font-semibold">Learner profile</h2>
             <p className="text-sm text-muted-foreground">
-              Each person is counted once. Open Learner profile in detailed reports for class, gewog,
-              and completeness.
+              {snapshot.breakdowns.some((item) => item.institutionSeries)
+                ? 'Enrollment totals by learner home organization and gender. The table below should match Enrollments KPI when summed.'
+                : 'Each person is counted once. Open Learner profile in detailed reports for class, gewog, and completeness.'}
             </p>
           </div>
+          {(() => {
+            const genderByOrgBlock = snapshot.sections
+              .flatMap((section) => section.blocks)
+              .find((block) => block.id === 'learner-gender-by-organization')
+            return genderByOrgBlock ? (
+              <ReportBlockCard block={genderByOrgBlock} />
+            ) : null
+          })()}
           <div className="grid gap-4 lg:grid-cols-2">
-            {snapshot.breakdowns.map((breakdown) => (
-              <FunnelChart
-                key={breakdown.key}
-                steps={breakdown.steps}
-                title={breakdown.title}
-                description={breakdown.description}
-                onExplain={
-                  showAi ? () => explain(breakdown.title, breakdown.description) : undefined
-                }
-                yAxisWidth={
-                  breakdown.key === 'learner-dzongkhag' || breakdown.key === 'learner-qualification'
-                    ? 148
-                    : 110
-                }
-              />
-            ))}
+            {snapshot.breakdowns.map((breakdown) =>
+              breakdown.key === 'learner-gender' && breakdown.institutionSeries ? (
+                <GenderBreakdownChart
+                  key={breakdown.key}
+                  breakdown={breakdown}
+                  pageInstitutionId={
+                    scopeFilters?.institutionId || snapshot.scope?.institutionId
+                  }
+                  snapshotHash={snapshot.hash}
+                  onExplain={
+                    showAi ? () => explain(breakdown.title, breakdown.description) : undefined
+                  }
+                />
+              ) : (
+                <FunnelChart
+                  key={breakdown.key}
+                  steps={breakdown.steps}
+                  title={breakdown.title}
+                  description={breakdown.description}
+                  onExplain={
+                    showAi ? () => explain(breakdown.title, breakdown.description) : undefined
+                  }
+                  yAxisWidth={
+                    breakdown.key === 'learner-dzongkhag' ||
+                    breakdown.key === 'learner-qualification'
+                      ? 148
+                      : 110
+                  }
+                />
+              )
+            )}
           </div>
         </div>
       ) : null}

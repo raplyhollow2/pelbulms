@@ -1,5 +1,6 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import {
   Bar,
   BarChart,
@@ -54,21 +55,27 @@ export function FunnelChart({
   description,
   yAxisWidth = 110,
   onExplain,
+  filter,
 }: {
   steps: FunnelStep[]
   title?: string
   description?: string
   yAxisWidth?: number
   onExplain?: () => void
+  /** Optional in-card control (e.g. Gender course filter). */
+  filter?: ReactNode
 }) {
   const data = steps.map((s) => ({ name: s.label, count: s.count }))
   const height = steps.length > 8 ? Math.max(256, steps.length * 28) : 256
   return (
     <Card className="bg-card/80 border border-border">
       <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
-        <div>
-          <CardTitle className="text-base">{title}</CardTitle>
-          {description ? <CardDescription>{description}</CardDescription> : null}
+        <div className="min-w-0 space-y-2">
+          <div>
+            <CardTitle className="text-base">{title}</CardTitle>
+            {description ? <CardDescription>{description}</CardDescription> : null}
+          </div>
+          {filter}
         </div>
         <ExplainButton onExplain={onExplain} />
       </CardHeader>

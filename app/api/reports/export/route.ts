@@ -70,6 +70,7 @@ export async function POST(request: NextRequest) {
       institutionId: typeof body.institutionId === 'string' ? body.institutionId : null,
       enrollmentStatus:
         typeof body.enrollmentStatus === 'string' ? body.enrollmentStatus : null,
+      audience: prefer || null,
     })
     if (auth.ok === false) {
       return NextResponse.json({ error: auth.error }, { status: auth.status })

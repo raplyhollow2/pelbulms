@@ -15,6 +15,11 @@ import {
   lessonHref,
 } from '@/lib/reports/action-links'
 import { currentAssessableActivityKeys } from '@/lib/activity-responses'
+import {
+  filterEnrollmentsByLearnerHomeOrg,
+  filterRowsByUserIds,
+  loadHomeOrgByUser,
+} from '@/lib/reports/teach-org-scope'
 
 type Db = SupabaseClient<any>
 
@@ -49,6 +54,7 @@ export async function courseIdsForTeacher(
     allCourses?: boolean
     instructorId?: string | null
     courseId?: string | null
+    /** @deprecated Teach reports filter enrollments by learner home org; ignored for course set. */
     institutionId?: string | null
   }
 ): Promise<string[]> {
@@ -61,19 +67,8 @@ export async function courseIdsForTeacher(
     ids = await courseIdsOwnedOrStaff(db, userId)
   }
 
-  if (opts?.institutionId && ids.length) {
-    const { data } = await db
-      .from('course_institutions')
-      .select('course_id')
-      .eq('institution_id', opts.institutionId)
-      .in('course_id', ids)
-    const linked = new Set(
-      ((data || []) as { course_id?: string | null }[])
-        .map((r) => r.course_id)
-        .filter((id): id is string => Boolean(id))
-    )
-    ids = ids.filter((id) => linked.has(id))
-  }
+  // institutionId no longer narrows courses via course_institutions.
+  // Course Insights applies learner home-org filtering on enrollments instead.
 
   if (opts?.courseId) {
     ids = ids.includes(opts.courseId) ? [opts.courseId] : []
@@ -191,7 +186,24 @@ export async function computeTeachReports(
   if (opts?.enrollmentStatus) {
     enrollmentList = enrollmentList.filter((e) => e.status === opts.enrollmentStatus)
   }
-  const progressListAll = (lessonProgress || []) as any[]
+  if (opts?.institutionId && enrollmentList.length) {
+    const homeOrgByUser = await loadHomeOrgByUser(
+      db,
+      enrollmentList.map((e) => e.user_id).filter(Boolean)
+    )
+    enrollmentList = filterEnrollmentsByLearnerHomeOrg(
+      enrollmentList,
+      homeOrgByUser,
+      opts.institutionId
+    )
+  }
+  const enrolledUserIds = new Set(
+    enrollmentList.map((e) => e.user_id).filter((id): id is string => Boolean(id))
+  )
+  let progressListAll = (lessonProgress || []) as any[]
+  if (opts?.institutionId) {
+    progressListAll = filterRowsByUserIds(progressListAll, enrolledUserIds)
+  }
   const moduleList = (modules || []) as any[]
   const moduleIds = new Set(moduleList.map((m) => m.id))
   const lessonList = ((lessons || []) as any[]).filter((l) => moduleIds.has(l.module_id))

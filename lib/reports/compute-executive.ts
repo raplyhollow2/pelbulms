@@ -25,7 +25,11 @@ import {
   courseRosterHref,
   institutionCatalogHref,
 } from '@/lib/reports/action-links'
-import { computeLearnerDemographics } from '@/lib/reports/demographics'
+import {
+  buildEnrollmentGenderByCourse,
+  buildEnrollmentGenderByOrganization,
+  computeLearnerDemographics,
+} from '@/lib/reports/demographics'
 
 type Db = SupabaseClient<any>
 
@@ -101,17 +105,21 @@ export async function buildReportSnapshot(
       ? null
       : opts.institutionIds
 
+  const scopeOpts = {
+    institutionIds: scopedInstitutions,
+    courseId: opts.courseId || null,
+  }
   const [approvalsBlocks, opsBlocks, platformBlocks, systemBlocks] = await Promise.all([
     computeApprovalsReports(db, {
       institutionIds: scopedInstitutions,
     }),
-    computeAdminOpsReports(db, {
-      institutionIds: scopedInstitutions,
-    }),
+    computeAdminOpsReports(db, scopeOpts),
     opts.audience === 'superadmin'
-      ? computePlatformCommandReports(db)
+      ? computePlatformCommandReports(db, scopeOpts)
       : Promise.resolve([]),
-    opts.audience === 'superadmin' ? computeSystemPulseReports(db) : Promise.resolve([]),
+    opts.audience === 'superadmin'
+      ? computeSystemPulseReports(db, scopeOpts)
+      : Promise.resolve([]),
   ])
 
   const sections: ReportSectionPayload[] = [
@@ -160,13 +168,15 @@ export async function buildReportSnapshot(
       )
       .limit(3000),
     db.from('profiles').select('id, role, institution_id'),
-    db.from('institutions').select('id, name, slug, is_active'),
+    db.from('institutions').select('id, name, display_name, slug, is_active'),
     db.from('courses').select('id, title, is_published, created_at'),
   ])
 
-  let enrollmentList = (enrollments || []) as any[]
+  const allEnrollments = (enrollments || []) as any[]
+  const allProfiles = (profiles || []) as any[]
+  let enrollmentList = allEnrollments
   let regList = (registrations || []) as any[]
-  let profileList = (profiles || []) as any[]
+  let profileList = allProfiles
   let instList = ((institutions || []) as any[]).filter((i) => i.is_active !== false)
   let courseList = (courses || []) as any[]
 
@@ -199,11 +209,81 @@ export async function buildReportSnapshot(
     enrollmentList = enrollmentList.filter((e) => e.course_id === opts.courseId)
   }
 
-  const learnerIds = [...new Set(enrollmentList.map((e) => e.user_id).filter(Boolean))]
-  const demographics = await computeLearnerDemographics(db, {
-    mode: 'enrolled',
-    userIds: learnerIds,
-  })
+  // Gender / learner-profile path: attribute by learner home institution (not course_institutions).
+  let genderEnrollmentList: any[] = []
+  if (Array.isArray(scopedInstitutions) && scopedInstitutions.length === 0) {
+    genderEnrollmentList = []
+  } else {
+    genderEnrollmentList = allEnrollments
+    if (scopedInstitutions?.length) {
+      const allowedOrgs = new Set(scopedInstitutions)
+      const homeOrgByUser = new Map(
+        allProfiles.map((p) => [p.id as string, p.institution_id as string | null])
+      )
+      genderEnrollmentList = genderEnrollmentList.filter((e) => {
+        const home = homeOrgByUser.get(e.user_id)
+        return Boolean(home && allowedOrgs.has(home))
+      })
+    }
+    if (opts.courseId) {
+      genderEnrollmentList = genderEnrollmentList.filter((e) => e.course_id === opts.courseId)
+    }
+  }
+
+  const genderCourseIds = new Set(
+    genderEnrollmentList.map((e) => e.course_id).filter((id: unknown): id is string => Boolean(id))
+  )
+  const genderCourses = ((courses || []) as any[]).filter((c) => genderCourseIds.has(c.id))
+  const genderInstitutions = ((institutions || []) as any[]).map((i) => ({
+    id: i.id as string,
+    name: (i.display_name || i.name) as string | null,
+    slug: i.slug as string | null,
+  }))
+
+  const [demographics, genderByCourse, genderByOrg] = await Promise.all([
+    computeLearnerDemographics(db, {
+      mode: 'registered',
+      institutionIds: scopedInstitutions ?? null,
+    }),
+    buildEnrollmentGenderByCourse(db, {
+      enrollments: genderEnrollmentList,
+      courses: genderCourses.map((course) => ({ id: course.id, title: course.title })),
+    }),
+    buildEnrollmentGenderByOrganization(db, {
+      enrollments: genderEnrollmentList,
+      institutions: genderInstitutions,
+    }),
+  ])
+  // Enrollment break-ups in detailed reports + Gender chart (must match Enrollments KPI).
+  demographics.section.blocks.push(genderByCourse.block, genderByOrg.block)
+  demographics.tables.push(
+    {
+      key: genderByCourse.block.id,
+      title: genderByCourse.block.title,
+      columns: genderByCourse.block.columns || [],
+      rows: genderByCourse.block.rows || [],
+    },
+    {
+      key: genderByOrg.block.id,
+      title: genderByOrg.block.title,
+      columns: genderByOrg.block.columns || [],
+      rows: genderByOrg.block.rows || [],
+    }
+  )
+  // Prefer enrollment home-org series on the main Gender chart so admin/superadmin
+  // org×gender totals reconcile with Enrollments (registered-account mix stays in Role mix).
+  demographics.breakdowns = (demographics.breakdowns || []).map((item) =>
+    item.key === 'learner-gender'
+      ? {
+          ...item,
+          title: 'Gender by organization',
+          description:
+            'Enrollment counts by gender for each learner home organization. Use Organization to focus the chart.',
+          steps: genderByOrg.allSteps,
+          institutionSeries: genderByOrg.institutionSeries,
+        }
+      : item
+  )
   sections.push(demographics.section)
 
   const profileInst = new Map(profileList.map((p) => [p.id, p.institution_id as string | null]))
@@ -327,6 +407,12 @@ export async function buildReportSnapshot(
   const quietHref = quietRow?.href || (quietRow ? courseRosterHref(quietRow.id) : '/admin/reports?focus=instructor-health')
 
   const kpis: ReportMetric[] = [
+    {
+      key: 'enrollments',
+      label: 'Enrollments',
+      value: enrollmentList.length,
+      hint: 'Learners enrolled in the selected course or organization scope',
+    },
     { key: 'wau', label: 'Active learners (7d)', value: wau, hint: 'Via enrollment last access' },
     { key: 'mau', label: 'Active learners (30d)', value: mau },
     { key: 'pendingKyc', label: 'Pending KYC', value: pendingKyc, href: pendingKyc > 0 ? APPROVALS_HREF : undefined },

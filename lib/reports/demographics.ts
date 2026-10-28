@@ -2,7 +2,9 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { DZONGKHAGS, normalizeDzongkhag } from '@/lib/dzongkhags'
 import { ROLE_LABELS, USER_ROLES, type UserRole } from '@/lib/roles'
 import { REPORT_SECTIONS } from '@/lib/reports/catalog'
+import { courseRosterHref, institutionCatalogHref } from '@/lib/reports/action-links'
 import type {
+  FunnelStep,
   ReportBlock,
   ReportBreakdown,
   ReportId,
@@ -336,24 +338,460 @@ async function institutionNames(db: Db, ids: string[]) {
   return names
 }
 
+export type EnrollmentGenderByCourseResult = {
+  block: ReportBlock
+  courseSeries: { courseId: string; courseTitle: string; steps: FunnelStep[] }[]
+  allSteps: FunnelStep[]
+}
+
+/** Enrollment-row gender counts per course (admin/superadmin reports). */
+export async function buildEnrollmentGenderByCourse(
+  db: Db,
+  opts: {
+    enrollments: Array<{ user_id?: string | null; course_id?: string | null }>
+    courses: Array<{ id: string; title?: string | null }>
+  }
+): Promise<EnrollmentGenderByCourseResult> {
+  const courseTitle = new Map(
+    opts.courses.map((course) => [course.id, cleanText(course.title) || 'Course'])
+  )
+  const userIds = [
+    ...new Set(opts.enrollments.map((row) => row.user_id).filter((id): id is string => Boolean(id))),
+  ]
+  const profiles = await fetchProfiles(db, userIds)
+  const genderByUser = new Map(profiles.map((profile) => [profile.id, genderKey(profile.gender)]))
+
+  const countsByCourse = new Map<string, Map<string, number>>()
+  for (const enrollment of opts.enrollments) {
+    const courseId = enrollment.course_id
+    const userId = enrollment.user_id
+    if (!courseId || !userId) continue
+    if (!courseTitle.has(courseId)) {
+      courseTitle.set(courseId, 'Course')
+    }
+    let bucket = countsByCourse.get(courseId)
+    if (!bucket) {
+      bucket = new Map(GENDER_ORDER.map((g) => [g.key, 0]))
+      countsByCourse.set(courseId, bucket)
+    }
+    const key = genderByUser.get(userId) || 'not-specified'
+    bucket.set(key, (bucket.get(key) || 0) + 1)
+  }
+
+  const courseSeries = [...countsByCourse.entries()]
+    .map(([courseId, bucket]) => {
+      const steps: FunnelStep[] = GENDER_ORDER.map((g) => ({
+        key: g.key,
+        label: g.label,
+        count: bucket.get(g.key) || 0,
+      }))
+      const total = steps.reduce((sum, step) => sum + step.count, 0)
+      return {
+        courseId,
+        courseTitle: courseTitle.get(courseId) || 'Course',
+        steps,
+        total,
+      }
+    })
+    .sort((a, b) => b.total - a.total || a.courseTitle.localeCompare(b.courseTitle))
+
+  const allCounts = new Map<string, number>(GENDER_ORDER.map((g) => [g.key, 0]))
+  for (const series of courseSeries) {
+    for (const step of series.steps) {
+      allCounts.set(step.key, (allCounts.get(step.key) || 0) + step.count)
+    }
+  }
+  const allSteps: FunnelStep[] = GENDER_ORDER.map((g) => ({
+    key: g.key,
+    label: g.label,
+    count: allCounts.get(g.key) || 0,
+  }))
+  const grandTotal = allSteps.reduce((sum, step) => sum + step.count, 0)
+
+  const block: ReportBlock = {
+    id: 'learner-gender-by-course',
+    title: 'Enrollment by gender (course)',
+    description:
+      'Enrollment counts by gender for each course. The same learner counts once per course they are enrolled in.',
+    metrics: [
+      { key: 'courses', label: 'Courses', value: courseSeries.length },
+      { key: 'enrollments', label: 'Enrollments', value: grandTotal },
+    ],
+    columns: [
+      { key: 'course', label: 'Course' },
+      { key: 'male', label: 'Male' },
+      { key: 'female', label: 'Female' },
+      { key: 'other', label: 'Other' },
+      { key: 'notSpecified', label: 'Not specified' },
+      { key: 'total', label: 'Total' },
+    ],
+    rows: courseSeries.map((series) => {
+      const byKey = Object.fromEntries(series.steps.map((step) => [step.key, step.count]))
+      return {
+        id: series.courseId,
+        href: courseRosterHref(series.courseId),
+        actionLabel: 'Open roster',
+        cells: {
+          course: series.courseTitle,
+          male: byKey.male || 0,
+          female: byKey.female || 0,
+          other: byKey.other || 0,
+          notSpecified: byKey['not-specified'] || 0,
+          total: series.total,
+        },
+      }
+    }),
+    emptyMessage: 'No enrollments in this scope yet.',
+  }
+
+  return {
+    block,
+    courseSeries: courseSeries.map(({ courseId, courseTitle: title, steps }) => ({
+      courseId,
+      courseTitle: title,
+      steps,
+    })),
+    allSteps,
+  }
+}
+
+export type EnrollmentGenderByOrganizationResult = {
+  block: ReportBlock
+  institutionSeries: { institutionId: string; institutionName: string; steps: FunnelStep[] }[]
+  allSteps: FunnelStep[]
+}
+
+const NO_INSTITUTION_ID = 'no-institution'
+
+/** Enrollment-row gender counts by learner home institution (admin/superadmin reports). */
+export async function buildEnrollmentGenderByOrganization(
+  db: Db,
+  opts: {
+    enrollments: Array<{ user_id?: string | null; course_id?: string | null }>
+    institutions: Array<{ id: string; name?: string | null; slug?: string | null }>
+  }
+): Promise<EnrollmentGenderByOrganizationResult> {
+  const institutionMeta = new Map(
+    opts.institutions.map((inst) => [
+      inst.id,
+      {
+        name: cleanText(inst.name) || 'Organization',
+        slug: inst.slug || null,
+      },
+    ])
+  )
+  const userIds = [
+    ...new Set(opts.enrollments.map((row) => row.user_id).filter((id): id is string => Boolean(id))),
+  ]
+  const profiles = await fetchProfiles(db, userIds)
+  const genderByUser = new Map(profiles.map((profile) => [profile.id, genderKey(profile.gender)]))
+  const homeOrgByUser = new Map(
+    profiles.map((profile) => [profile.id, profile.institution_id || NO_INSTITUTION_ID])
+  )
+
+  const countsByOrg = new Map<string, Map<string, number>>()
+  for (const enrollment of opts.enrollments) {
+    const userId = enrollment.user_id
+    if (!userId) continue
+    const institutionId = homeOrgByUser.get(userId) || NO_INSTITUTION_ID
+    if (!institutionMeta.has(institutionId) && institutionId !== NO_INSTITUTION_ID) {
+      institutionMeta.set(institutionId, { name: 'Organization', slug: null })
+    }
+    let bucket = countsByOrg.get(institutionId)
+    if (!bucket) {
+      bucket = new Map(GENDER_ORDER.map((g) => [g.key, 0]))
+      countsByOrg.set(institutionId, bucket)
+    }
+    const key = genderByUser.get(userId) || 'not-specified'
+    bucket.set(key, (bucket.get(key) || 0) + 1)
+  }
+
+  const institutionSeries = [...countsByOrg.entries()]
+    .map(([institutionId, bucket]) => {
+      const steps: FunnelStep[] = GENDER_ORDER.map((g) => ({
+        key: g.key,
+        label: g.label,
+        count: bucket.get(g.key) || 0,
+      }))
+      const total = steps.reduce((sum, step) => sum + step.count, 0)
+      const name =
+        institutionId === NO_INSTITUTION_ID
+          ? NO_INSTITUTION
+          : institutionMeta.get(institutionId)?.name || 'Organization'
+      return {
+        institutionId,
+        institutionName: name,
+        slug: institutionMeta.get(institutionId)?.slug || null,
+        steps,
+        total,
+      }
+    })
+    .sort((a, b) => {
+      if (a.institutionId === NO_INSTITUTION_ID) return 1
+      if (b.institutionId === NO_INSTITUTION_ID) return -1
+      return b.total - a.total || a.institutionName.localeCompare(b.institutionName)
+    })
+
+  const allCounts = new Map<string, number>(GENDER_ORDER.map((g) => [g.key, 0]))
+  for (const series of institutionSeries) {
+    for (const step of series.steps) {
+      allCounts.set(step.key, (allCounts.get(step.key) || 0) + step.count)
+    }
+  }
+  const allSteps: FunnelStep[] = GENDER_ORDER.map((g) => ({
+    key: g.key,
+    label: g.label,
+    count: allCounts.get(g.key) || 0,
+  }))
+  const grandTotal = allSteps.reduce((sum, step) => sum + step.count, 0)
+
+  const block: ReportBlock = {
+    id: 'learner-gender-by-organization',
+    title: 'Enrollment by gender (organization)',
+    description:
+      'Enrollment counts by gender for each learner home organization. The same learner counts once per course they are enrolled in.',
+    metrics: [
+      { key: 'organizations', label: 'Organizations', value: institutionSeries.length },
+      { key: 'enrollments', label: 'Enrollments', value: grandTotal },
+    ],
+    columns: [
+      { key: 'organization', label: 'Organization' },
+      { key: 'male', label: 'Male' },
+      { key: 'female', label: 'Female' },
+      { key: 'other', label: 'Other' },
+      { key: 'notSpecified', label: 'Not specified' },
+      { key: 'total', label: 'Total' },
+    ],
+    rows: institutionSeries.map((series) => {
+      const byKey = Object.fromEntries(series.steps.map((step) => [step.key, step.count]))
+      return {
+        id: series.institutionId,
+        href:
+          series.institutionId === NO_INSTITUTION_ID
+            ? undefined
+            : institutionCatalogHref(series.slug),
+        actionLabel: series.institutionId === NO_INSTITUTION_ID ? undefined : 'Open catalog',
+        cells: {
+          organization: series.institutionName,
+          male: byKey.male || 0,
+          female: byKey.female || 0,
+          other: byKey.other || 0,
+          notSpecified: byKey['not-specified'] || 0,
+          total: series.total,
+        },
+      }
+    }),
+    emptyMessage: 'No enrollments in this scope yet.',
+  }
+
+  return {
+    block,
+    institutionSeries: institutionSeries.map(({ institutionId, institutionName, steps }) => ({
+      institutionId,
+      institutionName,
+      steps,
+    })),
+    allSteps,
+  }
+}
+
+export type RegisteredGenderByOrganizationResult = {
+  institutionSeries: { institutionId: string; institutionName: string; steps: FunnelStep[] }[]
+  allSteps: FunnelStep[]
+}
+
+/** Unique registered accounts by home institution gender (admin/superadmin Gender chart). */
+export function buildRegisteredGenderByOrganization(opts: {
+  profiles: Array<{ id: string; gender: string | null; institution_id: string | null }>
+  institutions: Array<{ id: string; name?: string | null }>
+}): RegisteredGenderByOrganizationResult {
+  const institutionMeta = new Map(
+    opts.institutions.map((inst) => [inst.id, cleanText(inst.name) || 'Organization'])
+  )
+  const countsByOrg = new Map<string, Map<string, number>>()
+  for (const profile of opts.profiles) {
+    const institutionId = profile.institution_id || NO_INSTITUTION_ID
+    if (!institutionMeta.has(institutionId) && institutionId !== NO_INSTITUTION_ID) {
+      institutionMeta.set(institutionId, 'Organization')
+    }
+    let bucket = countsByOrg.get(institutionId)
+    if (!bucket) {
+      bucket = new Map(GENDER_ORDER.map((g) => [g.key, 0]))
+      countsByOrg.set(institutionId, bucket)
+    }
+    const key = genderKey(profile.gender)
+    bucket.set(key, (bucket.get(key) || 0) + 1)
+  }
+
+  const institutionSeries = [...countsByOrg.entries()]
+    .map(([institutionId, bucket]) => {
+      const steps: FunnelStep[] = GENDER_ORDER.map((g) => ({
+        key: g.key,
+        label: g.label,
+        count: bucket.get(g.key) || 0,
+      }))
+      const total = steps.reduce((sum, step) => sum + step.count, 0)
+      return {
+        institutionId,
+        institutionName:
+          institutionId === NO_INSTITUTION_ID
+            ? NO_INSTITUTION
+            : institutionMeta.get(institutionId) || 'Organization',
+        steps,
+        total,
+      }
+    })
+    .sort((a, b) => {
+      if (a.institutionId === NO_INSTITUTION_ID) return 1
+      if (b.institutionId === NO_INSTITUTION_ID) return -1
+      return b.total - a.total || a.institutionName.localeCompare(b.institutionName)
+    })
+
+  const allCounts = new Map<string, number>(GENDER_ORDER.map((g) => [g.key, 0]))
+  for (const series of institutionSeries) {
+    for (const step of series.steps) {
+      allCounts.set(step.key, (allCounts.get(step.key) || 0) + step.count)
+    }
+  }
+  const allSteps: FunnelStep[] = GENDER_ORDER.map((g) => ({
+    key: g.key,
+    label: g.label,
+    count: allCounts.get(g.key) || 0,
+  }))
+
+  return {
+    institutionSeries: institutionSeries.map(({ institutionId, institutionName, steps }) => ({
+      institutionId,
+      institutionName,
+      steps,
+    })),
+    allSteps,
+  }
+}
+
+/** Registered accounts by role × gender grid (admin/superadmin). */
+export function buildGenderByRole(
+  profiles: Array<{ id: string; gender: string | null; role: string | null }>
+): ReportBlock {
+  const roleKeys = new Map<string, string>()
+  for (const role of USER_ROLES) {
+    roleKeys.set(role, ROLE_LABELS[role])
+  }
+  for (const profile of profiles) {
+    const key = roleKey(profile.role)
+    if (!roleKeys.has(key)) roleKeys.set(key, roleLabel(key))
+  }
+
+  const countsByRole = new Map<string, Map<string, number>>()
+  for (const [key] of roleKeys) {
+    countsByRole.set(key, new Map(GENDER_ORDER.map((g) => [g.key, 0])))
+  }
+  for (const profile of profiles) {
+    const key = roleKey(profile.role)
+    let bucket = countsByRole.get(key)
+    if (!bucket) {
+      bucket = new Map(GENDER_ORDER.map((g) => [g.key, 0]))
+      countsByRole.set(key, bucket)
+    }
+    const gender = genderKey(profile.gender)
+    bucket.set(gender, (bucket.get(gender) || 0) + 1)
+  }
+
+  const rows = [...countsByRole.entries()]
+    .map(([roleId, bucket]) => {
+      const male = bucket.get('male') || 0
+      const female = bucket.get('female') || 0
+      const other = bucket.get('other') || 0
+      const notSpecified = bucket.get('not-specified') || 0
+      const total = male + female + other + notSpecified
+      return {
+        id: roleId,
+        cells: {
+          role: roleKeys.get(roleId) || roleLabel(roleId),
+          male,
+          female,
+          other,
+          notSpecified,
+          total,
+        },
+        total,
+      }
+    })
+    .filter((row) => row.total > 0)
+    .sort((a, b) => b.total - a.total || String(a.cells.role).localeCompare(String(b.cells.role)))
+
+  const grandTotal = rows.reduce((sum, row) => sum + row.total, 0)
+
+  return {
+    id: 'learner-gender-by-role',
+    title: 'Gender by role',
+    description:
+      'Registered accounts by role and gender. Each person is counted once under their current role.',
+    metrics: [
+      { key: 'roles', label: 'Roles', value: rows.length },
+      { key: 'accounts', label: 'Accounts', value: grandTotal },
+    ],
+    columns: [
+      { key: 'role', label: 'Role' },
+      { key: 'male', label: 'Male' },
+      { key: 'female', label: 'Female' },
+      { key: 'other', label: 'Other' },
+      { key: 'notSpecified', label: 'Not specified' },
+      { key: 'total', label: 'Total' },
+    ],
+    rows: rows.map(({ id, cells }) => ({ id, cells })),
+    emptyMessage: 'No registered accounts in this scope yet.',
+  }
+}
+
 export async function computeLearnerDemographics(
   db: Db,
-  opts: { mode: 'enrolled'; userIds: string[] } | { mode: 'platform' }
+  opts:
+    | { mode: 'enrolled'; userIds: string[] }
+    | { mode: 'platform' }
+    | { mode: 'registered'; institutionIds: string[] | null }
 ): Promise<LearnerDemographicsResult> {
-  const profiles =
-    opts.mode === 'enrolled' ? await fetchProfiles(db, opts.userIds) : await fetchProfiles(db)
-  const learners = opts.mode === 'platform' ? profiles.filter((p) => p.role === 'student') : profiles
+  let profiles: ProfileRow[]
+  if (opts.mode === 'enrolled') {
+    profiles = await fetchProfiles(db, opts.userIds)
+  } else if (opts.mode === 'registered') {
+    if (Array.isArray(opts.institutionIds) && opts.institutionIds.length === 0) {
+      profiles = []
+    } else {
+      profiles = await fetchProfiles(db)
+      if (opts.institutionIds?.length) {
+        const allowed = new Set(opts.institutionIds)
+        profiles = profiles.filter((p) => p.institution_id && allowed.has(p.institution_id))
+      }
+    }
+  } else {
+    profiles = await fetchProfiles(db)
+  }
+
+  // Student-facing demographics (Q/age/dzongkhag/…). Gender chart uses accounts in registered mode.
+  const learners =
+    opts.mode === 'platform' || opts.mode === 'registered'
+      ? profiles.filter((p) => p.role === 'student')
+      : profiles
+  const genderPopulation = opts.mode === 'registered' ? profiles : learners
   const total = learners.length
+  const genderTotal = genderPopulation.length
   const scopeHint =
     opts.mode === 'platform'
       ? 'Every student account. Each person is counted once.'
-      : 'Unique learners enrolled in the selected organization. Each person is counted once.'
+      : opts.mode === 'registered'
+        ? 'Registered accounts in the selected organization. Each person is counted once.'
+        : 'Unique learners enrolled in the selected organization. Each person is counted once.'
+  const genderScopeHint =
+    opts.mode === 'registered'
+      ? 'Registered accounts in the selected organization (all roles). Each person is counted once.'
+      : scopeHint
 
   const genderCounts = countMap(
     GENDER_ORDER.map((g) => ({
       id: g.key,
       label: g.label,
-      count: learners.filter((p) => genderKey(p.gender) === g.key).length,
+      count: genderPopulation.filter((p) => genderKey(p.gender) === g.key).length,
     }))
   )
   const genderRows = rowsFromOrder(GENDER_ORDER, genderCounts)
@@ -414,7 +852,7 @@ export async function computeLearnerDemographics(
   }
   const statusRows = rowsFromOrder(STATUS_ORDER, statusCounts, extraStatuses)
 
-  const knownGender = total - (genderCounts.get('not-specified') || 0)
+  const knownGender = genderTotal - (genderCounts.get('not-specified') || 0)
   const knownAge = total - (ageCounts.get('not-specified') || 0)
   const knownDzongkhag = total - (dzongkhagCounts.get('not-specified') || 0) - unrecognized
   const knownQualification = total - (qualificationRows.find((r) => r.label === NOT_SPECIFIED)?.count || 0)
@@ -440,10 +878,11 @@ export async function computeLearnerDemographics(
     countBlock({
       id: 'learner-gender',
       title: 'Gender',
-      description: `Gender recorded on the profile. ${scopeHint}`,
-      total,
+      description: `Gender recorded on the profile. ${genderScopeHint}`,
+      total: genderTotal,
       known: knownGender,
       knownLabel: 'With gender',
+      totalLabel: opts.mode === 'registered' ? 'Accounts' : 'Learners',
       rows: genderRows,
     }),
     countBlock({
@@ -530,7 +969,7 @@ export async function computeLearnerDemographics(
     },
   ]
 
-  if (opts.mode === 'platform') {
+  if (opts.mode === 'platform' || opts.mode === 'registered') {
     const names = await institutionNames(
       db,
       learners.map((p) => p.institution_id || '').filter(Boolean)
@@ -546,17 +985,19 @@ export async function computeLearnerDemographics(
     ).map((row) =>
       row.label === NOT_SPECIFIED ? { ...row, id: 'no-institution', label: NO_INSTITUTION } : row
     )
-    blocks.push(
-      countBlock({
-        id: 'learner-institution',
-        title: 'Institution',
-        description: `Student accounts by institution. ${scopeHint}`,
-        total,
-        known: total - (institutionRows.find((r) => r.label === NO_INSTITUTION)?.count || 0),
-        knownLabel: 'With institution',
-        rows: institutionRows,
-      })
-    )
+    if (opts.mode === 'platform') {
+      blocks.push(
+        countBlock({
+          id: 'learner-institution',
+          title: 'Institution',
+          description: `Student accounts by institution. ${scopeHint}`,
+          total,
+          known: total - (institutionRows.find((r) => r.label === NO_INSTITUTION)?.count || 0),
+          knownLabel: 'With institution',
+          rows: institutionRows,
+        })
+      )
+    }
 
     const roleCounts = new Map<string, number>()
     const extraRoles: CountRow[] = []
@@ -578,7 +1019,7 @@ export async function computeLearnerDemographics(
       countBlock({
         id: 'learner-role-mix',
         title: 'Role mix',
-        description: 'Every account on the platform, including staff. Each person is counted once.',
+        description: 'Every account in this scope, including staff. Each person is counted once.',
         total: profiles.length,
         known: profiles.length - (roleCounts.get('not-specified') || 0),
         knownLabel: 'With role',
@@ -588,6 +1029,10 @@ export async function computeLearnerDemographics(
     )
   }
 
+  if (opts.mode === 'registered') {
+    blocks.push(buildGenderByRole(profiles))
+  }
+
   const chartRows: Record<string, CountRow[]> = {
     'learner-qualification': qualificationRows,
     'learner-gender': genderRows,
@@ -595,14 +1040,21 @@ export async function computeLearnerDemographics(
     'learner-age': ageRows,
   }
 
-  const breakdowns: ReportBreakdown[] = [
+  let breakdowns: ReportBreakdown[] = [
     breakdown(
       'learner-qualification',
       'Qualification',
       'Academic background of learners in this report.',
       chartRows['learner-qualification']
     ),
-    breakdown('learner-gender', 'Gender', 'Gender of learners in this report.', chartRows['learner-gender']),
+    breakdown(
+      'learner-gender',
+      'Gender',
+      opts.mode === 'registered'
+        ? 'Registered accounts by gender. Use Organization to focus the chart.'
+        : 'Gender of learners in this report.',
+      chartRows['learner-gender']
+    ),
     breakdown(
       'learner-dzongkhag',
       'Dzongkhag',
@@ -616,6 +1068,26 @@ export async function computeLearnerDemographics(
       chartRows['learner-age']
     ),
   ]
+
+  if (opts.mode === 'registered') {
+    const orgNames = await institutionNames(
+      db,
+      profiles.map((p) => p.institution_id || '').filter(Boolean)
+    )
+    const registeredByOrg = buildRegisteredGenderByOrganization({
+      profiles,
+      institutions: [...orgNames.entries()].map(([id, name]) => ({ id, name })),
+    })
+    breakdowns = breakdowns.map((item) =>
+      item.key === 'learner-gender'
+        ? {
+            ...item,
+            steps: registeredByOrg.allSteps,
+            institutionSeries: registeredByOrg.institutionSeries,
+          }
+        : item
+    )
+  }
 
   return {
     section: {

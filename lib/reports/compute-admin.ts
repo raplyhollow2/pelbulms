@@ -16,6 +16,12 @@ import {
 
 type Db = SupabaseClient<any>
 
+/** Institution + optional course narrowing for admin/ops/platform report blocks. */
+export type ReportComputeScope = {
+  institutionIds?: string[] | null
+  courseId?: string | null
+}
+
 function daysAgo(n: number) {
   const d = new Date()
   d.setDate(d.getDate() - n)
@@ -295,7 +301,7 @@ export async function computeApprovalsReports(
 
 export async function computeAdminOpsReports(
   db: Db,
-  options?: { institutionIds?: string[] | null }
+  options?: ReportComputeScope
 ): Promise<ReportBlock[]> {
   const since30 = daysAgo(30)
   const since7 = daysAgo(7)
@@ -374,9 +380,26 @@ export async function computeAdminOpsReports(
     accessList = accessList.filter((row) => allowed.has(row.institution_id))
     regList = regList.filter((row) => row.institution_id && allowed.has(row.institution_id))
   }
-  const certificateRows = orgIds.length
+  const courseId = options?.courseId?.trim() || null
+  if (courseId) {
+    courseList = courseList.filter((row) => row.id === courseId)
+    enrollmentList = enrollmentList.filter((row) => row.course_id === courseId)
+    moduleList = moduleList.filter((row) => row.course_id === courseId)
+    const moduleIds = new Set(moduleList.map((row) => row.id))
+    lessonList = lessonList.filter((row) => moduleIds.has(row.module_id))
+    ciList = ciList.filter((row) => row.course_id === courseId)
+  }
+  const courseScoped = Boolean(orgIds.length || courseId)
+  const certificateRows = courseScoped
     ? ((certificates || []) as any[]).filter((row) => courseList.some((course) => course.id === row.course_id))
     : ((certificates || []) as any[])
+  let instructorRows = (courseInstructors || []) as any[]
+  if (courseId) {
+    instructorRows = instructorRows.filter((row) => row.course_id === courseId)
+  } else if (orgIds.length) {
+    const allowedCourseIds = new Set(courseList.map((c) => c.id))
+    instructorRows = instructorRows.filter((row) => allowedCourseIds.has(row.course_id))
+  }
   const assessableKeys = currentAssessableActivityKeys(lessonList)
   const activityList = ((activitySubmissions || []) as any[]).filter((row) =>
     assessableKeys.has(`${row.lesson_id}:${row.activity_id}`)
@@ -484,7 +507,7 @@ export async function computeAdminOpsReports(
     enrollmentList.length > 0 ? Math.round((completions / enrollmentList.length) * 100) : 0
 
   const staffByCourse: Record<string, number> = {}
-  for (const s of (courseInstructors || []) as any[]) {
+  for (const s of instructorRows) {
     staffByCourse[s.course_id] = (staffByCourse[s.course_id] || 0) + 1
   }
   const quietCourses = published.filter((c) => {
@@ -704,22 +727,120 @@ export async function computeAdminOpsReports(
   ]
 }
 
-export async function computePlatformCommandReports(db: Db): Promise<ReportBlock[]> {
+export async function computePlatformCommandReports(
+  db: Db,
+  options?: ReportComputeScope
+): Promise<ReportBlock[]> {
+  const [
+    { data: institutions },
+    { data: profiles },
+    { data: courses },
+    { data: enrollments },
+    { data: quizzes },
+    { data: decks },
+    { data: forums },
+    { data: certificates },
+    { data: interventions },
+    { data: courseInstitutions },
+  ] = await Promise.all([
+    db.from('institutions').select('id, name, slug, is_active'),
+    db.from('profiles').select('id, role, institution_id'),
+    db.from('courses').select('id, title, is_published'),
+    db
+      .from('enrollments')
+      .select('id, user_id, course_id, status, progress_percentage, last_accessed_at, completed_at'),
+    db.from('quizzes').select('id, lesson_id'),
+    db.from('flashcard_decks').select('id, course_id'),
+    db.from('forums').select('id, course_id'),
+    db.from('certificates').select('id, course_id'),
+    db
+      .from('teacher_interventions')
+      .select('id, course_id, student_id, created_at')
+      .order('created_at', { ascending: false })
+      .limit(500),
+    db.from('course_institutions').select('course_id, institution_id').limit(2000),
+  ])
+
+  let instList = ((institutions || []) as any[]).filter((i) => i.is_active !== false)
+  let profileList = (profiles || []) as any[]
+  let enrollmentList = (enrollments || []) as any[]
+  let courseList = (courses || []) as any[]
+  let ciList = (courseInstitutions || []) as any[]
+  let deckList = (decks || []) as any[]
+  let forumList = (forums || []) as any[]
+  let certificateList = (certificates || []) as any[]
+  let interventionList = (interventions || []) as any[]
+  let quizList = (quizzes || []) as any[]
+
+  if (Array.isArray(options?.institutionIds) && options!.institutionIds!.length === 0) {
+    instList = []
+    profileList = []
+    enrollmentList = []
+    courseList = []
+    ciList = []
+    deckList = []
+    forumList = []
+    certificateList = []
+    interventionList = []
+    quizList = []
+  }
+
+  const orgIds = (options?.institutionIds || []).filter(Boolean)
+  if (orgIds.length) {
+    const allowed = new Set(orgIds)
+    instList = instList.filter((row) => allowed.has(row.id))
+    profileList = profileList.filter((row) => row.institution_id && allowed.has(row.institution_id))
+    ciList = ciList.filter((row) => allowed.has(row.institution_id))
+    const allowedCourseIds = new Set(ciList.map((row) => row.course_id).filter(Boolean))
+    courseList = courseList.filter((row) => allowedCourseIds.has(row.id))
+    enrollmentList = enrollmentList.filter((row) => allowedCourseIds.has(row.course_id))
+    deckList = deckList.filter((row) => allowedCourseIds.has(row.course_id))
+    forumList = forumList.filter((row) => allowedCourseIds.has(row.course_id))
+    certificateList = certificateList.filter((row) => allowedCourseIds.has(row.course_id))
+    interventionList = interventionList.filter((row) => allowedCourseIds.has(row.course_id))
+  }
+
+  const courseId = options?.courseId?.trim() || null
+  if (courseId) {
+    courseList = courseList.filter((row) => row.id === courseId)
+    enrollmentList = enrollmentList.filter((row) => row.course_id === courseId)
+    deckList = deckList.filter((row) => row.course_id === courseId)
+    forumList = forumList.filter((row) => row.course_id === courseId)
+    certificateList = certificateList.filter((row) => row.course_id === courseId)
+    interventionList = interventionList.filter((row) => row.course_id === courseId)
+  }
+
+  const scopedUserIds =
+    orgIds.length || courseId
+      ? new Set(enrollmentList.map((e) => e.user_id).concat(profileList.map((p) => p.id)))
+      : null
+
   let livePresence: ReportBlock | null = null
   try {
     const snap = await computePresenceSnapshot(db)
+    let people = snap.activeToday
+    if (scopedUserIds) {
+      people = people.filter((p) => scopedUserIds.has(p.userId))
+    }
+    const nowPeople = scopedUserIds
+      ? snap.activeNow.filter((p) => scopedUserIds.has(p.userId))
+      : snap.activeNow
+    const nowByRole: Record<string, number> = {}
+    for (const p of nowPeople) {
+      nowByRole[p.role || 'unknown'] = (nowByRole[p.role || 'unknown'] || 0) + 1
+    }
     livePresence = {
       id: 'live-presence',
       title: 'Live presence',
       description: 'Heartbeat sessions. The roster on this page updates in real time.',
       metrics: [
-        { key: 'now', label: 'Active now', value: snap.counts.now },
-        { key: 'today', label: 'Active today', value: snap.counts.today },
+        { key: 'now', label: 'Active now', value: nowPeople.length },
+        { key: 'today', label: 'Active today', value: people.length },
         {
           key: 'nowRoles',
           label: 'Now by role',
           value:
-            Object.entries(snap.counts.nowByRole)
+            Object.entries(nowByRole)
               .map(([role, n]) => `${role}:${n}`)
               .join(', ') || '—',
         },
@@ -730,7 +851,7 @@ export async function computePlatformCommandReports(db: Db): Promise<ReportBlock
         { key: 'where', label: 'Location' },
         { key: 'state', label: 'State' },
       ],
-      rows: snap.activeToday.slice(0, 40).map((p) => {
+      rows: people.slice(0, 40).map((p) => {
         const href = internalPathHref(p.path)
         return {
           id: p.userId,
@@ -750,38 +871,6 @@ export async function computePlatformCommandReports(db: Db): Promise<ReportBlock
     livePresence = null
   }
 
-  const [
-    { data: institutions },
-    { data: profiles },
-    { data: courses },
-    { data: enrollments },
-    { data: quizzes },
-    { data: decks },
-    { data: forums },
-    { data: certificates },
-    { data: interventions },
-  ] = await Promise.all([
-    db.from('institutions').select('id, name, slug, is_active'),
-    db.from('profiles').select('id, role, institution_id'),
-    db.from('courses').select('id, title, is_published'),
-    db
-      .from('enrollments')
-      .select('id, user_id, course_id, status, progress_percentage, last_accessed_at, completed_at'),
-    db.from('quizzes').select('id, lesson_id'),
-    db.from('flashcard_decks').select('id, course_id'),
-    db.from('forums').select('id, course_id'),
-    db.from('certificates').select('id, course_id'),
-    db
-      .from('teacher_interventions')
-      .select('id, course_id, student_id, created_at')
-      .order('created_at', { ascending: false })
-      .limit(500),
-  ])
-
-  const instList = ((institutions || []) as any[]).filter((i) => i.is_active !== false)
-  const profileList = (profiles || []) as any[]
-  const enrollmentList = (enrollments || []) as any[]
-  const courseList = (courses || []) as any[]
   const publishedIds = new Set(courseList.filter((c) => c.is_published).map((c) => c.id))
 
   const roleCounts: Record<string, number> = {}
@@ -816,12 +905,11 @@ export async function computePlatformCommandReports(db: Db): Promise<ReportBlock
     // approximate via lessons→modules would be heavy; use decks/forums/certs by course
   )
   void coursesWithQuiz
-  const deckCourses = new Set(((decks || []) as any[]).map((d) => d.course_id).filter(Boolean))
-  const forumCourses = new Set(((forums || []) as any[]).map((f) => f.course_id).filter(Boolean))
-  const certCourses = new Set(((certificates || []) as any[]).map((c) => c.course_id))
+  const deckCourses = new Set(deckList.map((d) => d.course_id).filter(Boolean))
+  const forumCourses = new Set(forumList.map((f) => f.course_id).filter(Boolean))
+  const certCourses = new Set(certificateList.map((c) => c.course_id))
 
   // Intervention effectiveness: progress after intervention within 7d
-  const interventionList = (interventions || []) as any[]
   let resumed = 0
   let evaluated = 0
   if (interventionList.length) {
@@ -896,7 +984,7 @@ export async function computePlatformCommandReports(db: Db): Promise<ReportBlock
         {
           key: 'quizzes',
           label: 'Quiz objects',
-          value: (quizzes || []).length,
+          value: quizList.length,
           hint: 'Lesson-scoped; % of courses needs join via modules',
         },
       ],

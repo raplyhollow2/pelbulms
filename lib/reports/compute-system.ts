@@ -5,7 +5,10 @@ import { courseEditHref, learnerHref } from '@/lib/reports/action-links'
 
 type Db = SupabaseClient<any>
 
-export async function computeSystemPulseReports(db: Db): Promise<ReportBlock[]> {
+export async function computeSystemPulseReports(
+  db: Db,
+  options?: { institutionIds?: string[] | null; courseId?: string | null }
+): Promise<ReportBlock[]> {
   const [
     { data: enrollments },
     { data: courses },
@@ -32,15 +35,55 @@ export async function computeSystemPulseReports(db: Db): Promise<ReportBlock[]> 
       .limit(2000),
   ])
 
-  const enrollmentList = (enrollments || []) as any[]
-  const courseList = (courses || []) as any[]
-  const progressList = (lessonProgress || []) as any[]
-  const lessonList = (lessons || []) as any[]
-  const moduleList = (modules || []) as any[]
-  const ciList = (courseInstitutions || []) as any[]
-  const profileList = (profiles || []) as any[]
-  const inviteList = (invites || []) as any[]
-  const accessList = (institutionAccess || []) as any[]
+  let enrollmentList = (enrollments || []) as any[]
+  let courseList = (courses || []) as any[]
+  let progressList = (lessonProgress || []) as any[]
+  let lessonList = (lessons || []) as any[]
+  let moduleList = (modules || []) as any[]
+  let ciList = (courseInstitutions || []) as any[]
+  let profileList = (profiles || []) as any[]
+  let inviteList = (invites || []) as any[]
+  let accessList = (institutionAccess || []) as any[]
+
+  if (Array.isArray(options?.institutionIds) && options!.institutionIds!.length === 0) {
+    enrollmentList = []
+    courseList = []
+    progressList = []
+    lessonList = []
+    moduleList = []
+    ciList = []
+    profileList = []
+    inviteList = []
+    accessList = []
+  }
+
+  const orgIds = (options?.institutionIds || []).filter(Boolean)
+  if (orgIds.length) {
+    const allowed = new Set(orgIds)
+    profileList = profileList.filter((row) => row.institution_id && allowed.has(row.institution_id))
+    accessList = accessList.filter((row) => allowed.has(row.institution_id))
+    ciList = ciList.filter((row) => allowed.has(row.institution_id))
+    const allowedCourseIds = new Set(ciList.map((row) => row.course_id).filter(Boolean))
+    courseList = courseList.filter((row) => allowedCourseIds.has(row.id))
+    enrollmentList = enrollmentList.filter((row) => allowedCourseIds.has(row.course_id))
+    moduleList = moduleList.filter((row) => allowedCourseIds.has(row.course_id))
+    const moduleIds = new Set(moduleList.map((row) => row.id))
+    lessonList = lessonList.filter((row) => moduleIds.has(row.module_id))
+    progressList = progressList.filter((row) => allowedCourseIds.has(row.course_id))
+    inviteList = inviteList.filter((row) => allowedCourseIds.has(row.course_id))
+  }
+
+  const courseId = options?.courseId?.trim() || null
+  if (courseId) {
+    courseList = courseList.filter((row) => row.id === courseId)
+    enrollmentList = enrollmentList.filter((row) => row.course_id === courseId)
+    moduleList = moduleList.filter((row) => row.course_id === courseId)
+    const moduleIds = new Set(moduleList.map((row) => row.id))
+    lessonList = lessonList.filter((row) => moduleIds.has(row.module_id))
+    progressList = progressList.filter((row) => row.course_id === courseId)
+    inviteList = inviteList.filter((row) => row.course_id === courseId)
+    ciList = ciList.filter((row) => row.course_id === courseId)
+  }
 
   const courseIds = new Set(courseList.map((c) => c.id))
   const lessonIds = new Set(lessonList.map((l) => l.id))

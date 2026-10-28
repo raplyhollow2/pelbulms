@@ -24,11 +24,14 @@ export function ReportScopeBar({
   value,
   onChange,
   showEnrollmentStatus = true,
+  audience,
   className,
 }: {
   value: ReportScopeSelection
   onChange: (next: ReportScopeSelection) => void
   showEnrollmentStatus?: boolean
+  /** When set, scope-options uses audience-specific org/course lists (e.g. instructor = learner home orgs). */
+  audience?: string
   className?: string
 }) {
   const [institutions, setInstitutions] = useState<Option[]>([])
@@ -40,11 +43,13 @@ export function ReportScopeBar({
     ;(async () => {
       try {
         setLoading(true)
-        const res = await fetch('/api/reports/scope-options')
+        const qs = audience ? `?audience=${encodeURIComponent(audience)}` : ''
+        const res = await fetch(`/api/reports/scope-options${qs}`)
         const json = await res.json()
         if (!res.ok) throw new Error(json.error || 'Failed to load filters')
         if (cancelled) return
-        setInstitutions(json.institutions || [])
+        const nextInstitutions: Option[] = json.institutions || []
+        setInstitutions(nextInstitutions)
         setCourses(
           (json.courses || []).map((course: { id: string; name: string; institutionIds?: string[] }) => ({
             id: course.id,
@@ -52,6 +57,14 @@ export function ReportScopeBar({
             institutionIds: Array.isArray(course.institutionIds) ? course.institutionIds : [],
           }))
         )
+        // Drop org selection if it is no longer in the audience-specific list.
+        if (
+          value.institutionId &&
+          nextInstitutions.length > 0 &&
+          !nextInstitutions.some((i) => i.id === value.institutionId)
+        ) {
+          onChange({ ...value, institutionId: '', courseId: '' })
+        }
       } catch {
         if (!cancelled) {
           setInstitutions([])
@@ -64,7 +77,9 @@ export function ReportScopeBar({
     return () => {
       cancelled = true
     }
-  }, [])
+    // Re-fetch when audience mode changes (Course Insights vs Approvals).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only audience should re-load options
+  }, [audience])
 
   const filteredCourses = useMemo(() => {
     if (!value.institutionId) return courses

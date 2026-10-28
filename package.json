@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test:unit": "npx --yes tsx --test lib/reports/teach-org-scope.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:enrollment": "playwright test e2e/enrollment-approval.spec.ts"
   },

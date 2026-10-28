@@ -1,6 +1,10 @@
 import { createHash } from 'crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { computeTeachReports, courseIdsForTeacher } from '@/lib/reports/compute-teach'
+import {
+  filterEnrollmentsByLearnerHomeOrg,
+  loadHomeOrgByUser,
+} from '@/lib/reports/teach-org-scope'
 import { computeStudentReports } from '@/lib/reports/compute-student'
 import { computeApprovalsReports } from '@/lib/reports/compute-admin'
 import { REPORT_SECTIONS } from '@/lib/reports/catalog'
@@ -16,7 +20,11 @@ import type {
 } from '@/lib/reports/types'
 import { rangeToDays } from '@/lib/reports/types'
 import { lessonHref } from '@/lib/reports/action-links'
-import { computeLearnerDemographics } from '@/lib/reports/demographics'
+import {
+  buildEnrollmentGenderByCourse,
+  buildEnrollmentGenderByOrganization,
+  computeLearnerDemographics,
+} from '@/lib/reports/demographics'
 
 type Db = SupabaseClient<any>
 
@@ -117,6 +125,17 @@ export async function buildTeachSnapshot(
     enrollmentList = (ens || []) as any[]
     if (opts.enrollmentStatus) {
       enrollmentList = enrollmentList.filter((e) => e.status === opts.enrollmentStatus)
+    }
+    if (opts.institutionId && enrollmentList.length) {
+      const homeOrgByUser = await loadHomeOrgByUser(
+        db,
+        enrollmentList.map((e) => e.user_id).filter(Boolean)
+      )
+      enrollmentList = filterEnrollmentsByLearnerHomeOrg(
+        enrollmentList,
+        homeOrgByUser,
+        opts.institutionId
+      )
     }
     courseList = (courses || []) as any[]
   }
@@ -353,10 +372,66 @@ export async function buildTeachSnapshot(
   }
 
   const learnerIds = [...new Set(enrollmentList.map((e) => e.user_id).filter(Boolean))]
-  const demographics = await computeLearnerDemographics(db, {
-    mode: 'enrolled',
-    userIds: learnerIds,
-  })
+  const homeOrgByUser = await loadHomeOrgByUser(db, learnerIds)
+  const homeOrgIds = [...new Set(homeOrgByUser.values())].filter(
+    (id): id is string => Boolean(id)
+  )
+  const { data: homeInstitutions } = homeOrgIds.length
+    ? await db
+        .from('institutions')
+        .select('id, name, display_name, slug')
+        .in('id', homeOrgIds)
+    : { data: [] as any[] }
+  const genderInstitutions = ((homeInstitutions || []) as any[]).map((i) => ({
+    id: i.id as string,
+    name: (i.display_name || i.name) as string | null,
+    slug: i.slug as string | null,
+  }))
+
+  const [demographics, genderByCourse, genderByOrg] = await Promise.all([
+    computeLearnerDemographics(db, {
+      mode: 'enrolled',
+      userIds: learnerIds,
+    }),
+    buildEnrollmentGenderByCourse(db, {
+      enrollments: enrollmentList,
+      courses: courseList.map((course) => ({ id: course.id, title: course.title })),
+    }),
+    buildEnrollmentGenderByOrganization(db, {
+      enrollments: enrollmentList,
+      institutions: genderInstitutions,
+    }),
+  ])
+
+  // Mirror admin/executive: enrollment gender break-ups + org series on the Gender chart.
+  demographics.section.blocks.push(genderByCourse.block, genderByOrg.block)
+  demographics.tables.push(
+    {
+      key: genderByCourse.block.id,
+      title: genderByCourse.block.title,
+      columns: genderByCourse.block.columns || [],
+      rows: genderByCourse.block.rows || [],
+    },
+    {
+      key: genderByOrg.block.id,
+      title: genderByOrg.block.title,
+      columns: genderByOrg.block.columns || [],
+      rows: genderByOrg.block.rows || [],
+    }
+  )
+  demographics.breakdowns = (demographics.breakdowns || []).map((item) =>
+    item.key === 'learner-gender'
+      ? {
+          ...item,
+          title: 'Gender by organization',
+          description:
+            'Enrollment counts by gender for each learner home organization. Use Organization to focus the chart.',
+          steps: genderByOrg.allSteps,
+          institutionSeries: genderByOrg.institutionSeries,
+        }
+      : item
+  )
+
   sections.push(demographics.section)
 
   const tables = [

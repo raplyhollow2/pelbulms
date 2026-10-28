@@ -61,6 +61,7 @@ export async function GET(request: NextRequest) {
       courseId,
       institutionId,
       enrollmentStatus,
+      audience: prefer || null,
     })
     if (auth.ok === false) {
       return NextResponse.json({ error: auth.error }, { status: auth.status })

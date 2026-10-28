@@ -35,6 +35,9 @@ export type ReportId =
   // Learner demographics
   | 'learner-qualification'
   | 'learner-gender'
+  | 'learner-gender-by-course'
+  | 'learner-gender-by-organization'
+  | 'learner-gender-by-role'
   | 'learner-dzongkhag'
   | 'learner-age'
   | 'learner-class'
@@ -198,6 +201,10 @@ export interface ReportBreakdown {
   title: string
   description?: string
   steps: FunnelStep[]
+  /** Admin/superadmin Gender chart: enrollment-row counts per course. */
+  courseSeries?: { courseId: string; courseTitle: string; steps: FunnelStep[] }[]
+  /** Admin/superadmin Gender chart: enrollment-row counts by learner home institution. */
+  institutionSeries?: { institutionId: string; institutionName: string; steps: FunnelStep[] }[]
 }
 
 export interface InstitutionScoreRow {

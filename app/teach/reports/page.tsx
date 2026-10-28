@@ -189,6 +189,7 @@ export default function TeachReportsPage() {
         value={scope}
         onChange={onScopeChange}
         showEnrollmentStatus={mode === 'courses'}
+        audience={mode === 'approvals' ? 'resource_person' : 'instructor'}
       />
       {role === 'superadmin' && mode === 'courses' ? (
         <div className="flex flex-wrap items-center gap-2">
